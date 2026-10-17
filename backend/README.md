@@ -1,5 +1,7 @@
 # Knowledge Atlas Backend
 
+[简体中文](README.zh-CN.md)
+
 FastAPI service for the first Knowledge Atlas persistence and Markdown-ingestion slice.
 
 ## Implemented behavior

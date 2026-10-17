@@ -1,5 +1,7 @@
 # ADR 0003 Persist Markdown chunks and run parsing explicitly
 
+[简体中文](0003-markdown-parsing-execution.zh-CN.md)
+
 - Status: Accepted
 - Date: 2026-10-17
 

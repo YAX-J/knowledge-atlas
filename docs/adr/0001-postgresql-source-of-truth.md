@@ -1,5 +1,7 @@
 # ADR 0001 PostgreSQL as the source of truth
 
+[简体中文](0001-postgresql-source-of-truth.zh-CN.md)
+
 - Status: Accepted
 - Date: 2026-10-17
 

@@ -1,5 +1,7 @@
 # Security Policy
 
+[简体中文](SECURITY.zh-CN.md)
+
 Knowledge Atlas is currently a pre-release graduation project and is not intended for production deployment.
 
 ## Reporting a security issue

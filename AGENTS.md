@@ -1,5 +1,7 @@
 # Knowledge Atlas Repository Instructions
 
+[简体中文](AGENTS.zh-CN.md)
+
 ## Project purpose
 
 Knowledge Atlas is a graduation project for a single developer. It organizes technical notes, code, project documents, and Git records into a temporal personal knowledge graph and uses evidence-grounded retrieval to answer questions.
@@ -94,6 +96,7 @@ For every change:
 - Record material architecture decisions under `docs/adr/`.
 - Keep `CHANGELOG.md` under the `Unreleased` section until a release is explicitly created.
 - Clearly label planned behavior. Documentation must not imply that Mock behavior is production behavior.
+- When a document has a `.zh-CN.md` companion, update both language versions in the same change and keep language links valid. Preserve command syntax, identifiers, and current/planned status across translations.
 
 ## Scope and safety
 

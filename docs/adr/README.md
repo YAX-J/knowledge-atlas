@@ -1,5 +1,7 @@
 # Architecture Decision Records
 
+[简体中文](README.zh-CN.md)
+
 Architecture Decision Records capture durable choices that affect multiple components, data semantics, security, deployment, or future implementation work.
 
 ## When to add an ADR
@@ -23,7 +25,7 @@ Use a four-digit sequence and a short lowercase slug:
 0002-native-svg-for-prototype-graph.md
 ```
 
-Do not reuse a number. Superseded records remain in the repository.
+Do not reuse a number. Superseded records remain in the repository. Chinese companions use the same sequence and a `.zh-CN.md` suffix; they do not allocate another number.
 
 ## Status values
 
@@ -58,3 +60,10 @@ Which credible alternatives were evaluated and why were they not selected?
 ```
 
 Update related architecture, API, knowledge-model, and setup documents when an ADR changes their assumptions.
+
+## Existing decisions
+
+- [ADR 0001: PostgreSQL as the source of truth](0001-postgresql-source-of-truth.md)
+- [ADR 0002: Native SVG for the prototype graph](0002-native-svg-for-prototype-graph.md)
+- [ADR 0003: Persist Markdown chunks and run parsing explicitly](0003-markdown-parsing-execution.md)
+- [ADR 0004: Database-backed parsing worker with execution leases](0004-database-backed-parsing-worker.md)

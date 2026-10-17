@@ -1,0 +1,179 @@
+# Knowledge Atlas 开发环境配置
+
+[English](DEVELOPMENT_SETUP.md)
+
+本文说明当前仓库的环境配置，并为后续后端开发保留约定。除非另有说明，命令从仓库根目录执行。
+
+## 环境要求
+
+当前需要：
+
+- Git。
+- Node.js 20 或更高版本。
+- npm 10 或更高版本。
+- Python 3.12 或更高版本。
+- Docker Desktop 或兼容的 Docker Engine。
+- Docker Compose v2。
+
+PostgreSQL/pgvector 和 Neo4j 需要 Docker；隔离的后端测试使用 SQLite，不需要 Docker。
+
+## 克隆与检查
+
+```bash
+git clone https://github.com/YAX-J/knowledge-atlas.git
+cd knowledge-atlas
+git status
+```
+
+开始实施前阅读 `README.md`、[代理规范](../AGENTS.zh-CN.md) 和 [实施计划](../PLANS.zh-CN.md)。
+
+## 前端环境
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+开发服务器默认使用 `http://localhost:5173`。
+
+可用命令：
+
+| 命令 | 用途 |
+| --- | --- |
+| `npm run dev` | 启动 Vite 开发服务器 |
+| `npm run build` | 执行 Vue TypeScript 检查并构建生产资源 |
+| `npm run preview` | 预览最近一次生产构建 |
+
+默认的图谱和问答演示使用本地 Mock 数据，不需要数据库或模型凭据。项目/资料导航使用真实 API。需要修改 `VITE_API_BASE_URL` 时，将 `frontend/.env.example` 复制为 `frontend/.env`；设置 `VITE_DATA_SOURCE=api` 可默认打开资料工作台。修改环境变量后重启 Vite。这不会将图谱或问答切换为真实数据。
+
+## 后端环境
+
+从仓库根目录执行：
+
+```bash
+cd backend
+python -m venv .venv
+```
+
+按当前终端类型激活虚拟环境，再安装项目和开发依赖：
+
+```bash
+python -m pip install -e ".[dev]"
+```
+
+根据 `backend/.env.example` 创建本地环境文件。Windows PowerShell 命令为：
+
+```powershell
+Copy-Item .env.example .env
+```
+
+从仓库根目录启动数据库，再应用迁移并启动 API：
+
+```bash
+docker compose up -d postgres neo4j
+cd backend
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+常用接口：
+
+| 接口 | 用途 |
+| --- | --- |
+| `http://localhost:8000/docs` | OpenAPI 交互界面 |
+| `GET /api/v1/health/live` | 进程存活检查 |
+| `GET /api/v1/health/ready` | PostgreSQL 与 Neo4j 依赖健康检查 |
+
+在 OpenAPI 界面验证导入时，依次创建项目、上传 Markdown、调用 `POST /api/v1/tasks/{task_id}/run`，并查询 `GET /api/v1/sources/{source_id}/chunks`。也可以在另一个已激活环境的终端中，从 `backend/` 运行 `python -m app.worker`，自动消费上传任务。先应用包含执行租约字段的最新迁移。`python -m app.worker --once` 最多处理一个符合条件的任务后退出。配置、恢复规则、退出码和解析限制见 [后端说明](../backend/README.zh-CN.md)。
+
+从仓库根目录运行 `docker compose up -d --build` 可启动完整容器环境。Worker 等待 API 应用迁移并通过存活检查后启动。真实 PostgreSQL/Neo4j 联通和竞争行为必须在 Docker 中检查，SQLite 测试不能验证这些行为。
+
+## 前端验证
+
+```bash
+cd frontend
+npm run build
+```
+
+可见界面发生修改时，手动检查：
+
+- 搜索与节点选择。
+- 证据展开与关系导航。
+- 知识类型筛选。
+- 时间回放与详情面板同步。
+- 追问状态。
+- 桌面和手机布局。
+- 键盘焦点和面板滚动。
+
+## 后端验证
+
+```bash
+cd backend
+python -m pytest
+```
+
+测试将正式数据库依赖替换为隔离 SQLite 数据库，验证 API 行为与模型集成，但不替代 PostgreSQL/Neo4j 联通检查。
+
+## 本地服务
+
+后端基础阶段采用以下默认配置：
+
+| 服务 | 默认端口 | 用途 |
+| --- | --- | --- |
+| 前端 | `5173` | Vite 开发服务器 |
+| FastAPI | `8000` | REST 与流式 API |
+| PostgreSQL | `5432` | 业务数据和 pgvector |
+| Neo4j HTTP | `7474` | Neo4j 浏览器与 HTTP |
+| Neo4j Bolt | `7687` | 应用图数据库连接 |
+
+根目录的 `compose.yaml` 提供这些服务。后端连接配置仍可通过环境变量覆盖。
+
+## 环境文件
+
+- 只提交包含变量名和安全开发默认值的 `.env.example` 文件。
+- 不得提交 `.env`、令牌、密码、私有地址或生产标识。
+- 浏览器可见变量使用 `VITE_` 前缀，并假定用户能够读取其内容。
+- 模型服务密钥和 GitHub Token 只保留在后端。
+
+## 换行与格式
+
+- 仓库文本文件使用 UTF-8 编码和 LF 换行。
+- JavaScript、TypeScript、JSON、YAML、CSS 和 Markdown 在需要缩进处使用两个空格。
+- Python 代码约定使用四个空格缩进。
+- 编辑器应遵循根目录的 `.editorconfig` 和 `.gitattributes`。
+
+## 常见问题
+
+### 依赖安装失败
+
+确认 Node 和 npm 版本，然后只删除本地 `frontend/node_modules` 目录并重新安装。不要删除无关仓库文件。
+
+### 5173 端口被占用
+
+使用其他端口运行 Vite：
+
+```bash
+npm run dev -- --port 5174
+```
+
+### 页面没有真实项目数据
+
+图谱仍读取 `frontend/src/mock/data.ts`。查看真实项目/资料时，打开“我的项目”或“资料来源”、启动后端，并确认 `VITE_API_BASE_URL` 和后端 `CORS_ORIGINS` 与本地地址一致。资料工作台会显示连接错误并提供重试入口。
+
+### 构建产物出现在 Git 状态中
+
+`frontend/dist`、`node_modules`、Vite 缓存和 TypeScript 构建信息应被忽略。添加文件之前检查根目录 `.gitignore`。
+
+### 就绪检查返回 503
+
+PostgreSQL 或 Neo4j 不可用时，`/api/v1/health/ready` 返回 `degraded`。检查 `docker compose ps`，确认 `backend/.env` 的配置，并应用最新迁移。
+
+## 完成任务前
+
+```bash
+git diff --check
+git status --short
+```
+
+运行相关构建或测试，并报告实际完成的命令。

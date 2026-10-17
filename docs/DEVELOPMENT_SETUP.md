@@ -1,5 +1,7 @@
 # Knowledge Atlas Development Setup
 
+[简体中文](DEVELOPMENT_SETUP.zh-CN.md)
+
 This guide describes the repository setup that exists today and reserves conventions for the planned backend. Commands are written to work from the repository root unless noted otherwise.
 
 ## Prerequisites

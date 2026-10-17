@@ -1,5 +1,7 @@
 # Knowledge Atlas Implementation Plan
 
+[简体中文](PLANS.zh-CN.md)
+
 This file identifies the active implementation phase and points to the detailed roadmap. It does not replace `docs/ROADMAP.md`.
 
 ## Current state

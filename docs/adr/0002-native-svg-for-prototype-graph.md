@@ -1,5 +1,7 @@
 # ADR 0002 Native SVG for the prototype graph
 
+[简体中文](0002-native-svg-for-prototype-graph.zh-CN.md)
+
 - Status: Accepted
 - Date: 2026-10-17
 

@@ -1,5 +1,7 @@
 # Contributing to Knowledge Atlas
 
+[简体中文](CONTRIBUTING.zh-CN.md)
+
 Knowledge Atlas is currently a graduation project, but changes should remain reviewable and reproducible.
 
 ## Before starting

@@ -181,19 +181,21 @@ knowledge-atlas/
 
 ## 文档索引
 
+以下默认指向中文版；已有英文文档使用 `.zh-CN.md` 文件并列提供中文版本，页面顶部可以切换语言。
+
 - [系统架构](docs/ARCHITECTURE.md)
-- [本地开发与环境初始化](docs/DEVELOPMENT_SETUP.md)
-- [后端开发说明](backend/README.md)
+- [本地开发与环境初始化](docs/DEVELOPMENT_SETUP.zh-CN.md) · [English](docs/DEVELOPMENT_SETUP.md)
+- [后端开发说明](backend/README.zh-CN.md) · [English](backend/README.md)
 - [前端开发说明](docs/FRONTEND.md)
 - [开发者知识模型](docs/KNOWLEDGE_MODEL.md)
 - [前后端接口草案](docs/API_CONTRACT.md)
 - [开发路线与验收标准](docs/ROADMAP.md)
-- [当前实施计划](PLANS.md)
-- [贡献与协作规范](CONTRIBUTING.md)
-- [版本变化记录](CHANGELOG.md)
-- [安全说明](SECURITY.md)
-- [技术决策记录](docs/adr/README.md)
-- [AI 编码代理说明](AGENTS.md)
+- [当前实施计划](PLANS.zh-CN.md) · [English](PLANS.md)
+- [贡献与协作规范](CONTRIBUTING.zh-CN.md) · [English](CONTRIBUTING.md)
+- [版本变化记录](CHANGELOG.zh-CN.md) · [English](CHANGELOG.md)
+- [安全说明](SECURITY.zh-CN.md) · [English](SECURITY.md)
+- [技术决策记录](docs/adr/README.zh-CN.md) · [English](docs/adr/README.md)
+- [AI 编码代理说明](AGENTS.zh-CN.md) · [English](AGENTS.md)
 
 ## 最小闭环
 

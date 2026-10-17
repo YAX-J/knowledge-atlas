@@ -1,5 +1,7 @@
 # ADR 0004 Database-backed parsing worker with execution leases
 
+[简体中文](0004-database-backed-parsing-worker.zh-CN.md)
+
 - Status: Accepted
 - Date: 2026-10-17
 
