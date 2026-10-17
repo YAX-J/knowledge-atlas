@@ -1,0 +1,144 @@
+# Knowledge Atlas 开发者知识模型
+
+知识模型用于约束大模型抽取结果、数据库结构和图谱查询。第一版应保持类型数量有限，只有真实查询需要时才增加新类型。
+
+## 建模原则
+
+- 实体表示可独立识别和复用的对象，不能把整段原文直接当作实体。
+- 关系表达实体之间可查询的语义，时间和置信度通常作为属性保存。
+- 所有 AI 生成知识都必须关联原始证据。
+- 同一个事实可以有多个证据，证据之间保留来源和时间差异。
+- 新结论不覆盖旧结论，通过状态和 `SUPERSEDES` 关系保留历史。
+
+## 核心实体
+
+| 类别 | 实体 | 说明 | 第一版 |
+| --- | --- | --- | --- |
+| 项目 | `Project` | 个人开发项目或学习主题 | 必须 |
+| 项目 | `Repository` | Git 仓库 | GitHub 阶段 |
+| 代码 | `Module` | 模块或包 | 代码阶段 |
+| 代码 | `CodeFile` | 代码文件 | 必须 |
+| 代码 | `CodeEntity` | 类、接口、函数、方法等 | 必须 |
+| 技术 | `Technology` | 框架、语言、中间件和工具 | 必须 |
+| 技术 | `Concept` | 架构概念、原则和模式 | 必须 |
+| 资料 | `Note` | 笔记或结构化知识条目 | 可选 |
+| 问题 | `Problem` | 故障、需求或待解决问题 | 必须 |
+| 问题 | `Incident` | 有明确时间和影响的故障事件 | 后续 |
+| 方案 | `Solution` | 问题的解决方法 | 必须 |
+| 决策 | `Decision` | 已经做出的技术选择 | 必须 |
+| 决策 | `Alternative` | 被比较或放弃的候选方案 | 必须 |
+| 决策 | `Constraint` | 影响选择的业务或技术约束 | 必须 |
+| 证据 | `Evidence` | 原文片段、代码位置或 Git 记录 | 必须 |
+| Git | `Commit` | 代码提交 | GitHub 阶段 |
+| Git | `Issue` | 问题记录 | GitHub 阶段 |
+| Git | `PullRequest` | 变更评审记录 | GitHub 阶段 |
+
+第一版 Markdown 闭环只需要 `Project`、`CodeFile`、`CodeEntity`、`Technology`、`Concept`、`Problem`、`Solution`、`Decision`、`Alternative`、`Constraint` 和 `Evidence`。
+
+## 核心关系
+
+| 类别 | 关系 | 示例 |
+| --- | --- | --- |
+| 归属 | `BELONGS_TO` | `CodeFile BELONGS_TO Project` |
+| 结构 | `CONTAINS` | `Module CONTAINS CodeEntity` |
+| 依赖 | `DEPENDS_ON` | `Project DEPENDS_ON Technology` |
+| 调用 | `CALLS` | `CodeEntity CALLS CodeEntity` |
+| 使用 | `USES` | `Project USES Technology` |
+| 问题 | `SOLVES` | `Solution SOLVES Problem` |
+| 原因 | `CAUSED_BY` | `Problem CAUSED_BY CodeEntity` |
+| 影响 | `AFFECTS` | `Problem AFFECTS Module` |
+| 决策 | `DECIDED_IN` | `Solution DECIDED_IN Decision` |
+| 比较 | `CHOSEN_OVER` | `Decision CHOSEN_OVER Alternative` |
+| 约束 | `CONSTRAINED_BY` | `Decision CONSTRAINED_BY Constraint` |
+| 实现 | `IMPLEMENTED_BY` | `Decision IMPLEMENTED_BY CodeEntity` |
+| 证据 | `EVIDENCED_BY` | `Decision EVIDENCED_BY Evidence` |
+| 来源 | `EXTRACTED_FROM` | `Concept EXTRACTED_FROM Evidence` |
+| 经验 | `LEARNED_FROM` | `Solution LEARNED_FROM Incident` |
+| 演化 | `SUPERSEDES` | `Decision SUPERSEDES Decision` |
+
+`valid_from` 和 `valid_to` 是节点或关系属性，不作为普通关系类型。只有新旧知识之间的替代语义使用 `SUPERSEDES`。
+
+## 通用字段
+
+实体和关系至少保存以下字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | UUID | 跨数据库稳定业务标识 |
+| `user_id` | UUID | 数据所属用户 |
+| `project_id` | UUID | 数据所属项目 |
+| `name` | string | 规范化名称 |
+| `summary` | string | 简短描述 |
+| `confidence` | number | 抽取或判断置信度，范围 0 到 1 |
+| `review_status` | enum | `pending`、`confirmed`、`rejected` |
+| `status` | enum | `active`、`superseded`、`conflicted`、`archived` |
+| `valid_from` | datetime | 知识开始适用的时间 |
+| `valid_to` | datetime 或 null | 知识结束适用的时间 |
+| `created_at` | datetime | 系统首次记录时间 |
+| `updated_at` | datetime | 系统最后修改时间 |
+
+关系还应保存 `source_id`、`target_id`、关系类型和证据列表。
+
+## 证据模型
+
+证据不是简单 URL，而是能够稳定回到原文位置的记录。
+
+```json
+{
+  "id": "evidence-uuid",
+  "source_id": "source-uuid",
+  "source_type": "markdown",
+  "title": "支付重构复盘.md",
+  "uri": "project://docs/支付重构复盘.md",
+  "locator": {
+    "heading": "消息一致性",
+    "start_line": 42,
+    "end_line": 48
+  },
+  "excerpt": "订单状态变化必须与领域事件记录处于同一事务边界。",
+  "content_hash": "sha256:...",
+  "captured_at": "2026-10-17T14:00:00+08:00"
+}
+```
+
+不同数据源可以使用不同定位字段，但 API 应统一返回 `title`、`uri`、`locator` 和 `excerpt`。
+
+## 时序模型
+
+```mermaid
+graph LR
+    D2[新决策<br/>status active] -->|SUPERSEDES| D1[旧决策<br/>status superseded]
+    D1 --> E1[旧证据]
+    D2 --> E2[新证据]
+```
+
+统一规定关系方向：`新知识 -[:SUPERSEDES]-> 旧知识`。查询当前结论时选择 `status = active`；查询演化历史时沿 `SUPERSEDES` 向旧知识遍历。
+
+最小更新流程：
+
+1. 系统发现同一主题下的新候选结论。
+2. 比较新旧内容、项目范围和适用时间。
+3. 模型给出“补充、冲突或替代”的候选判断。
+4. 用户确认判断。
+5. 新节点设为 `active`，旧节点设为 `superseded` 并填写 `valid_to`。
+6. 建立 `新节点 -[:SUPERSEDES]-> 旧节点`，保留双方证据。
+
+## 实体消歧
+
+第一版使用分层策略，不直接依赖一次模型判断：
+
+1. 同项目、同类型、规范化名称完全一致时直接生成合并候选。
+2. 别名表命中时生成高置信度候选。
+3. 名称不同但向量相似时，结合上下文和所属项目判断。
+4. 代码实体同时比较命名空间、文件路径和符号类型。
+5. 影响范围较大或置信度低于阈值时进入人工确认。
+
+实体合并必须保留原始名称、来源和操作记录，支持撤销错误合并。
+
+## 第一版约束
+
+- 单次抽取不得创造 Schema 之外的新实体类型和关系类型。
+- 没有证据的候选知识不能自动变为已确认状态。
+- 关系两端必须引用同一用户空间中的有效实体。
+- `confidence` 只表达抽取可信度，不能替代证据质量评价。
+- 删除实体前必须处理关联关系，默认使用软删除。
