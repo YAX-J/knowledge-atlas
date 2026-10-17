@@ -11,26 +11,31 @@ Completed:
 - Desktop and mobile knowledge-graph workflows verified.
 - Architecture, knowledge model, API draft, and development roadmap documented.
 - Repository collaboration and decision-recording files initialized.
+- FastAPI application, health endpoints, error envelope, and request IDs implemented.
+- Project, Markdown source, and queued-task APIs implemented.
+- PostgreSQL-oriented models, initial Alembic migration, and local service composition added.
+- Backend interface tests implemented with an isolated SQLite database.
+- Typed frontend API client foundation added while Mock remains the default.
 
 ## Active phase
 
-The next implementation phase is backend foundation and the first Markdown ingestion vertical slice.
+The active phase remains the first Markdown ingestion vertical slice. The API and persistence foundation is complete in code; container connectivity, frontend integration, and document parsing remain.
 
 Expected outcomes:
 
-- FastAPI application skeleton and health endpoint.
-- PostgreSQL, pgvector, and Neo4j local development services.
-- Environment configuration and database migrations.
-- Project, source, task, and candidate-knowledge persistence models.
-- Frontend API client foundation without removing the Mock fallback.
+- Validate PostgreSQL, pgvector, and Neo4j services on a machine with Docker.
+- Integrate the API client with project/source loading states while retaining Mock mode.
+- Parse Markdown headings, paragraphs, and lists into source chunks with stable locators.
+- Add duplicate-content handling and idempotent task execution.
 
 Acceptance criteria:
 
 - Frontend and backend start independently from documented commands.
 - Backend dependency health is observable.
-- One project can be created and queried through the API.
-- One Markdown file can be uploaded and represented as a queued processing task.
-- No model integration or graph extraction is required until the foundation is stable.
+- The frontend can create and query one project through the API.
+- A queued Markdown task can progress through parsing and expose its chunks.
+- Re-importing unchanged content has deterministic behavior.
+- No model integration or graph extraction is required until parsing is stable.
 
 ## Later phases
 

@@ -4,19 +4,16 @@ This guide describes the repository setup that exists today and reserves convent
 
 ## Prerequisites
 
-Current frontend requirements:
+Current requirements:
 
 - Git
 - Node.js 20 or later
 - npm 10 or later
-
-Planned backend requirements:
-
 - Python 3.12 or later
 - Docker Desktop or a compatible Docker Engine
 - Docker Compose v2
 
-Python and Docker are not required until backend scaffolding is added.
+Docker is required for PostgreSQL/pgvector and Neo4j, but the isolated backend tests run against SQLite without Docker.
 
 ## Clone and inspect
 
@@ -48,6 +45,44 @@ Available commands:
 
 The current application uses local Mock data and requires no database or model credentials.
 
+## Backend setup
+
+From the repository root:
+
+```bash
+cd backend
+python -m venv .venv
+```
+
+Activate the virtual environment for the current shell, then install the package and development dependencies:
+
+```bash
+python -m pip install -e ".[dev]"
+```
+
+Create a local environment file from `backend/.env.example`. On Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Start the databases from the repository root, apply migrations, and launch the API:
+
+```bash
+docker compose up -d postgres neo4j
+cd backend
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+Useful endpoints:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `http://localhost:8000/docs` | OpenAPI interface |
+| `GET /api/v1/health/live` | Process liveness |
+| `GET /api/v1/health/ready` | PostgreSQL and Neo4j dependency health |
+
 ## Frontend verification
 
 ```bash
@@ -65,7 +100,16 @@ For visible changes, manually verify:
 - Desktop and mobile layouts.
 - Keyboard focus and panel scrolling.
 
-## Planned local services
+## Backend verification
+
+```bash
+cd backend
+python -m pytest
+```
+
+The tests override the production database dependency with an isolated SQLite database. They verify the API behavior and model integration, but do not replace a PostgreSQL/Neo4j connectivity check.
+
+## Local services
 
 The backend foundation phase will reserve these defaults:
 
@@ -77,7 +121,7 @@ The backend foundation phase will reserve these defaults:
 | Neo4j HTTP | `7474` | Neo4j browser and HTTP |
 | Neo4j Bolt | `7687` | Application graph connection |
 
-When Docker configuration is added, ports and credentials must be overridable through environment variables.
+The root `compose.yaml` provides these services. Backend connection values remain overridable through environment variables.
 
 ## Environment files
 
@@ -114,6 +158,10 @@ This is expected in the current phase. The application reads `frontend/src/mock/
 ### Build output appears in Git status
 
 `frontend/dist`, `node_modules`, Vite caches, and TypeScript build information should be ignored. Check the root `.gitignore` before adding files.
+
+### Readiness returns 503
+
+`/api/v1/health/ready` reports `degraded` while PostgreSQL or Neo4j is unavailable. Check `docker compose ps`, confirm the values in `backend/.env`, and apply the latest migration.
 
 ## Before finishing a task
 

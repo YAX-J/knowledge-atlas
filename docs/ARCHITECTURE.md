@@ -1,6 +1,6 @@
 # Knowledge Atlas 系统架构
 
-本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库只实现了 Mock 前端，除前端外的组件均为下一阶段设计。
+本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Mock 前端、FastAPI 基础接口、PostgreSQL 数据模型与迁移以及本地容器配置；解析、抽取、Neo4j 投影、检索和 Agent 仍属于后续阶段。
 
 ## 架构目标
 
@@ -92,6 +92,8 @@ flowchart TB
 - 统一调用 PostgreSQL、Neo4j 和检索服务。
 - 校验模型输出，不允许模型直接写入数据库。
 - 将证据位置转换为前端可消费的统一格式。
+
+当前已实现项目、Markdown 来源和处理任务接口。上传事务会同时保存原文及其 SHA-256，并创建 `queued` 任务；尚未启动独立 Worker 消费任务。
 
 ### Worker
 

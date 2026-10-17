@@ -4,7 +4,7 @@
 
 Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成带有来源、时间和上下文的知识网络，帮助开发者重新找到历史方案、理解技术决策，并基于真实证据回答问题。
 
-> 当前进度：可交互 Mock 前端已经完成；后端、数据库、知识抽取和真实检索尚未接入。
+> 当前进度：可交互 Mock 前端和 FastAPI 基础接口已经完成；知识解析、抽取、图谱投影和真实检索尚未接入。
 
 ![Knowledge Atlas 知识图谱工作台](docs/images/knowledge-atlas-overview.png)
 
@@ -20,7 +20,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 
 | 能力 | 说明 | 当前状态 |
 | --- | --- | --- |
-| 资料导入 | 导入 Markdown、文本、代码及 GitHub 数据 | 规划中 |
+| 资料导入 | 导入 Markdown、文本、代码及 GitHub 数据 | Markdown 上传接口已完成 |
 | 知识抽取 | 提取项目、技术、问题、方案、决策和证据 | 规划中 |
 | 实体消歧 | 合并别名和重复实体，保留人工确认流程 | 规划中 |
 | 知识图谱 | 浏览节点、关系、项目归属和来源证据 | Mock 已完成 |
@@ -43,7 +43,21 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - 基于当前节点生成模拟证据回答。
 - 桌面端与移动端响应式布局。
 
+## 当前后端
+
+后端位于 `backend`，已经实现第一阶段的可测试基础能力：
+
+- FastAPI 应用、CORS、请求 ID 和统一错误结构。
+- 项目创建、分页查询和详情接口。
+- UTF-8 Markdown 上传、大小与类型校验、内容哈希和原文保存。
+- 上传后创建 `queued` 处理任务，并提供资料与任务查询接口。
+- 项目、资料、任务和候选知识的 SQLAlchemy 模型与 Alembic 初始迁移。
+- PostgreSQL/pgvector、Neo4j 和 API 的 Docker Compose 配置。
+- 使用 SQLite 隔离数据库的后端接口测试。
+
 ## 快速开始
+
+### 前端
 
 环境要求：Node.js 20 或更高版本，npm 10 或更高版本。
 
@@ -67,6 +81,31 @@ npm run build
 ```bash
 npm run preview
 ```
+
+### 后端
+
+环境要求：Python 3.12 或更高版本。复制环境文件后安装依赖：
+
+```bash
+cd backend
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -e ".[dev]"
+```
+
+然后将 `backend/.env.example` 复制为 `backend/.env`。
+
+启动本地数据库并运行迁移：
+
+```bash
+docker compose up -d postgres neo4j
+cd backend
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+接口文档地址为 `http://localhost:8000/docs`，存活检查地址为 `http://localhost:8000/api/v1/health/live`。
 
 ## 目标技术架构
 
@@ -102,7 +141,13 @@ flowchart LR
 ```text
 knowledge-atlas/
 ├─ .github/                 # Issue 与 Pull Request 模板
+├─ backend/                 # FastAPI、数据模型、迁移与接口测试
+│  ├─ app/                  # API、服务、配置和 SQLAlchemy 模型
+│  ├─ migrations/           # Alembic 数据库迁移
+│  ├─ README.md             # 后端运行与验证说明
+│  └─ tests/                # SQLite 隔离接口测试
 ├─ frontend/                 # 当前已实现的 Vue Mock 前端
+│  ├─ src/api/              # 后端接口客户端与类型
 │  ├─ src/components/       # 搜索、图谱、侧栏和时间轴组件
 │  ├─ src/mock/             # 本地演示数据
 │  └─ src/types.ts          # 前端领域类型
@@ -119,15 +164,17 @@ knowledge-atlas/
 ├─ CONTRIBUTING.md          # 分支、提交和评审规范
 ├─ CHANGELOG.md             # 版本变化记录
 ├─ SECURITY.md              # 敏感数据与漏洞报告约定
+├─ compose.yaml             # PostgreSQL、Neo4j 和 API 本地环境
 └─ README.md
 ```
 
-后续工程计划增加 `backend`、`worker`、`prompts`、`docker` 和 `tests` 目录。
+后续工程计划增加独立的 `worker`、`prompts` 和实验测试数据目录。
 
 ## 文档索引
 
 - [系统架构](docs/ARCHITECTURE.md)
 - [本地开发与环境初始化](docs/DEVELOPMENT_SETUP.md)
+- [后端开发说明](backend/README.md)
 - [前端开发说明](docs/FRONTEND.md)
 - [开发者知识模型](docs/KNOWLEDGE_MODEL.md)
 - [前后端接口草案](docs/API_CONTRACT.md)
@@ -164,4 +211,4 @@ knowledge-atlas/
 
 ## 项目状态说明
 
-本仓库目前处于前端原型阶段。README 中标记为“规划中”或“后续阶段”的能力属于目标设计，不代表已经完成。Mock 数据仅用于界面开发和答辩演示，后续将由真实 API 返回的数据替换。
+本仓库目前处于后端基础和 Markdown 导入闭环阶段。README 中标记为“规划中”或“后续阶段”的能力属于目标设计，不代表已经完成。前端仍使用 Mock 数据；后端当前只保存原文并创建排队任务，尚未执行解析、知识抽取或图谱写入。

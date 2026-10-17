@@ -33,6 +33,7 @@ npm run preview
 ```text
 frontend/
 ├─ src/
+│  ├─ api/                    # 类型化 HTTP 客户端与基础接口
 │  ├─ components/
 │  │  ├─ AppHeader.vue        # 品牌区、全局搜索和同步状态
 │  │  ├─ SideRail.vue         # 左侧主导航和筛选入口
@@ -104,12 +105,14 @@ interface KnowledgeNode {
 
 ## 接入真实 API
 
-推荐按以下顺序替换 Mock：
+`src/api/` 已经提供项目创建、项目查询、Markdown 上传和任务查询客户端。通过 `VITE_API_BASE_URL` 配置后端地址；`VITE_DATA_SOURCE` 当前默认保持为 `mock`。
 
-1. 创建 `src/api/http.ts`，统一处理基础地址、超时和错误。
-2. 创建 `src/api/projects.ts`、`knowledge.ts`、`questions.ts`。
-3. 将 `mock/data.ts` 保留为开发演示和前端测试夹具。
-4. 在页面增加加载、空数据、失败和重试状态。
+后续按以下顺序替换 Mock：
+
+1. 增加 Mock/API 数据源适配层，不让页面组件直接处理两种字段结构。
+2. 将 `mock/data.ts` 保留为开发演示和前端测试夹具。
+3. 在页面增加项目、上传任务的加载、空数据、失败和重试状态。
+4. 后端图谱接口完成后，再创建知识和问答客户端。
 5. 图谱数据量增大后，增加分页、按中心节点展开和最大可见节点数。
 6. 问答接口使用流式响应时，只展示公开处理阶段，不展示模型内部推理。
 

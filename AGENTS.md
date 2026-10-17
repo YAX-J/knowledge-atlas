@@ -4,7 +4,7 @@
 
 Knowledge Atlas is a graduation project for a single developer. It organizes technical notes, code, project documents, and Git records into a temporal personal knowledge graph and uses evidence-grounded retrieval to answer questions.
 
-The repository is currently in the interactive Mock frontend stage. Do not describe planned backend, database, extraction, retrieval, or Agent capabilities as implemented.
+The repository currently contains an interactive Mock frontend and the first FastAPI persistence/API slice. Do not describe parsing, extraction, graph projection, retrieval, or Agent capabilities as implemented.
 
 ## Read before changing code
 
@@ -23,9 +23,11 @@ Do not treat the Word documents outside this repository as more current than the
 ## Repository structure
 
 - `frontend/`: Vue 3, TypeScript, Vite, Element Plus, and Mock data.
+- `backend/`: FastAPI, SQLAlchemy models, Alembic migrations, and API tests.
 - `docs/`: architecture, frontend, knowledge model, API, roadmap, setup, and ADR documentation.
 - `.github/`: issue and pull request templates.
-- Planned but not yet created: `backend/`, `worker/`, `prompts/`, `docker/`, and `tests/`.
+- `compose.yaml`: local PostgreSQL/pgvector, Neo4j, and API services.
+- Planned but not yet created: a separate `worker/`, prompt assets, and experiment datasets.
 
 ## Non-negotiable domain rules
 
@@ -49,9 +51,7 @@ Do not treat the Word documents outside this repository as more current than the
 - Maintain keyboard access, visible focus, reduced-motion support, and responsive behavior.
 - Do not require the backend to return canvas coordinates. Layout is a frontend or view-preference concern.
 
-## Planned backend conventions
-
-Apply these only after backend code exists:
+## Backend conventions
 
 - Use FastAPI with typed request and response models.
 - Keep API, domain, persistence, and external model integrations separated.
@@ -59,6 +59,8 @@ Apply these only after backend code exists:
 - Make ingestion and graph-projection operations idempotent.
 - Store secrets only in environment variables or a secret manager. Commit only `.env.example` files.
 - Database migrations must be additive and reversible when practical.
+- Keep request handlers thin; persistence and validation workflows belong in `backend/app/services/`.
+- Preserve the temporary development user boundary until authentication replaces it deliberately.
 
 ## Verification
 
@@ -66,6 +68,12 @@ For frontend changes, run from `frontend/`:
 
 ```bash
 npm run build
+```
+
+For backend changes, run from `backend/`:
+
+```bash
+python -m pytest
 ```
 
 For visible UI changes, also verify the affected flow in a real browser at desktop and mobile widths. Check keyboard focus, empty states, clipping, and panel scrolling.

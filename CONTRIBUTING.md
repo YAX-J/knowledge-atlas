@@ -23,6 +23,18 @@ Before submitting a frontend change:
 npm run build
 ```
 
+## Local backend setup
+
+```bash
+cd backend
+python -m venv .venv
+# Activate .venv for your shell.
+python -m pip install -e ".[dev]"
+python -m pytest
+```
+
+Use Alembic for schema changes. Do not call `Base.metadata.create_all()` from application startup; it is reserved for isolated tests.
+
 ## Branch and commit conventions
 
 Suggested branch names:
@@ -60,6 +72,7 @@ For visible UI work, include a current screenshot or short recording when practi
 - Keep Mock data separate from UI components.
 - Preserve evidence and temporal semantics defined in the knowledge model.
 - Add or update tests when a test harness exists.
+- Keep API handlers thin and put persistence workflows in application services.
 - Do not include credentials, private source code, or personal data.
 
 ## Documentation expectations

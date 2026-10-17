@@ -1,6 +1,19 @@
 # Knowledge Atlas 前后端接口草案
 
-本文定义第一版前后端协作所需的最小接口。接口尚未实现，字段可以在后端建模阶段调整，但应保持错误结构和分页结构一致。
+本文定义第一版前后端协作所需的最小接口。项目、Markdown 来源、任务和健康检查接口已经实现；其余接口仍是设计草案。字段调整时应保持错误结构和分页结构一致。
+
+## 实现状态
+
+| 接口 | 状态 |
+| --- | --- |
+| `GET /api/v1/health/live` | 已实现 |
+| `GET /api/v1/health/ready` | 已实现 |
+| `GET/POST /api/v1/projects` | 已实现 |
+| `GET /api/v1/projects/{project_id}` | 已实现 |
+| `POST /api/v1/projects/{project_id}/sources` | 已实现，仅 Markdown |
+| `GET /api/v1/sources/{source_id}` | 已实现 |
+| `GET /api/v1/tasks/{task_id}` | 已实现 |
+| 图谱、搜索、问答和人工确认接口 | 规划中 |
 
 ## 基本约定
 
@@ -31,7 +44,9 @@
 
 ### 查询项目
 
-`GET /api/v1/projects`
+`GET /api/v1/projects?page=1&page_size=20`
+
+返回 `items`、`page`、`page_size` 和 `total`。
 
 ### 创建项目
 
@@ -56,7 +71,7 @@
 
 表单字段：
 
-- `file`：Markdown、TXT 或支持的代码文件。
+- `file`：当前只接受 UTF-8 Markdown 文件，默认最大 10 MiB。
 - `source_type`：可选，未填写时由后端识别。
 
 响应：
@@ -90,7 +105,7 @@
 
 `GET /api/v1/sources/{source_id}`
 
-返回资料元数据、解析状态和可预览内容，不直接返回服务器文件路径。
+返回资料元数据、SHA-256、解析状态、行数和最多 4000 字符的可预览内容，不返回服务器文件路径。
 
 ## 知识图谱
 
