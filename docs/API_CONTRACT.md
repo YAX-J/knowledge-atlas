@@ -124,13 +124,21 @@
 
 `POST /api/v1/tasks/{task_id}/run`
 
-无需请求体，同步返回与任务查询相同的结构。上传默认只排队，调用此接口后才执行解析；旧版 `knowledge_extraction` 上传任务也只执行解析，不调用模型。
+无需请求体，同步返回与任务查询相同的结构。上传事务只排队；启动独立 Worker 后会自动消费，也可通过此接口手动执行。旧版 `knowledge_extraction` 上传任务也只执行解析，不调用模型。
 
 - `queued` 或 `failed`：原子认领后进入 `running` / `parsing`，成功后为 `succeeded` / `parsed` / 100，来源变为 `ready`。
 - `succeeded`：直接返回原结果，不重复创建分块。
 - `running` 或 `cancelled`：HTTP 409，错误码 `TASK_NOT_RUNNABLE`。
 - 解析或分块写入失败：HTTP 200，任务为 `failed`，`error.code` 为 `SOURCE_PARSE_FAILED`，来源为 `failed`；不会保留本次不完整分块，可再次调用重试。
-- 当前用户无法访问的任务：HTTP 404。执行中断后的 `running` 任务尚无自动超时恢复机制。
+- 当前用户无法访问的任务：HTTP 404。
+
+### 后台消费与中断恢复
+
+启动 `python -m app.worker` 后，后台进程会在指定用户的有效项目内消费 `queued` 任务，并接手租约过期的 `running` 任务。执行 UUID、租约截止时间和尝试次数是内部持久化字段，不改变现有 HTTP 响应结构。旧执行不能覆盖被接手后的成功或失败状态和分块。
+
+默认执行租约 300 秒，最多自动尝试 3 次；达到次数上限的过期任务变为 `failed`，`error.code` 为 `TASK_ATTEMPTS_EXHAUSTED`，需要手动重试。普通 `SOURCE_PARSE_FAILED` 不会自动重试。旧任务无租约时根据开始时间或更新时间判断超时。手动接口对所有 `running` 任务仍返回 HTTP 409，恢复由 Worker 执行。
+
+Worker 与手动执行竞争时，只有认领成功的一方执行；另一方可能得到当前成功结果或 HTTP 409，客户端可刷新状态。前端当前通过“刷新状态”读取后台结果，尚未自动轮询。运行方式与限制见 [后端说明](../backend/README.md)。
 
 ### 查询资料原文
 

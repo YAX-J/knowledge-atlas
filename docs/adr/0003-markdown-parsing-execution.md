@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-10-17
 
+The persistence and parsing decisions remain accepted. The explicit-only execution scope and missing recovery described at adoption are extended by [ADR 0004](0004-database-backed-parsing-worker.md), which adds an optional database-backed worker and leases while retaining the manual endpoint.
+
 ## Context
 
 Uploads already persist original Markdown and a queued task. The current slice needs reproducible evidence locations without a model service or a deployed queue.

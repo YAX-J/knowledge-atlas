@@ -29,6 +29,7 @@ def test_run_and_paginate_chunks_with_idempotent_reexecution(client: TestClient,
     assert task["stage"] == "parsed"
     assert task["progress"] == 100
     assert task["error"] is None
+    assert not {"execution_id", "lease_expires_at", "attempt_count"} & task.keys()
     assert task["started_at"] and task["completed_at"]
     assert client.get(task_url).json() == task
     assert client.get(f"/api/v1/sources/{result['source_id']}").json()["status"] == "ready"

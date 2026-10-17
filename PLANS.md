@@ -19,16 +19,17 @@ Completed:
 - Explicit Markdown parsing tasks, persistent line-addressable chunks, and chunk pagination implemented.
 - Identical-byte upload reuse, deterministic chunk IDs, idempotent task execution, and failed-task retry implemented.
 - Frontend project creation/listing, source listing/upload, parsing/retry, source preview, and paginated evidence chunks integrated with real APIs while preserving the Mock graph.
+- Optional database-backed parsing worker, leased execution, stale-result fencing, interrupted-task recovery, and bounded automatic attempts implemented.
 
 ## Active phase
 
-The active phase remains the first Markdown ingestion vertical slice. API persistence, explicit parsing, and frontend project/source integration are complete in code; container connectivity and automatic task consumption remain.
+The active phase remains the first Markdown ingestion vertical slice. API persistence, manual/worker parsing, interrupted-task recovery, and frontend project/source integration are complete in code; container connectivity and PostgreSQL concurrency validation remain.
 
 Expected outcomes:
 
 - Validate PostgreSQL, pgvector, and Neo4j services on a machine with Docker.
 - Validate the integrated frontend project/source flow against PostgreSQL in the local container environment.
-- Decide on automatic task consumption and recovery after validating explicit execution.
+- Validate worker/API contention and lease recovery against PostgreSQL before advancing to extraction.
 
 Acceptance criteria:
 

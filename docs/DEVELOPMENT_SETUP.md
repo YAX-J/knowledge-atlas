@@ -83,7 +83,9 @@ Useful endpoints:
 | `GET /api/v1/health/live` | Process liveness |
 | `GET /api/v1/health/ready` | PostgreSQL and Neo4j dependency health |
 
-To verify ingestion in the OpenAPI interface, create a project, upload Markdown, explicitly call `POST /api/v1/tasks/{task_id}/run`, and query `GET /api/v1/sources/{source_id}/chunks`. Uploads stay queued until executed. Apply the latest migration before using the chunk endpoints. See [backend instructions](../backend/README.md) for state transitions and current parsing limitations.
+To verify ingestion in the OpenAPI interface, create a project, upload Markdown, call `POST /api/v1/tasks/{task_id}/run`, and query `GET /api/v1/sources/{source_id}/chunks`. Alternatively, run `python -m app.worker` from `backend/` in a second activated terminal to consume uploads automatically. Apply the latest migration first, including execution lease columns. `python -m app.worker --once` handles at most one eligible task and exits. See [backend instructions](../backend/README.md) for configuration, recovery rules, exit codes, and parsing limitations.
+
+To start the complete container stack from the repository root, use `docker compose up -d --build`. The worker waits for the API to apply migrations and pass its liveness check. Real PostgreSQL/Neo4j connectivity and contention must be checked in Docker; SQLite tests do not validate them.
 
 ## Frontend verification
 

@@ -43,16 +43,39 @@ services:
       NEO4J_PASSWORD: knowledge-atlas-dev
       NEO4J_HEALTHCHECK_ENABLED: "true"
       CORS_ORIGINS: '["http://localhost:5173"]'
+      TASK_LEASE_SECONDS: "300"
+      TASK_MAX_ATTEMPTS: "3"
     command: >-
       sh -c "alembic upgrade head &&
       uvicorn app.main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/live', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     depends_on:
       postgres:
         condition: service_healthy
       neo4j:
         condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://knowledge_atlas:knowledge_atlas@postgres:5432/knowledge_atlas
+      TASK_LEASE_SECONDS: "300"
+      TASK_MAX_ATTEMPTS: "3"
+      WORKER_POLL_INTERVAL_SECONDS: "2"
+    command: python -m app.worker
+    depends_on:
+      api:
+        condition: service_healthy
+    stop_grace_period: 30s
 
 volumes:
   postgres-data:

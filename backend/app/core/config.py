@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     neo4j_healthcheck_enabled: bool = True
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
     max_upload_bytes: int = 10 * 1024 * 1024
+    task_lease_seconds: int = Field(default=300, ge=1, le=86400)
+    task_max_attempts: int = Field(default=3, ge=1, le=100)
+    worker_poll_interval_seconds: float = Field(default=2, gt=0, le=60)
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -4,7 +4,7 @@
 
 Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成带有来源、时间和上下文的知识网络，帮助开发者重新找到历史方案、理解技术决策，并基于真实证据回答问题。
 
-> 当前进度：演示图谱、真实项目与资料工作台、FastAPI 接口及可显式执行的 Markdown 解析已经完成；知识抽取、真实图谱和检索尚未接入。
+> 当前进度：演示图谱、真实项目与资料工作台、FastAPI 接口、Markdown 解析及可选后台处理/中断恢复已经完成；知识抽取、真实图谱和检索尚未接入。
 
 ![Knowledge Atlas 知识图谱工作台](docs/images/knowledge-atlas-overview.png)
 
@@ -54,9 +54,10 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - 项目创建、分页查询和详情接口。
 - UTF-8 Markdown 上传、大小与类型校验、内容哈希和原文保存。
 - 上传后创建 `queued` 处理任务，支持显式执行解析和资料、任务、分块查询。
+- 独立 Worker 自动消费排队任务，通过执行租约恢复中断任务，并阻止旧进程覆盖新结果。
 - 解析标题、段落、列表和围栏代码块，保存原文、标题路径及行号；相同项目重复上传相同字节会复用来源与任务。
 - 项目、资料、任务和候选知识的 SQLAlchemy 模型与 Alembic 初始迁移。
-- PostgreSQL/pgvector、Neo4j 和 API 的 Docker Compose 配置。
+- PostgreSQL/pgvector、Neo4j、API 和 Worker 的 Docker Compose 配置。
 - 使用 SQLite 隔离数据库的后端接口测试。
 
 ## 快速开始
@@ -113,7 +114,7 @@ uvicorn app.main:app --reload
 
 接口文档地址为 `http://localhost:8000/docs`，存活检查地址为 `http://localhost:8000/api/v1/health/live`。
 
-在接口文档中创建项目并上传 Markdown 后，调用 `POST /api/v1/tasks/{task_id}/run` 执行解析，再通过 `GET /api/v1/sources/{source_id}/chunks` 分页查看原文分块。上传不会自动启动任务；具体行为和限制见 [后端说明](backend/README.md)。
+在另一个已激活后端环境的终端中运行 `python -m app.worker`，即可自动处理上传任务。也可以不启动 Worker，在页面点击“开始解析”或调用 `POST /api/v1/tasks/{task_id}/run` 手动执行。通过“刷新状态”或 `GET /api/v1/sources/{source_id}/chunks` 查看结果；具体配置与恢复规则见 [后端说明](backend/README.md)。完整容器启动可使用 `docker compose up -d --build`，其中 Worker 会等待 API 完成迁移并通过存活检查后启动。
 
 ## 目标技术架构
 
@@ -150,7 +151,7 @@ flowchart LR
 knowledge-atlas/
 ├─ .github/                 # Issue 与 Pull Request 模板
 ├─ backend/                 # FastAPI、数据模型、迁移与接口测试
-│  ├─ app/                  # API、服务、配置和 SQLAlchemy 模型
+│  ├─ app/                  # API、服务、配置、模型及 worker.py 消费入口
 │  ├─ migrations/           # Alembic 数据库迁移
 │  ├─ README.md             # 后端运行与验证说明
 │  └─ tests/                # SQLite 隔离接口测试
@@ -172,11 +173,11 @@ knowledge-atlas/
 ├─ CONTRIBUTING.md          # 分支、提交和评审规范
 ├─ CHANGELOG.md             # 版本变化记录
 ├─ SECURITY.md              # 敏感数据与漏洞报告约定
-├─ compose.yaml             # PostgreSQL、Neo4j 和 API 本地环境
+├─ compose.yaml             # PostgreSQL、Neo4j、API 和 Worker 本地环境
 └─ README.md
 ```
 
-后续工程计划增加独立的 `worker`、`prompts` 和实验测试数据目录。
+当前 Worker 复用后端代码，通过独立进程运行；后续工程计划增加 `prompts` 和实验测试数据目录。
 
 ## 文档索引
 
@@ -219,4 +220,4 @@ knowledge-atlas/
 
 ## 项目状态说明
 
-本仓库目前处于后端基础和 Markdown 导入闭环阶段。README 中标记为“规划中”或“后续阶段”的能力属于目标设计，不代表已经完成。项目与资料工作台已接入真实接口，图谱与问答仍使用 Mock；尚未接入自动任务消费、知识抽取或图谱写入。
+本仓库目前处于后端基础和 Markdown 导入闭环阶段。README 中标记为“规划中”或“后续阶段”的能力属于目标设计，不代表已经完成。项目与资料工作台已接入真实接口，图谱与问答仍使用 Mock；Worker 可自动解析，尚未接入知识抽取或图谱写入。Docker/PostgreSQL 的实机联通与并发验证仍待完成。

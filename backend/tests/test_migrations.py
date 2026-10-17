@@ -5,11 +5,11 @@ import uuid
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import create_engine, inspect, select
+from sqlalchemy import create_engine, inspect, select, text
 from sqlalchemy.orm import Session
 
 from app.core import config as app_config
-from app.models.domain import Project, SourceDocument
+from app.models.domain import ProcessingTask, Project, SourceDocument, TaskStatus
 
 
 def migration_config() -> Config:
@@ -63,3 +63,40 @@ def test_postgresql_migrations_compile_without_a_live_server(monkeypatch) -> Non
     assert "CREATE TABLE source_chunks" in sql
     assert "uq_chunks_source_position" in sql
     assert "CREATE EXTENSION IF NOT EXISTS vector" in sql
+    assert "ck_tasks_attempt_count" in sql
+    assert "lease_expires_at" in sql
+
+
+def test_lease_migration_preserves_legacy_running_tasks(tmp_path, monkeypatch) -> None:
+    url = f"sqlite+pysqlite:///{(tmp_path / 'leases.db').as_posix()}"
+    monkeypatch.setattr(app_config, "get_settings", lambda: SimpleNamespace(database_url=url))
+    config = migration_config()
+    command.upgrade(config, "20261017_0002")
+    engine = create_engine(url)
+    user_id, project_id, source_id, task_id = [uuid.uuid4() for _ in range(4)]
+    with Session(engine) as db:
+        db.add(Project(id=project_id, user_id=user_id, name="Existing project"))
+        db.flush()
+        db.add(SourceDocument(
+            id=source_id, user_id=user_id, project_id=project_id,
+            original_name="old.md", source_type="markdown", media_type="text/markdown",
+            size_bytes=4, content_sha256="0" * 64, content="Note",
+        ))
+        db.commit()
+    with engine.begin() as connection:
+        connection.execute(text(
+            "INSERT INTO processing_tasks (id, user_id, project_id, source_id, type, status, stage, progress) "
+            "VALUES (:id, :user_id, :project_id, :source_id, 'knowledge_extraction', 'running', 'parsing', 0)"
+        ), {"id": task_id.hex, "user_id": user_id.hex,
+            "project_id": project_id.hex, "source_id": source_id.hex})
+    command.upgrade(config, "head")
+    with Session(engine) as db:
+        task = db.get(ProcessingTask, task_id)
+        assert task.status == TaskStatus.RUNNING and task.attempt_count == 0
+        assert task.execution_id is None and task.lease_expires_at is None
+    command.downgrade(config, "20261017_0002")
+    assert "attempt_count" not in {column["name"] for column in inspect(engine).get_columns("processing_tasks")}
+    with engine.connect() as connection:
+        assert connection.execute(text("SELECT status FROM processing_tasks")).scalar_one() == "running"
+    command.upgrade(config, "head")
+    engine.dispose()

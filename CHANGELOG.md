@@ -8,6 +8,10 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Optional database-backed parsing worker with continuous/one-shot modes, scoped task polling, execution leases, stale-result fencing, interrupted-task recovery, and bounded automatic attempts.
+- Reversible lease migration preserving historical tasks, shared development identity, worker configuration, and a Compose worker gated on API liveness after migrations.
+- Worker tests for recovery, stale success/failure writes across independent sessions, boundary isolation, attempt limits, and actual one-shot subprocess success/failure.
+
 - Interactive Vue 3 Mock knowledge-graph frontend.
 - Node search, selection, evidence expansion, relationship navigation, type filtering, temporal playback, and Mock questioning.
 - Responsive desktop and mobile layouts.
@@ -32,5 +36,6 @@ The project is pre-release. Version numbers and release dates will be added when
 ### Known limitations
 
 - Docker service connectivity has not been verified in the current environment because Docker is unavailable.
-- Automatic task consumption, interrupted-task recovery, complete CommonMark parsing, extraction, graph projection, retrieval, and real Agent responses are not implemented.
+- Worker leases are fixed without heartbeats or preemptive cancellation; real PostgreSQL contention and Docker startup remain unverified.
+- Complete CommonMark parsing, extraction, graph projection, retrieval, and real Agent responses are not implemented.
 - Graph and question views remain Mock; real question history, routing, and persisted view preferences are not implemented.

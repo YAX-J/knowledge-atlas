@@ -157,6 +157,8 @@ class ProcessingTask(TimestampMixin, Base):
         CheckConstraint(
             "progress >= 0 AND progress <= 100", name="ck_tasks_progress_range"
         ),
+        CheckConstraint("attempt_count >= 0", name="ck_tasks_attempt_count"),
+        Index("ix_tasks_user_queue", "user_id", "status", "created_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -183,6 +185,9 @@ class ProcessingTask(TimestampMixin, Base):
     error: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    execution_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempt_count: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
 
     project: Mapped[Project] = relationship(back_populates="tasks")
     source: Mapped[SourceDocument] = relationship(back_populates="tasks")

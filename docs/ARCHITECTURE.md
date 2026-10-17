@@ -1,6 +1,6 @@
 # Knowledge Atlas 系统架构
 
-本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Mock 图谱、真实项目/资料工作台、FastAPI 基础接口、可显式执行的 Markdown 解析、PostgreSQL 数据模型与迁移以及本地容器配置；自动任务消费、抽取、Neo4j 投影、检索和 Agent 仍属于后续阶段。
+本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Mock 图谱、真实项目/资料工作台、FastAPI 基础接口、手动与 Worker Markdown 解析、执行租约与中断恢复、PostgreSQL 数据模型与迁移以及本地容器配置；抽取、Neo4j 投影、检索和 Agent 仍属于后续阶段。
 
 ## 架构目标
 
@@ -93,7 +93,7 @@ flowchart TB
 - 校验模型输出，不允许模型直接写入数据库。
 - 将证据位置转换为前端可消费的统一格式。
 
-当前已实现项目、Markdown 来源、处理任务和原文分块接口。上传事务保存原文及其 SHA-256 并创建 `queued` 任务；相同用户项目中的相同字节复用来源和任务，PostgreSQL 项目行锁串行化上传去重。`POST /tasks/{task_id}/run` 显式执行解析：原子认领任务后，在事务中保存标题路径、行号、原文和稳定 UUID 的分块及最终状态。成功任务重复执行返回原结果，失败任务可重试。尚未启动独立 Worker 消费任务；设计依据见 [ADR 0003](adr/0003-markdown-parsing-execution.md)。
+当前已实现项目、Markdown 来源、处理任务和原文分块接口。上传事务保存原文及其 SHA-256 并创建 `queued` 任务；相同用户项目中的相同字节复用来源和任务，PostgreSQL 项目行锁串行化上传去重。手动解析接口与独立 Worker 共享执行服务：原子认领任务并保存执行 UUID/租约后，在事务中保存分块及最终状态。成功任务重复执行返回原结果，普通失败任务等待手动重试。设计依据见 [ADR 0003](adr/0003-markdown-parsing-execution.md) 与 [ADR 0004](adr/0004-database-backed-parsing-worker.md)。
 
 ### Worker
 
@@ -104,7 +104,7 @@ flowchart TB
 - 向量生成和索引更新。
 - LLM 抽取、实体消歧和治理检测。
 
-第一版可以使用 FastAPI 后台任务或简单任务队列；任务量增长后再引入 Celery、RQ 或其他队列。
+当前实现为 `backend/app/worker.py` 独立进程，轮询数据库中的 Markdown 任务，不引入消息代理。查询限定用户及有效项目，并校验来源的用户/项目边界。租约过期后可重新认领，成功与失败写入都必须匹配当前执行 UUID，因此旧进程无法覆盖新执行结果。过期任务达到尝试次数上限后转为失败。租约固定、尚无心跳；超长任务可能计算重叠，但持久化结果有执行标识保护。向量、代码和模型抽取等 Worker 能力仍属于目标设计。
 
 ### PostgreSQL 与 pgvector
 
@@ -190,7 +190,7 @@ sequenceDiagram
 
 ## 待确认的架构决策
 
-- 后续自动任务消费使用哪一种队列或 Worker（当前显式同步执行见 ADR 0003）。
+- 后续长耗时抽取任务的心跳、取消和队列扩展策略（当前数据库轮询 Worker 见 ADR 0004）。
 - 代码解析使用 Tree-sitter 还是按语言分别实现。
 - 在线模型与 Ollama 的统一适配接口。
 - Neo4j 投影同步采用同步写入、Outbox 还是消息队列。

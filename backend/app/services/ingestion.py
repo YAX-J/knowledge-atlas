@@ -177,7 +177,7 @@ def get_task(
         select(ProcessingTask).where(
             ProcessingTask.id == task_id,
             ProcessingTask.user_id == user_id,
-        )
+        ).execution_options(populate_existing=True)
     )
     if task is None:
         raise AppError(

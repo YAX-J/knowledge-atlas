@@ -4,7 +4,7 @@
 
 Knowledge Atlas is a graduation project for a single developer. It organizes technical notes, code, project documents, and Git records into a temporal personal knowledge graph and uses evidence-grounded retrieval to answer questions.
 
-The repository currently contains an interactive Mock graph, a real API-backed project/source workspace, FastAPI persistence APIs, and an explicitly executed Markdown parsing slice. Do not describe automatic task consumption, extraction, real graph projection, retrieval, or Agent capabilities as implemented.
+The repository currently contains an interactive Mock graph, a real API-backed project/source workspace, FastAPI persistence APIs, and Markdown parsing with manual execution or an optional database-backed worker with lease recovery. Do not describe model extraction, real graph projection, retrieval, or Agent capabilities as implemented.
 
 ## Read before changing code
 
@@ -26,8 +26,9 @@ Do not treat the Word documents outside this repository as more current than the
 - `backend/`: FastAPI, SQLAlchemy models, Alembic migrations, and API tests.
 - `docs/`: architecture, frontend, knowledge model, API, roadmap, setup, and ADR documentation.
 - `.github/`: issue and pull request templates.
-- `compose.yaml`: local PostgreSQL/pgvector, Neo4j, and API services.
-- Planned but not yet created: a separate `worker/`, prompt assets, and experiment datasets.
+- `compose.yaml`: local PostgreSQL/pgvector, Neo4j, API, and parsing-worker services.
+- `backend/app/worker.py`: independent database-backed parsing consumer; shares backend models and services.
+- Planned but not yet created: prompt assets and experiment datasets.
 
 ## Non-negotiable domain rules
 
