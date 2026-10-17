@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import KnowledgeSearch from './KnowledgeSearch.vue'
 import type { ApiProject } from '../api/knowledgeAtlas'
-import type { EntityDetail, FormalKnowledgeEdge, ProjectGraphData, RelationshipDetail } from '../types'
+import type { EntityDetail, FormalKnowledgeEdge, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail } from '../types'
 
 const props = defineProps<{
   project: ApiProject | null
@@ -16,6 +17,9 @@ const props = defineProps<{
   center: string
   depth: number
   typeFilter: string
+  searchResult: KnowledgeSearchResult | null
+  searchLoading: boolean
+  searchError: string
 }>()
 const emit = defineEmits<{
   back: []
@@ -28,6 +32,10 @@ const emit = defineEmits<{
   reset: []
   filterType: [value: string]
   depth: [value: number]
+  search: [query: string, types: string]
+  clearSearch: []
+  retrySearch: []
+  selectSearchEntity: [id: string]
 }>()
 const labels: Record<string, string> = {
   Project: '项目', CodeFile: '代码文件', CodeEntity: '代码实体', Technology: '技术', Concept: '概念',
@@ -64,6 +72,8 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
       <div><span class="graph-kicker">项目知识 / 已确认</span><h1 id="project-graph-title">{{ project?.name ?? '项目图谱' }}</h1><p>沿着关系找回原文，让每条知识都有依据。</p></div>
       <div class="graph-actions"><button type="button" @click="emit('back')">返回资料</button><button type="button" @click="emit('demo')">演示图谱</button><button type="button" :disabled="loading" @click="emit('refresh')">刷新图谱</button></div>
     </header>
+    <KnowledgeSearch :key="project?.id" :result="searchResult" :loading="searchLoading" :error="searchError" :labels="labels"
+      @search="(query, types) => emit('search', query, types)" @clear="emit('clearSearch')" @retry="emit('retrySearch')" @select="id => emit('selectSearchEntity', id)" />
     <div class="graph-toolbar">
       <span class="graph-real-label">真实项目图谱</span>
       <label>知识类型 <select :value="typeFilter" :disabled="loading" @change="filter"><option value="">全部类型</option><option v-for="(label, type) in labels" :key="type" :value="type">{{ label }}</option></select></label>
@@ -92,7 +102,7 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
           </div>
           <details class="graph-records"><summary>节点与关系列表</summary><h2>知识节点</h2><button v-for="node in graph.nodes" :key="node.id" type="button" :aria-pressed="selectedId === node.id" @click="emit('selectEntity', node.id)">{{ node.name }} <small>{{ labels[node.type] ?? node.type }}</small></button><h2>知识关系</h2><p v-if="!graph.edges.length">尚无已确认关系。</p><button v-for="edge in graph.edges" :key="edge.id" type="button" :aria-pressed="selectedId === edge.id" @click="emit('selectRelationship', edge.id)">{{ edge.name }} <small>{{ edge.type }}</small></button></details>
         </section>
-        <aside class="formal-detail" aria-label="正式知识与原文证据" :aria-busy="detailLoading">
+        <aside id="formal-knowledge-detail" class="formal-detail" tabindex="-1" aria-label="正式知识与原文证据" :aria-busy="detailLoading">
           <p v-if="detailLoading" role="status">正在读取知识详情…</p>
           <div v-else-if="detailError" class="graph-error" role="alert"><p>{{ detailError }}</p><button type="button" @click="emit('retryDetail')">重试读取详情</button></div>
           <template v-else-if="selected">

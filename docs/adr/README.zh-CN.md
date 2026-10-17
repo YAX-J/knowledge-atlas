@@ -70,3 +70,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0005：仅使用 PostgreSQL，暂缓引入 Neo4j](0005-postgresql-only-storage.zh-CN.md)
 - [ADR 0006：显式 DeepSeek 候选提取与证据审核](0006-deepseek-candidate-review.zh-CN.md)
 - [ADR 0007：将已确认候选写入 PostgreSQL 正式图谱](0007-confirmed-postgresql-graph.zh-CN.md)
+- [ADR 0008：带证据的项目关键词检索](0008-project-keyword-search.zh-CN.md)

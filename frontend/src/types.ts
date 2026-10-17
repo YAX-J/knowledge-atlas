@@ -126,3 +126,15 @@ export interface RelationshipDetail {
   relationship: FormalKnowledgeEdge
   evidence: FormalEvidence[]
 }
+
+export interface KnowledgeSearchResult {
+  query: string
+  mode: 'keyword'
+  items: {
+    entity: FormalKnowledgeNode
+    keyword_score: number
+    matched_fields: ('name' | 'summary' | 'evidence')[]
+    evidence: FormalEvidence[]
+  }[]
+  truncated: boolean
+}

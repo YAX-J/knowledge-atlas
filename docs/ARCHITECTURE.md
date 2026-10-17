@@ -1,6 +1,6 @@
 # Knowledge Atlas 系统架构
 
-本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Mock 演示图谱、真实项目/资料/审核工作台、FastAPI 基础接口、手动与 Worker Markdown 解析、执行租约与中断恢复、PostgreSQL 数据模型与迁移以及可选容器配置；显式 DeepSeek 候选提取、证据校验与人工审核已实现，确认候选会写入 PostgreSQL 正式图谱，并提供只读项目图谱查询；实体消歧、检索和 Agent 仍属于后续阶段。真实 DeepSeek 调用尚未验收。当前只使用 PostgreSQL/pgvector，暂缓引入 Neo4j，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。
+本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Mock 演示图谱、真实项目/资料/审核工作台、FastAPI 基础接口、手动与 Worker Markdown 解析、执行租约与中断恢复、PostgreSQL 数据模型与迁移以及可选容器配置；显式 DeepSeek 候选提取、证据校验与人工审核已实现，确认候选会写入 PostgreSQL 正式图谱，并提供只读项目图谱查询；实体消歧、语义检索和 Agent 仍属于后续阶段。真实 DeepSeek 调用尚未验收。当前只使用 PostgreSQL/pgvector，暂缓引入 Neo4j，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。
 
 ## 架构目标
 
@@ -127,11 +127,15 @@ PostgreSQL 是业务数据和原始证据的事实来源。
 
 Neo4j 不参与当前运行环境或验收。如果实测查询复杂度、性能或图算法需求需要专用图数据库，再通过新 ADR 决定；届时 PostgreSQL 继续作为事实来源，业务 UUID 保持稳定。
 
+### 关键词检索（已实现基线）
+
+关键词检索已提供 `GET /api/v1/projects/{project_id}/search`，只读检索正式实体的名称、摘要和作用域内证据。所有词均需命中，名称/摘要/证据加权排序；返回命中字段与最多 3 条证据，并限制结果数量。沿用项目与知识可见性检查，不调用模型，不新增数据表；向量、图得分融合和真实问答仍是规划。决策见 [ADR 0008](adr/0008-project-keyword-search.zh-CN.md)。
+
 ### 候选提取与审核（已实现接口）
 
 资料解析完成后，用户可显式请求 DeepSeek 提取。后端以来源 UUID 与提示版本生成稳定任务 UUID，使用 `knowledge_candidates` 类型，与历史只解析的 `knowledge_extraction` 类型区分。短事务认领来源后释放锁再调用模型，完成时以执行 UUID 防止旧结果覆盖。成功任务直接复用，普通失败等待手动重试，中断后可在租约到期时再次请求；解析 Worker 不调用模型。
 
-模型仅获得所选资料分块；后端校验固定类型、关系端点和逐字引用后，原子保存整批 `pending` 候选与成功任务状态。审核使用项目锁与条件更新，保存 `review_events` 前后记录。确认关系前要求两端实体已确认。确认成功后，正式节点、关系、证据与审核状态、审计事件在同一事务写入；已确认但未入图的旧候选可重放补写。实体消歧、检索和 Agent 仍属于目标设计。决策见 [ADR 0006](adr/0006-deepseek-candidate-review.zh-CN.md) 与 [ADR 0007](adr/0007-confirmed-postgresql-graph.zh-CN.md)。
+模型仅获得所选资料分块；后端校验固定类型、关系端点和逐字引用后，原子保存整批 `pending` 候选与成功任务状态。审核使用项目锁与条件更新，保存 `review_events` 前后记录。确认关系前要求两端实体已确认。确认成功后，正式节点、关系、证据与审核状态、审计事件在同一事务写入；已确认但未入图的旧候选可重放补写。实体消歧、语义检索和 Agent 仍属于目标设计。决策见 [ADR 0006](adr/0006-deepseek-candidate-review.zh-CN.md) 与 [ADR 0007](adr/0007-confirmed-postgresql-graph.zh-CN.md)。
 
 ## 资料导入流程
 

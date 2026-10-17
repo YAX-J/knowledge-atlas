@@ -20,7 +20,7 @@
 - 确认候选时在审核事务内写入受限的 PostgreSQL 实体、关系和证据，支持稳定 UUID、端点提升、幂等重复和旧确认重放。
 - 提供只读项目图谱、实体详情和关系详情接口，按用户/项目/时间过滤，限制节点与边数量，并返回后端计算的行号。
 
-已实现显式 DeepSeek 候选提取、精确原文证据校验、候选分页、带审计的确认/拒绝及名称/摘要修正。确认会将候选提升为正式图谱，读取有界且只读。实体消歧、搜索和 Agent 回答尚未实现，真实 DeepSeek 调用仍待验收。正式图谱使用 PostgreSQL，暂缓引入 Neo4j，启动和验收均不要求它，见 [ADR 0005](../docs/adr/0005-postgresql-only-storage.zh-CN.md)。
+已实现显式 DeepSeek 候选提取、精确原文证据校验、候选分页、带审计的确认/拒绝及名称/摘要修正。确认会将候选提升为正式图谱，读取有界且只读。项目关键词搜索已实现；实体消歧、语义搜索和 Agent 回答尚未实现，真实 DeepSeek 调用仍待验收。正式图谱使用 PostgreSQL，暂缓引入 Neo4j，启动和验收均不要求它，见 [ADR 0005](../docs/adr/0005-postgresql-only-storage.zh-CN.md)。
 
 ## 环境配置
 
@@ -109,7 +109,7 @@ EXTRACTION_MAX_INPUT_CHARS=60000
 
 通过 `GET /api/v1/projects/{project_id}/reviews` 和 `POST /api/v1/reviews/{review_id}/resolve` 查询与审核候选。允许确认/拒绝，确认前可修改名称和摘要；关系两端实体必须先确认。相同决策重复提交幂等，当前不支持改判、合并、撤销或重新提取。迁移 `0004` 增加操作者、时间及前后值审计记录；迁移 `0005` 增加正式图谱表，回滚会删除图谱记录和证据，但保留来源、候选与审核事件。
 
-确认候选时，在同一条审核事务内写入 `knowledge_entities`、`knowledge_relationships` 和 `knowledge_evidence`。写入前重新校验引用与作用域，使用稳定 `uuid5` 标识，并按候选幂等。已确认但缺少正式记录的旧候选可在审核页面重放补写，不重复增加审计事件。实体合并、消歧、检索和真实问答仍待开发。自动测试与浏览器检查模拟 DeepSeek 响应，仍需配置密钥并用短篇笔记验收真实模型行为。
+确认候选时，在同一条审核事务内写入 `knowledge_entities`、`knowledge_relationships` 和 `knowledge_evidence`。写入前重新校验引用与作用域，使用稳定 `uuid5` 标识，并按候选幂等。已确认但缺少正式记录的旧候选可在审核页面重放补写，不重复增加审计事件。实体合并、消歧、语义检索和真实问答仍待开发。自动测试与浏览器检查模拟 DeepSeek 响应，仍需配置密钥并用短篇笔记验收真实模型行为。
 
 ## 项目图谱
 
@@ -117,7 +117,11 @@ EXTRACTION_MAX_INPUT_CHARS=60000
 
 `GET /api/v1/knowledge/entities/{entity_id}` 返回实体、最多 100 条直接关系，以及带原始文件名、`project://` URI、引用、标题路径和后端计算行号的证据。`GET /api/v1/knowledge/relationships/{relationship_id}` 返回关系及其证据。画布坐标不属于接口，布局由前端负责。
 
-2026-10-17 验证：后端 85 项测试通过；前端构建及桌面/手机浏览器流程通过，使用隔离 SQLite 和模拟抽取。本机 PostgreSQL 17.10 + pgvector 在临时 schema 中通过迁移升级/回退/再升级、图谱和证据读取，以及每个候选四个独立会话的并发重复确认。临时 schema 已删除，现有业务 schema 未升级。真实 DeepSeek 质量、原生数据库的浏览器验收及 Worker/API 竞争和恢复仍需单独检查。
+2026-10-17 验证：后端 100 项测试通过；前端构建及桌面/手机浏览器流程通过，使用隔离 SQLite 和模拟抽取。本机 PostgreSQL 17.10 + pgvector 在临时 schema 中通过迁移升级/回退/再升级、图谱和证据读取，以及每个候选四个独立会话的并发重复确认。临时 schema 已删除。之后已将业务 schema 升级至 `20261017_0005` 修复缺失图谱表，真实图谱/候选/资料/搜索读取均返回 200。真实 DeepSeek 质量、原生数据库的浏览器验收及 Worker/API 竞争和恢复仍需单独检查。
+
+## 关键词搜索
+
+`GET /api/v1/projects/{project_id}/search?q=PostgreSQL&mode=keyword` 搜索正式实体的名称、摘要和同作用域的原文证据。查询按空白切分，所有词均需命中（1–200 字符，最多 8 个词）。可选 `types`、带时区的 `valid_at` 和 `top_k`（1–50，默认 10）。每项返回 `entity`、`keyword_score`、`matched_fields` 及最多 3 条证据。名称权重高于摘要和证据，同分按名称/UUID 排序。采用字面子串匹配，中文不自动分词，通配符会转义；不调用 DeepSeek。关系搜索、vector/hybrid 和真实问答尚未实现。PostgreSQL 17.10 临时 schema 已通过关键词排序、证据行号、多词匹配和字面通配符检查。本轮不新增迁移，head 保持 `20261017_0005`。见 [ADR 0008](../docs/adr/0008-project-keyword-search.zh-CN.md)。
 
 ## 测试
 

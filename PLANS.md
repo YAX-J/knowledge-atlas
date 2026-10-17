@@ -24,18 +24,19 @@ Completed:
 - Optional database-backed parsing worker, leased execution, stale-result fencing, interrupted-task recovery, and bounded automatic attempts implemented.
 - Explicit DeepSeek extraction with evidence validation, audited review, and promotion of confirmed candidates into scoped PostgreSQL entities, relationships, and evidence.
 - Read-only project graph, entity-detail, and relationship-detail APIs with user/project/time scoping and node/edge limits, plus a real project-graph frontend page.
+- Evidence-backed project keyword search over formal entity names, summaries, and quotes, with ranking, type/time filters, bounded results, and graph/detail navigation.
 
 ## Active phase
 
-The active phase is schema-constrained extraction, human review, and confirmed-candidate graph promotion. The user reports the native PostgreSQL 17/pgvector ingestion path, duplicate reuse, restart persistence, and automatic parsing passed. Disposable-schema checks on PostgreSQL 17.10 passed graph migrations, evidence reads, and concurrent identical confirmations. Worker/API contention, lease recovery, native-database browser acceptance, and real-model acceptance remain outstanding.
+The active slice is project keyword retrieval with evidence. The user reports the native PostgreSQL 17/pgvector ingestion path, duplicate reuse, restart persistence, and automatic parsing passed. Disposable-schema checks on PostgreSQL 17.10 passed graph migrations, evidence reads, concurrent identical confirmations, and keyword ranking/matching. Worker/API contention, lease recovery, native-database browser acceptance, and real-model acceptance remain outstanding. The application database has been upgraded to `20261017_0005`; graph/review/source reads returned 200 after the missing-migration repair.
 
 Implemented in this slice:
 
-- Explicit DeepSeek extraction from parsed source chunks, with strict JSON/type/endpoint and exact-evidence validation.
-- Atomic pending candidates, reusable successful extraction tasks, manual retries and expired-lease recovery.
-- Source-scoped candidate UI and paginated review APIs, name/summary edits, confirm/reject, and decision audit records.
-- Transactional promotion of confirmed candidates into formal entities, relationships, and evidence, with stable UUIDs, endpoint promotion, idempotent repeats, and legacy-confirmation replay.
-- Bounded read-only graph queries and detail views that return source filenames, quotes, and server-calculated line ranges.
+- Scoped, read-only keyword matching of formal entity names, summaries, and evidence; all terms must match and SQL wildcards stay literal.
+- Reproducible field-weight ranking, stable tie order, type/time filters, bounded hits, and evidence excerpts.
+- Project-graph search form with empty/error/retry/clear states and selection into entity details or neighborhoods.
+- Independent request counters for search results across project changes and clearing; demo-header search remains separate.
+- Backend tests, frontend build, isolated browser checks, and native PostgreSQL SQL validation.
 
 Acceptance still needed:
 
@@ -44,11 +45,11 @@ Acceptance still needed:
 - Verify the real project graph against native PostgreSQL in a browser, including empty, truncated, filtered, and time-filtered states.
 - Retain PostgreSQL Worker/API concurrency and recovery validation; review/promotion repeated-confirmation contention has passed in a disposable schema.
 
-Entity disambiguation, retrieval, and Agent answers remain future work. Confirmed candidates now promote to formal graph objects; the demo graph and question view remain Mock. Neo4j remains deferred under ADR 0005. See [ADR 0006](docs/adr/0006-deepseek-candidate-review.md) and [ADR 0007](docs/adr/0007-confirmed-postgresql-graph.md) for these slices' boundaries.
+Project keyword search with evidence is implemented. Entity disambiguation, semantic retrieval, and Agent answers remain future work. Confirmed candidates now promote to formal graph objects; the demo graph and question view remain Mock. Neo4j remains deferred under ADR 0005. See [ADR 0006](docs/adr/0006-deepseek-candidate-review.md) and [ADR 0007](docs/adr/0007-confirmed-postgresql-graph.md) for these slices' boundaries.
 
 ## Later phases
 
-1. Keyword, vector, and graph hybrid retrieval.
+1. Vector retrieval and graph-score fusion beyond the keyword baseline.
 2. Evidence-grounded Agent answers.
 3. Code and GitHub ingestion.
 4. Temporal evolution, governance, experiments, and deployment.

@@ -40,6 +40,7 @@ cd ../frontend && npm run build
 | 改动 | 追加检查 |
 | --- | --- |
 | 抽取/审核/图谱 | `python -m pytest tests/test_knowledge.py tests/test_graph.py` |
+| 关键词检索 | `python -m pytest tests/test_search.py`；原生 PostgreSQL 验证排序、证据、多词、通配符；浏览器检查清空、重试、类型、详情和迟到响应 |
 | 导入/解析/Worker | `python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_worker.py` |
 | 迁移/模型 | `python -m pytest tests/test_migrations.py` + `alembic upgrade head` |
 | 前端可见界面 | 浏览器桌面 + 手机宽度走查 |

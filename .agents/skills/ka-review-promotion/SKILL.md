@@ -69,6 +69,10 @@ description: Knowledge Atlas 的候选审核与正式图谱写入。确认/拒�
 - `GET /api/v1/knowledge/entities/{entity_id}`：按用户过滤；校验项目有效；按 `valid_at` 判断可见；直接关系最多 100 条（查 101 判断截断）；证据带 `title`、`uri = project://{project_id}/sources/{source_id}`、`quote`、行号、标题路径。
 - `GET /api/v1/knowledge/relationships/{relationship_id}`：同样的作用域与时间可见性，返回关系与证据。
 
+## 关键词检索
+
+关键词检索：`GET /api/v1/projects/{project_id}/search` 只返回正式实体，搜索名称/摘要/同作用域证据，沿用图谱 `visible` 与项目校验。`q` 长 1–200，空白分词最多 8 个且所有词需命中；通配符按字面处理。名称精确匹配加 50，每词名称/摘要/证据分别加 10/3/1；同分按名称/UUID 排序。`top_k` 1–50，最多 3 条证据。无模型调用或写入；关系、向量和融合尚未接入。修改时追加 `tests/test_search.py`，并同步 ADR 0008 和 API 文档。
+
 ## 禁止事项
 
 - 不要在 `promote_candidate` 之外直接写 `knowledge_entities` / `knowledge_relationships` / `knowledge_evidence`。

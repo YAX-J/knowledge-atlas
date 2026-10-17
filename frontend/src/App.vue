@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import AppHeader from './components/AppHeader.vue'
 import SideRail from './components/SideRail.vue'
@@ -13,14 +13,14 @@ import { ApiError } from './api/client'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
   runTask, uploadMarkdown, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
-  getProjectGraph, getEntityDetail, getRelationshipDetail,
+  getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
   CandidateList, ExtractionResult,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
-import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail } from './types'
+import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchResult } from './types'
 
 const selectedId = ref('event-driven')
 const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'graph')
@@ -67,6 +67,46 @@ const graphType = ref('')
 const graphDepth = ref(1)
 let graphRequest = 0
 let graphDetailRequest = 0
+const searchResult = ref<KnowledgeSearchResult | null>(null)
+const searchLoading = ref(false)
+const searchError = ref('')
+let searchRequest = 0
+let searchQuery = ''
+let searchTypes = ''
+
+function clearSearch() {
+  searchRequest++
+  searchResult.value = null
+  searchError.value = ''
+  searchLoading.value = false
+  searchQuery = searchTypes = ''
+}
+
+async function runSearch(query: string, types: string) {
+  const projectId = project.value?.id
+  if (!projectId) return
+  const request = ++searchRequest
+  searchQuery = query
+  searchTypes = types
+  searchLoading.value = true
+  searchError.value = ''
+  searchResult.value = null
+  try {
+    const result = await searchKnowledge(projectId, query, types)
+    if (request === searchRequest && project.value?.id === projectId) searchResult.value = result
+  } catch (error) {
+    if (request === searchRequest) searchError.value = errorMessage(error)
+  } finally {
+    if (request === searchRequest) searchLoading.value = false
+  }
+}
+
+async function openSearchEntity(id: string) {
+  const projectId = project.value?.id
+  await selectGraphEntity(id)
+  await nextTick()
+  if (project.value?.id === projectId && graphSelectedId.value === id) document.getElementById('formal-knowledge-detail')?.focus()
+}
 
 function errorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message
@@ -110,6 +150,7 @@ async function loadProjects(page = 1) {
 function selectProject(value: ApiProject) {
   if (loading.upload || loading.task) return
   project.value = value
+  clearSearch()
   graphRequest++
   graphDetailRequest++
   realGraph.value = null
@@ -322,6 +363,7 @@ async function reviewCandidate(decision: ReviewDecision) {
 
 function openProjectGraph() {
   if (!project.value) return
+  clearSearch()
   activeNav.value = 'projectGraph'
   graphType.value = ''
   graphCenter.value = ''
@@ -489,6 +531,8 @@ function setTimeline(value: number) {
       </template>
     </SourceWorkspace>
     <ProjectGraph v-else-if="activeNav === 'projectGraph'" :project="project" :graph="realGraph"
+      :search-result="searchResult" :search-loading="searchLoading" :search-error="searchError"
+      @search="runSearch" @clear-search="clearSearch" @retry-search="runSearch(searchQuery, searchTypes)" @select-search-entity="openSearchEntity"
       :entity-detail="realEntityDetail" :relationship-detail="realRelationshipDetail"
       :loading="graphLoading" :detail-loading="graphDetailLoading" :error="graphError" :detail-error="graphDetailError"
       :selected-id="graphSelectedId" :center="graphCenter" :depth="graphDepth" :type-filter="graphType"
