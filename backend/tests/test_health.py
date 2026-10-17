@@ -1,8 +1,6 @@
-from types import SimpleNamespace
-
 from fastapi.testclient import TestClient
-
-from app.api.routes import health
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 
 
 def test_liveness(client: TestClient) -> None:
@@ -16,15 +14,7 @@ def test_liveness(client: TestClient) -> None:
     assert response.headers["X-Request-ID"]
 
 
-def test_readiness_reports_database_and_optional_graph(
-    client: TestClient, monkeypatch
-) -> None:
-    monkeypatch.setattr(
-        health,
-        "get_settings",
-        lambda: SimpleNamespace(neo4j_healthcheck_enabled=False),
-    )
-
+def test_readiness_requires_only_postgresql(client: TestClient) -> None:
     response = client.get("/api/v1/health/ready")
 
     assert response.status_code == 200
@@ -32,9 +22,29 @@ def test_readiness_reports_database_and_optional_graph(
         "status": "ready",
         "dependencies": {
             "postgresql": {"status": "up", "detail": None},
-            "neo4j": {
-                "status": "not_checked",
-                "detail": "health check disabled",
+        },
+    }
+
+
+def test_readiness_reports_database_failure_without_connection_details(
+    client: TestClient, db_session: Session, monkeypatch
+) -> None:
+    def fail_execute(*args, **kwargs):
+        raise OperationalError(
+            "SELECT 1", {}, Exception("private connection details")
+        )
+
+    monkeypatch.setattr(db_session, "execute", fail_execute)
+
+    response = client.get("/api/v1/health/ready")
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "status": "degraded",
+        "dependencies": {
+            "postgresql": {
+                "status": "down",
+                "detail": "database connection failed",
             },
         },
     }

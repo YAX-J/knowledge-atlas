@@ -1,6 +1,5 @@
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from neo4j import GraphDatabase
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -20,7 +19,6 @@ def liveness() -> LivenessResponse:
 
 @router.get("/ready", response_model=ReadinessResponse)
 def readiness(db: DatabaseSession):
-    settings = get_settings()
     dependencies: dict[str, DependencyHealth] = {}
 
     try:
@@ -31,26 +29,8 @@ def readiness(db: DatabaseSession):
             status="down", detail="database connection failed"
         )
 
-    if not settings.neo4j_healthcheck_enabled:
-        dependencies["neo4j"] = DependencyHealth(
-            status="not_checked", detail="health check disabled"
-        )
-    else:
-        try:
-            with GraphDatabase.driver(
-                settings.neo4j_uri,
-                auth=(settings.neo4j_username, settings.neo4j_password),
-                connection_timeout=2,
-            ) as driver:
-                driver.verify_connectivity()
-            dependencies["neo4j"] = DependencyHealth(status="up")
-        except Exception:
-            dependencies["neo4j"] = DependencyHealth(
-                status="down", detail="graph connection failed"
-            )
-
     is_ready = all(
-        dependency.status in {"up", "not_checked"}
+        dependency.status == "up"
         for dependency in dependencies.values()
     )
     response = ReadinessResponse(

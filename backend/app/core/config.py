@@ -11,10 +11,6 @@ class Settings(BaseSettings):
     database_url: str = (
         "postgresql+psycopg://knowledge_atlas:knowledge_atlas@localhost:5432/knowledge_atlas"
     )
-    neo4j_uri: str = "bolt://localhost:7687"
-    neo4j_username: str = "neo4j"
-    neo4j_password: str = "knowledge-atlas-dev"
-    neo4j_healthcheck_enabled: bool = True
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
     max_upload_bytes: int = 10 * 1024 * 1024
     task_lease_seconds: int = Field(default=300, ge=1, le=86400)

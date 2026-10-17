@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class DependencyHealth(BaseModel):
-    status: Literal["up", "down", "not_checked"]
+    status: Literal["up", "down"]
     detail: str | None = None
 
 

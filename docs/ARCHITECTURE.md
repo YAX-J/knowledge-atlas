@@ -1,6 +1,6 @@
 # Knowledge Atlas 系统架构
 
-本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Mock 图谱、真实项目/资料工作台、FastAPI 基础接口、手动与 Worker Markdown 解析、执行租约与中断恢复、PostgreSQL 数据模型与迁移以及本地容器配置；抽取、Neo4j 投影、检索和 Agent 仍属于后续阶段。
+本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Mock 图谱、真实项目/资料工作台、FastAPI 基础接口、手动与 Worker Markdown 解析、执行租约与中断恢复、PostgreSQL 数据模型与迁移以及可选容器配置；抽取、图谱持久化、检索和 Agent 仍属于后续阶段。当前只使用 PostgreSQL/pgvector，暂缓引入 Neo4j，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。
 
 ## 架构目标
 
@@ -34,7 +34,6 @@ flowchart TB
     subgraph Storage[存储层]
         DB1[(PostgreSQL)]
         DB2[(pgvector)]
-        DB3[(Neo4j)]
     end
 
     subgraph Services[应用服务]
@@ -61,14 +60,13 @@ flowchart TB
     P3 --> P4 --> P5 --> P6
     P6 --> DB1
     P6 --> DB2
-    P6 --> DB3
     DB1 --> A2
     DB2 --> A2
-    DB3 --> A2
     A2 --> A3
     A1 --> Client
     A3 --> A1
-    DB3 --> A4
+    DB1 --> A4
+    DB1 --> A1
 ```
 
 ## 组件职责
@@ -89,7 +87,7 @@ flowchart TB
 
 - 用户、项目、资料和知识条目的增删改查。
 - 文件上传、任务创建和任务状态查询。
-- 统一调用 PostgreSQL、Neo4j 和检索服务。
+- 统一调用 PostgreSQL 和检索服务。
 - 校验模型输出，不允许模型直接写入数据库。
 - 将证据位置转换为前端可消费的统一格式。
 
@@ -112,19 +110,21 @@ PostgreSQL 是业务数据和原始证据的事实来源。
 
 - 用户、项目、资料和内容分块。
 - 任务状态、审核记录和错误信息。
-- 实体与关系的业务标识及版本元数据。
+- 规划中的实体、关系、证据、审核状态及版本元数据。
 - 文本向量和相似度检索。
 
-### Neo4j
+### 图谱存储与查询（规划中）
 
-Neo4j 保存适合图遍历的知识投影。
+后续优先在 PostgreSQL 中实现节点表、关系表和证据关联，保持现有知识模型与前端图谱接口语义：
 
 - 实体节点和语义关系。
 - 项目、问题、方案、决策与证据之间的路径。
 - `SUPERSEDES` 等历史演化关系。
 - 一跳、多跳和限定关系类型的查询。
 
-建议由 PostgreSQL 保存权威业务状态，通过可靠事件或 Outbox 同步 Neo4j，避免两个数据库同时成为可写事实来源。
+一跳关系使用关联查询，限定深度的多跳关系可采用递归查询。查询需要用户/项目与时间过滤、循环保护、深度及结果量限制，并基于实际查询添加索引和验证性能。当前尚未创建正式节点、关系和证据关联表，也未实现这些查询。
+
+Neo4j 不参与当前运行环境或验收。如果实测查询复杂度、性能或图算法需求需要专用图数据库，再通过新 ADR 决定；届时 PostgreSQL 继续作为事实来源，业务 UUID 保持稳定。
 
 ## 资料导入流程
 
@@ -135,7 +135,6 @@ sequenceDiagram
     participant DB as PostgreSQL
     participant Worker as Worker
     participant LLM as 模型服务
-    participant Graph as Neo4j
 
     User->>API: 上传资料
     API->>DB: 保存来源和创建任务
@@ -147,8 +146,7 @@ sequenceDiagram
     Worker->>Worker: Schema 校验与实体消歧
     Worker->>DB: 保存候选结果
     User->>API: 确认或修正候选知识
-    API->>DB: 提交正式状态
-    API->>Graph: 更新图谱投影
+    API->>DB: 同一事务提交正式节点、关系、证据与审核状态
 ```
 
 ## 证据问答流程
@@ -164,10 +162,10 @@ sequenceDiagram
 
 ## 数据一致性
 
-- 所有业务对象使用稳定 UUID，不使用数据库内部 ID 作为跨库标识。
-- PostgreSQL 事务提交后再异步更新 Neo4j 投影。
-- 同步事件保存幂等键、重试次数和最后错误。
-- 删除默认采用软删除，并在图数据库中同步 `archived` 状态。
+- 所有业务对象使用稳定 UUID，不通过 API 暴露数据库内部 ID。
+- 正式节点、关系、证据及审核状态计划在同一 PostgreSQL 事务中提交。
+- 知识写入和重复执行必须幂等，不要求当前实现跨数据库同步或 Outbox。
+- 删除默认采用软删除；图查询必须过滤 `archived` 状态并保留历史证据。
 - 资料重复导入通过内容哈希判断；当前文件变化会创建独立来源，只重新处理变化分块属于后续增量更新目标。
 
 ## 安全与隔离
@@ -193,5 +191,5 @@ sequenceDiagram
 - 后续长耗时抽取任务的心跳、取消和队列扩展策略（当前数据库轮询 Worker 见 ADR 0004）。
 - 代码解析使用 Tree-sitter 还是按语言分别实现。
 - 在线模型与 Ollama 的统一适配接口。
-- Neo4j 投影同步采用同步写入、Outbox 还是消息队列。
+- PostgreSQL 图关系表的索引、递归查询与实际数据下的性能边界。
 - 混合检索的归一化和排序策略。

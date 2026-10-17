@@ -29,7 +29,7 @@ The active phase remains the first Markdown ingestion vertical slice. API persis
 
 Expected outcomes:
 
-- Validate the user's locally installed PostgreSQL, pgvector, and Neo4j services; Docker is optional.
+- Validate the user's locally installed PostgreSQL and pgvector; Docker is optional.
 - Validate the integrated frontend project/source flow against native local PostgreSQL.
 - Validate worker/API contention and lease recovery against PostgreSQL before advancing to extraction.
 
@@ -42,11 +42,13 @@ Acceptance criteria:
 - Re-importing unchanged content has deterministic behavior.
 - No model integration or graph extraction is required until parsing is stable.
 
+Neo4j is deferred under [ADR 0005](docs/adr/0005-postgresql-only-storage.md); it is not a prerequisite for this phase. Planned graph storage uses PostgreSQL.
+
 ## Later phases
 
 1. Markdown parsing, chunking, and source locations.
 2. Schema-constrained knowledge extraction and human confirmation.
-3. Neo4j graph projection and real frontend data.
+3. PostgreSQL graph persistence and real frontend data.
 4. Keyword, vector, and graph hybrid retrieval.
 5. Evidence-grounded Agent answers.
 6. Code and GitHub ingestion.

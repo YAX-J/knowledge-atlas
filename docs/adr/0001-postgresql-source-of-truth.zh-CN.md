@@ -2,8 +2,10 @@
 
 [English](0001-postgresql-source-of-truth.md)
 
-- 状态：Accepted（已接受）
+- 状态：Superseded（已被 [ADR 0005](0005-postgresql-only-storage.zh-CN.md) 替代）
 - 日期：2026-10-17
+
+本文保留最初的双数据库设计。ADR 0005 继续以 PostgreSQL 为事实来源，并暂缓引入 Neo4j；下文投影要求属于历史决策，不是当前实现要求。
 
 ## 背景
 

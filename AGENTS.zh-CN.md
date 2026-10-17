@@ -8,7 +8,7 @@
 
 Knowledge Atlas 是面向单人开发者的毕业设计项目。它将技术笔记、代码、项目文档和 Git 记录组织成个人时序知识图谱，并通过有证据支撑的检索来回答问题。
 
-仓库当前包含可交互的 Mock 图谱、接入真实 API 的项目/资料工作台、FastAPI 持久化接口，以及支持手动执行或可选数据库 Worker 的 Markdown 解析与租约恢复。不得将模型抽取、真实图谱投影、检索或 Agent 能力描述为已实现。
+仓库当前包含可交互的 Mock 图谱、接入真实 API 的项目/资料工作台、FastAPI 持久化接口，以及支持手动执行或可选数据库 Worker 的 Markdown 解析与租约恢复。不得将模型抽取、真实图谱持久化、检索或 Agent 能力描述为已实现。
 
 ## 修改代码前阅读
 
@@ -30,16 +30,16 @@ Knowledge Atlas 是面向单人开发者的毕业设计项目。它将技术笔�
 - `backend/`：FastAPI、SQLAlchemy 模型、Alembic 迁移和接口测试。
 - `docs/`：架构、前端、知识模型、接口、路线、环境配置和 ADR 文档。
 - `.github/`：Issue 与 Pull Request 模板。
-- `compose.yaml`：本地 PostgreSQL/pgvector、Neo4j、API 和解析 Worker 服务。
+- `compose.yaml`：本地 PostgreSQL/pgvector、API 和解析 Worker 服务。
 - `backend/app/worker.py`：独立的数据库解析消费者，复用后端模型和服务。
 - 尚未创建的规划内容：提示词资源和实验数据集。
 
 ## 必须遵守的领域规则
 
 - 每条生成的知识和回答都必须能够追溯到来源证据。
-- 大模型可以提出候选内容，但不得直接写入 Neo4j 或权威业务表。
-- PostgreSQL 是预定的事实来源，Neo4j 是可重建的图谱投影。
-- 各存储之间使用稳定的业务 UUID。不得通过 API 暴露图数据库内部 ID。
+- 大模型可以提出候选内容，但不得直接写入权威业务表。
+- PostgreSQL 是当前唯一数据库，也是业务数据与规划中图谱存储的事实来源。暂缓引入 Neo4j；仅在实测需求证明有必要时再引入图数据库，并记录 ADR。
+- 实体、关系和证据使用稳定的业务 UUID。不得通过 API 暴露数据库内部 ID。
 - `valid_from` 和 `valid_to` 是属性，不是图关系类型。
 - 时序替代方向为 `new knowledge -[:SUPERSEDES]-> old knowledge`，即新知识指向旧知识。
 - 即使当前应用是单用户，也必须保留 `user_id` 和 `project_id` 边界。
@@ -61,7 +61,7 @@ Knowledge Atlas 是面向单人开发者的毕业设计项目。它将技术笔�
 - 使用 FastAPI 和带类型的请求、响应模型。
 - 分离 API、领域逻辑、持久化和外部模型集成。
 - 大模型输出必须先通过明确的 Schema 校验，再持久化。
-- 导入和图谱投影操作必须具备幂等性。
+- 导入和知识持久化操作必须具备幂等性。
 - 密钥只放在环境变量或密钥管理服务中。环境文件只提交 `.env.example`。
 - 数据库迁移尽可能采用增量变更，并支持回滚。
 - 请求处理函数保持简洁，持久化与校验流程放在 `backend/app/services/`。
@@ -102,7 +102,7 @@ python -m pytest
 
 ## 范围与安全
 
-- 本地开发和验收默认使用用户本机安装的 PostgreSQL（含 pgvector）与 Neo4j。Docker Compose 是可选方案，不得作为真实服务验证的前提。
+- 本地开发和验收默认使用用户本机安装的 PostgreSQL（含 pgvector）。Docker Compose 是可选方案，不得作为真实服务验证的前提。
 - 优先选择能够推进“Markdown 到有证据回答”流程的最小纵向功能切片。
 - 除非用户明确要求，否则不增加团队协作、复杂权限、IDE 插件或大规模部署。
 - 用户已授权在每轮完成后进行本地提交，按下方工作流执行。推送、发布、部署、轮换凭据或修改外部服务仍需要单独的明确授权。

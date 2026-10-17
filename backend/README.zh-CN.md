@@ -6,7 +6,7 @@
 
 ## 已实现能力
 
-- 存活检查，以及 PostgreSQL/Neo4j 依赖就绪检查。
+- 存活检查，以及 PostgreSQL 依赖就绪检查。
 - 请求 ID、CORS、请求日志和稳定的错误结构。
 - 在开发用户边界内创建、列出和查询项目。
 - 在同一用户/项目边界内分页查询资料元数据及最新任务。
@@ -18,7 +18,7 @@
 - 分页查询分块，安全地重复执行已完成任务或重试失败任务。
 - 持久化项目、来源、任务和候选知识记录。
 
-模型抽取、Neo4j 投影、搜索和 Agent 回答尚未实现。
+模型抽取、图谱持久化、搜索和 Agent 回答尚未实现。规划中的节点、关系和证据将使用 PostgreSQL。暂缓引入 Neo4j，启动和验收均不要求它，见 [ADR 0005](../docs/adr/0005-postgresql-only-storage.zh-CN.md)。
 
 ## 环境配置
 
@@ -28,9 +28,9 @@ python -m venv .venv
 python -m pip install -e ".[dev]"
 ```
 
-按当前终端类型激活虚拟环境，再安装依赖。将 `.env.example` 复制为 `.env`，将 `DATABASE_URL`、`NEO4J_URI`、`NEO4J_USERNAME` 和 `NEO4J_PASSWORD` 填为本机原生服务的实际配置。示例凭据只是开发占位值，不代表你已有数据库的凭据。API 和 Worker 均从 `backend/` 使用同一环境文件。
+按当前终端类型激活虚拟环境，再安装依赖。将 `.env.example` 复制为 `.env`，将 `DATABASE_URL` 填为本机原生服务的实际配置。示例凭据只是开发占位值，不代表你已有数据库的凭据。API 和 Worker 均从 `backend/` 使用同一环境文件。
 
-启动本机已安装的 PostgreSQL 和 Neo4j，创建独立的 `knowledge_atlas` 数据库，或在配置中使用其他数据库名。PostgreSQL 必须安装 pgvector：初始迁移执行 `CREATE EXTENSION IF NOT EXISTS vector`，因此当前账号需要相应权限，或提前由管理员在目标数据库中启用扩展。不要求 Docker。
+启动本机已安装的 PostgreSQL，创建独立的 `knowledge_atlas` 数据库，或在配置中使用其他数据库名。PostgreSQL 必须安装 pgvector：初始迁移执行 `CREATE EXTENSION IF NOT EXISTS vector`，因此当前账号需要相应权限，或提前由管理员在目标数据库中启用扩展。不要求 Docker。
 
 应用数据库结构并启动 API：
 
@@ -85,7 +85,7 @@ python -m app.worker --once
 
 成功与失败更新都必须匹配当前执行 UUID 和运行状态。分块、来源状态和最终任务状态在同一事务中提交。即使被替换的进程稍后恢复，也不能覆盖当前结果。租约没有心跳：仍在运行的解析器超出租约时，可能与接手者同时计算，因此租约应长于正常解析耗时。收到 SIGINT/SIGTERM 后，在当前轮次完成后退出；强制终止依赖租约恢复。
 
-Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose up -d --build` 也会启动 Worker。它等待 API 完成迁移并通过存活检查，使用相同后端镜像，不提供 HTTP 端口。默认验收使用本机原生 PostgreSQL/Neo4j；真实联通与 PostgreSQL 竞争/恢复仍待验证，可选容器启动也尚未验证。
+Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose up -d --build` 也会启动 Worker。它等待 API 完成迁移并通过存活检查，使用相同后端镜像，不提供 HTTP 端口。默认验收使用本机原生 PostgreSQL；真实联通与 PostgreSQL 竞争/恢复仍待验证，可选容器启动也尚未验证。
 
 ## 测试
 
@@ -93,7 +93,7 @@ Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose 
 python -m pytest
 ```
 
-测试使用隔离 SQLite 数据库，覆盖解析、API 行为、失败/重试、访问隔离、保留历史运行任务的迁移升级/回滚、PostgreSQL SQL 离线编译、独立会话之间的 Worker 恢复/写入保护，以及真实单次执行 Worker 子进程。要验证真实 PostgreSQL 和 Neo4j 连接，应针对配置的本机原生服务调用 `/api/v1/health/ready`；验收时两项依赖都应为 `up`。离线编译不能代替真实数据库集成测试。
+测试使用隔离 SQLite 数据库，覆盖解析、API 行为、失败/重试、访问隔离、保留历史运行任务的迁移升级/回滚、PostgreSQL SQL 离线编译、独立会话之间的 Worker 恢复/写入保护，以及真实单次执行 Worker 子进程。要验证真实 PostgreSQL 连接，应针对配置的本机原生服务调用 `/api/v1/health/ready`；验收时 PostgreSQL 依赖应为 `up`。离线编译不能代替真实数据库集成测试。
 
 ## 结构
 

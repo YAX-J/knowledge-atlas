@@ -57,7 +57,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - 独立 Worker 自动消费排队任务，通过执行租约恢复中断任务，并阻止旧进程覆盖新结果。
 - 解析标题、段落、列表和围栏代码块，保存原文、标题路径及行号；相同项目重复上传相同字节会复用来源与任务。
 - 项目、资料、任务和候选知识的 SQLAlchemy 模型与 Alembic 初始迁移。
-- PostgreSQL/pgvector、Neo4j、API 和 Worker 的 Docker Compose 配置。
+- PostgreSQL/pgvector、API 和 Worker 的 Docker Compose 配置。
 - 使用 SQLite 隔离数据库的后端接口测试。
 
 ## 快速开始
@@ -101,9 +101,9 @@ python -m venv .venv
 python -m pip install -e ".[dev]"
 ```
 
-然后将 `backend/.env.example` 复制为 `backend/.env`。默认使用本机已安装的 PostgreSQL 和 Neo4j，在环境文件中填写实际连接地址、数据库名、账号和密码；不要提交 `.env`。
+然后将 `backend/.env.example` 复制为 `backend/.env`。默认使用本机已安装的 PostgreSQL（含 pgvector），在环境文件中填写实际连接地址、数据库名、账号和密码；不要提交 `.env`。
 
-启动本机 PostgreSQL 与 Neo4j，创建项目专用数据库 `knowledge_atlas`，确认 PostgreSQL 已安装 pgvector 扩展文件。初始迁移会执行 `CREATE EXTENSION IF NOT EXISTS vector`，需要当前账号具备权限，或提前由管理员在该数据库启用扩展。然后从后端目录运行：
+启动本机 PostgreSQL，创建项目专用数据库 `knowledge_atlas`，确认 PostgreSQL 已安装 pgvector 扩展文件。初始迁移会执行 `CREATE EXTENSION IF NOT EXISTS vector`，需要当前账号具备权限，或提前由管理员在该数据库启用扩展。然后从后端目录运行：
 
 ```bash
 alembic upgrade head
@@ -123,12 +123,10 @@ flowchart LR
     B --> C[AI 知识抽取]
     C --> D[校验与人工确认]
     D --> E[(PostgreSQL 与 pgvector)]
-    D --> F[(Neo4j)]
     E --> H[混合检索]
-    F --> H
     H --> I[AI Agent]
     I --> J[带来源的回答]
-    F --> K[知识图谱与时间视图]
+    E --> K[知识图谱与时间视图]
 ```
 
 | 层次 | 目标技术 | 主要职责 |
@@ -137,9 +135,10 @@ flowchart LR
 | 后端 | FastAPI | 用户、项目、资料、知识和查询接口 |
 | 任务处理 | Python Worker | 文档解析、向量生成和知识抽取 |
 | Agent | LangGraph | 问题分类、检索规划、证据核验和回答 |
-| 业务与向量 | PostgreSQL、pgvector | 原文、分块、任务、审核和向量索引 |
-| 图数据库 | Neo4j | 知识实体、语义关系和历史演化 |
-| 运行环境 | 本机 PostgreSQL、Neo4j 与 Python/Node.js 进程；可选 Docker Compose | 本地开发与毕业设计演示环境 |
+| 业务、图谱与向量 | PostgreSQL、pgvector | 原文、分块、任务、审核；规划中的知识实体、语义关系、历史演化和向量索引 |
+| 运行环境 | 本机 PostgreSQL 与 Python/Node.js 进程；可选 Docker Compose | 本地开发与毕业设计演示环境 |
+
+当前不需要 Neo4j。后续优先在 PostgreSQL 中实现节点、关系和证据存储；只有实际查询需求证明有必要时再评估独立图数据库，见 [ADR 0005](docs/adr/0005-postgresql-only-storage.zh-CN.md)。
 
 架构边界和数据流详见 [系统架构](docs/ARCHITECTURE.md)。
 
@@ -171,7 +170,7 @@ knowledge-atlas/
 ├─ CONTRIBUTING.md          # 分支、提交和评审规范
 ├─ CHANGELOG.md             # 版本变化记录
 ├─ SECURITY.md              # 敏感数据与漏洞报告约定
-├─ compose.yaml             # PostgreSQL、Neo4j、API 和 Worker 本地环境
+├─ compose.yaml             # PostgreSQL、API 和 Worker 本地环境
 └─ README.md
 ```
 
@@ -220,4 +219,4 @@ knowledge-atlas/
 
 ## 项目状态说明
 
-本仓库目前处于后端基础和 Markdown 导入闭环阶段。README 中标记为“规划中”或“后续阶段”的能力属于目标设计，不代表已经完成。项目与资料工作台已接入真实接口，图谱与问答仍使用 Mock；Worker 可自动解析，尚未接入知识抽取或图谱写入。本机 PostgreSQL/Neo4j 的真实联通与 PostgreSQL 并发验证仍待完成，验收不依赖 Docker。
+本仓库目前处于后端基础和 Markdown 导入闭环阶段。README 中标记为“规划中”或“后续阶段”的能力属于目标设计，不代表已经完成。项目与资料工作台已接入真实接口，图谱与问答仍使用 Mock；Worker 可自动解析，尚未接入知识抽取或图谱写入。本机 PostgreSQL 的真实联通与 PostgreSQL 并发验证仍待完成，验收不依赖 Docker。

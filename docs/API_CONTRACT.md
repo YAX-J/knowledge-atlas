@@ -43,6 +43,23 @@
 }
 ```
 
+## 健康检查
+
+`GET /api/v1/health/live` 检查进程存活，不访问数据库。
+
+`GET /api/v1/health/ready` 当前只检查 PostgreSQL 连接，不要求独立图数据库：
+
+```json
+{
+  "status": "ready",
+  "dependencies": {
+    "postgresql": { "status": "up", "detail": null }
+  }
+}
+```
+
+连接失败时返回 HTTP 503，顶层 `status` 为 `degraded`，PostgreSQL 的 `status` 为 `down`、`detail` 为 `database connection failed`，不暴露连接凭据或异常细节。依赖状态仅包含 `up` 和 `down`。就绪检查不验证 pgvector 扩展、迁移版本或业务流程；这些仍需单独验收。
+
 ## 项目
 
 ### 查询项目

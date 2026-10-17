@@ -6,7 +6,7 @@ FastAPI service for the first Knowledge Atlas persistence and Markdown-ingestion
 
 ## Implemented behavior
 
-- Liveness and PostgreSQL/Neo4j readiness endpoints.
+- Liveness and PostgreSQL readiness endpoints.
 - Request IDs, CORS, request logging, and a stable error envelope.
 - Create, list, and retrieve projects within a development-user boundary.
 - Paginate a project's source metadata and latest tasks within the same user/project boundary.
@@ -18,7 +18,7 @@ FastAPI service for the first Knowledge Atlas persistence and Markdown-ingestion
 - Paginate stored chunks and safely repeat completed tasks or retry failed tasks.
 - Persist project, source, task, and candidate-knowledge records.
 
-Model extraction, Neo4j projection, search, and Agent answers are not implemented yet.
+Model extraction, graph persistence, search, and Agent answers are not implemented yet. Planned nodes, relationships, and evidence will use PostgreSQL. Neo4j is deferred and is not required for startup or acceptance; see [ADR 0005](../docs/adr/0005-postgresql-only-storage.md).
 
 ## Setup
 
@@ -28,9 +28,9 @@ python -m venv .venv
 python -m pip install -e ".[dev]"
 ```
 
-Copy `.env.example` to `.env` and set `DATABASE_URL`, `NEO4J_URI`, `NEO4J_USERNAME`, and `NEO4J_PASSWORD` to your native local service settings. The example credentials are development placeholders, not your existing database credentials. API and worker must use the same environment file from `backend/`.
+Copy `.env.example` to `.env` and set `DATABASE_URL` to your native local service settings. The example credentials are development placeholders, not your existing database credentials. API and worker must use the same environment file from `backend/`.
 
-Start your locally installed PostgreSQL and Neo4j, and create a dedicated `knowledge_atlas` database (or configure another database name). PostgreSQL must have pgvector installed: the initial migration runs `CREATE EXTENSION IF NOT EXISTS vector`, so the account needs permission or an administrator must enable it in the target database first. Docker is not required.
+Start your locally installed PostgreSQL, and create a dedicated `knowledge_atlas` database (or configure another database name). PostgreSQL must have pgvector installed: the initial migration runs `CREATE EXTENSION IF NOT EXISTS vector`, so the account needs permission or an administrator must enable it in the target database first. Docker is not required.
 
 Then apply the schema and start the API:
 
@@ -85,7 +85,7 @@ Each claim gets a fresh internal execution UUID, an incremented attempt count, a
 
 Both success and failure updates require the current execution UUID and running status. Chunks, source state, and final task state commit atomically. A replaced process cannot overwrite the current result even if it resumes later. Leases have no heartbeat: a live parser exceeding its lease can overlap a replacement in computation, so size the lease above normal parsing duration. SIGINT/SIGTERM request exit after the current iteration; forced termination relies on lease recovery.
 
-Docker Compose is an optional alternative: from the repository root, `docker compose up -d --build` also starts the worker. It waits for the API's liveness check after migrations, uses the same backend image, and has no HTTP port. Default acceptance uses native local PostgreSQL/Neo4j; real connectivity and PostgreSQL contention/recovery remain to be validated. Optional container startup has not been verified.
+Docker Compose is an optional alternative: from the repository root, `docker compose up -d --build` also starts the worker. It waits for the API's liveness check after migrations, uses the same backend image, and has no HTTP port. Default acceptance uses native local PostgreSQL; real connectivity and PostgreSQL contention/recovery remain to be validated. Optional container startup has not been verified.
 
 ## Test
 
@@ -93,7 +93,7 @@ Docker Compose is an optional alternative: from the repository root, `docker com
 python -m pytest
 ```
 
-Tests use isolated SQLite databases and cover parsing, API behavior, failure/retry, access isolation, migration upgrade/downgrade with legacy running tasks, offline PostgreSQL SQL compilation, worker recovery/fencing across independent sessions, and actual one-shot worker subprocesses. Run `/api/v1/health/ready` against your configured native local services to verify the real PostgreSQL and Neo4j connections. Both dependencies must report `up` for acceptance. Offline compilation is not a live database integration test.
+Tests use isolated SQLite databases and cover parsing, API behavior, failure/retry, access isolation, migration upgrade/downgrade with legacy running tasks, offline PostgreSQL SQL compilation, worker recovery/fencing across independent sessions, and actual one-shot worker subprocesses. Run `/api/v1/health/ready` against your configured native local services to verify the real PostgreSQL connection. The PostgreSQL dependency must report `up` for acceptance. Offline compilation is not a live database integration test.
 
 ## Structure
 

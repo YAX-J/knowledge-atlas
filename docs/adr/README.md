@@ -63,7 +63,8 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 
 ## Existing decisions
 
-- [ADR 0001: PostgreSQL as the source of truth](0001-postgresql-source-of-truth.md)
+- [ADR 0001: PostgreSQL as the source of truth](0001-postgresql-source-of-truth.md) (superseded by ADR 0005)
 - [ADR 0002: Native SVG for the prototype graph](0002-native-svg-for-prototype-graph.md)
 - [ADR 0003: Persist Markdown chunks and run parsing explicitly](0003-markdown-parsing-execution.md)
 - [ADR 0004: Database-backed parsing worker with execution leases](0004-database-backed-parsing-worker.md)
+- [ADR 0005: Use PostgreSQL only and defer Neo4j](0005-postgresql-only-storage.md)

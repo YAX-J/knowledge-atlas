@@ -29,7 +29,7 @@
 
 预期成果：
 
-- 验证用户本机安装的 PostgreSQL、pgvector 和 Neo4j 服务，Docker 为可选方案。
+- 验证用户本机安装的 PostgreSQL 和 pgvector，Docker 为可选方案。
 - 使用本机原生 PostgreSQL 验证已经接通的前端项目/资料流程。
 - 进入知识抽取之前，验证 PostgreSQL 下 Worker/API 的竞争和租约恢复。
 
@@ -42,11 +42,13 @@
 - 重复导入未变化内容时具有确定性行为。
 - 在解析稳定之前，不要求接入模型或图谱抽取。
 
+根据 [ADR 0005](docs/adr/0005-postgresql-only-storage.zh-CN.md)，暂缓引入 Neo4j，当前阶段无需安装。规划中的图谱存储使用 PostgreSQL。
+
 ## 后续阶段
 
 1. Markdown 解析、分块和来源位置。
 2. 受 Schema 约束的知识抽取与人工确认。
-3. Neo4j 图谱投影与前端真实数据。
+3. PostgreSQL 图谱持久化与前端真实数据。
 4. 关键词、向量和图关系混合检索。
 5. 以证据为依据的 Agent 回答。
 6. 代码与 GitHub 导入。

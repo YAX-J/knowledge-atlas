@@ -2,8 +2,10 @@
 
 [简体中文](0001-postgresql-source-of-truth.zh-CN.md)
 
-- Status: Accepted
+- Status: Superseded by [ADR 0005](0005-postgresql-only-storage.md)
 - Date: 2026-10-17
+
+This record preserves the original dual-database design. ADR 0005 retains PostgreSQL as the source of truth and defers Neo4j; the projection requirements below are historical, not current implementation requirements.
 
 ## Context
 

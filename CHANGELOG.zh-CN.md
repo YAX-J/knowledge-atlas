@@ -23,7 +23,7 @@ Knowledge Atlas 的重要变化记录在此。
 - FastAPI 后端基础，包括 CORS、请求 ID、健康接口和统一错误结构。
 - 项目创建/列表/详情、Markdown 上传、原文预览和任务状态接口。
 - 项目、来源、处理任务和候选知识的 SQLAlchemy 模型与 Alembic 迁移。
-- PostgreSQL/pgvector、Neo4j 和 API 的 Docker Compose 服务。
+- PostgreSQL/pgvector 和 API 的 Docker Compose 服务。
 - 覆盖首个导入功能切片的隔离后端接口测试。
 - 带类型的前端 API 客户端函数，同时保留 Mock 为默认数据来源。
 - 显式 Markdown 任务执行、持久化标题/段落/列表/代码分块及分页接口，保留稳定 UUID、精确原文、标题路径、哈希和来源行号。
@@ -34,12 +34,13 @@ Knowledge Atlas 的重要变化记录在此。
 
 ### 调整
 
-- 本机原生 PostgreSQL/pgvector 和 Neo4j 成为默认开发及验收方式；环境说明与计划将 Docker Compose 调整为可选方案，并说明如何配置实际本地连接。
+- 移除 Neo4j 驱动、配置、就绪检查及可选 Compose 服务/卷声明。当前仅使用 PostgreSQL，后续图谱存储优先使用 PostgreSQL，按 ADR 0005 暂缓引入 Neo4j。就绪接口仅返回 PostgreSQL 状态，数据库连接失败时仍返回 HTTP 503。
+- 本机原生 PostgreSQL/pgvector 成为默认开发及验收方式；环境说明与计划将 Docker Compose 调整为可选方案，并说明如何配置实际本地连接。
 - 扩展项目 README，补充当前状态、快速开始、架构、仓库结构和最小可行产品定义。
 
 ### 已知限制
 
-- 本机原生 PostgreSQL/Neo4j 联通和 PostgreSQL 竞争行为仍待验证，可选 Docker 启动也尚未验证。
+- 本机原生 PostgreSQL 联通和 PostgreSQL 竞争行为仍待验证，可选 Docker 启动也尚未验证。
 - Worker 使用固定租约，尚无心跳或抢占式取消。
-- 尚未实现完整 CommonMark 解析、知识抽取、图谱投影、检索和真实 Agent 回答。
+- 尚未实现完整 CommonMark 解析、知识抽取、图谱持久化、检索和真实 Agent 回答。
 - 图谱与问答视图仍为 Mock；真实问答历史、路由和持久化视图偏好尚未实现。

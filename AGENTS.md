@@ -6,7 +6,7 @@
 
 Knowledge Atlas is a graduation project for a single developer. It organizes technical notes, code, project documents, and Git records into a temporal personal knowledge graph and uses evidence-grounded retrieval to answer questions.
 
-The repository currently contains an interactive Mock graph, a real API-backed project/source workspace, FastAPI persistence APIs, and Markdown parsing with manual execution or an optional database-backed worker with lease recovery. Do not describe model extraction, real graph projection, retrieval, or Agent capabilities as implemented.
+The repository currently contains an interactive Mock graph, a real API-backed project/source workspace, FastAPI persistence APIs, and Markdown parsing with manual execution or an optional database-backed worker with lease recovery. Do not describe model extraction, real graph persistence, retrieval, or Agent capabilities as implemented.
 
 ## Read before changing code
 
@@ -28,16 +28,16 @@ Do not treat the Word documents outside this repository as more current than the
 - `backend/`: FastAPI, SQLAlchemy models, Alembic migrations, and API tests.
 - `docs/`: architecture, frontend, knowledge model, API, roadmap, setup, and ADR documentation.
 - `.github/`: issue and pull request templates.
-- `compose.yaml`: local PostgreSQL/pgvector, Neo4j, API, and parsing-worker services.
+- `compose.yaml`: local PostgreSQL/pgvector, API, and parsing-worker services.
 - `backend/app/worker.py`: independent database-backed parsing consumer; shares backend models and services.
 - Planned but not yet created: prompt assets and experiment datasets.
 
 ## Non-negotiable domain rules
 
 - Every generated knowledge item and answer must be traceable to source evidence.
-- An LLM may propose candidates but must not write directly to Neo4j or authoritative business tables.
-- PostgreSQL is the intended source of truth; Neo4j is a rebuildable graph projection.
-- Use stable business UUIDs across stores. Never expose database-internal graph IDs through the API.
+- An LLM may propose candidates but must not write directly to authoritative business tables.
+- PostgreSQL is the only current database and the intended source of truth for business data and planned graph storage. Neo4j is deferred; reintroduce a graph database only when measured needs justify it and record the decision in an ADR.
+- Use stable business UUIDs for entities, relationships, and evidence. Never expose database-internal IDs through the API.
 - `valid_from` and `valid_to` are properties, not graph relationship types.
 - Temporal replacement direction is `new knowledge -[:SUPERSEDES]-> old knowledge`.
 - Keep `user_id` and `project_id` boundaries even while the application is single-user.
@@ -59,7 +59,7 @@ Do not treat the Word documents outside this repository as more current than the
 - Use FastAPI with typed request and response models.
 - Keep API, domain, persistence, and external model integrations separated.
 - Validate LLM output against an explicit schema before persistence.
-- Make ingestion and graph-projection operations idempotent.
+- Make ingestion and knowledge-persistence operations idempotent.
 - Store secrets only in environment variables or a secret manager. Commit only `.env.example` files.
 - Database migrations must be additive and reversible when practical.
 - Keep request handlers thin; persistence and validation workflows belong in `backend/app/services/`.
@@ -100,7 +100,7 @@ For every change:
 
 ## Scope and safety
 
-- Use the user's natively installed PostgreSQL (with pgvector) and Neo4j for local development and acceptance by default. Docker Compose is optional and must not be a prerequisite for real-service validation.
+- Use the user's natively installed PostgreSQL (with pgvector) for local development and acceptance by default. Docker Compose is optional and must not be a prerequisite for real-service validation.
 - Prefer the smallest vertical slice that advances the Markdown-to-evidence-answer workflow.
 - Do not add team collaboration, complex permissions, IDE plugins, or large-scale deployment unless explicitly requested.
 - Local commits at the end of completed turns are authorized by the user; follow the commit workflow below. Do not push, publish, deploy, rotate credentials, or modify external services without separate explicit user authorization.
