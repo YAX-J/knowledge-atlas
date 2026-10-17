@@ -10,6 +10,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Repository-local agent skills under `.agents/skills/` for extraction, review/promotion, migrations, verification, ingestion, frontend, and bilingual documentation workflows, indexed from `AGENTS.md`.
 - Confirmation now promotes candidates into scoped PostgreSQL entities, relationships, and evidence in the same transaction as review state and audit events, including idempotent UUIDs, endpoint promotion, and legacy-confirmation replay. Read-only project graph and entity/relationship detail APIs expose time-filtered, bounded views without canvas coordinates.
 - Explicit DeepSeek JSON candidate extraction with constrained types/endpoints, exact source-quote validation, atomic candidate persistence, reusable successful tasks, manual retry/expired-lease recovery, and fenced writes.
 - Source-scoped candidate UI and paginated review APIs with confirm/reject, name/summary edits, endpoint confirmation rules, and reversible review-event migration. Model calls are not triggered by the parsing worker.

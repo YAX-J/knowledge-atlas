@@ -153,6 +153,7 @@ flowchart LR
 ```text
 knowledge-atlas/
 ├─ .github/                 # Issue 与 Pull Request 模板
+├─ .agents/skills/          # 仓库级代理技能与任务流程
 ├─ backend/                 # FastAPI、数据模型、迁移与接口测试
 │  ├─ app/                  # API、服务、配置、模型及 worker.py 消费入口
 │  ├─ migrations/           # Alembic 数据库迁移

@@ -22,12 +22,27 @@ Read only the documents relevant to the task, starting with:
 
 Do not treat the Word documents outside this repository as more current than the files above unless the user explicitly asks to reconcile them.
 
+## Repository skills
+
+Task procedures live in `.agents/skills/`. Read the matching `SKILL.md` before starting work:
+
+- Extraction, prompts, evidence validation → `.agents/skills/ka-extraction/SKILL.md`
+- Review, promotion, graph reads → `.agents/skills/ka-review-promotion/SKILL.md`
+- Models, Alembic, data shape → `.agents/skills/ka-migrations/SKILL.md`
+- Verification and completion → `.agents/skills/ka-verify/SKILL.md`
+- Upload, parsing, worker → `.agents/skills/ka-ingestion/SKILL.md`
+- Vue workspace and graph UI → `.agents/skills/ka-frontend-workspace/SKILL.md`
+- Bilingual docs, ADR, changelog → `.agents/skills/ka-docs-sync/SKILL.md`
+
+Index: `.agents/skills/README.md`. Skills describe procedures; the rules in this file remain authoritative. Update the matching skill when behavior or workflow changes.
+
 ## Repository structure
 
 - `frontend/`: Vue 3, TypeScript, Vite, Element Plus, and Mock data.
 - `backend/`: FastAPI, SQLAlchemy models, Alembic migrations, and API tests.
 - `docs/`: architecture, frontend, knowledge model, API, roadmap, setup, and ADR documentation.
 - `.github/`: issue and pull request templates.
+- `.agents/skills/`: repository-local agent skills for task procedures.
 - `compose.yaml`: local PostgreSQL/pgvector, API, and parsing-worker services.
 - `backend/app/worker.py`: independent database-backed parsing consumer; shares backend models and services.
 - Planned but not yet created: prompt assets and experiment datasets.

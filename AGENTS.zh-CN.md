@@ -24,12 +24,27 @@ Knowledge Atlas 是面向单人开发者的毕业设计项目。它将技术笔�
 
 除非用户明确要求核对差异，否则不要将仓库外的 Word 文档视为比上述文件更新的依据。
 
+## 仓库技能
+
+具体任务流程放在 `.agents/skills/`。开始工作前先读对应 `SKILL.md`：
+
+- 抽取、提示词、证据校验 → `.agents/skills/ka-extraction/SKILL.md`
+- 审核、写入正式图谱、图谱查询 → `.agents/skills/ka-review-promotion/SKILL.md`
+- 模型、Alembic、数据结构 → `.agents/skills/ka-migrations/SKILL.md`
+- 验证与完成判定 → `.agents/skills/ka-verify/SKILL.md`
+- 上传、解析、Worker → `.agents/skills/ka-ingestion/SKILL.md`
+- Vue 工作台与图谱界面 → `.agents/skills/ka-frontend-workspace/SKILL.md`
+- 双语文档、ADR、变更记录 → `.agents/skills/ka-docs-sync/SKILL.md`
+
+索引：`.agents/skills/README.md`。技能描述流程，本文件的规则仍然优先。行为或工作流变化时同步更新对应技能。
+
 ## 仓库结构
 
 - `frontend/`：Vue 3、TypeScript、Vite、Element Plus 和 Mock 数据。
 - `backend/`：FastAPI、SQLAlchemy 模型、Alembic 迁移和接口测试。
 - `docs/`：架构、前端、知识模型、接口、路线、环境配置和 ADR 文档。
 - `.github/`：Issue 与 Pull Request 模板。
+- `.agents/skills/`：仓库级代理技能，记录具体任务流程。
 - `compose.yaml`：本地 PostgreSQL/pgvector、API 和解析 Worker 服务。
 - `backend/app/worker.py`：独立的数据库解析消费者，复用后端模型和服务。
 - 尚未创建的规划内容：提示词资源和实验数据集。
