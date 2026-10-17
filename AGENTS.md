@@ -98,10 +98,19 @@ For every change:
 
 - Prefer the smallest vertical slice that advances the Markdown-to-evidence-answer workflow.
 - Do not add team collaboration, complex permissions, IDE plugins, or large-scale deployment unless explicitly requested.
-- Do not commit, push, publish, deploy, rotate credentials, or modify external services without explicit user authorization.
+- Local commits at the end of completed turns are authorized by the user; follow the commit workflow below. Do not push, publish, deploy, rotate credentials, or modify external services without separate explicit user authorization.
 - Preserve unrelated user changes in a dirty worktree.
 - Never add real private repository content, access tokens, or personal secrets to fixtures, screenshots, logs, or documentation.
 
+## Commit after each completed turn
+
+- Unless the user explicitly requests otherwise, commit the completed changes from each conversation turn before sending the final response. This is standing authorization for local commits; do not ask for confirmation again.
+- Run the checks appropriate to the changes, synchronize relevant documentation, and review the staged diff before committing. Include only changes belonging to the completed work; preserve unrelated user changes.
+- Use a concise commit message that describes the resulting behavior. Separate independent changes into focused commits when appropriate.
+- If the turn makes no file changes, do not create an empty commit.
+- If required checks fail or the commit cannot be created, preserve the work and report the failure instead of claiming completion or a successful commit.
+- In the final response, report the commit hash or hashes and any remaining uncommitted changes. A local commit does not authorize pushing to a remote.
+
 ## Definition of done
 
-A change is done when its requested behavior is implemented, relevant validation passes, documentation is synchronized, and remaining limitations are stated. Completing one roadmap phase does not authorize starting the next phase.
+A change is done when its requested behavior is implemented, relevant validation passes, documentation is synchronized, completed changes are committed according to the workflow above, and remaining limitations are stated. Completing one roadmap phase does not authorize starting the next phase.
