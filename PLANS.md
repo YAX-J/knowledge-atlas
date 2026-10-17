@@ -25,24 +25,21 @@ Completed:
 
 ## Active phase
 
-The active phase remains the first Markdown ingestion vertical slice. API persistence, manual/worker parsing, interrupted-task recovery, and frontend project/source integration are complete in code; native local-service connectivity and PostgreSQL concurrency validation remain.
+The active phase is schema-constrained extraction and human review. The user reports the native PostgreSQL 17/pgvector ingestion path, duplicate reuse, restart persistence, and automatic parsing passed. PostgreSQL contention and lease-recovery fault injection remain separate outstanding checks.
 
-Expected outcomes:
+Implemented in this slice:
 
-- Validate the user's locally installed PostgreSQL and pgvector; Docker is optional.
-- Validate the integrated frontend project/source flow against native local PostgreSQL.
-- Validate worker/API contention and lease recovery against PostgreSQL before advancing to extraction.
+- Explicit DeepSeek extraction from parsed source chunks, with strict JSON/type/endpoint and exact-evidence validation.
+- Atomic pending candidates, reusable successful extraction tasks, manual retries and expired-lease recovery.
+- Source-scoped candidate UI and paginated review APIs, name/summary edits, confirm/reject, and decision audit records.
 
-Acceptance criteria:
+Acceptance still needed:
 
-- Frontend and backend start independently from documented commands.
-- Backend dependency health is observable.
-- The frontend can create and query one project through the API.
-- A queued Markdown task can progress through parsing and expose its chunks.
-- Re-importing unchanged content has deterministic behavior.
-- No model integration or graph extraction is required until parsing is stable.
+- Configure a local DeepSeek key and verify a real model response against a short public Markdown note.
+- Review evidence quality and model output on representative inputs; simulated tests do not establish real extraction quality.
+- Retain PostgreSQL concurrency/recovery validation as a tracked integration check.
 
-Neo4j is deferred under [ADR 0005](docs/adr/0005-postgresql-only-storage.md); it is not a prerequisite for this phase. Planned graph storage uses PostgreSQL.
+Formal graph entities/relationships, promotion of confirmed candidates, merging/disambiguation, retrieval, and Agent answers remain future work. A confirmed candidate is not yet a formal graph object. Neo4j remains deferred under ADR 0005. See [ADR 0006](docs/adr/0006-deepseek-candidate-review.md) for this slice's boundaries.
 
 ## Later phases
 

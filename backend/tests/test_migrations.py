@@ -65,6 +65,8 @@ def test_postgresql_migrations_compile_without_a_live_server(monkeypatch) -> Non
     assert "CREATE EXTENSION IF NOT EXISTS vector" in sql
     assert "ck_tasks_attempt_count" in sql
     assert "lease_expires_at" in sql
+    assert "CREATE TABLE review_events" in sql
+    assert "ck_review_events_action" in sql
 
 
 def test_lease_migration_preserves_legacy_running_tasks(tmp_path, monkeypatch) -> None:
@@ -98,5 +100,46 @@ def test_lease_migration_preserves_legacy_running_tasks(tmp_path, monkeypatch) -
     assert "attempt_count" not in {column["name"] for column in inspect(engine).get_columns("processing_tasks")}
     with engine.connect() as connection:
         assert connection.execute(text("SELECT status FROM processing_tasks")).scalar_one() == "running"
+    command.upgrade(config, "head")
+    engine.dispose()
+
+
+def test_review_migration_preserves_existing_candidates(tmp_path, monkeypatch) -> None:
+    from app.models.domain import CandidateKnowledge, ReviewEvent, ReviewStatus
+    url = f"sqlite+pysqlite:///{(tmp_path / 'reviews.db').as_posix()}"
+    monkeypatch.setattr(app_config, "get_settings", lambda: SimpleNamespace(database_url=url))
+    config = migration_config()
+    command.upgrade(config, "20261017_0003")
+    engine = create_engine(url)
+    candidate_id = uuid.uuid4()
+    with Session(engine) as db:
+        user_id = uuid.uuid4()
+        project = Project(user_id=user_id, name="Existing project")
+        db.add(project)
+        db.flush()
+        source = SourceDocument(user_id=user_id, project_id=project.id, original_name="old.md",
+                                source_type="markdown", media_type="text/markdown", size_bytes=4,
+                                content_sha256="0" * 64, content="Note")
+        db.add(source)
+        db.flush()
+        task = ProcessingTask(user_id=user_id, project_id=project.id, source_id=source.id, type="markdown_parsing")
+        db.add(task)
+        db.flush()
+        db.add(CandidateKnowledge(id=candidate_id, user_id=user_id, project_id=project.id,
+                                 source_id=source.id, task_id=task.id, candidate_type="Concept",
+                                 name="Existing", summary="Kept", confidence=.8, payload={}))
+        db.commit()
+    command.upgrade(config, "head")
+    assert "review_events" in inspect(engine).get_table_names()
+    with Session(engine) as db:
+        candidate = db.get(CandidateKnowledge, candidate_id)
+        assert candidate.name == "Existing" and candidate.review_status == ReviewStatus.PENDING
+        db.add(ReviewEvent(candidate_id=candidate_id, user_id=candidate.user_id,
+                           project_id=candidate.project_id, action="confirm", before={}, after={}))
+        db.commit()
+    command.downgrade(config, "20261017_0003")
+    assert "review_events" not in inspect(engine).get_table_names()
+    with Session(engine) as db:
+        assert db.get(CandidateKnowledge, candidate_id).summary == "Kept"
     command.upgrade(config, "head")
     engine.dispose()

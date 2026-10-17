@@ -85,6 +85,7 @@ async def create_source_and_task(
             SourceDocument.content_sha256 == content_sha256,
             ProcessingTask.user_id == user_id,
             ProcessingTask.project_id == project_id,
+            ProcessingTask.type.in_(("markdown_parsing", "knowledge_extraction")),
         )
         .order_by(
             SourceDocument.created_at, SourceDocument.id,
@@ -163,6 +164,7 @@ def list_sources(
                 ProcessingTask.user_id == user_id,
                 ProcessingTask.project_id == project_id,
                 ProcessingTask.source_id.in_([source.id for source in sources]),
+                ProcessingTask.type.in_(("markdown_parsing", "knowledge_extraction")),
             ).order_by(ProcessingTask.created_at.desc(), ProcessingTask.id.desc())
         )
         for task in tasks:

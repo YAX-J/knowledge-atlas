@@ -7,16 +7,18 @@ import KnowledgeGraph from './components/KnowledgeGraph.vue'
 import InsightPanel from './components/InsightPanel.vue'
 import TimelineBar from './components/TimelineBar.vue'
 import SourceWorkspace from './components/SourceWorkspace.vue'
+import CandidateReview from './components/CandidateReview.vue'
 import { ApiError } from './api/client'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
-  runTask, uploadMarkdown,
+  runTask, uploadMarkdown, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
+  CandidateList, ExtractionResult,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
-import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav } from './types'
+import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision } from './types'
 
 const selectedId = ref('event-driven')
 const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'graph')
@@ -40,6 +42,15 @@ let projectsRequest = 0
 let sourcesRequest = 0
 let detailRequest = 0
 let chunksRequest = 0
+let reviewsRequest = 0
+let reviewAction = 0
+const candidates = ref<CandidateList | null>(null)
+const extraction = ref<ExtractionResult | null>(null)
+const reviewsLoading = ref(false)
+const extracting = ref(false)
+const resolving = ref('')
+const reviewsError = ref('')
+const reviewsNotice = ref('')
 
 function errorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message
@@ -47,6 +58,12 @@ function errorMessage(error: unknown): string {
 }
 
 function clearSourceSelection() {
+  reviewsRequest++
+  reviewAction++
+  candidates.value = null
+  extraction.value = null
+  reviewsLoading.value = extracting.value = false
+  resolving.value = reviewsError.value = reviewsNotice.value = ''
   detailRequest++
   chunksRequest++
   selectedSourceId.value = ''
@@ -151,7 +168,7 @@ async function refreshSource() {
       item.task_status = taskResult?.status ?? null
       item.updated_at = sourceResult.updated_at
     }
-    if (taskResult?.status === 'succeeded') await loadChunks(1)
+    if (taskResult?.status === 'succeeded') await Promise.all([loadChunks(1), loadReviews(1)])
   } catch (error) {
     if (request === detailRequest) errors.detail = errorMessage(error)
   } finally {
@@ -215,6 +232,69 @@ async function parseSource() {
     errors.task = errorMessage(error)
   } finally {
     loading.task = false
+  }
+}
+
+async function loadReviews(page = candidates.value?.page ?? 1) {
+  const sourceId = selectedSourceId.value
+  const projectId = project.value?.id
+  if (!sourceId || !projectId) return
+  const request = ++reviewsRequest
+  reviewsLoading.value = true
+  reviewsError.value = ''
+  try {
+    const [batch, status] = await Promise.all([listCandidates(projectId, sourceId, page), getExtraction(sourceId)])
+    if (request !== reviewsRequest || sourceId !== selectedSourceId.value) return
+    candidates.value = batch
+    extraction.value = status
+    if (status.task?.status === 'failed') {
+      const message = status.task.error?.message
+      reviewsError.value = typeof message === 'string' ? message : '提取失败，请重试。'
+    }
+  } catch (error) {
+    if (request === reviewsRequest) reviewsError.value = errorMessage(error)
+  } finally {
+    if (request === reviewsRequest) reviewsLoading.value = false
+  }
+}
+
+async function extractSource() {
+  const sourceId = selectedSourceId.value
+  if (!sourceId || extracting.value || resolving.value) return
+  const action = ++reviewAction
+  reviewsRequest++
+  reviewsLoading.value = false
+  extracting.value = true
+  reviewsError.value = reviewsNotice.value = ''
+  try {
+    const result = await extractKnowledge(sourceId)
+    if (action !== reviewAction || sourceId !== selectedSourceId.value) return
+    extraction.value = result
+    await loadReviews(1)
+    if (action === reviewAction && result.task?.status === 'succeeded') reviewsNotice.value = `已生成 ${result.candidate_count} 条候选知识，请逐项核对证据。`
+  } catch (error) {
+    if (action === reviewAction) reviewsError.value = errorMessage(error)
+  } finally {
+    if (action === reviewAction) extracting.value = false
+  }
+}
+
+async function reviewCandidate(decision: ReviewDecision) {
+  if (extracting.value || resolving.value) return
+  const action = ++reviewAction
+  reviewsRequest++
+  reviewsLoading.value = false
+  resolving.value = decision.id
+  reviewsError.value = reviewsNotice.value = ''
+  try {
+    await resolveCandidate(decision)
+    if (action !== reviewAction) return
+    await loadReviews()
+    if (action === reviewAction) reviewsNotice.value = decision.action === 'confirm' ? '候选知识已确认，审核记录已保存。' : '候选知识已拒绝，审核记录已保存。'
+  } catch (error) {
+    if (action === reviewAction) reviewsError.value = errorMessage(error)
+  } finally {
+    if (action === reviewAction) resolving.value = ''
   }
 }
 
@@ -288,7 +368,14 @@ function setTimeline(value: number) {
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
       @sources-page="loadSources" @select-source="selectSource" @upload="uploadFile"
       @run="parseSource" @refresh="refreshSource" @chunks-page="loadChunks"
-    />
+    >
+      <template #reviews>
+        <CandidateReview :key="selectedSourceId" :candidates="candidates" :extraction="extraction"
+          :loading="reviewsLoading" :extracting="extracting" :resolving="resolving"
+          :error="reviewsError" :notice="reviewsNotice"
+          @extract="extractSource" @refresh="loadReviews" @resolve="reviewCandidate" />
+      </template>
+    </SourceWorkspace>
     <main v-else class="atlas-main" :class="{ 'panel-collapsed': !panelOpen }">
       <section class="graph-workspace">
         <div class="workspace-title">

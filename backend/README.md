@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md)
 
-FastAPI service for the first Knowledge Atlas persistence and Markdown-ingestion slice.
+FastAPI service for Knowledge Atlas persistence, Markdown ingestion, and evidence-validated candidate extraction/review.
 
 ## Implemented behavior
 
@@ -18,7 +18,7 @@ FastAPI service for the first Knowledge Atlas persistence and Markdown-ingestion
 - Paginate stored chunks and safely repeat completed tasks or retry failed tasks.
 - Persist project, source, task, and candidate-knowledge records.
 
-Model extraction, graph persistence, search, and Agent answers are not implemented yet. Planned nodes, relationships, and evidence will use PostgreSQL. Neo4j is deferred and is not required for startup or acceptance; see [ADR 0005](../docs/adr/0005-postgresql-only-storage.md).
+Explicit DeepSeek candidate extraction, exact-quote evidence validation, paginated review, and audited confirm/reject with optional name/summary edits are implemented. Formal graph persistence, entity disambiguation, search, and Agent answers are not implemented yet. Real DeepSeek calls remain unverified. Planned nodes, relationships, and evidence will use PostgreSQL. Neo4j is deferred and is not required for startup or acceptance; see [ADR 0005](../docs/adr/0005-postgresql-only-storage.md).
 
 ## Setup
 
@@ -85,7 +85,29 @@ Each claim gets a fresh internal execution UUID, an incremented attempt count, a
 
 Both success and failure updates require the current execution UUID and running status. Chunks, source state, and final task state commit atomically. A replaced process cannot overwrite the current result even if it resumes later. Leases have no heartbeat: a live parser exceeding its lease can overlap a replacement in computation, so size the lease above normal parsing duration. SIGINT/SIGTERM request exit after the current iteration; forced termination relies on lease recovery.
 
-Docker Compose is an optional alternative: from the repository root, `docker compose up -d --build` also starts the worker. It waits for the API's liveness check after migrations, uses the same backend image, and has no HTTP port. Default acceptance uses native local PostgreSQL; real connectivity and PostgreSQL contention/recovery remain to be validated. Optional container startup has not been verified.
+Docker Compose is an optional alternative: from the repository root, `docker compose up -d --build` also starts the worker. It waits for the API's liveness check after migrations, uses the same backend image, and has no HTTP port. Default acceptance uses native local PostgreSQL; the user reports native PostgreSQL 17/pgvector startup, ingestion, duplicate reuse, restart persistence, and automatic parsing passed; PostgreSQL contention/recovery fault injection remains unverified. Optional container startup has not been verified.
+
+## DeepSeek candidate extraction and review
+
+Apply `alembic upgrade head` (expected `20261017_0004`) before review operations. Configure only the backend `.env`:
+
+```dotenv
+DEEPSEEK_API_KEY=your_local_key
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-flash
+DEEPSEEK_TIMEOUT_SECONDS=120
+EXTRACTION_MAX_INPUT_CHARS=60000
+```
+
+The default model follows the [DeepSeek API documentation](https://api-docs.deepseek.com/). The adapter uses JSON output and non-thinking mode; schema validation still happens locally. Restart the API after configuration changes. The local environment file already has empty/default fields where absent; keep actual secrets out of Git and browser configuration.
+
+After parsing a source, open its candidate section and explicitly request extraction. This sends that source's chunks to DeepSeek. `POST /api/v1/sources/{source_id}/extract` executes synchronously; `GET /api/v1/sources/{source_id}/extraction` reads task state. The parsing worker never initiates model calls. Limits are 100 chunks and 60000 characters in serialized input JSON by default, 50 entities, 100 relationships, 8192 output tokens, and a 1 MiB response. Oversized input is rejected, not silently truncated; split it into smaller sources.
+
+Outputs must match the schema, reference only extracted entities, and quote exact text from same-source chunks. A whole batch is accepted or rejected. Successful extraction is reused per source/prompt version, including after model-setting changes; this version has no forced re-extraction. Failed calls require explicit retry. Interrupted calls can be retried after their lease expires (at least the configured task lease or model timeout plus 60 seconds); stale executions cannot overwrite a replacement. No automatic retry is made because it could repeat model charges. A timed-out/interrupted call may already have reached the provider.
+
+Review candidates through `GET /api/v1/projects/{project_id}/reviews` and `POST /api/v1/reviews/{review_id}/resolve`. Confirm or reject, optionally editing name/summary before confirmation. Relationships require confirmed endpoint entities. Repeating the same decision is idempotent; changed decisions, merge, undo, and re-extraction are not supported. Migration `0004` adds audit records with actor, time, and before/after values. Downgrading it removes audit records, while preserving existing candidates and sources.
+
+Confirmation currently records candidate review status only; formal graph promotion, entity merging, retrieval, and real graph display remain future work. Automated tests and browser checks simulate DeepSeek responses. A configured key and real short-note acceptance are still required to validate actual model behavior.
 
 ## Test
 

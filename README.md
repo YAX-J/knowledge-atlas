@@ -4,7 +4,7 @@
 
 Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成带有来源、时间和上下文的知识网络，帮助开发者重新找到历史方案、理解技术决策，并基于真实证据回答问题。
 
-> 当前进度：演示图谱、真实项目与资料工作台、FastAPI 接口、Markdown 解析及可选后台处理/中断恢复已经完成；知识抽取、真实图谱和检索尚未接入。
+> 当前进度：演示图谱、真实项目与资料工作台、FastAPI 接口、Markdown 解析及可选后台处理/中断恢复已经完成；已增加 DeepSeek 候选提取、证据校验和人工审核，真实模型调用待验收；正式图谱和检索尚未接入。
 
 ![Knowledge Atlas 知识图谱工作台](docs/images/knowledge-atlas-overview.png)
 
@@ -21,7 +21,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 | 能力 | 说明 | 当前状态 |
 | --- | --- | --- |
 | 资料导入 | 导入 Markdown、文本、代码及 GitHub 数据 | Markdown 上传、解析和分块查询已完成 |
-| 知识抽取 | 提取项目、技术、问题、方案、决策和证据 | 规划中 |
+| 知识抽取与审核 | 提取带原文证据的实体、关系候选，并逐项确认或拒绝 | DeepSeek 接口与审核页面已实现，真实调用待验收 |
 | 实体消歧 | 合并别名和重复实体，保留人工确认流程 | 规划中 |
 | 知识图谱 | 浏览节点、关系、项目归属和来源证据 | Mock 已完成 |
 | 混合检索 | 融合关键词、向量和图关系检索 | 规划中 |
@@ -58,7 +58,8 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - 解析标题、段落、列表和围栏代码块，保存原文、标题路径及行号；相同项目重复上传相同字节会复用来源与任务。
 - 项目、资料、任务和候选知识的 SQLAlchemy 模型与 Alembic 初始迁移。
 - PostgreSQL/pgvector、API 和 Worker 的 Docker Compose 配置。
-- 使用 SQLite 隔离数据库的后端接口测试。
+- 显式 DeepSeek 候选知识提取、类型/端点/原文引用校验、候选分页及确认/拒绝/名称摘要修正，保留审核前后记录。
+- 使用 SQLite 隔离数据库及模拟模型响应的后端接口测试。
 
 ## 快速开始
 
@@ -109,6 +110,8 @@ python -m pip install -e ".[dev]"
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
+
+候选提取需要先应用最新迁移（`20261017_0004`），并在后端 `.env` 设置 `DEEPSEEK_API_KEY`；默认模型为 `deepseek-flash`。重启后端后，在已解析资料的“候选知识”区域点击“提取候选知识”。此次操作将该篇资料分块发送到 DeepSeek；Worker 仍只自动解析，不自动调用模型。候选确认目前只保存审核结果，不写入正式图谱。详细设置见 [后端说明](backend/README.zh-CN.md#deepseek-候选提取与审核)。
 
 接口文档地址为 `http://localhost:8000/docs`，存活检查地址为 `http://localhost:8000/api/v1/health/live`。
 
@@ -219,4 +222,4 @@ knowledge-atlas/
 
 ## 项目状态说明
 
-本仓库目前处于后端基础和 Markdown 导入闭环阶段。README 中标记为“规划中”或“后续阶段”的能力属于目标设计，不代表已经完成。项目与资料工作台已接入真实接口，图谱与问答仍使用 Mock；Worker 可自动解析，尚未接入知识抽取或图谱写入。本机 PostgreSQL 的真实联通与 PostgreSQL 并发验证仍待完成，验收不依赖 Docker。
+本仓库目前处于后端基础和 Markdown 导入闭环阶段。README 中标记为“规划中”或“后续阶段”的能力属于目标设计，不代表已经完成。项目与资料工作台已接入真实接口，图谱与问答仍使用 Mock；Worker 可自动解析，DeepSeek 候选提取和审核已实现，正式图谱写入、实体消歧和检索仍待开发。用户已报告 PostgreSQL 17/pgvector、本机启动、上传/手动解析、重复上传、重启保留和 Worker 自动解析通过；PostgreSQL 并发竞争/租约故障注入及真实 DeepSeek 调用仍待专项验收。验收不依赖 Docker。

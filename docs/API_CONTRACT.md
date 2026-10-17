@@ -1,6 +1,6 @@
 # Knowledge Atlas 前后端接口草案
 
-本文定义第一版前后端协作所需的最小接口。项目、Markdown 来源、任务和健康检查接口已经实现；其余接口仍是设计草案。字段调整时应保持错误结构和分页结构一致。
+本文定义第一版前后端协作所需的最小接口。项目、Markdown 来源、任务、健康检查、候选提取和基础审核接口已经实现；图谱、检索和问答接口仍是设计草案。字段调整时应保持错误结构和分页结构一致。
 
 ## 实现状态
 
@@ -16,7 +16,11 @@
 | `GET /api/v1/tasks/{task_id}` | 已实现 |
 | `POST /api/v1/tasks/{task_id}/run` | 已实现，同步执行 Markdown 解析 |
 | `GET /api/v1/sources/{source_id}/chunks` | 已实现，分页查询原文分块 |
-| 图谱、搜索、问答和人工确认接口 | 规划中 |
+| `GET /api/v1/sources/{source_id}/extraction` | 已实现，读取候选提取任务状态 |
+| `POST /api/v1/sources/{source_id}/extract` | 已实现，显式 DeepSeek 候选提取 |
+| `GET /api/v1/projects/{project_id}/reviews` | 已实现，分页候选查询 |
+| `POST /api/v1/reviews/{review_id}/resolve` | 已实现，仅确认/拒绝及名称摘要修正 |
+| 图谱、搜索和问答接口 | 规划中 |
 
 ## 基本约定
 
@@ -303,11 +307,36 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 ## 人工确认
 
-### 查询待确认项目
+### 显式候选提取
+
+`POST /api/v1/sources/{source_id}/extract` 无请求体，同步返回：
+
+```json
+{
+  "task": {
+    "id": "...",
+    "type": "knowledge_candidates",
+    "status": "succeeded",
+    "stage": "candidates_ready",
+    "progress": 100
+  },
+  "candidate_count": 3
+}
+```
+
+`task` 实际包含任务查询接口的全部字段，上例仅展示关键字段。上传产生的解析任务及项目资料列表的 `task_id` 保持不变；候选提取使用另一任务。`GET /api/v1/sources/{source_id}/extraction` 返回同一结构；尚未提取时 `task` 为 `null`、数量为 0，不会调用模型。
+
+仅允许当前用户有效项目内已解析且有分块的资料；未解析或无分块返回 HTTP 409，未配置密钥返回 HTTP 503，输入超过默认 100 个分块/序列化 JSON 60000 字符返回 HTTP 413，不会截断资料。成功结果按来源/提示版本复用，不再调用模型。正在执行且租约有效时返回 HTTP 409 `EXTRACTION_RUNNING`；租约过期允许显式接手，旧执行写入返回 HTTP 409 `EXTRACTION_REPLACED`。解析 Worker 不消费候选任务。
+
+模型连接/认证/余额/限流错误、无效 JSON、未完整结束的输出或伪造引用，返回 HTTP 200 和 `failed` 任务，`error.code` 为 `EXTRACTION_PROVIDER_FAILED`、`EXTRACTION_OUTPUT_INVALID` 或 `EXTRACTION_EVIDENCE_INVALID`。不保存部分候选，不改变资料已解析状态，不暴露原始模型错误或密钥。失败可手动重试；不自动重试或强制重新提取成功批次。
+
+### 查询候选知识
 
 `GET /api/v1/projects/{project_id}/reviews`
 
-支持按候选类型、置信度和来源筛选。
+分页返回 `items`、`page`、`page_size`、`total`，按创建时间、ID 稳定排序。`page >= 1`、`1 <= page_size <= 100`；支持 `source_id`、`review_status`（`pending`/`confirmed`/`rejected`）、`candidate_type` 和 `min_confidence`（0–1）。不传审核状态时包含所有候选，空列表或越界页返回空 `items`。不存在、其他用户或已归档项目返回 HTTP 404；来源筛选必须属于当前项目。
+
+每项包含 `id`、`project_id`、`source_id`、`task_id`、`kind`（`entity`/`relation`）、`type`、`name`、`summary`、`confidence`、`review_status`、`created_at`、`updated_at` 及 `evidence`。证据包含 `chunk_id`、`quote`、准确 `start_line`/`end_line` 和 `heading_path`；行号由后端计算。关系另外包含同批实体的 `source_candidate_id`/`target_candidate_id`，实体对应字段为 `null`。不暴露操作者内部标识、密钥或模型原始响应。
 
 ### 确认或拒绝候选
 
@@ -322,7 +351,9 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 }
 ```
 
-`action` 允许 `confirm`、`reject` 和 `merge`。
+`action` 当前只允许 `confirm` 和 `reject`。`changes` 可省略，只允许非空 `name`（最多 255 字符）和 `summary`（最多 2000 字符）；拒绝不能同时修改内容。返回更新后的候选对象，不返回正式图谱对象。未处理候选只能处理一次，重复相同动作/相同修改返回原结果且不新增审核事件；改判或不同修改返回 HTTP 409 `REVIEW_ALREADY_RESOLVED`。关系确认前，两端同批实体必须已确认，否则 HTTP 409 `REVIEW_ENDPOINTS_UNCONFIRMED`。不可访问候选返回 HTTP 404。审核状态和 `review_events` 前后记录同一事务提交。
+
+当前不支持 `merge`、撤销、修改类型/证据/端点，或把确认结果写入正式图谱；这些仍属于后续设计。
 
 ## 第一版接口优先级
 

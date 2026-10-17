@@ -68,3 +68,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0003：持久化 Markdown 分块并显式执行解析](0003-markdown-parsing-execution.zh-CN.md)
 - [ADR 0004：带执行租约的数据库解析 Worker](0004-database-backed-parsing-worker.zh-CN.md)
 - [ADR 0005：仅使用 PostgreSQL，暂缓引入 Neo4j](0005-postgresql-only-storage.zh-CN.md)
+- [ADR 0006：显式 DeepSeek 候选提取与证据审核](0006-deepseek-candidate-review.zh-CN.md)

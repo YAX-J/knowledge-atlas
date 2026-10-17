@@ -10,6 +10,9 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Explicit DeepSeek JSON candidate extraction with constrained types/endpoints, exact source-quote validation, atomic candidate persistence, reusable successful tasks, manual retry/expired-lease recovery, and fenced writes.
+- Source-scoped candidate UI and paginated review APIs with confirm/reject, name/summary edits, endpoint confirmation rules, and reversible review-event migration. Model calls are not triggered by the parsing worker.
+
 - Simplified Chinese companions for repository guidance, plans, contribution/security policies, changelog, backend/setup instructions, and ADR guidance/records, with reciprocal language links and a Chinese README index.
 - Optional database-backed parsing worker with continuous/one-shot modes, scoped task polling, execution leases, stale-result fencing, interrupted-task recovery, and bounded automatic attempts.
 - Reversible lease migration preserving historical tasks, shared development identity, worker configuration, and a Compose worker gated on API liveness after migrations.
@@ -40,7 +43,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Known limitations
 
-- Native local PostgreSQL connectivity and PostgreSQL contention remain unverified. Optional Docker startup has not been verified either.
+- The user reports PostgreSQL 17/pgvector startup, upload/parsing, duplicate reuse, restart persistence, and automatic parsing passed. PostgreSQL contention and lease-recovery fault injection remain unverified. Optional Docker startup has not been verified either.
 - Worker leases are fixed without heartbeats or preemptive cancellation.
-- Complete CommonMark parsing, extraction, graph persistence, retrieval, and real Agent responses are not implemented.
+- Complete CommonMark parsing, formal graph persistence, entity disambiguation, retrieval, and real Agent responses are not implemented. Real DeepSeek calls remain unverified; tests and browser checks use simulated model responses.
 - Graph and question views remain Mock; real question history, routing, and persisted view preferences are not implemented.

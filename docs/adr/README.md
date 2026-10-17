@@ -68,3 +68,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0003: Persist Markdown chunks and run parsing explicitly](0003-markdown-parsing-execution.md)
 - [ADR 0004: Database-backed parsing worker with execution leases](0004-database-backed-parsing-worker.md)
 - [ADR 0005: Use PostgreSQL only and defer Neo4j](0005-postgresql-only-storage.md)
+- [ADR 0006: Explicit DeepSeek candidates with evidence-gated review](0006-deepseek-candidate-review.md)

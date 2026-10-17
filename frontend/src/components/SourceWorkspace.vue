@@ -190,7 +190,7 @@ function formatSize(bytes: number) {
               <details v-if="task?.status !== 'succeeded'" class="raw-preview" open><summary>原文预览（最多 4000 字符）</summary><pre>{{ source.content_preview }}</pre></details>
               <template v-else>
                 <div class="source-section-heading"><h3>原文分块 <span v-if="chunks">{{ chunks.total }}</span></h3><span class="muted-copy">行号对应上传原文</span></div>
-                <p class="source-upload-hint">当前仅完成文档解析，知识抽取与图谱生成尚未接入。</p>
+                <p class="source-upload-hint">分块保留原文与行号；下方可提取有原文证据的候选知识。</p>
                 <p v-if="loading.chunks" role="status" class="muted-copy">正在读取分块…</p>
                 <p v-if="errors.chunks" role="alert" class="inline-error">{{ errors.chunks }} <button class="text-button" type="button" @click="emit('chunksPage', chunks?.page ?? 1)">重试加载分块</button></p>
                 <p v-if="!loading.chunks && !errors.chunks && chunks?.total === 0" class="empty-copy">解析已完成，没有可展示的内容块。</p>
@@ -205,6 +205,7 @@ function formatSize(bytes: number) {
                   <span>{{ chunks?.page }} / {{ chunkPages }}</span>
                   <button type="button" :disabled="loading.chunks || (chunks?.page ?? 1) >= chunkPages" @click="emit('chunksPage', (chunks?.page ?? 1) + 1)">下一页</button>
                 </nav>
+                <slot name="reviews" />
               </template>
             </template>
           </section>

@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     task_lease_seconds: int = Field(default=300, ge=1, le=86400)
     task_max_attempts: int = Field(default=3, ge=1, le=100)
     worker_poll_interval_seconds: float = Field(default=2, gt=0, le=60)
+    deepseek_api_key: SecretStr | None = None
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-flash"
+    deepseek_timeout_seconds: float = Field(default=120, ge=5, le=180)
+    extraction_max_input_chars: int = Field(default=60000, ge=1000, le=200000)
 
     model_config = SettingsConfigDict(
         env_file=".env",

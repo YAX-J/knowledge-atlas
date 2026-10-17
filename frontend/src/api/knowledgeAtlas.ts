@@ -1,4 +1,5 @@
 import { apiRequest } from './client'
+import type { KnowledgeCandidate, ReviewDecision } from '../types'
 
 export interface ApiProject {
   id: string
@@ -150,3 +151,35 @@ export function listSourceChunks(
   return apiRequest<SourceChunkList>(`/sources/${sourceId}/chunks?${query}`)
 }
 
+export interface CandidateList {
+  items: KnowledgeCandidate[]
+  page: number
+  page_size: number
+  total: number
+}
+
+export interface ExtractionResult {
+  task: ProcessingTask | null
+  candidate_count: number
+}
+
+export function getExtraction(sourceId: string): Promise<ExtractionResult> {
+  return apiRequest<ExtractionResult>(`/sources/${sourceId}/extraction`)
+}
+
+export function extractKnowledge(sourceId: string): Promise<ExtractionResult> {
+  return apiRequest<ExtractionResult>(`/sources/${sourceId}/extract`, {
+    method: 'POST', signal: AbortSignal.timeout(240000),
+  })
+}
+
+export function listCandidates(projectId: string, sourceId: string, page = 1): Promise<CandidateList> {
+  const query = new URLSearchParams({ source_id: sourceId, page: String(page), page_size: '20' })
+  return apiRequest<CandidateList>(`/projects/${projectId}/reviews?${query}`)
+}
+
+export function resolveCandidate(decision: ReviewDecision): Promise<KnowledgeCandidate> {
+  return apiRequest<KnowledgeCandidate>(`/reviews/${decision.id}/resolve`, {
+    method: 'POST', body: JSON.stringify({ action: decision.action, changes: decision.changes ?? {} }),
+  })
+}
