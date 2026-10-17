@@ -1,6 +1,6 @@
 # Knowledge Atlas 前后端接口草案
 
-本文定义第一版前后端协作所需的最小接口。项目、Markdown 来源、任务、健康检查、候选提取和基础审核接口已经实现；图谱、检索和问答接口仍是设计草案。字段调整时应保持错误结构和分页结构一致。
+本文定义第一版前后端协作所需的最小接口。项目、Markdown 来源、任务、健康检查、候选提取、基础审核和图谱接口已经实现；检索和问答接口仍是设计草案。字段调整时应保持错误结构和分页结构一致。
 
 ## 实现状态
 
@@ -19,8 +19,11 @@
 | `GET /api/v1/sources/{source_id}/extraction` | 已实现，读取候选提取任务状态 |
 | `POST /api/v1/sources/{source_id}/extract` | 已实现，显式 DeepSeek 候选提取 |
 | `GET /api/v1/projects/{project_id}/reviews` | 已实现，分页候选查询 |
-| `POST /api/v1/reviews/{review_id}/resolve` | 已实现，仅确认/拒绝及名称摘要修正 |
-| 图谱、搜索和问答接口 | 规划中 |
+| `POST /api/v1/reviews/{review_id}/resolve` | 已实现，确认/拒绝及名称摘要修正，确认时写入正式图谱 |
+| `GET /api/v1/projects/{project_id}/graph` | 已实现，只读局部图谱 |
+| `GET /api/v1/knowledge/entities/{entity_id}` | 已实现，实体详情、证据与直接关系 |
+| `GET /api/v1/knowledge/relationships/{relationship_id}` | 已实现，关系详情与证据 |
+| 搜索和问答接口 | 规划中 |
 
 ## 基本约定
 
@@ -183,19 +186,23 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 `GET /api/v1/projects/{project_id}/graph`
 
+状态：已实现，只读。只返回当前用户有效项目中的未归档知识，并按 `valid_at` 过滤生效区间。
+
 查询参数：
 
 - `center_id`：中心节点，可选。
-- `depth`：关系深度，第一版只允许 1 或 2。
-- `types`：逗号分隔的节点类型。
-- `valid_at`：查询指定时间点的有效知识。
-- `limit`：最大节点数，默认 100。
+- `depth`：关系深度，只允许 1 或 2。
+- `types`：逗号分隔的实体类型。
+- `valid_at`：查询指定时间点的有效知识，必须是带时区时间。
+- `limit`：最大节点数，1–200，默认 100；边最多返回 500 条。
 
 ```json
 {
   "nodes": [
     {
       "id": "...",
+      "project_id": "...",
+      "candidate_id": "...",
       "type": "Concept",
       "name": "事件驱动架构",
       "summary": "围绕事件组织系统组件的架构方式",
@@ -203,18 +210,24 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
       "status": "active",
       "valid_from": "2024-05-01T00:00:00+08:00",
       "valid_to": null,
-      "project_id": "...",
       "evidence_count": 3
     }
   ],
   "edges": [
     {
       "id": "...",
-      "type": "IMPLEMENTS",
+      "project_id": "...",
+      "candidate_id": "...",
+      "type": "IMPLEMENTED_BY",
+      "name": "事件驱动架构 → 订单服务",
+      "summary": "订单服务实现事件驱动架构",
       "source_id": "...",
       "target_id": "...",
       "confidence": 0.91,
-      "status": "active"
+      "status": "active",
+      "valid_from": "2024-05-01T00:00:00+08:00",
+      "valid_to": null,
+      "evidence_count": 1
     }
   ],
   "truncated": false
@@ -223,19 +236,27 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 节点坐标不属于领域接口。前端自行计算布局；如需保存个人布局，使用独立视图配置接口。
 
-### 查询节点详情
+### 查询实体详情
 
 `GET /api/v1/knowledge/entities/{entity_id}`
 
-返回实体、直接关系、来源证据和历史版本。
+状态：已实现，只读。返回 `entity`、`evidence`、`relationships` 和 `truncated`。证据包含 `id`、`source_id`、`chunk_id`、`title`、`uri`、`quote`、`start_line`、`end_line`、`heading_path`；直接关系最多返回 100 条。
 
-### 修改知识
+### 查询关系详情
+
+`GET /api/v1/knowledge/relationships/{relationship_id}`
+
+状态：已实现，只读。返回 `relationship` 及其 `evidence`，字段与实体详情中的证据一致。
+
+两个详情接口也支持带时区的 `valid_at`；关系及两端实体必须在该时刻可见。不可访问或不可见的知识返回 HTTP 404 `KNOWLEDGE_NOT_FOUND`；归档或不可访问项目沿用项目接口的 404。图谱类型非法返回 HTTP 422 `GRAPH_TYPES_INVALID`，确认时类型、端点或证据校验失败返回 HTTP 409 `KNOWLEDGE_PROMOTION_INVALID`，所有错误沿用统一 `error` 结构。
+
+### 修改知识（规划中）
 
 `PATCH /api/v1/knowledge/entities/{entity_id}`
 
 第一版允许修改名称、摘要、确认状态和业务状态。所有修改记录操作人、时间和修改前内容。
 
-### 合并实体
+### 合并实体（规划中）
 
 `POST /api/v1/knowledge/entities/merge`
 
@@ -248,6 +269,8 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 ```
 
 ## 搜索
+
+状态：规划中，当前未实现。
 
 ### 搜索知识
 
@@ -264,6 +287,8 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 每条结果返回关键词得分、向量得分、图关系得分和最终融合得分，便于实验分析。
 
 ## 证据问答
+
+状态：规划中，当前未实现；页面中的问答为演示数据。
 
 ### 创建问答请求
 
@@ -351,9 +376,9 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 }
 ```
 
-`action` 当前只允许 `confirm` 和 `reject`。`changes` 可省略，只允许非空 `name`（最多 255 字符）和 `summary`（最多 2000 字符）；拒绝不能同时修改内容。返回更新后的候选对象，不返回正式图谱对象。未处理候选只能处理一次，重复相同动作/相同修改返回原结果且不新增审核事件；改判或不同修改返回 HTTP 409 `REVIEW_ALREADY_RESOLVED`。关系确认前，两端同批实体必须已确认，否则 HTTP 409 `REVIEW_ENDPOINTS_UNCONFIRMED`。不可访问候选返回 HTTP 404。审核状态和 `review_events` 前后记录同一事务提交。
+`action` 当前只允许 `confirm` 和 `reject`。`changes` 可省略，只允许非空 `name`（最多 255 字符）和 `summary`（最多 2000 字符）；拒绝不能同时修改内容。返回更新后的候选对象，已确认时包含 `knowledge_id`；正式图谱对象通过图谱接口读取。确认时在同一事务内重新校验引用、写入正式实体/关系/证据，使用稳定 UUID 并按候选幂等。未处理候选只能处理一次，重复相同动作/相同修改返回原结果且不新增审核事件；改判或不同修改返回 HTTP 409 `REVIEW_ALREADY_RESOLVED`。关系确认前，两端同批实体必须已确认，否则 HTTP 409 `REVIEW_ENDPOINTS_UNCONFIRMED`。不可访问候选返回 HTTP 404。审核状态、`review_events` 前后记录和正式图谱写入同一事务提交。
 
-当前不支持 `merge`、撤销、修改类型/证据/端点，或把确认结果写入正式图谱；这些仍属于后续设计。
+已确认但尚未生成正式记录的旧候选，可再次提交相同确认进行补写；该重放不重复模型调用，也不新增审核事件。当前不支持 `merge`、撤销、修改类型/证据/端点；实体消歧、检索和问答仍属于后续设计。
 
 ## 第一版接口优先级
 

@@ -6,7 +6,7 @@
 
 Knowledge Atlas is a graduation project for a single developer. It organizes technical notes, code, project documents, and Git records into a temporal personal knowledge graph and uses evidence-grounded retrieval to answer questions.
 
-The repository currently contains an interactive Mock graph, a real API-backed project/source workspace, FastAPI persistence APIs, Markdown parsing with manual execution or an optional database-backed worker with lease recovery, and explicit DeepSeek candidate extraction with evidence validation and audited review. Do not describe formal graph persistence, entity disambiguation, retrieval, or Agent capabilities as implemented. Real DeepSeek acceptance remains separate from tests with simulated responses.
+The repository currently contains an interactive Mock demo graph, a real API-backed project/source workspace, FastAPI persistence APIs, Markdown parsing with manual execution or an optional database-backed worker with lease recovery, explicit DeepSeek candidate extraction with evidence validation and audited review, and promotion of confirmed candidates into a read-only, scoped PostgreSQL project graph. Entity disambiguation, retrieval, and Agent answers are not implemented. Real DeepSeek acceptance remains separate from tests with simulated responses.
 
 ## Read before changing code
 
@@ -36,7 +36,7 @@ Do not treat the Word documents outside this repository as more current than the
 
 - Every generated knowledge item and answer must be traceable to source evidence.
 - An LLM may propose candidates but must not write directly to authoritative business tables.
-- PostgreSQL is the only current database and the intended source of truth for business data and planned graph storage. Neo4j is deferred; reintroduce a graph database only when measured needs justify it and record the decision in an ADR.
+- PostgreSQL is the only current database and the source of truth for business data and graph storage. Neo4j is deferred; reintroduce a graph database only when measured needs justify it and record the decision in an ADR.
 - Use stable business UUIDs for entities, relationships, and evidence. Never expose database-internal IDs through the API.
 - `valid_from` and `valid_to` are properties, not graph relationship types.
 - Temporal replacement direction is `new knowledge -[:SUPERSEDES]-> old knowledge`.

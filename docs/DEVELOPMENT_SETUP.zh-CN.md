@@ -16,7 +16,7 @@
 
 本地开发和真实服务验收默认使用用户已有的本机原生安装，Docker/Compose 是可选替代方案。隔离后端测试使用 SQLite，不需要数据库服务。
 
-当前依赖已移除 Neo4j，规划中的图谱存储使用 PostgreSQL，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。已有本地环境文件中的 `NEO4J_*` 配置可以删除；配置加载器会忽略这些旧字段。
+当前依赖已移除 Neo4j，图谱存储使用 PostgreSQL，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。已有本地环境文件中的 `NEO4J_*` 配置可以删除；配置加载器会忽略这些旧字段。
 
 ## 克隆与检查
 
@@ -46,7 +46,7 @@ npm run dev
 | `npm run build` | 执行 Vue TypeScript 检查并构建生产资源 |
 | `npm run preview` | 预览最近一次生产构建 |
 
-默认的图谱和问答演示使用本地 Mock 数据，不需要数据库或模型凭据。项目/资料导航使用真实 API。需要修改 `VITE_API_BASE_URL` 时，将 `frontend/.env.example` 复制为 `frontend/.env`；设置 `VITE_DATA_SOURCE=api` 可默认打开资料工作台。修改环境变量后重启 Vite。这不会将图谱或问答切换为真实数据。
+默认的演示图谱和问答使用本地 Mock 数据，不需要数据库或模型凭据。项目/资料导航、候选审核和项目图谱使用真实 API。需要修改 `VITE_API_BASE_URL` 时，将 `frontend/.env.example` 复制为 `frontend/.env`；设置 `VITE_DATA_SOURCE=api` 可默认打开资料工作台。修改环境变量后重启 Vite。这不会将演示图谱或问答切换为真实数据。
 
 ## 后端环境
 
@@ -86,15 +86,15 @@ uvicorn app.main:app --reload
 | `GET /api/v1/health/live` | 进程存活检查 |
 | `GET /api/v1/health/ready` | PostgreSQL 依赖健康检查 |
 
-在 OpenAPI 界面验证导入时，依次创建项目、上传 Markdown、调用 `POST /api/v1/tasks/{task_id}/run`，并查询 `GET /api/v1/sources/{source_id}/chunks`。也可以在另一个已激活环境的终端中，从 `backend/` 运行 `python -m app.worker`，自动消费上传任务。先应用包含执行租约字段的最新迁移。`python -m app.worker --once` 最多处理一个符合条件的任务后退出。配置、恢复规则、退出码和解析限制见 [后端说明](../backend/README.zh-CN.md)。
+在 OpenAPI 界面验证导入时，依次创建项目、上传 Markdown、调用 `POST /api/v1/tasks/{task_id}/run`，并查询 `GET /api/v1/sources/{source_id}/chunks`。也可以在另一个已激活环境的终端中，从 `backend/` 运行 `python -m app.worker`，自动消费上传任务。先应用包含执行租约与图谱表的最新迁移。`python -m app.worker --once` 最多处理一个符合条件的任务后退出。配置、恢复规则、退出码和解析限制见 [后端说明](../backend/README.zh-CN.md)。
 
-验证本机服务配置时，从 `backend/` 运行 `alembic current`，预期版本为 `20261017_0004`；查询 `/api/v1/health/ready`，PostgreSQL 应为 `up`。随后使用真实本地数据库验证项目创建、上传、自动解析、重复复用、重启持久化，以及 Worker/API 竞争。SQLite 测试不能验证原生服务联通或 PostgreSQL 锁行为。
+验证本机服务配置时，从 `backend/` 运行 `alembic current`，预期版本为 `20261017_0005`；查询 `/api/v1/health/ready`，PostgreSQL 应为 `up`。随后使用真实本地数据库验证项目创建、上传、自动解析、重复复用、重启持久化，以及 Worker/API 竞争。SQLite 测试不能验证原生服务联通或 PostgreSQL 锁行为。
 
 如果选择容器方案，从仓库根目录运行 `docker compose up -d --build` 可启动完整环境。Worker 等待 API 应用迁移并通过存活检查后启动。Docker 不是验收前提。
 
 ## DeepSeek 候选提取
 
-先应用最新迁移，包括 `review_events` 表。在后端 `.env` 中填写 `DEEPSEEK_API_KEY`（不得放在前端），保留 `DEEPSEEK_BASE_URL=https://api.deepseek.com`，按需设置模型 `DEEPSEEK_MODEL`（默认 `deepseek-flash`）。重启 API 后打开已解析资料，点击“提取候选知识”；只有显式请求时才把该篇资料分块发送到 DeepSeek。核对引用后确认或拒绝，关系必须先确认两端实体。Worker 解析不调用模型。测试与浏览器验证使用模拟响应，真实模型调用仍需验收，详见 [后端说明](../backend/README.zh-CN.md#deepseek-候选提取与审核)。
+先应用最新迁移，包括 `review_events` 和正式图谱表。在后端 `.env` 中填写 `DEEPSEEK_API_KEY`（不得放在前端），保留 `DEEPSEEK_BASE_URL=https://api.deepseek.com`，按需设置模型 `DEEPSEEK_MODEL`（默认 `deepseek-flash`）。重启 API 后打开已解析资料，点击“提取候选知识”；只有显式请求时才把该篇资料分块发送到 DeepSeek。核对引用后确认或拒绝，关系必须先确认两端实体；确认会在同一事务内写入受限的实体、关系和证据。Worker 解析不调用模型。测试与浏览器验证使用模拟响应，真实模型调用仍需验收，详见 [后端说明](../backend/README.zh-CN.md#deepseek-候选提取与审核)。
 
 ## 前端验证
 
@@ -110,6 +110,8 @@ npm run build
 - 知识类型筛选。
 - 时间回放与详情面板同步。
 - 追问状态。
+- 候选提取、审核和旧确认补写。
+- 项目图谱加载、筛选、一跳/二跳邻域、详情证据，以及空数据和截断状态。
 - 桌面和手机布局。
 - 键盘焦点和面板滚动。
 

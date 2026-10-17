@@ -22,34 +22,38 @@ Completed:
 - Identical-byte upload reuse, deterministic chunk IDs, idempotent task execution, and failed-task retry implemented.
 - Frontend project creation/listing, source listing/upload, parsing/retry, source preview, and paginated evidence chunks integrated with real APIs while preserving the Mock graph.
 - Optional database-backed parsing worker, leased execution, stale-result fencing, interrupted-task recovery, and bounded automatic attempts implemented.
+- Explicit DeepSeek extraction with evidence validation, audited review, and promotion of confirmed candidates into scoped PostgreSQL entities, relationships, and evidence.
+- Read-only project graph, entity-detail, and relationship-detail APIs with user/project/time scoping and node/edge limits, plus a real project-graph frontend page.
 
 ## Active phase
 
-The active phase is schema-constrained extraction and human review. The user reports the native PostgreSQL 17/pgvector ingestion path, duplicate reuse, restart persistence, and automatic parsing passed. PostgreSQL contention and lease-recovery fault injection remain separate outstanding checks.
+The active phase is schema-constrained extraction, human review, and confirmed-candidate graph promotion. The user reports the native PostgreSQL 17/pgvector ingestion path, duplicate reuse, restart persistence, and automatic parsing passed. Disposable-schema checks on PostgreSQL 17.10 passed graph migrations, evidence reads, and concurrent identical confirmations. Worker/API contention, lease recovery, native-database browser acceptance, and real-model acceptance remain outstanding.
 
 Implemented in this slice:
 
 - Explicit DeepSeek extraction from parsed source chunks, with strict JSON/type/endpoint and exact-evidence validation.
 - Atomic pending candidates, reusable successful extraction tasks, manual retries and expired-lease recovery.
 - Source-scoped candidate UI and paginated review APIs, name/summary edits, confirm/reject, and decision audit records.
+- Transactional promotion of confirmed candidates into formal entities, relationships, and evidence, with stable UUIDs, endpoint promotion, idempotent repeats, and legacy-confirmation replay.
+- Bounded read-only graph queries and detail views that return source filenames, quotes, and server-calculated line ranges.
 
 Acceptance still needed:
 
 - Configure a local DeepSeek key and verify a real model response against a short public Markdown note.
 - Review evidence quality and model output on representative inputs; simulated tests do not establish real extraction quality.
-- Retain PostgreSQL concurrency/recovery validation as a tracked integration check.
+- Verify the real project graph against native PostgreSQL in a browser, including empty, truncated, filtered, and time-filtered states.
+- Retain PostgreSQL Worker/API concurrency and recovery validation; review/promotion repeated-confirmation contention has passed in a disposable schema.
 
-Formal graph entities/relationships, promotion of confirmed candidates, merging/disambiguation, retrieval, and Agent answers remain future work. A confirmed candidate is not yet a formal graph object. Neo4j remains deferred under ADR 0005. See [ADR 0006](docs/adr/0006-deepseek-candidate-review.md) for this slice's boundaries.
+Entity disambiguation, retrieval, and Agent answers remain future work. Confirmed candidates now promote to formal graph objects; the demo graph and question view remain Mock. Neo4j remains deferred under ADR 0005. See [ADR 0006](docs/adr/0006-deepseek-candidate-review.md) and [ADR 0007](docs/adr/0007-confirmed-postgresql-graph.md) for these slices' boundaries.
 
 ## Later phases
 
-1. Markdown parsing, chunking, and source locations.
-2. Schema-constrained knowledge extraction and human confirmation.
-3. PostgreSQL graph persistence and real frontend data.
-4. Keyword, vector, and graph hybrid retrieval.
-5. Evidence-grounded Agent answers.
-6. Code and GitHub ingestion.
-7. Temporal evolution, governance, experiments, and deployment.
+1. Keyword, vector, and graph hybrid retrieval.
+2. Evidence-grounded Agent answers.
+3. Code and GitHub ingestion.
+4. Temporal evolution, governance, experiments, and deployment.
+
+Markdown parsing, schema-constrained review, and confirmed-candidate graph persistence are complete as bounded slices.
 
 Detailed deliverables, risks, and twelve-week scheduling are maintained in `docs/ROADMAP.md`.
 

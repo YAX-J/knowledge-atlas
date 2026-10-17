@@ -8,17 +8,19 @@ import InsightPanel from './components/InsightPanel.vue'
 import TimelineBar from './components/TimelineBar.vue'
 import SourceWorkspace from './components/SourceWorkspace.vue'
 import CandidateReview from './components/CandidateReview.vue'
+import ProjectGraph from './components/ProjectGraph.vue'
 import { ApiError } from './api/client'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
   runTask, uploadMarkdown, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
+  getProjectGraph, getEntityDetail, getRelationshipDetail,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
   CandidateList, ExtractionResult,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
-import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision } from './types'
+import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail } from './types'
 
 const selectedId = ref('event-driven')
 const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'graph')
@@ -51,6 +53,20 @@ const extracting = ref(false)
 const resolving = ref('')
 const reviewsError = ref('')
 const reviewsNotice = ref('')
+const realGraph = ref<ProjectGraphData | null>(null)
+const realEntityDetail = ref<EntityDetail | null>(null)
+const realRelationshipDetail = ref<RelationshipDetail | null>(null)
+const graphLoading = ref(false)
+const graphDetailLoading = ref(false)
+const graphError = ref('')
+const graphDetailError = ref('')
+const graphSelectedId = ref('')
+const graphSelectionKind = ref<'entity' | 'relationship'>('entity')
+const graphCenter = ref('')
+const graphType = ref('')
+const graphDepth = ref(1)
+let graphRequest = 0
+let graphDetailRequest = 0
 
 function errorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message
@@ -94,6 +110,12 @@ async function loadProjects(page = 1) {
 function selectProject(value: ApiProject) {
   if (loading.upload || loading.task) return
   project.value = value
+  graphRequest++
+  graphDetailRequest++
+  realGraph.value = null
+  realEntityDetail.value = realRelationshipDetail.value = null
+  graphSelectedId.value = graphCenter.value = graphType.value = ''
+  graphLoading.value = graphDetailLoading.value = false
   sources.value = null
   sourcesRequest++
   clearSourceSelection()
@@ -290,13 +312,94 @@ async function reviewCandidate(decision: ReviewDecision) {
     await resolveCandidate(decision)
     if (action !== reviewAction) return
     await loadReviews()
-    if (action === reviewAction) reviewsNotice.value = decision.action === 'confirm' ? '候选知识已确认，审核记录已保存。' : '候选知识已拒绝，审核记录已保存。'
+    if (action === reviewAction) reviewsNotice.value = decision.action === 'confirm' ? '知识已写入项目图谱，审核记录已保存。' : '候选知识已拒绝，审核记录已保存。'
   } catch (error) {
     if (action === reviewAction) reviewsError.value = errorMessage(error)
   } finally {
     if (action === reviewAction) resolving.value = ''
   }
 }
+
+function openProjectGraph() {
+  if (!project.value) return
+  activeNav.value = 'projectGraph'
+  graphType.value = ''
+  graphCenter.value = ''
+  void loadRealGraph('')
+}
+
+async function loadRealGraph(center = graphCenter.value) {
+  const projectId = project.value?.id
+  if (!projectId) return
+  const request = ++graphRequest
+  graphDetailRequest++
+  graphLoading.value = true
+  graphDetailLoading.value = false
+  graphError.value = graphDetailError.value = ''
+  realGraph.value = null
+  realEntityDetail.value = null
+  realRelationshipDetail.value = null
+  graphCenter.value = center
+  try {
+    const result = await getProjectGraph(projectId, { centerId: center || undefined, depth: graphDepth.value, types: graphType.value })
+    if (request !== graphRequest || project.value?.id !== projectId) return
+    realGraph.value = result
+    const selected = result.nodes.find(item => item.id === graphSelectedId.value) ?? result.nodes[0]
+    graphSelectedId.value = selected?.id ?? ''
+    if (selected) await selectGraphEntity(selected.id)
+  } catch (error) {
+    if (request === graphRequest) graphError.value = errorMessage(error)
+  } finally {
+    if (request === graphRequest) graphLoading.value = false
+  }
+}
+
+async function selectGraphEntity(id: string) {
+  if (!realGraph.value?.nodes.some(item => item.id === id)) {
+    graphType.value = ''
+    await loadRealGraph(id)
+    return
+  }
+  const request = ++graphDetailRequest
+  graphSelectedId.value = id
+  graphSelectionKind.value = 'entity'
+  graphDetailLoading.value = true
+  graphDetailError.value = ''
+  realEntityDetail.value = realRelationshipDetail.value = null
+  try {
+    const result = await getEntityDetail(id)
+    if (request === graphDetailRequest) realEntityDetail.value = result
+  } catch (error) {
+    if (request === graphDetailRequest) graphDetailError.value = errorMessage(error)
+  } finally {
+    if (request === graphDetailRequest) graphDetailLoading.value = false
+  }
+}
+
+async function selectGraphRelationship(id: string) {
+  const request = ++graphDetailRequest
+  graphSelectedId.value = id
+  graphSelectionKind.value = 'relationship'
+  graphDetailLoading.value = true
+  graphDetailError.value = ''
+  realEntityDetail.value = realRelationshipDetail.value = null
+  try {
+    const result = await getRelationshipDetail(id)
+    if (request === graphDetailRequest) realRelationshipDetail.value = result
+  } catch (error) {
+    if (request === graphDetailRequest) graphDetailError.value = errorMessage(error)
+  } finally {
+    if (request === graphDetailRequest) graphDetailLoading.value = false
+  }
+}
+
+function retryGraphDetail() {
+  if (graphSelectionKind.value === 'entity') void selectGraphEntity(graphSelectedId.value)
+  else void selectGraphRelationship(graphSelectedId.value)
+}
+
+function filterGraph(type: string) { graphType.value = type; void loadRealGraph('') }
+function setGraphDepth(depth: number) { graphDepth.value = depth; void loadRealGraph() }
 
 onMounted(() => {
   if (activeNav.value !== 'graph') void loadProjects()
@@ -315,8 +418,16 @@ function selectNode(id: string) {
 
 function changeNav(value: string) {
   if (value === 'filter') {
+    if (activeNav.value === 'projectGraph') {
+      ElMessage({ message: '可在项目图谱顶部按知识类型筛选。', type: 'info' })
+      return
+    }
     activeNav.value = 'graph'
     filterOpen.value = !filterOpen.value
+    return
+  }
+  if (value === 'graph' && project.value) {
+    openProjectGraph()
     return
   }
   if (value === 'questions') {
@@ -358,7 +469,7 @@ function setTimeline(value: number) {
 <template>
   <div class="app-shell">
     <AppHeader :nodes="nodes" :selected-id="selectedId" :graph-active="activeNav === 'graph'" @select="selectNode" />
-    <SideRail :active="activeNav" @change="changeNav" />
+    <SideRail :active="activeNav === 'projectGraph' ? 'graph' : activeNav" @change="changeNav" />
 
     <SourceWorkspace
       v-if="activeNav === 'projects' || activeNav === 'sources'"
@@ -368,6 +479,7 @@ function setTimeline(value: number) {
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
       @sources-page="loadSources" @select-source="selectSource" @upload="uploadFile"
       @run="parseSource" @refresh="refreshSource" @chunks-page="loadChunks"
+      @graph="openProjectGraph"
     >
       <template #reviews>
         <CandidateReview :key="selectedSourceId" :candidates="candidates" :extraction="extraction"
@@ -376,6 +488,13 @@ function setTimeline(value: number) {
           @extract="extractSource" @refresh="loadReviews" @resolve="reviewCandidate" />
       </template>
     </SourceWorkspace>
+    <ProjectGraph v-else-if="activeNav === 'projectGraph'" :project="project" :graph="realGraph"
+      :entity-detail="realEntityDetail" :relationship-detail="realRelationshipDetail"
+      :loading="graphLoading" :detail-loading="graphDetailLoading" :error="graphError" :detail-error="graphDetailError"
+      :selected-id="graphSelectedId" :center="graphCenter" :depth="graphDepth" :type-filter="graphType"
+      @back="activeNav = 'sources'" @demo="activeNav = 'graph'" @refresh="loadRealGraph()"
+      @select-entity="selectGraphEntity" @select-relationship="selectGraphRelationship" @neighborhood="loadRealGraph"
+      @reset="loadRealGraph('')" @filter-type="filterGraph" @depth="setGraphDepth" @retry-detail="retryGraphDetail" />
     <main v-else class="atlas-main" :class="{ 'panel-collapsed': !panelOpen }">
       <section class="graph-workspace">
         <div class="workspace-title">

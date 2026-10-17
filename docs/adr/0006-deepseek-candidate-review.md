@@ -4,6 +4,7 @@
 
 - Status: Accepted
 - Date: 2026-10-17
+- Extended by: [ADR 0007](0007-confirmed-postgresql-graph.md) — confirmation now promotes candidates into formal PostgreSQL graph tables.
 
 ## Context
 
@@ -16,7 +17,7 @@ The user reports native PostgreSQL 17/pgvector ingestion, duplicate reuse, resta
 - Use task type `knowledge_candidates`; legacy `knowledge_extraction` remains parsing-only. Derive stable task/candidate UUIDs from source, prompt version, and local candidate IDs. Source locking serializes claims, execution UUIDs fence result writes, and expired tasks can be explicitly retried. A successful source/prompt-version result is reused even after a model-setting change; forced re-extraction is deferred.
 - Validate allowed types, unique local IDs, same-batch relation endpoints, and exact quotes from scoped source chunks. Compute quote line positions server-side. Persist the whole validated batch as pending candidates together with successful task state, or persist none of it.
 - Reuse `candidate_knowledge` for staged entities/relations and evidence metadata. Store model/prompt provenance in candidate payloads. Add `review_events` for actor, time, and before/after values. Review state and event writes share one transaction; project locks and conditional updates serialize decisions. Identical repeats are idempotent, changes to a resolved decision conflict, and relationships require confirmed endpoint entities.
-- Confirmation marks a candidate accepted for later promotion. It does not create authoritative graph nodes, relationships, or temporal versions. The UI must state this boundary. Merge, undo, disambiguation, formal graph promotion, retrieval, and Agent answers are deferred.
+- Confirmation marks a candidate accepted for later promotion. It does not create authoritative graph nodes, relationships, or temporal versions. The UI must state this boundary. Merge, undo, disambiguation, formal graph promotion, retrieval, and Agent answers are deferred. ADR 0007 later implements formal graph promotion while keeping the other items deferred.
 
 ## Consequences
 

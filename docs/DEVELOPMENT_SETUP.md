@@ -14,7 +14,7 @@ Current requirements:
 - Python 3.12 or later
 - Natively installed PostgreSQL with pgvector
 
-Local development and real-service acceptance use the user's existing native installations by default. Docker/Compose is an optional alternative. Isolated backend tests use SQLite and do not require database services. Neo4j has been removed from current requirements; planned graph storage will use PostgreSQL (see [ADR 0005](adr/0005-postgresql-only-storage.md)). Existing `NEO4J_*` entries can be removed from local environment files; they are ignored by the settings loader.
+Local development and real-service acceptance use the user's existing native installations by default. Docker/Compose is an optional alternative. Isolated backend tests use SQLite and do not require database services. Neo4j has been removed from current requirements; graph storage uses PostgreSQL (see [ADR 0005](adr/0005-postgresql-only-storage.md)). Existing `NEO4J_*` entries can be removed from local environment files; they are ignored by the settings loader.
 
 ## Clone and inspect
 
@@ -44,7 +44,7 @@ Available commands:
 | `npm run build` | Run Vue TypeScript checks and build production assets |
 | `npm run preview` | Preview the most recent production build |
 
-The default graph and question demo uses local Mock data and requires no database or model credentials. Project/source navigation uses the real API. Copy `frontend/.env.example` to `frontend/.env` if you need to change `VITE_API_BASE_URL`; set `VITE_DATA_SOURCE=api` to open the source workspace by default. Restart Vite after changing environment values. This does not switch the graph or questions to real data.
+The demo graph and question view use local Mock data and require no database or model credentials. Project/source navigation, candidate review, and the project graph use the real API. Copy `frontend/.env.example` to `frontend/.env` if you need to change `VITE_API_BASE_URL`; set `VITE_DATA_SOURCE=api` to open the source workspace by default. Restart Vite after changing environment values. This does not switch the demo graph or questions to real data.
 
 ## Backend setup
 
@@ -84,15 +84,15 @@ Useful endpoints:
 | `GET /api/v1/health/live` | Process liveness |
 | `GET /api/v1/health/ready` | PostgreSQL dependency health |
 
-To verify ingestion in the OpenAPI interface, create a project, upload Markdown, call `POST /api/v1/tasks/{task_id}/run`, and query `GET /api/v1/sources/{source_id}/chunks`. Alternatively, run `python -m app.worker` from `backend/` in a second activated terminal to consume uploads automatically. Apply the latest migration first, including execution lease columns. `python -m app.worker --once` handles at most one eligible task and exits. See [backend instructions](../backend/README.md) for configuration, recovery rules, exit codes, and parsing limitations.
+To verify ingestion in the OpenAPI interface, create a project, upload Markdown, call `POST /api/v1/tasks/{task_id}/run`, and query `GET /api/v1/sources/{source_id}/chunks`. Alternatively, run `python -m app.worker` from `backend/` in a second activated terminal to consume uploads automatically. Apply the latest migration first, including execution lease and graph tables. `python -m app.worker --once` handles at most one eligible task and exits. See [backend instructions](../backend/README.md) for configuration, recovery rules, exit codes, and parsing limitations.
 
-Validate the native service setup by running `alembic current` from `backend/` (expected `20261017_0004`) and querying `/api/v1/health/ready`; PostgreSQL must report `up`. Then verify project creation, upload, automatic parsing, duplicate reuse, restart persistence, and worker/API contention against the real local database. SQLite tests do not validate native service connectivity or PostgreSQL locking.
+Validate the native service setup by running `alembic current` from `backend/` (expected `20261017_0005`) and querying `/api/v1/health/ready`; PostgreSQL must report `up`. Then verify project creation, upload, automatic parsing, duplicate reuse, restart persistence, and worker/API contention against the real local database. SQLite tests do not validate native service connectivity or PostgreSQL locking.
 
 For optional container use, `docker compose up -d --build` from the repository root starts the complete stack. The worker waits for the API to apply migrations and pass its liveness check. Docker is not a prerequisite for acceptance.
 
 ## DeepSeek candidate extraction
 
-Apply the latest migration first, including `review_events`. Add `DEEPSEEK_API_KEY` to the backend `.env` (never the frontend), retain `DEEPSEEK_BASE_URL=https://api.deepseek.com`, and configure `DEEPSEEK_MODEL` (default `deepseek-flash`). Restart the API, open a parsed source, and choose the candidate-extraction action. It sends that source's chunks to DeepSeek only on explicit request. Review each quote and confirm or reject; a relationship requires both endpoint entities confirmed first. Worker parsing does not invoke the model. Tests and browser verification use simulated responses; real model acceptance is still required. See [backend instructions](../backend/README.md#deepseek-candidate-extraction-and-review).
+Apply the latest migration first, including `review_events` and the formal graph tables. Add `DEEPSEEK_API_KEY` to the backend `.env` (never the frontend), retain `DEEPSEEK_BASE_URL=https://api.deepseek.com`, and configure `DEEPSEEK_MODEL` (default `deepseek-flash`). Restart the API, open a parsed source, and choose the candidate-extraction action. It sends that source's chunks to DeepSeek only on explicit request. Review each quote and confirm or reject; a relationship requires both endpoint entities confirmed first. Confirmation writes scoped entities, relationships, and evidence in the same transaction. Worker parsing does not invoke the model. Tests and browser verification use simulated responses; real model acceptance is still required. See [backend instructions](../backend/README.md#deepseek-candidate-extraction-and-review).
 
 ## Frontend verification
 
@@ -108,6 +108,8 @@ For visible changes, manually verify:
 - Knowledge-type filtering.
 - Timeline playback and detail-panel synchronization.
 - Follow-up question states.
+- Candidate extraction, review, and legacy-confirmation replay.
+- Project graph loading, filtering, one/two-hop neighborhoods, detail evidence, and empty/truncated states.
 - Desktop and mobile layouts.
 - Keyboard focus and panel scrolling.
 

@@ -28,6 +28,7 @@ const emit = defineEmits<{
   run: []
   refresh: []
   chunksPage: [page: number]
+  graph: []
 }>()
 const name = ref('')
 const description = ref('')
@@ -137,6 +138,7 @@ function formatSize(bytes: number) {
           <header class="source-project-heading">
             <div><h2>{{ project.name }}</h2><p>{{ project.description || '在这里保存项目的技术笔记。' }}</p></div>
             <div class="upload-control">
+              <button class="text-button" type="button" :disabled="locked" @click="emit('graph')">查看项目图谱</button>
               <input ref="fileInput" class="file-picker" type="file" accept=".md,.markdown,text/markdown" aria-label="选择 Markdown 文件" tabindex="-1" :disabled="locked" @change="chooseFile" />
               <button class="primary-button" type="button" :disabled="locked" @click="fileInput?.click()">{{ loading.upload ? '正在上传…' : '上传 Markdown' }}</button>
             </div>

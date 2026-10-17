@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md)
 
-FastAPI service for Knowledge Atlas persistence, Markdown ingestion, and evidence-validated candidate extraction/review.
+FastAPI service for Knowledge Atlas persistence, Markdown ingestion, evidence-validated candidate extraction/review, and bounded read-only project-graph queries.
 
 ## Implemented behavior
 
@@ -17,8 +17,10 @@ FastAPI service for Knowledge Atlas persistence, Markdown ingestion, and evidenc
 - Reuse the original source/task on identical-byte uploads within a user's project, even if the filename changes.
 - Paginate stored chunks and safely repeat completed tasks or retry failed tasks.
 - Persist project, source, task, and candidate-knowledge records.
+- Promote confirmed candidates into scoped PostgreSQL entities, relationships, and evidence within the review transaction, with stable UUIDs, endpoint promotion, idempotent repeats, and legacy-confirmation replay.
+- Serve read-only project graph, entity-detail, and relationship-detail views with user/project/time scoping, node/edge limits, and server-calculated evidence lines.
 
-Explicit DeepSeek candidate extraction, exact-quote evidence validation, paginated review, and audited confirm/reject with optional name/summary edits are implemented. Formal graph persistence, entity disambiguation, search, and Agent answers are not implemented yet. Real DeepSeek calls remain unverified. Planned nodes, relationships, and evidence will use PostgreSQL. Neo4j is deferred and is not required for startup or acceptance; see [ADR 0005](../docs/adr/0005-postgresql-only-storage.md).
+Explicit DeepSeek candidate extraction, exact-quote evidence validation, paginated review, and audited confirm/reject with optional name/summary edits are implemented. Confirmation promotes candidates into the formal graph; reads are bounded and read-only. Entity disambiguation, search, and Agent answers are not implemented yet. Real DeepSeek calls remain unverified. Formal nodes, relationships, and evidence are stored in PostgreSQL. Neo4j is deferred and is not required for startup or acceptance; see [ADR 0005](../docs/adr/0005-postgresql-only-storage.md).
 
 ## Setup
 
@@ -89,7 +91,7 @@ Docker Compose is an optional alternative: from the repository root, `docker com
 
 ## DeepSeek candidate extraction and review
 
-Apply `alembic upgrade head` (expected `20261017_0004`) before review operations. Configure only the backend `.env`:
+Apply `alembic upgrade head` (expected `20261017_0005`) before review operations. Configure only the backend `.env`:
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key
@@ -105,9 +107,17 @@ After parsing a source, open its candidate section and explicitly request extrac
 
 Outputs must match the schema, reference only extracted entities, and quote exact text from same-source chunks. A whole batch is accepted or rejected. Successful extraction is reused per source/prompt version, including after model-setting changes; this version has no forced re-extraction. Failed calls require explicit retry. Interrupted calls can be retried after their lease expires (at least the configured task lease or model timeout plus 60 seconds); stale executions cannot overwrite a replacement. No automatic retry is made because it could repeat model charges. A timed-out/interrupted call may already have reached the provider.
 
-Review candidates through `GET /api/v1/projects/{project_id}/reviews` and `POST /api/v1/reviews/{review_id}/resolve`. Confirm or reject, optionally editing name/summary before confirmation. Relationships require confirmed endpoint entities. Repeating the same decision is idempotent; changed decisions, merge, undo, and re-extraction are not supported. Migration `0004` adds audit records with actor, time, and before/after values. Downgrading it removes audit records, while preserving existing candidates and sources.
+Review candidates through `GET /api/v1/projects/{project_id}/reviews` and `POST /api/v1/reviews/{review_id}/resolve`. Confirm or reject, optionally editing name/summary before confirmation. Relationships require confirmed endpoint entities. Repeating the same decision is idempotent; changed decisions, merge, undo, and re-extraction are not supported. Migration `0004` adds audit records with actor, time, and before/after values. Migration `0005` adds formal graph tables; downgrading it removes graph records and evidence while preserving sources, candidates, and review events.
 
-Confirmation currently records candidate review status only; formal graph promotion, entity merging, retrieval, and real graph display remain future work. Automated tests and browser checks simulate DeepSeek responses. A configured key and real short-note acceptance are still required to validate actual model behavior.
+Confirmation promotes the candidate into `knowledge_entities`, `knowledge_relationships`, and `knowledge_evidence` in the same transaction as review state and its audit event. Promotion revalidates the quote and scope, derives stable `uuid5` identifiers, and is idempotent per candidate. Legacy confirmed candidates without formal records can be replayed from the review UI without duplicate audit events. Entity merging, disambiguation, retrieval, and real question answering remain future work. Automated tests and browser checks simulate DeepSeek responses. A configured key and real short-note acceptance are still required to validate actual model behavior.
+
+## Project graph
+
+`GET /api/v1/projects/{project_id}/graph` returns `nodes`, `edges`, and `truncated` for active, user-scoped projects. Optional parameters are `center_id`, `depth` (1 or 2), `types` (comma-separated entity types), `valid_at`, and `limit` (1–200, default 100); edges are capped at 500. Visibility requires `status != archived`, `valid_from <= at`, and `valid_to` absent or later than `at`.
+
+`GET /api/v1/knowledge/entities/{entity_id}` returns the entity, up to 100 direct relationships, and evidence with the original filename, `project://` URI, quote, heading path, and server-calculated line range. `GET /api/v1/knowledge/relationships/{relationship_id}` returns the relationship and its evidence. Canvas coordinates are not part of the API; layout belongs to the frontend.
+
+Verification on 2026-10-17: 85 backend tests passed; the frontend build and desktop/mobile browser flows passed using isolated SQLite and simulated extraction. Native PostgreSQL 17.10 with pgvector passed migration upgrade/downgrade/re-upgrade, graph/evidence reads, and four concurrent identical confirmations per candidate using independent sessions in a disposable schema. The temporary schema was removed; the existing application schema was not migrated. Real DeepSeek quality, native-database browser acceptance, and Worker/API contention/recovery remain separate checks.
 
 ## Test
 
@@ -115,7 +125,7 @@ Confirmation currently records candidate review status only; formal graph promot
 python -m pytest
 ```
 
-Tests use isolated SQLite databases and cover parsing, API behavior, failure/retry, access isolation, migration upgrade/downgrade with legacy running tasks, offline PostgreSQL SQL compilation, worker recovery/fencing across independent sessions, and actual one-shot worker subprocesses. Run `/api/v1/health/ready` against your configured native local services to verify the real PostgreSQL connection. The PostgreSQL dependency must report `up` for acceptance. Offline compilation is not a live database integration test.
+Tests use isolated SQLite databases and cover parsing, API behavior, failure/retry, access isolation, migration upgrade/downgrade with legacy running tasks, offline PostgreSQL SQL compilation, worker recovery/fencing across independent sessions, actual one-shot worker subprocesses, candidate review, formal graph promotion, legacy-confirmation replay, and bounded graph queries. Run `/api/v1/health/ready` against your configured native local services to verify the real PostgreSQL connection. The PostgreSQL dependency must report `up` for acceptance. Offline compilation is not a live database integration test.
 
 ## Structure
 

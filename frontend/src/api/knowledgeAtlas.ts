@@ -1,5 +1,5 @@
 import { apiRequest } from './client'
-import type { KnowledgeCandidate, ReviewDecision } from '../types'
+import type { EntityDetail, KnowledgeCandidate, ProjectGraphData, RelationshipDetail, ReviewDecision } from '../types'
 
 export interface ApiProject {
   id: string
@@ -182,4 +182,19 @@ export function resolveCandidate(decision: ReviewDecision): Promise<KnowledgeCan
   return apiRequest<KnowledgeCandidate>(`/reviews/${decision.id}/resolve`, {
     method: 'POST', body: JSON.stringify({ action: decision.action, changes: decision.changes ?? {} }),
   })
+}
+
+export function getProjectGraph(projectId: string, options: { centerId?: string; depth?: number; types?: string } = {}): Promise<ProjectGraphData> {
+  const query = new URLSearchParams({ depth: String(options.depth ?? 1), limit: '100' })
+  if (options.centerId) query.set('center_id', options.centerId)
+  if (options.types) query.set('types', options.types)
+  return apiRequest<ProjectGraphData>(`/projects/${projectId}/graph?${query}`)
+}
+
+export function getEntityDetail(id: string): Promise<EntityDetail> {
+  return apiRequest<EntityDetail>(`/knowledge/entities/${id}`)
+}
+
+export function getRelationshipDetail(id: string): Promise<RelationshipDetail> {
+  return apiRequest<RelationshipDetail>(`/knowledge/relationships/${id}`)
 }

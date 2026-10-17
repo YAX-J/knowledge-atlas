@@ -5,6 +5,7 @@
 - Status: Accepted
 - Date: 2026-10-17
 - Supersedes: [ADR 0001](0001-postgresql-source-of-truth.md)
+- Follow-up: [ADR 0007](0007-confirmed-postgresql-graph.md) implements formal graph tables and read APIs; the PostgreSQL-only decision remains in force.
 
 ## Context
 
@@ -24,10 +25,10 @@ Neo4j may be reconsidered through a new ADR if measured query complexity, perfor
 
 - Native development and acceptance require only PostgreSQL with pgvector; Docker remains optional.
 - Readiness reports PostgreSQL only, returning HTTP 200 when connected and HTTP 503 on connection failure. This does not validate migrations or pgvector availability.
-- No application graph data needs migration because graph persistence has not been implemented.
+- No application graph data needed migration at adoption; ADR 0007 later added graph tables and graph writes.
 - Existing local `NEO4J_*` environment entries are ignored and can be removed. Removing Compose volume declarations does not delete any existing database volumes or installations.
 - Graph querying requires SQL design and performance validation. This decision does not claim equivalence to a specialized graph database for arbitrary traversals.
-- Real graph display, extraction, retrieval, and Agent answers remain future work.
+- At adoption, real graph display, extraction, retrieval, and Agent answers remained future work. Graph display is now implemented; extraction quality, retrieval, and Agent answers still require work.
 
 ## Alternatives considered
 

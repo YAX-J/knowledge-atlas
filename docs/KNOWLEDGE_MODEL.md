@@ -2,7 +2,7 @@
 
 知识模型用于约束大模型抽取结果、数据库结构和图谱查询。第一版应保持类型数量有限，只有真实查询需要时才增加新类型。
 
-当前规划使用 PostgreSQL 保存节点、关系、证据与时序状态，不要求独立图数据库，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。正式图谱表与查询尚未实现；下文的关系箭头表示领域方向，与具体数据库查询语言无关。
+当前使用 PostgreSQL 保存节点、关系、证据与时序状态，不要求独立图数据库，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。正式图谱表与查询已实现（迁移 `20261017_0005`，见 [ADR 0007](adr/0007-confirmed-postgresql-graph.zh-CN.md)）；下文的关系箭头表示领域方向，与具体数据库查询语言无关。
 
 ## 建模原则
 
@@ -107,7 +107,7 @@
 
 ## 当前 Markdown 原文分块
 
-后端已保存 `SourceChunk` 作为原文证据的基础记录，尚未生成图谱 `Evidence` 实体。每个分块带有稳定 UUID、`user_id`、`project_id`、`source_id`、从 0 开始的顺序、块类型、标题路径、原文、SHA-256 及从 1 开始且包含两端的行号。分块原文保留来源中的换行符，标题路径包含当前标题。相同来源、位置边界、块类型和内容产生相同 UUID；不同来源的分块不会共享 UUID。
+后端已保存 `SourceChunk` 作为原文证据的基础记录；确认候选时会生成 `KnowledgeEvidence` 并引用分块。每个分块带有稳定 UUID、`user_id`、`project_id`、`source_id`、从 0 开始的顺序、块类型、标题路径、原文、SHA-256 及从 1 开始且包含两端的行号。分块原文保留来源中的换行符，标题路径包含当前标题。相同来源、位置边界、块类型和内容产生相同 UUID；不同来源的分块不会共享 UUID。
 
 来源在当前阶段保持不可变：相同项目中的相同文件字节复用来源，修改字节则创建独立来源。这不表示新旧来源之间已经建立版本或 `SUPERSEDES` 关系。`ready` 仅表示来源解析完成，不表示知识已抽取或确认。决策见 [ADR 0003](adr/0003-markdown-parsing-execution.md)。
 
@@ -115,7 +115,20 @@
 
 显式 DeepSeek 提取生成实体和关系候选；当前模型输出只允许上文第一版实体类型，关系类型沿用本知识模型。每项使用批内唯一 `local_id`、名称（关系名称由两端派生）、摘要、0–1 置信度及 1–5 条原文引用。引用必须指向本用户、本项目、本来源的分块，摘录必须逐字存在于该块；展示行号由后端根据原文计算。模型不能设置审核状态，整批校验失败不会保存部分候选。
 
-候选以稳定业务 UUID 保存于已有 `candidate_knowledge`，关系引用同批实体候选 UUID。`review_status` 初始为 `pending`，用户可确认、拒绝或修正名称与摘要后确认；原始证据、类型和端点保持不变。每次首次处理保存操作者、时间和前后值。确认关系要求两端实体先确认。当前不支持改判、撤销或合并，`confirmed` 仅表示候选审核通过，尚未生成正式图谱对象或时序版本。见 [ADR 0006](adr/0006-deepseek-candidate-review.zh-CN.md)。
+候选以稳定业务 UUID 保存于已有 `candidate_knowledge`，关系引用同批实体候选 UUID。`review_status` 初始为 `pending`，用户可确认、拒绝或修正名称与摘要后确认；原始证据、类型和端点保持不变。每次首次处理保存操作者、时间和前后值。确认关系要求两端实体先确认。当前不支持改判、撤销或合并。见 [ADR 0006](adr/0006-deepseek-candidate-review.zh-CN.md)。
+
+## 正式图谱
+
+确认候选时，在同一事务内写入 `knowledge_entities`、`knowledge_relationships` 和 `knowledge_evidence`。正式记录保留候选来源、类型、名称、摘要、置信度、`status`、`valid_from`/`valid_to`；关系保存 `source_id`/`target_id`。
+
+- 标识：实体和关系使用 `uuid5(candidate_id, "formal-entity-v1" / "formal-relationship-v1")`，`candidate_id` 唯一约束保证重复确认幂等。
+- 证据：使用 `uuid5(formal_id, chunk_id + sha256(quote))` 并去重；保存来源、分块、逐字引用、起止行和标题路径。
+- 作用域：`user_id`、`project_id` 贯穿三张表；关系端点和证据归属使用 `(id, user_id, project_id)` 组合外键。
+- 约束：正式证据阻止删除被引用的分块；关系端点删除受 `RESTRICT` 保护。
+- 查询：只读，过滤 `archived`，按 `valid_at` 判断 `valid_from <= at` 且 `valid_to` 为空或晚于 `at`；项目图谱限制节点/边数量，详情最多返回 100 条直接关系。
+- 旧确认重放：已确认但没有正式记录的候选可再次确认补写，不重复模型调用或审计事件。
+
+实体消歧、合并、检索和问答仍未实现。
 
 ## 时序模型
 
@@ -127,6 +140,8 @@ graph LR
 ```
 
 统一规定关系方向：`新知识 -[:SUPERSEDES]-> 旧知识`。查询当前结论时选择 `status = active`；查询演化历史时沿 `SUPERSEDES` 向旧知识遍历。
+
+当前实现只在正式写入时设置 `valid_from`，`valid_to` 为空；历史语义定年、自动 `superseded` 状态切换和 `SUPERSEDES` 自动迁移仍待开发。
 
 最小更新流程：
 

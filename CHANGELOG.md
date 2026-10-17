@@ -10,6 +10,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Confirmation now promotes candidates into scoped PostgreSQL entities, relationships, and evidence in the same transaction as review state and audit events, including idempotent UUIDs, endpoint promotion, and legacy-confirmation replay. Read-only project graph and entity/relationship detail APIs expose time-filtered, bounded views without canvas coordinates.
 - Explicit DeepSeek JSON candidate extraction with constrained types/endpoints, exact source-quote validation, atomic candidate persistence, reusable successful tasks, manual retry/expired-lease recovery, and fenced writes.
 - Source-scoped candidate UI and paginated review APIs with confirm/reject, name/summary edits, endpoint confirmation rules, and reversible review-event migration. Model calls are not triggered by the parsing worker.
 
@@ -37,7 +38,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Changed
 
-- Removed the Neo4j driver, settings, readiness checks, and optional Compose service/volume declarations. PostgreSQL is the sole current database; planned graph storage uses PostgreSQL, with Neo4j deferred under ADR 0005. Readiness now reports only PostgreSQL and still returns HTTP 503 for a failed database connection.
+- Removed the Neo4j driver, settings, readiness checks, and optional Compose service/volume declarations. PostgreSQL is the sole current database and stores the formal graph; Neo4j is deferred under ADR 0005. Readiness now reports only PostgreSQL and still returns HTTP 503 for a failed database connection.
 - Native local PostgreSQL/pgvector are the default development and acceptance path; setup guides and plans now treat Docker Compose as optional and document actual local connection settings.
 - Expanded the project README with current status, quick start, architecture, repository structure, and MVP definition.
 
@@ -45,5 +46,5 @@ The project is pre-release. Version numbers and release dates will be added when
 
 - The user reports PostgreSQL 17/pgvector startup, upload/parsing, duplicate reuse, restart persistence, and automatic parsing passed. PostgreSQL contention and lease-recovery fault injection remain unverified. Optional Docker startup has not been verified either.
 - Worker leases are fixed without heartbeats or preemptive cancellation.
-- Complete CommonMark parsing, formal graph persistence, entity disambiguation, retrieval, and real Agent responses are not implemented. Real DeepSeek calls remain unverified; tests and browser checks use simulated model responses.
-- Graph and question views remain Mock; real question history, routing, and persisted view preferences are not implemented.
+- Complete CommonMark parsing, entity disambiguation, retrieval, and real Agent responses are not implemented. Real DeepSeek calls remain unverified; tests and browser checks use simulated model responses. PostgreSQL 17.10 disposable-schema checks passed graph migrations, evidence reads, and concurrent identical confirmations; native-database browser acceptance and real-data graph quality remain unverified.
+- The demo graph and question view remain Mock; the project graph uses real API data. Real question history, routing, and persisted view preferences are not implemented.

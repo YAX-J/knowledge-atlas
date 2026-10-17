@@ -83,6 +83,7 @@ class ReviewRead(BaseModel):
     summary: str
     confidence: float
     review_status: ReviewStatus
+    knowledge_id: uuid.UUID | None = None
     evidence: list[EvidenceRead]
     source_candidate_id: uuid.UUID | None = None
     target_candidate_id: uuid.UUID | None = None

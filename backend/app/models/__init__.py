@@ -6,6 +6,7 @@ from app.models.domain import (
     SourceChunk,
     SourceDocument,
 )
+from app.models.graph import KnowledgeEntity, KnowledgeEvidence, KnowledgeRelationship
 
 __all__ = [
     "CandidateKnowledge",
@@ -14,5 +15,8 @@ __all__ = [
     "ReviewEvent",
     "SourceChunk",
     "SourceDocument",
+    "KnowledgeEntity",
+    "KnowledgeEvidence",
+    "KnowledgeRelationship",
 ]
 

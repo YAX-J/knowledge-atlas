@@ -56,7 +56,7 @@ function confirm(id: string) {
       <h3 id="candidate-title">候选知识 <span v-if="candidates">{{ candidates.total }}</span></h3>
       <button class="text-button" type="button" :disabled="loading || busy" @click="emit('refresh')">刷新候选</button>
     </div>
-    <p class="source-upload-hint">提取时会将本篇资料的原文分块发送至 DeepSeek。请核对证据后逐项确认；确认结果暂存于审核记录，真实图谱尚未接入。</p>
+    <p class="source-upload-hint">提取时会将本篇资料的原文分块发送至 DeepSeek。核对证据并确认后，知识会写入项目图谱；关系两端的实体需要先确认。</p>
     <button v-if="extraction?.task?.status !== 'succeeded'" class="primary-button" type="button" :disabled="loading || busy" @click="emit('extract')">
       {{ extracting ? '正在提取，请稍候…' : extraction?.task?.status === 'failed' ? '重试提取候选知识' : extraction?.task?.status === 'running' ? '恢复超时提取' : '提取候选知识' }}
     </button>
@@ -95,6 +95,10 @@ function confirm(id: string) {
         </div>
         <p v-if="item.kind === 'relation'" class="muted-copy">请先确认关系两端的实体。</p>
       </template>
+      <div v-else-if="item.review_status === 'confirmed' && !item.knowledge_id" class="candidate-actions">
+        <span class="muted-copy">这条旧候选已通过审核，尚未写入正式图谱。</span>
+        <button class="primary-button" type="button" :disabled="busy || loading" @click="emit('resolve', { id: item.id, action: 'confirm' })">补写入图谱</button>
+      </div>
     </article>
     <nav v-if="pages > 1" class="source-pagination" aria-label="候选知识分页">
       <button type="button" :disabled="loading || busy || (candidates?.page ?? 1) <= 1" @click="emit('refresh', (candidates?.page ?? 1) - 1)">上一页</button>

@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-为 Knowledge Atlas 持久化、Markdown 导入，以及带证据校验的候选提取与审核提供服务的 FastAPI 后端。
+为 Knowledge Atlas 持久化、Markdown 导入、带证据校验的候选提取与审核，以及有界只读项目图谱查询提供服务的 FastAPI 后端。
 
 ## 已实现能力
 
@@ -17,8 +17,10 @@
 - 同一用户项目内，相同字节的上传复用原来源/任务，即使文件名不同。
 - 分页查询分块，安全地重复执行已完成任务或重试失败任务。
 - 持久化项目、来源、任务和候选知识记录。
+- 确认候选时在审核事务内写入受限的 PostgreSQL 实体、关系和证据，支持稳定 UUID、端点提升、幂等重复和旧确认重放。
+- 提供只读项目图谱、实体详情和关系详情接口，按用户/项目/时间过滤，限制节点与边数量，并返回后端计算的行号。
 
-已实现显式 DeepSeek 候选提取、精确原文证据校验、候选分页及带审计记录的确认/拒绝与名称摘要修正。正式图谱持久化、实体消歧、搜索和 Agent 回答尚未实现，真实 DeepSeek 调用仍待验收。规划中的节点、关系和证据将使用 PostgreSQL。暂缓引入 Neo4j，启动和验收均不要求它，见 [ADR 0005](../docs/adr/0005-postgresql-only-storage.zh-CN.md)。
+已实现显式 DeepSeek 候选提取、精确原文证据校验、候选分页、带审计的确认/拒绝及名称/摘要修正。确认会将候选提升为正式图谱，读取有界且只读。实体消歧、搜索和 Agent 回答尚未实现，真实 DeepSeek 调用仍待验收。正式图谱使用 PostgreSQL，暂缓引入 Neo4j，启动和验收均不要求它，见 [ADR 0005](../docs/adr/0005-postgresql-only-storage.zh-CN.md)。
 
 ## 环境配置
 
@@ -89,7 +91,7 @@ Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose 
 
 ## DeepSeek 候选提取与审核
 
-审核前先执行 `alembic upgrade head`，当前预期版本为 `20261017_0004`。只在后端 `.env` 中配置：
+审核前先执行 `alembic upgrade head`，当前预期版本为 `20261017_0005`。只在后端 `.env` 中配置：
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key
@@ -105,9 +107,17 @@ EXTRACTION_MAX_INPUT_CHARS=60000
 
 输出必须符合 Schema，关系必须引用本次实体，摘录必须逐字存在于同一来源的分块中。整批结果全部通过或全部拒绝。按来源/提示版本复用成功提取，修改模型配置后也沿用成功结果；当前没有强制重新提取功能。失败调用需手动重试，中断可在租约到期后重试（至少采用配置的任务租约或模型超时加 60 秒），旧执行不能覆盖新结果。不自动重试模型请求，以免重复计费；超时或中断的调用可能已经到达服务商。
 
-通过 `GET /api/v1/projects/{project_id}/reviews` 和 `POST /api/v1/reviews/{review_id}/resolve` 查询与审核候选。允许确认/拒绝，确认前可修改名称和摘要；关系两端实体必须先确认。相同决策重复提交幂等，当前不支持改判、合并、撤销或重新提取。迁移 `0004` 增加操作者、时间及前后值审计记录；回滚该迁移会删除审计记录，已有候选和来源保持不变。
+通过 `GET /api/v1/projects/{project_id}/reviews` 和 `POST /api/v1/reviews/{review_id}/resolve` 查询与审核候选。允许确认/拒绝，确认前可修改名称和摘要；关系两端实体必须先确认。相同决策重复提交幂等，当前不支持改判、合并、撤销或重新提取。迁移 `0004` 增加操作者、时间及前后值审计记录；迁移 `0005` 增加正式图谱表，回滚会删除图谱记录和证据，但保留来源、候选与审核事件。
 
-当前确认只记录候选审核状态，正式图谱写入、实体合并、检索和真实图谱展示仍待开发。自动测试与浏览器检查模拟 DeepSeek 响应，仍需配置密钥并用短篇笔记验收真实模型行为。
+确认候选时，在同一条审核事务内写入 `knowledge_entities`、`knowledge_relationships` 和 `knowledge_evidence`。写入前重新校验引用与作用域，使用稳定 `uuid5` 标识，并按候选幂等。已确认但缺少正式记录的旧候选可在审核页面重放补写，不重复增加审计事件。实体合并、消歧、检索和真实问答仍待开发。自动测试与浏览器检查模拟 DeepSeek 响应，仍需配置密钥并用短篇笔记验收真实模型行为。
+
+## 项目图谱
+
+`GET /api/v1/projects/{project_id}/graph` 返回当前用户有效项目的 `nodes`、`edges` 和 `truncated`。可选参数为 `center_id`、`depth`（1 或 2）、`types`（逗号分隔的实体类型）、`valid_at` 和 `limit`（1–200，默认 100）；边上限为 500。可见条件为 `status != archived`、`valid_from <= at`，且 `valid_to` 为空或晚于 `at`。
+
+`GET /api/v1/knowledge/entities/{entity_id}` 返回实体、最多 100 条直接关系，以及带原始文件名、`project://` URI、引用、标题路径和后端计算行号的证据。`GET /api/v1/knowledge/relationships/{relationship_id}` 返回关系及其证据。画布坐标不属于接口，布局由前端负责。
+
+2026-10-17 验证：后端 85 项测试通过；前端构建及桌面/手机浏览器流程通过，使用隔离 SQLite 和模拟抽取。本机 PostgreSQL 17.10 + pgvector 在临时 schema 中通过迁移升级/回退/再升级、图谱和证据读取，以及每个候选四个独立会话的并发重复确认。临时 schema 已删除，现有业务 schema 未升级。真实 DeepSeek 质量、原生数据库的浏览器验收及 Worker/API 竞争和恢复仍需单独检查。
 
 ## 测试
 
@@ -115,7 +125,7 @@ EXTRACTION_MAX_INPUT_CHARS=60000
 python -m pytest
 ```
 
-测试使用隔离 SQLite 数据库，覆盖解析、API 行为、失败/重试、访问隔离、保留历史运行任务的迁移升级/回滚、PostgreSQL SQL 离线编译、独立会话之间的 Worker 恢复/写入保护，以及真实单次执行 Worker 子进程。要验证真实 PostgreSQL 连接，应针对配置的本机原生服务调用 `/api/v1/health/ready`；验收时 PostgreSQL 依赖应为 `up`。离线编译不能代替真实数据库集成测试。
+测试使用隔离 SQLite 数据库，覆盖解析、API 行为、失败/重试、访问隔离、保留历史运行任务的迁移升级/回滚、PostgreSQL SQL 离线编译、独立会话之间的 Worker 恢复/写入保护、真实单次执行 Worker 子进程、候选审核、正式图谱写入、旧确认重放和有界图谱查询。要验证真实 PostgreSQL 连接，应针对配置的本机原生服务调用 `/api/v1/health/ready`；验收时 PostgreSQL 依赖应为 `up`。离线编译不能代替真实数据库集成测试。
 
 ## 结构
 

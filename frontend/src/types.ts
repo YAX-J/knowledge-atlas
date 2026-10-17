@@ -45,7 +45,7 @@ export interface TimelinePoint {
   label: string
 }
 
-export type WorkspaceNav = 'graph' | 'projects' | 'sources' | 'questions'
+export type WorkspaceNav = 'graph' | 'projectGraph' | 'projects' | 'sources' | 'questions'
 
 export type IngestionOperation = 'projects' | 'create' | 'sources' | 'upload' | 'detail' | 'task' | 'chunks'
 export type IngestionLoading = Record<IngestionOperation, boolean>
@@ -69,6 +69,7 @@ export interface KnowledgeCandidate {
   summary: string
   confidence: number
   review_status: 'pending' | 'confirmed' | 'rejected'
+  knowledge_id: string | null
   evidence: CandidateEvidence[]
   source_candidate_id: string | null
   target_candidate_id: string | null
@@ -80,4 +81,48 @@ export interface ReviewDecision {
   id: string
   action: 'confirm' | 'reject'
   changes?: { name?: string; summary?: string }
+}
+
+export interface FormalKnowledgeNode {
+  id: string
+  project_id: string
+  candidate_id: string
+  type: string
+  name: string
+  summary: string
+  confidence: number
+  status: string
+  valid_from: string
+  valid_to: string | null
+  evidence_count: number
+}
+
+export interface FormalKnowledgeEdge extends FormalKnowledgeNode {
+  source_id: string
+  target_id: string
+}
+
+export interface ProjectGraphData {
+  nodes: FormalKnowledgeNode[]
+  edges: FormalKnowledgeEdge[]
+  truncated: boolean
+}
+
+export interface FormalEvidence extends CandidateEvidence {
+  id: string
+  source_id: string
+  title: string
+  uri: string
+}
+
+export interface EntityDetail {
+  entity: FormalKnowledgeNode
+  evidence: FormalEvidence[]
+  relationships: FormalKnowledgeEdge[]
+  truncated: boolean
+}
+
+export interface RelationshipDetail {
+  relationship: FormalKnowledgeEdge
+  evidence: FormalEvidence[]
 }

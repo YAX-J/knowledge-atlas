@@ -1,4 +1,4 @@
-"""Explicit model extraction and human review; no authoritative graph writes."""
+"""Explicit extraction, human review, and transactional formal knowledge promotion."""
 
 import json
 import math
@@ -16,7 +16,7 @@ from app.models.domain import (
 )
 from app.schemas.knowledge import ExtractionRead, RelationDraft, ReviewRead, ReviewResolve
 from app.schemas.tasks import TaskRead
-from app.services import deepseek
+from app.services import deepseek, graph
 from app.services.ingestion import get_source
 from app.services.projects import get_project
 
@@ -197,12 +197,13 @@ def _review_query(user_id: uuid.UUID):
     )
 
 
-def read_review(candidate: CandidateKnowledge) -> ReviewRead:
+def read_review(candidate: CandidateKnowledge, knowledge_id: uuid.UUID | None = None) -> ReviewRead:
     return ReviewRead(
         id=candidate.id, project_id=candidate.project_id, source_id=candidate.source_id,
         task_id=candidate.task_id, kind=candidate.payload["kind"], type=candidate.candidate_type,
         name=candidate.name, summary=candidate.summary, confidence=candidate.confidence,
         review_status=candidate.review_status, evidence=candidate.payload["evidence"],
+        knowledge_id=knowledge_id,
         source_candidate_id=candidate.payload.get("source_candidate_id"),
         target_candidate_id=candidate.payload.get("target_candidate_id"),
         created_at=candidate.created_at, updated_at=candidate.updated_at,
@@ -228,13 +229,24 @@ def list_reviews(
     if min_confidence is not None:
         query = query.where(CandidateKnowledge.confidence >= min_confidence)
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
-    items = db.scalars(query.order_by(
+    items = list(db.scalars(query.order_by(
         CandidateKnowledge.created_at, CandidateKnowledge.id,
-    ).offset((page - 1) * page_size).limit(page_size))
-    return [read_review(item) for item in items], total
+    ).offset((page - 1) * page_size).limit(page_size)))
+    ids = graph.knowledge_ids(db, items)
+    return [read_review(item, ids.get(item.id)) for item in items], total
 
 
 def resolve_review(
+    db: Session, *, user_id: uuid.UUID, review_id: uuid.UUID, decision: ReviewResolve,
+) -> ReviewRead:
+    try:
+        return _resolve_review(db, user_id=user_id, review_id=review_id, decision=decision)
+    except Exception:
+        db.rollback()
+        raise
+
+
+def _resolve_review(
     db: Session, *, user_id: uuid.UUID, review_id: uuid.UUID, decision: ReviewResolve,
 ) -> ReviewRead:
     candidate = db.scalar(_review_query(user_id).where(CandidateKnowledge.id == review_id))
@@ -248,18 +260,24 @@ def resolve_review(
     target_status = ReviewStatus.CONFIRMED if decision.action == "confirm" else ReviewStatus.REJECTED
     changes = decision.changes.model_dump(exclude_none=True)
     if candidate.review_status != ReviewStatus.PENDING:
-        if candidate.review_status == target_status and all(getattr(candidate, key) == value for key, value in changes.items()):
-            db.commit()
-            return read_review(candidate)
-        raise AppError(status_code=409, code="REVIEW_ALREADY_RESOLVED", message="候选已处理，请刷新状态；当前不支持撤回或改判")
+        if candidate.review_status != target_status or any(getattr(candidate, key) != value for key, value in changes.items()):
+            raise AppError(status_code=409, code="REVIEW_ALREADY_RESOLVED", message="候选已处理，请刷新状态；当前不支持撤回或改判")
+    endpoint_candidates = []
     if target_status == ReviewStatus.CONFIRMED and candidate.payload["kind"] == "relation":
-        endpoints = {uuid.UUID(candidate.payload[key]) for key in ("source_candidate_id", "target_candidate_id")}
-        confirmed = set(db.scalars(_review_query(user_id).where(
+        try:
+            endpoints = {uuid.UUID(candidate.payload[key]) for key in ("source_candidate_id", "target_candidate_id")}
+        except (KeyError, ValueError, TypeError) as exc:
+            raise graph._promotion_error() from exc
+        endpoint_candidates = list(db.scalars(_review_query(user_id).where(
             CandidateKnowledge.id.in_(endpoints), CandidateKnowledge.task_id == candidate.task_id,
             CandidateKnowledge.review_status == ReviewStatus.CONFIRMED,
         )))
-        if {item.id for item in confirmed} != endpoints:
+        if {item.id for item in endpoint_candidates} != endpoints:
             raise AppError(status_code=409, code="REVIEW_ENDPOINTS_UNCONFIRMED", message="请先确认关系两端的实体；已拒绝的实体不能组成已确认关系")
+    if candidate.review_status != ReviewStatus.PENDING:
+        formal_id = graph.promote_candidate(db, candidate, endpoint_candidates) if target_status == ReviewStatus.CONFIRMED else None
+        db.commit()
+        return read_review(candidate, formal_id)
     before = {"name": candidate.name, "summary": candidate.summary, "review_status": candidate.review_status.value}
     values = {**changes, "review_status": target_status, "updated_at": utc_now()}
     updated = db.execute(update(CandidateKnowledge).where(
@@ -276,5 +294,6 @@ def resolve_review(
         action=decision.action, before=before,
         after={"name": candidate.name, "summary": candidate.summary, "review_status": candidate.review_status.value},
     ))
+    formal_id = graph.promote_candidate(db, candidate, endpoint_candidates) if target_status == ReviewStatus.CONFIRMED else None
     db.commit()
-    return read_review(candidate)
+    return read_review(candidate, formal_id)
