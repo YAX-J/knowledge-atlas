@@ -1,21 +1,226 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import AppHeader from './components/AppHeader.vue'
 import SideRail from './components/SideRail.vue'
 import KnowledgeGraph from './components/KnowledgeGraph.vue'
 import InsightPanel from './components/InsightPanel.vue'
 import TimelineBar from './components/TimelineBar.vue'
+import SourceWorkspace from './components/SourceWorkspace.vue'
+import { ApiError } from './api/client'
+import {
+  createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
+  runTask, uploadMarkdown,
+} from './api/knowledgeAtlas'
+import type {
+  ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
+} from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
-import type { NodeType } from './types'
+import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav } from './types'
 
 const selectedId = ref('event-driven')
-const activeNav = ref('graph')
+const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'graph')
 const timelineIndex = ref(timelinePoints.length - 1)
 const panelOpen = ref(true)
 const filterOpen = ref(false)
 const allTypes = Object.keys(nodeTypeLabels) as NodeType[]
 const visibleTypes = ref<NodeType[]>([...allTypes])
+const projects = ref<ApiProjectList | null>(null)
+const project = ref<ApiProject | null>(null)
+const sources = ref<SourceList | null>(null)
+const selectedSourceId = ref('')
+const selectedTaskId = ref<string | null>(null)
+const source = ref<ApiSource | null>(null)
+const task = ref<ProcessingTask | null>(null)
+const chunks = ref<SourceChunkList | null>(null)
+const notice = ref('')
+const loading = reactive<IngestionLoading>({ projects: false, create: false, sources: false, upload: false, detail: false, task: false, chunks: false })
+const errors = reactive<IngestionErrors>({ projects: '', create: '', sources: '', upload: '', detail: '', task: '', chunks: '' })
+let projectsRequest = 0
+let sourcesRequest = 0
+let detailRequest = 0
+let chunksRequest = 0
+
+function errorMessage(error: unknown): string {
+  if (error instanceof ApiError) return error.message
+  return '无法确认请求结果。请检查后端服务和网络连接，刷新后重试。'
+}
+
+function clearSourceSelection() {
+  detailRequest++
+  chunksRequest++
+  selectedSourceId.value = ''
+  selectedTaskId.value = null
+  source.value = null
+  task.value = null
+  chunks.value = null
+  errors.detail = errors.task = errors.chunks = ''
+  loading.detail = loading.chunks = false
+}
+
+async function loadProjects(page = 1) {
+  const request = ++projectsRequest
+  loading.projects = true
+  errors.projects = ''
+  try {
+    const result = await listProjects(page)
+    if (request !== projectsRequest) return
+    projects.value = result
+    if (!project.value && result.items[0]) selectProject(result.items[0])
+  } catch (error) {
+    if (request === projectsRequest) errors.projects = errorMessage(error)
+  } finally {
+    if (request === projectsRequest) loading.projects = false
+  }
+}
+
+function selectProject(value: ApiProject) {
+  if (loading.upload || loading.task) return
+  project.value = value
+  sources.value = null
+  sourcesRequest++
+  clearSourceSelection()
+  errors.sources = errors.upload = ''
+  notice.value = ''
+  void loadSources(1)
+}
+
+async function addProject(input: { name: string; description: string }) {
+  if (loading.create || loading.upload || loading.task) return
+  loading.create = true
+  errors.create = ''
+  try {
+    const result = await createProject(input)
+    // Invalidate any older list response before selecting the new project.
+    projectsRequest++
+    selectProject(result)
+    notice.value = `项目“${result.name}”已创建。可以上传第一篇笔记了。`
+    await loadProjects(1)
+  } catch (error) {
+    errors.create = errorMessage(error)
+  } finally {
+    loading.create = false
+  }
+}
+
+async function loadSources(page = 1) {
+  const projectId = project.value?.id
+  if (!projectId) return
+  const request = ++sourcesRequest
+  loading.sources = true
+  errors.sources = ''
+  try {
+    const result = await listSources(projectId, page)
+    if (request !== sourcesRequest || project.value?.id !== projectId) return
+    sources.value = result
+    if (!selectedSourceId.value && result.items[0]) {
+      void selectSource(result.items[0].id, result.items[0].task_id)
+    }
+  } catch (error) {
+    if (request === sourcesRequest) errors.sources = errorMessage(error)
+  } finally {
+    if (request === sourcesRequest) loading.sources = false
+  }
+}
+
+async function selectSource(sourceId: string, taskId: string | null) {
+  if (loading.create || loading.upload || loading.task) return
+  clearSourceSelection()
+  selectedSourceId.value = sourceId
+  selectedTaskId.value = taskId
+  await refreshSource()
+}
+
+async function refreshSource() {
+  const sourceId = selectedSourceId.value
+  const taskId = selectedTaskId.value
+  if (!sourceId) return
+  const request = ++detailRequest
+  loading.detail = true
+  errors.detail = errors.task = ''
+  try {
+    const [sourceResult, taskResult] = await Promise.all([
+      getSource(sourceId), taskId ? getTask(taskId) : Promise.resolve(null),
+    ])
+    if (request !== detailRequest || sourceId !== selectedSourceId.value) return
+    source.value = sourceResult
+    task.value = taskResult
+    const item = sources.value?.items.find((item) => item.id === sourceId)
+    if (item) {
+      item.status = sourceResult.status
+      item.task_status = taskResult?.status ?? null
+      item.updated_at = sourceResult.updated_at
+    }
+    if (taskResult?.status === 'succeeded') await loadChunks(1)
+  } catch (error) {
+    if (request === detailRequest) errors.detail = errorMessage(error)
+  } finally {
+    if (request === detailRequest) loading.detail = false
+  }
+}
+
+async function loadChunks(page = 1) {
+  const sourceId = selectedSourceId.value
+  if (!sourceId) return
+  const request = ++chunksRequest
+  loading.chunks = true
+  errors.chunks = ''
+  try {
+    const result = await listSourceChunks(sourceId, page)
+    if (request === chunksRequest && sourceId === selectedSourceId.value) chunks.value = result
+  } catch (error) {
+    if (request === chunksRequest) errors.chunks = errorMessage(error)
+  } finally {
+    if (request === chunksRequest) loading.chunks = false
+  }
+}
+
+async function uploadFile(file: File) {
+  const projectId = project.value?.id
+  if (!projectId || loading.create || loading.upload || loading.task) return
+  loading.upload = true
+  errors.upload = ''
+  notice.value = ''
+  // Prevent an older automatic selection from replacing the upload result.
+  sourcesRequest++
+  clearSourceSelection()
+  try {
+    const result = await uploadMarkdown(projectId, file)
+    selectedSourceId.value = result.source_id
+    selectedTaskId.value = result.task_id
+    notice.value = '资料已接收。相同内容会复用已有资料，请查看当前解析状态。'
+    await Promise.all([loadSources(1), refreshSource()])
+  } catch (error) {
+    errors.upload = errorMessage(error)
+  } finally {
+    loading.upload = false
+    loading.sources = false
+  }
+}
+
+async function parseSource() {
+  const taskId = selectedTaskId.value
+  if (!taskId || loading.create || loading.task || loading.upload) return
+  loading.task = true
+  errors.task = ''
+  try {
+    task.value = await runTask(taskId)
+    if (task.value.status === 'failed') {
+      const message = task.value.error?.message
+      errors.task = typeof message === 'string' ? message : '解析失败，请重试。'
+    }
+    await Promise.all([refreshSource(), loadSources(sources.value?.page ?? 1)])
+    if (task.value?.status === 'failed') errors.task = '解析失败，请重试解析。'
+  } catch (error) {
+    errors.task = errorMessage(error)
+  } finally {
+    loading.task = false
+  }
+}
+
+onMounted(() => {
+  if (activeNav.value !== 'graph') void loadProjects()
+})
 
 const selectedNode = computed(() => nodes.find((node) => node.id === selectedId.value) ?? nodes[0])
 const currentDate = computed(() => timelinePoints[timelineIndex.value]?.date ?? timelinePoints.at(-1)!.date)
@@ -23,20 +228,25 @@ const timeFilteredNodes = computed(() => nodes.filter((node) => node.validFrom <
 const visibleGraphNodes = computed(() => timeFilteredNodes.value.filter((node) => visibleTypes.value.includes(node.type)))
 
 function selectNode(id: string) {
+  activeNav.value = 'graph'
   selectedId.value = id
   panelOpen.value = true
 }
 
 function changeNav(value: string) {
   if (value === 'filter') {
+    activeNav.value = 'graph'
     filterOpen.value = !filterOpen.value
     return
   }
-  activeNav.value = value
-  if (value !== 'graph') {
-    const labels: Record<string, string> = { projects: '项目视图', sources: '资料来源', questions: '问答记录' }
-    ElMessage({ message: `${labels[value]}将在下一阶段接入，目前展示知识图谱原型。`, type: 'info' })
-    activeNav.value = 'graph'
+  if (value === 'questions') {
+    ElMessage({ message: '真实问答尚未接入，可以在演示图谱中体验模拟问答。', type: 'info' })
+    return
+  }
+  if (value === 'graph' || value === 'projects' || value === 'sources') {
+    activeNav.value = value
+    filterOpen.value = false
+    if (value !== 'graph' && !projects.value && !loading.projects) void loadProjects()
   }
 }
 
@@ -67,15 +277,24 @@ function setTimeline(value: number) {
 
 <template>
   <div class="app-shell">
-    <AppHeader :nodes="nodes" :selected-id="selectedId" @select="selectNode" />
+    <AppHeader :nodes="nodes" :selected-id="selectedId" :graph-active="activeNav === 'graph'" @select="selectNode" />
     <SideRail :active="activeNav" @change="changeNav" />
 
-    <main class="atlas-main" :class="{ 'panel-collapsed': !panelOpen }">
+    <SourceWorkspace
+      v-if="activeNav === 'projects' || activeNav === 'sources'"
+      :view="activeNav" :projects="projects" :project="project" :sources="sources"
+      :selected-source-id="selectedSourceId" :source="source" :task="task" :chunks="chunks"
+      :loading="loading" :errors="errors" :notice="notice"
+      @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
+      @sources-page="loadSources" @select-source="selectSource" @upload="uploadFile"
+      @run="parseSource" @refresh="refreshSource" @chunks-page="loadChunks"
+    />
+    <main v-else class="atlas-main" :class="{ 'panel-collapsed': !panelOpen }">
       <section class="graph-workspace">
         <div class="workspace-title">
           <div>
             <h1>你的技术宇宙，正在成形</h1>
-            <p>节点大小代表复用频率，连线亮度代表最近关联。</p>
+            <p>演示图谱 · 节点与问答使用模拟数据。真实资料可从左侧入口管理。</p>
           </div>
           <div class="workspace-stats" aria-label="图谱统计">
             <span><strong>{{ visibleGraphNodes.length }}</strong> 个节点</span>

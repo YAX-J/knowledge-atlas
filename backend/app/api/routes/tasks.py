@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from app.api.dependencies import CurrentUserId, DatabaseSession
 from app.schemas.tasks import TaskRead
-from app.services import ingestion
+from app.services import ingestion, parsing
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -17,4 +17,13 @@ def get_task(
     user_id: CurrentUserId,
 ) -> TaskRead:
     return ingestion.get_task(db, user_id=user_id, task_id=task_id)
+
+
+@router.post("/{task_id}/run", response_model=TaskRead)
+def run_task(
+    task_id: uuid.UUID,
+    db: DatabaseSession,
+    user_id: CurrentUserId,
+) -> TaskRead:
+    return parsing.run_task(db, user_id=user_id, task_id=task_id)
 

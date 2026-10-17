@@ -36,7 +36,9 @@ export async function apiRequest<T>(
     headers.set('Content-Type', 'application/json')
   }
 
-  const response = await fetch(`${apiBaseUrl}${path}`, { ...init, headers })
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...init, headers, signal: init.signal ?? AbortSignal.timeout(30000),
+  })
   if (!response.ok) {
     let payload: ApiErrorEnvelope = {}
     try {

@@ -4,7 +4,7 @@
 
 Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成带有来源、时间和上下文的知识网络，帮助开发者重新找到历史方案、理解技术决策，并基于真实证据回答问题。
 
-> 当前进度：可交互 Mock 前端和 FastAPI 基础接口已经完成；知识解析、抽取、图谱投影和真实检索尚未接入。
+> 当前进度：演示图谱、真实项目与资料工作台、FastAPI 接口及可显式执行的 Markdown 解析已经完成；知识抽取、真实图谱和检索尚未接入。
 
 ![Knowledge Atlas 知识图谱工作台](docs/images/knowledge-atlas-overview.png)
 
@@ -20,7 +20,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 
 | 能力 | 说明 | 当前状态 |
 | --- | --- | --- |
-| 资料导入 | 导入 Markdown、文本、代码及 GitHub 数据 | Markdown 上传接口已完成 |
+| 资料导入 | 导入 Markdown、文本、代码及 GitHub 数据 | Markdown 上传、解析和分块查询已完成 |
 | 知识抽取 | 提取项目、技术、问题、方案、决策和证据 | 规划中 |
 | 实体消歧 | 合并别名和重复实体，保留人工确认流程 | 规划中 |
 | 知识图谱 | 浏览节点、关系、项目归属和来源证据 | Mock 已完成 |
@@ -31,7 +31,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 
 ## 当前前端
 
-前端位于 [`frontend`](frontend)，使用 Vue 3、TypeScript、Vite 和 Element Plus 实现。当前数据全部来自本地 Mock，可以独立运行和演示。
+前端位于 [`frontend`](frontend)，使用 Vue 3、TypeScript、Vite 和 Element Plus 实现。默认打开可独立运行的 Mock 图谱；“我的项目”和“资料来源”连接真实后端，支持项目创建、资料上传、解析、状态刷新及带行号的原文分块分页。图谱和问答仍使用演示数据，并在页面标注。
 
 已实现的交互包括：
 
@@ -42,6 +42,9 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - 通过时间轴回放不同阶段的知识状态。
 - 基于当前节点生成模拟证据回答。
 - 桌面端与移动端响应式布局。
+- 真实项目列表与创建、项目资料列表、Markdown 上传和文件校验。
+- 显式开始/重试解析、原文预览、标题层级与行号分块查询。
+- 加载、空数据、错误、重试与分页状态。
 
 ## 当前后端
 
@@ -50,7 +53,8 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - FastAPI 应用、CORS、请求 ID 和统一错误结构。
 - 项目创建、分页查询和详情接口。
 - UTF-8 Markdown 上传、大小与类型校验、内容哈希和原文保存。
-- 上传后创建 `queued` 处理任务，并提供资料与任务查询接口。
+- 上传后创建 `queued` 处理任务，支持显式执行解析和资料、任务、分块查询。
+- 解析标题、段落、列表和围栏代码块，保存原文、标题路径及行号；相同项目重复上传相同字节会复用来源与任务。
 - 项目、资料、任务和候选知识的 SQLAlchemy 模型与 Alembic 初始迁移。
 - PostgreSQL/pgvector、Neo4j 和 API 的 Docker Compose 配置。
 - 使用 SQLite 隔离数据库的后端接口测试。
@@ -68,6 +72,8 @@ npm run dev
 ```
 
 浏览器访问 `http://localhost:5173`。
+
+如需使用真实项目与资料，启动后端后点击“我的项目”或“资料来源”。前端 `.env.example` 中的 `VITE_API_BASE_URL` 可配置后端地址；`VITE_DATA_SOURCE=api` 会默认打开资料页，`mock` 则默认打开演示图谱。修改环境变量后需要重启前端。图谱与问答尚未接入真实数据。
 
 生产构建：
 
@@ -106,6 +112,8 @@ uvicorn app.main:app --reload
 ```
 
 接口文档地址为 `http://localhost:8000/docs`，存活检查地址为 `http://localhost:8000/api/v1/health/live`。
+
+在接口文档中创建项目并上传 Markdown 后，调用 `POST /api/v1/tasks/{task_id}/run` 执行解析，再通过 `GET /api/v1/sources/{source_id}/chunks` 分页查看原文分块。上传不会自动启动任务；具体行为和限制见 [后端说明](backend/README.md)。
 
 ## 目标技术架构
 
@@ -146,7 +154,7 @@ knowledge-atlas/
 │  ├─ migrations/           # Alembic 数据库迁移
 │  ├─ README.md             # 后端运行与验证说明
 │  └─ tests/                # SQLite 隔离接口测试
-├─ frontend/                 # 当前已实现的 Vue Mock 前端
+├─ frontend/                 # Vue 演示图谱与真实项目/资料工作台
 │  ├─ src/api/              # 后端接口客户端与类型
 │  ├─ src/components/       # 搜索、图谱、侧栏和时间轴组件
 │  ├─ src/mock/             # 本地演示数据
@@ -211,4 +219,4 @@ knowledge-atlas/
 
 ## 项目状态说明
 
-本仓库目前处于后端基础和 Markdown 导入闭环阶段。README 中标记为“规划中”或“后续阶段”的能力属于目标设计，不代表已经完成。前端仍使用 Mock 数据；后端当前只保存原文并创建排队任务，尚未执行解析、知识抽取或图谱写入。
+本仓库目前处于后端基础和 Markdown 导入闭环阶段。README 中标记为“规划中”或“后续阶段”的能力属于目标设计，不代表已经完成。项目与资料工作台已接入真实接口，图谱与问答仍使用 Mock；尚未接入自动任务消费、知识抽取或图谱写入。

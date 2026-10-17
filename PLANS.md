@@ -16,17 +16,19 @@ Completed:
 - PostgreSQL-oriented models, initial Alembic migration, and local service composition added.
 - Backend interface tests implemented with an isolated SQLite database.
 - Typed frontend API client foundation added while Mock remains the default.
+- Explicit Markdown parsing tasks, persistent line-addressable chunks, and chunk pagination implemented.
+- Identical-byte upload reuse, deterministic chunk IDs, idempotent task execution, and failed-task retry implemented.
+- Frontend project creation/listing, source listing/upload, parsing/retry, source preview, and paginated evidence chunks integrated with real APIs while preserving the Mock graph.
 
 ## Active phase
 
-The active phase remains the first Markdown ingestion vertical slice. The API and persistence foundation is complete in code; container connectivity, frontend integration, and document parsing remain.
+The active phase remains the first Markdown ingestion vertical slice. API persistence, explicit parsing, and frontend project/source integration are complete in code; container connectivity and automatic task consumption remain.
 
 Expected outcomes:
 
 - Validate PostgreSQL, pgvector, and Neo4j services on a machine with Docker.
-- Integrate the API client with project/source loading states while retaining Mock mode.
-- Parse Markdown headings, paragraphs, and lists into source chunks with stable locators.
-- Add duplicate-content handling and idempotent task execution.
+- Validate the integrated frontend project/source flow against PostgreSQL in the local container environment.
+- Decide on automatic task consumption and recovery after validating explicit execution.
 
 Acceptance criteria:
 

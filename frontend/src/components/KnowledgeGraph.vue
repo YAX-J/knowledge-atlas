@@ -60,13 +60,13 @@ function resetView() {
 
 <template>
   <div class="graph-shell">
-    <div class="graph-legend" aria-label="知识类型图例">
+    <div class="graph-legend" role="group" aria-label="知识类型图例">
       <span v-for="type in visibleTypes" :key="type" :class="`legend-${type}`">
         <i />{{ nodeTypeLabels[type] }}
       </span>
     </div>
 
-    <svg class="knowledge-graph" viewBox="0 -120 1000 900" role="img" aria-label="个人知识图谱">
+    <svg class="knowledge-graph" viewBox="0 -120 1000 900" role="group" aria-label="演示知识图谱">
       <defs>
         <filter id="selected-glow" x="-60%" y="-60%" width="220%" height="220%">
           <feGaussianBlur stdDeviation="8" result="blur" />
@@ -125,7 +125,7 @@ function resetView() {
       </g>
     </svg>
 
-    <div class="zoom-controls" aria-label="图谱缩放">
+    <div class="zoom-controls" role="group" aria-label="图谱缩放">
       <button type="button" aria-label="放大" @click="adjustZoom(0.1)"><el-icon><Plus /></el-icon></button>
       <span>{{ Math.round(zoom * 100) }}%</span>
       <button type="button" aria-label="缩小" @click="adjustZoom(-0.1)"><el-icon><Minus /></el-icon></button>

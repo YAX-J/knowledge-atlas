@@ -43,7 +43,7 @@ Available commands:
 | `npm run build` | Run Vue TypeScript checks and build production assets |
 | `npm run preview` | Preview the most recent production build |
 
-The current application uses local Mock data and requires no database or model credentials.
+The default graph and question demo uses local Mock data and requires no database or model credentials. Project/source navigation uses the real API. Copy `frontend/.env.example` to `frontend/.env` if you need to change `VITE_API_BASE_URL`; set `VITE_DATA_SOURCE=api` to open the source workspace by default. Restart Vite after changing environment values. This does not switch the graph or questions to real data.
 
 ## Backend setup
 
@@ -82,6 +82,8 @@ Useful endpoints:
 | `http://localhost:8000/docs` | OpenAPI interface |
 | `GET /api/v1/health/live` | Process liveness |
 | `GET /api/v1/health/ready` | PostgreSQL and Neo4j dependency health |
+
+To verify ingestion in the OpenAPI interface, create a project, upload Markdown, explicitly call `POST /api/v1/tasks/{task_id}/run`, and query `GET /api/v1/sources/{source_id}/chunks`. Uploads stay queued until executed. Apply the latest migration before using the chunk endpoints. See [backend instructions](../backend/README.md) for state transitions and current parsing limitations.
 
 ## Frontend verification
 
@@ -153,7 +155,7 @@ npm run dev -- --port 5174
 
 ### The page has no real project data
 
-This is expected in the current phase. The application reads `frontend/src/mock/data.ts`. Real API integration is planned after the backend foundation is complete.
+The graph still reads `frontend/src/mock/data.ts`. Open “我的项目” or “资料来源” for real project/source data, start the backend, and confirm `VITE_API_BASE_URL` and the backend `CORS_ORIGINS` match your local addresses. The source workspace reports connection errors and provides retry controls.
 
 ### Build output appears in Git status
 

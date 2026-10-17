@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Search, CircleCheckFilled } from '@element-plus/icons-vue'
+import { Search } from '@element-plus/icons-vue'
 import type { KnowledgeNode } from '../types'
 
 const props = defineProps<{
   nodes: KnowledgeNode[]
   selectedId: string
+  graphActive: boolean
 }>()
 
 const emit = defineEmits<{
@@ -42,7 +43,7 @@ function closeResults() {
 
 <template>
   <header class="app-header">
-    <div class="brand" aria-label="Knowledge Atlas">
+    <div class="brand" role="img" aria-label="Knowledge Atlas">
       <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
         <path d="M12 19 28 10M12 19l16 12" />
         <circle cx="10" cy="20" r="5" />
@@ -57,8 +58,8 @@ function closeResults() {
       <input
         v-model="query"
         type="search"
-        placeholder="在我的知识中搜索，例如：事件驱动架构"
-        aria-label="搜索知识"
+        placeholder="搜索演示图谱，例如：事件驱动架构"
+        aria-label="搜索演示知识"
         @focus="isFocused = true"
         @blur="closeResults"
         @keydown.enter="submit"
@@ -74,9 +75,8 @@ function closeResults() {
     </div>
 
     <div class="sync-status">
-      <el-icon><CircleCheckFilled /></el-icon>
-      <span>图谱已同步</span>
-      <strong>1,284 个知识单元</strong>
+      <span>{{ graphActive ? '演示图谱' : '资料工作台' }}</span>
+      <strong>{{ graphActive ? `${nodes.length} 个演示节点` : '项目与原文持久保存' }}</strong>
       <button type="button" aria-label="打开个人菜单">YX</button>
     </div>
   </header>

@@ -3,12 +3,12 @@ import uuid
 from pathlib import Path
 
 from fastapi import UploadFile
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.errors import AppError
-from app.models.domain import ProcessingTask, SourceDocument, TaskStatus
+from app.models.domain import ProcessingTask, Project, SourceDocument, TaskStatus
 from app.services.projects import get_project
 
 
@@ -69,6 +69,33 @@ async def create_source_and_task(
             message="上传文件不能为空",
         )
 
+    content_sha256 = hashlib.sha256(raw_content).hexdigest()
+    # Serialize concurrent uploads within this user's project on PostgreSQL.
+    db.execute(
+        select(Project.id)
+        .where(Project.id == project_id, Project.user_id == user_id)
+        .with_for_update()
+    )
+    existing = db.execute(
+        select(SourceDocument, ProcessingTask)
+        .join(ProcessingTask, ProcessingTask.source_id == SourceDocument.id)
+        .where(
+            SourceDocument.user_id == user_id,
+            SourceDocument.project_id == project_id,
+            SourceDocument.content_sha256 == content_sha256,
+            ProcessingTask.user_id == user_id,
+            ProcessingTask.project_id == project_id,
+        )
+        .order_by(
+            SourceDocument.created_at, SourceDocument.id,
+            ProcessingTask.created_at.desc(), ProcessingTask.id,
+        )
+        .limit(1)
+    ).first()
+    if existing is not None:
+        db.commit()
+        return existing[0], existing[1]
+
     source = SourceDocument(
         user_id=user_id,
         project_id=project_id,
@@ -76,14 +103,14 @@ async def create_source_and_task(
         media_type=upload.content_type or "text/markdown",
         source_type=normalized_source_type,
         size_bytes=len(raw_content),
-        content_sha256=hashlib.sha256(raw_content).hexdigest(),
+        content_sha256=content_sha256,
         content=content,
     )
     task = ProcessingTask(
         user_id=user_id,
         project_id=project_id,
         source=source,
-        type="knowledge_extraction",
+        type="markdown_parsing",
         status=TaskStatus.QUEUED,
         stage="uploaded",
         progress=0,
@@ -112,6 +139,35 @@ def get_source(
             details={"source_id": str(source_id)},
         )
     return source
+
+
+def list_sources(
+    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID,
+    page: int, page_size: int,
+) -> tuple[list[tuple[SourceDocument, ProcessingTask | None]], int]:
+    get_project(db, user_id=user_id, project_id=project_id)
+    filters = (
+        SourceDocument.user_id == user_id,
+        SourceDocument.project_id == project_id,
+    )
+    total = db.scalar(select(func.count()).select_from(SourceDocument).where(*filters)) or 0
+    sources = list(db.scalars(
+        select(SourceDocument).where(*filters)
+        .order_by(SourceDocument.created_at.desc(), SourceDocument.id)
+        .offset((page - 1) * page_size).limit(page_size)
+    ))
+    latest_tasks: dict[uuid.UUID, ProcessingTask] = {}
+    if sources:
+        tasks = db.scalars(
+            select(ProcessingTask).where(
+                ProcessingTask.user_id == user_id,
+                ProcessingTask.project_id == project_id,
+                ProcessingTask.source_id.in_([source.id for source in sources]),
+            ).order_by(ProcessingTask.created_at.desc(), ProcessingTask.id.desc())
+        )
+        for task in tasks:
+            latest_tasks.setdefault(task.source_id, task)
+    return [(source, latest_tasks.get(source.id)) for source in sources], total
 
 
 def get_task(

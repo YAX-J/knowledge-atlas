@@ -4,7 +4,7 @@
 
 Knowledge Atlas is a graduation project for a single developer. It organizes technical notes, code, project documents, and Git records into a temporal personal knowledge graph and uses evidence-grounded retrieval to answer questions.
 
-The repository currently contains an interactive Mock frontend and the first FastAPI persistence/API slice. Do not describe parsing, extraction, graph projection, retrieval, or Agent capabilities as implemented.
+The repository currently contains an interactive Mock graph, a real API-backed project/source workspace, FastAPI persistence APIs, and an explicitly executed Markdown parsing slice. Do not describe automatic task consumption, extraction, real graph projection, retrieval, or Agent capabilities as implemented.
 
 ## Read before changing code
 

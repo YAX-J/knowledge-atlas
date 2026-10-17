@@ -20,6 +20,7 @@ const items = [
       type="button"
       :class="{ active: active === item.id }"
       :aria-label="item.label"
+      :aria-current="active === item.id ? 'page' : undefined"
       :title="item.label"
       @click="emit('change', item.id)"
     >

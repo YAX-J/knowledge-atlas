@@ -14,6 +14,7 @@ from sqlalchemy import (
     Index,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -108,12 +109,45 @@ class SourceDocument(TimestampMixin, Base):
     )
 
     project: Mapped[Project] = relationship(back_populates="sources")
+    chunks: Mapped[list["SourceChunk"]] = relationship(
+        back_populates="source", cascade="all, delete-orphan"
+    )
     tasks: Mapped[list["ProcessingTask"]] = relationship(
         back_populates="source", cascade="all, delete-orphan"
     )
     candidates: Mapped[list["CandidateKnowledge"]] = relationship(
         back_populates="source", cascade="all, delete-orphan"
     )
+
+
+class SourceChunk(TimestampMixin, Base):
+    __tablename__ = "source_chunks"
+    __table_args__ = (
+        UniqueConstraint("source_id", "position", name="uq_chunks_source_position"),
+        CheckConstraint("position >= 0", name="ck_chunks_position"),
+        CheckConstraint(
+            "start_line >= 1 AND end_line >= start_line", name="ck_chunks_lines"
+        ),
+        Index("ix_chunks_user_project_source", "user_id", "project_id", "source_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("source_documents.id", ondelete="CASCADE"), nullable=False
+    )
+    position: Mapped[int] = mapped_column(nullable=False)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    heading_path: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    start_line: Mapped[int] = mapped_column(nullable=False)
+    end_line: Mapped[int] = mapped_column(nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    source: Mapped[SourceDocument] = relationship(back_populates="chunks")
 
 
 class ProcessingTask(TimestampMixin, Base):

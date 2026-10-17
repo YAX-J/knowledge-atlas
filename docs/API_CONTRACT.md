@@ -11,8 +11,11 @@
 | `GET/POST /api/v1/projects` | 已实现 |
 | `GET /api/v1/projects/{project_id}` | 已实现 |
 | `POST /api/v1/projects/{project_id}/sources` | 已实现，仅 Markdown |
+| `GET /api/v1/projects/{project_id}/sources` | 已实现，分页查询项目资料及最新任务 |
 | `GET /api/v1/sources/{source_id}` | 已实现 |
 | `GET /api/v1/tasks/{task_id}` | 已实现 |
+| `POST /api/v1/tasks/{task_id}/run` | 已实现，同步执行 Markdown 解析 |
+| `GET /api/v1/sources/{source_id}/chunks` | 已实现，分页查询原文分块 |
 | 图谱、搜索、问答和人工确认接口 | 规划中 |
 
 ## 基本约定
@@ -65,6 +68,14 @@
 
 ## 资料与任务
 
+### 查询项目资料
+
+`GET /api/v1/projects/{project_id}/sources?page=1&page_size=20`
+
+返回 `items`、`page`、`page_size`、`total`，按上传时间降序、ID 稳定排序。每条资料包含 `id`、`project_id`、`original_name`、`size_bytes`、来源 `status`、`created_at`、`updated_at`，以及当前用户/项目下最新任务的 `task_id` 和 `task_status`（无任务时为 `null`）。列表不返回原文或预览内容，详情从来源接口读取。
+
+`page >= 1`，`1 <= page_size <= 100`。空项目或越过最后一页返回空列表；项目不存在、已归档或不属于当前用户时返回 HTTP 404。
+
 ### 上传资料
 
 `POST /api/v1/projects/{project_id}/sources`
@@ -84,6 +95,8 @@
 }
 ```
 
+同一用户、同一项目中，相同文件字节（SHA-256 一致）的重复上传会复用已有 `source_id` 与 `task_id`，不受文件名影响。始终返回 HTTP 202；`status` 为复用任务的当前状态，因此也可能是 `running`、`succeeded`、`failed` 或 `cancelled`。原文件名保留首次上传值。内容变化或项目不同会创建独立来源，不自动替换旧来源。
+
 ### 查询任务状态
 
 `GET /api/v1/tasks/{task_id}`
@@ -91,21 +104,49 @@
 ```json
 {
   "id": "...",
-  "type": "knowledge_extraction",
-  "status": "running",
-  "stage": "entity_resolution",
-  "progress": 72,
-  "error": null
+  "project_id": "...",
+  "source_id": "...",
+  "type": "markdown_parsing",
+  "status": "succeeded",
+  "stage": "parsed",
+  "progress": 100,
+  "error": null,
+  "created_at": "2026-10-17T14:30:00+08:00",
+  "updated_at": "2026-10-17T14:30:01+08:00",
+  "started_at": "2026-10-17T14:30:01+08:00",
+  "completed_at": "2026-10-17T14:30:01+08:00"
 }
 ```
 
 任务状态建议使用：`queued`、`running`、`succeeded`、`failed`、`cancelled`。
+
+### 执行解析任务
+
+`POST /api/v1/tasks/{task_id}/run`
+
+无需请求体，同步返回与任务查询相同的结构。上传默认只排队，调用此接口后才执行解析；旧版 `knowledge_extraction` 上传任务也只执行解析，不调用模型。
+
+- `queued` 或 `failed`：原子认领后进入 `running` / `parsing`，成功后为 `succeeded` / `parsed` / 100，来源变为 `ready`。
+- `succeeded`：直接返回原结果，不重复创建分块。
+- `running` 或 `cancelled`：HTTP 409，错误码 `TASK_NOT_RUNNABLE`。
+- 解析或分块写入失败：HTTP 200，任务为 `failed`，`error.code` 为 `SOURCE_PARSE_FAILED`，来源为 `failed`；不会保留本次不完整分块，可再次调用重试。
+- 当前用户无法访问的任务：HTTP 404。执行中断后的 `running` 任务尚无自动超时恢复机制。
 
 ### 查询资料原文
 
 `GET /api/v1/sources/{source_id}`
 
 返回资料元数据、SHA-256、解析状态、行数和最多 4000 字符的可预览内容，不返回服务器文件路径。
+
+### 查询资料分块
+
+`GET /api/v1/sources/{source_id}/chunks?page=1&page_size=20`
+
+`page >= 1`，`1 <= page_size <= 100`。按原文顺序返回 `items`、`page`、`page_size`、`total`。未解析来源返回空列表；不存在或不属于当前用户的来源返回 HTTP 404。
+
+`items` 中每条记录包含：`id`、`project_id`、`source_id`、从 0 开始的 `position`、`kind`（`heading`、`paragraph`、`list`、`code`）、`heading_path`、从 1 开始且包含两端的 `start_line` / `end_line`、原始 `content` 和 `content_sha256`。原文换行符保留，哈希为该片段 UTF-8 字节的 SHA-256。同一来源中相同边界和内容的分块 UUID 稳定。标题块的路径包含自身；正文块继承其所在标题路径。
+
+当前解析范围为 ATX/Setext 标题、段落、列表和围栏代码块，其余语法作为文本保留，尚未提供完整 CommonMark 语法树。
 
 ## 知识图谱
 
