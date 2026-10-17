@@ -101,20 +101,18 @@ python -m venv .venv
 python -m pip install -e ".[dev]"
 ```
 
-然后将 `backend/.env.example` 复制为 `backend/.env`。
+然后将 `backend/.env.example` 复制为 `backend/.env`。默认使用本机已安装的 PostgreSQL 和 Neo4j，在环境文件中填写实际连接地址、数据库名、账号和密码；不要提交 `.env`。
 
-启动本地数据库并运行迁移：
+启动本机 PostgreSQL 与 Neo4j，创建项目专用数据库 `knowledge_atlas`，确认 PostgreSQL 已安装 pgvector 扩展文件。初始迁移会执行 `CREATE EXTENSION IF NOT EXISTS vector`，需要当前账号具备权限，或提前由管理员在该数据库启用扩展。然后从后端目录运行：
 
 ```bash
-docker compose up -d postgres neo4j
-cd backend
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
 接口文档地址为 `http://localhost:8000/docs`，存活检查地址为 `http://localhost:8000/api/v1/health/live`。
 
-在另一个已激活后端环境的终端中运行 `python -m app.worker`，即可自动处理上传任务。也可以不启动 Worker，在页面点击“开始解析”或调用 `POST /api/v1/tasks/{task_id}/run` 手动执行。通过“刷新状态”或 `GET /api/v1/sources/{source_id}/chunks` 查看结果；具体配置与恢复规则见 [后端说明](backend/README.md)。完整容器启动可使用 `docker compose up -d --build`，其中 Worker 会等待 API 完成迁移并通过存活检查后启动。
+在另一个已激活后端环境的终端中，从 `backend/` 运行 `python -m app.worker`，即可自动处理上传任务。也可以不启动 Worker，在页面点击“开始解析”或调用 `POST /api/v1/tasks/{task_id}/run` 手动执行。通过“刷新状态”或 `GET /api/v1/sources/{source_id}/chunks` 查看结果；具体配置与恢复规则见 [后端说明](backend/README.zh-CN.md)。Docker Compose 保留为可选方案，不是开发或验收前提。
 
 ## 目标技术架构
 
@@ -141,7 +139,7 @@ flowchart LR
 | Agent | LangGraph | 问题分类、检索规划、证据核验和回答 |
 | 业务与向量 | PostgreSQL、pgvector | 原文、分块、任务、审核和向量索引 |
 | 图数据库 | Neo4j | 知识实体、语义关系和历史演化 |
-| 部署 | Docker Compose | 本地开发与毕业设计演示环境 |
+| 运行环境 | 本机 PostgreSQL、Neo4j 与 Python/Node.js 进程；可选 Docker Compose | 本地开发与毕业设计演示环境 |
 
 架构边界和数据流详见 [系统架构](docs/ARCHITECTURE.md)。
 
@@ -222,4 +220,4 @@ knowledge-atlas/
 
 ## 项目状态说明
 
-本仓库目前处于后端基础和 Markdown 导入闭环阶段。README 中标记为“规划中”或“后续阶段”的能力属于目标设计，不代表已经完成。项目与资料工作台已接入真实接口，图谱与问答仍使用 Mock；Worker 可自动解析，尚未接入知识抽取或图谱写入。Docker/PostgreSQL 的实机联通与并发验证仍待完成。
+本仓库目前处于后端基础和 Markdown 导入闭环阶段。README 中标记为“规划中”或“后续阶段”的能力属于目标设计，不代表已经完成。项目与资料工作台已接入真实接口，图谱与问答仍使用 Mock；Worker 可自动解析，尚未接入知识抽取或图谱写入。本机 PostgreSQL/Neo4j 的真实联通与 PostgreSQL 并发验证仍待完成，验收不依赖 Docker。

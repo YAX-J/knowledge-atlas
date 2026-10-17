@@ -12,10 +12,10 @@
 - Node.js 20 或更高版本。
 - npm 10 或更高版本。
 - Python 3.12 或更高版本。
-- Docker Desktop 或兼容的 Docker Engine。
-- Docker Compose v2。
+- 本机原生安装的 PostgreSQL 和 pgvector。
+- 本机原生安装的 Neo4j。
 
-PostgreSQL/pgvector 和 Neo4j 需要 Docker；隔离的后端测试使用 SQLite，不需要 Docker。
+本地开发和真实服务验收默认使用用户已有的本机原生安装，Docker/Compose 是可选替代方案。隔离后端测试使用 SQLite，不需要数据库服务。
 
 ## 克隆与检查
 
@@ -68,11 +68,11 @@ python -m pip install -e ".[dev]"
 Copy-Item .env.example .env
 ```
 
-从仓库根目录启动数据库，再应用迁移并启动 API：
+使用已有安装工具启动本机 PostgreSQL 和 Neo4j 服务。创建独立的 `knowledge_atlas` 数据库，或配置其他数据库名。在 `backend/.env` 中将 `DATABASE_URL`、`NEO4J_URI`、`NEO4J_USERNAME` 和 `NEO4J_PASSWORD` 设置为实际本机值；示例使用 localhost 的 5432、7687 端口和占位凭据。真实服务验收时保持 `NEO4J_HEALTHCHECK_ENABLED=true`。
+
+PostgreSQL 必须安装 pgvector。初始迁移执行 `CREATE EXTENSION IF NOT EXISTS vector`，连接账号需要相应权限，或提前由管理员在目标数据库中启用扩展。从 `backend/` 应用迁移并启动 API：
 
 ```bash
-docker compose up -d postgres neo4j
-cd backend
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
@@ -87,7 +87,9 @@ uvicorn app.main:app --reload
 
 在 OpenAPI 界面验证导入时，依次创建项目、上传 Markdown、调用 `POST /api/v1/tasks/{task_id}/run`，并查询 `GET /api/v1/sources/{source_id}/chunks`。也可以在另一个已激活环境的终端中，从 `backend/` 运行 `python -m app.worker`，自动消费上传任务。先应用包含执行租约字段的最新迁移。`python -m app.worker --once` 最多处理一个符合条件的任务后退出。配置、恢复规则、退出码和解析限制见 [后端说明](../backend/README.zh-CN.md)。
 
-从仓库根目录运行 `docker compose up -d --build` 可启动完整容器环境。Worker 等待 API 应用迁移并通过存活检查后启动。真实 PostgreSQL/Neo4j 联通和竞争行为必须在 Docker 中检查，SQLite 测试不能验证这些行为。
+验证本机服务配置时，从 `backend/` 运行 `alembic current`，预期版本为 `20261017_0003`；查询 `/api/v1/health/ready`，PostgreSQL 和 Neo4j 均应为 `up`。随后使用真实本地数据库验证项目创建、上传、自动解析、重复复用、重启持久化，以及 Worker/API 竞争。SQLite 测试不能验证原生服务联通或 PostgreSQL 锁行为。
+
+如果选择容器方案，从仓库根目录运行 `docker compose up -d --build` 可启动完整环境。Worker 等待 API 应用迁移并通过存活检查后启动。Docker 不是验收前提。
 
 ## 前端验证
 
@@ -127,7 +129,7 @@ python -m pytest
 | Neo4j HTTP | `7474` | Neo4j 浏览器与 HTTP |
 | Neo4j Bolt | `7687` | 应用图数据库连接 |
 
-根目录的 `compose.yaml` 提供这些服务。后端连接配置仍可通过环境变量覆盖。
+上述端口是本机服务的默认值；已有数据库使用其他端口时，按实际值配置。API、Worker 和前端分别在本地终端运行。根目录 `compose.yaml` 仍作为可选容器方案保留，后端连接配置可通过环境变量覆盖。
 
 ## 环境文件
 
@@ -167,7 +169,7 @@ npm run dev -- --port 5174
 
 ### 就绪检查返回 503
 
-PostgreSQL 或 Neo4j 不可用时，`/api/v1/health/ready` 返回 `degraded`。检查 `docker compose ps`，确认 `backend/.env` 的配置，并应用最新迁移。
+PostgreSQL 或 Neo4j 不可用时，`/api/v1/health/ready` 返回 `degraded`。检查原生服务的运行状态、主机/端口、数据库是否存在，以及 `backend/.env` 中的凭据，再应用最新迁移。只有选择可选 Docker 方案时，才使用 `docker compose ps` 查看容器状态。
 
 ## 完成任务前
 

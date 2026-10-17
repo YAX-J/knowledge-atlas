@@ -12,10 +12,10 @@ Current requirements:
 - Node.js 20 or later
 - npm 10 or later
 - Python 3.12 or later
-- Docker Desktop or a compatible Docker Engine
-- Docker Compose v2
+- Natively installed PostgreSQL with pgvector
+- Natively installed Neo4j
 
-Docker is required for PostgreSQL/pgvector and Neo4j, but the isolated backend tests run against SQLite without Docker.
+Local development and real-service acceptance use the user's existing native installations by default. Docker/Compose is an optional alternative. Isolated backend tests use SQLite and do not require database services.
 
 ## Clone and inspect
 
@@ -68,11 +68,11 @@ Create a local environment file from `backend/.env.example`. On Windows PowerShe
 Copy-Item .env.example .env
 ```
 
-Start the databases from the repository root, apply migrations, and launch the API:
+Start your native PostgreSQL and Neo4j services using their existing installation tools. Create a dedicated `knowledge_atlas` database or configure another database name. Set `DATABASE_URL`, `NEO4J_URI`, `NEO4J_USERNAME`, and `NEO4J_PASSWORD` in `backend/.env` to the actual local values; the example uses localhost ports 5432 and 7687 with placeholder credentials. Keep `NEO4J_HEALTHCHECK_ENABLED=true` for real-service acceptance.
+
+PostgreSQL must have pgvector installed. The initial migration executes `CREATE EXTENSION IF NOT EXISTS vector`; the connecting role needs permission, or an administrator must enable the extension in the target database first. From `backend/`, apply migrations and launch the API:
 
 ```bash
-docker compose up -d postgres neo4j
-cd backend
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
@@ -87,7 +87,9 @@ Useful endpoints:
 
 To verify ingestion in the OpenAPI interface, create a project, upload Markdown, call `POST /api/v1/tasks/{task_id}/run`, and query `GET /api/v1/sources/{source_id}/chunks`. Alternatively, run `python -m app.worker` from `backend/` in a second activated terminal to consume uploads automatically. Apply the latest migration first, including execution lease columns. `python -m app.worker --once` handles at most one eligible task and exits. See [backend instructions](../backend/README.md) for configuration, recovery rules, exit codes, and parsing limitations.
 
-To start the complete container stack from the repository root, use `docker compose up -d --build`. The worker waits for the API to apply migrations and pass its liveness check. Real PostgreSQL/Neo4j connectivity and contention must be checked in Docker; SQLite tests do not validate them.
+Validate the native service setup by running `alembic current` from `backend/` (expected `20261017_0003`) and querying `/api/v1/health/ready`; PostgreSQL and Neo4j must both report `up`. Then verify project creation, upload, automatic parsing, duplicate reuse, restart persistence, and worker/API contention against the real local database. SQLite tests do not validate native service connectivity or PostgreSQL locking.
+
+For optional container use, `docker compose up -d --build` from the repository root starts the complete stack. The worker waits for the API to apply migrations and pass its liveness check. Docker is not a prerequisite for acceptance.
 
 ## Frontend verification
 
@@ -127,7 +129,7 @@ The backend foundation phase will reserve these defaults:
 | Neo4j HTTP | `7474` | Neo4j browser and HTTP |
 | Neo4j Bolt | `7687` | Application graph connection |
 
-The root `compose.yaml` provides these services. Backend connection values remain overridable through environment variables.
+These are the defaults for native local services; use your installed database ports when they differ. Run the API, worker, and frontend in separate local terminals. The root `compose.yaml` remains available as an optional container alternative. Backend connection values are overridable through environment variables.
 
 ## Environment files
 
@@ -167,7 +169,7 @@ The graph still reads `frontend/src/mock/data.ts`. Open “我的项目” or �
 
 ### Readiness returns 503
 
-`/api/v1/health/ready` reports `degraded` while PostgreSQL or Neo4j is unavailable. Check `docker compose ps`, confirm the values in `backend/.env`, and apply the latest migration.
+`/api/v1/health/ready` reports `degraded` while PostgreSQL or Neo4j is unavailable. Check the native service's running state, host/port, database existence, and credentials in `backend/.env`, then apply the latest migration. With optional Docker only, `docker compose ps` can inspect container state.
 
 ## Before finishing a task
 

@@ -25,12 +25,12 @@ Completed:
 
 ## Active phase
 
-The active phase remains the first Markdown ingestion vertical slice. API persistence, manual/worker parsing, interrupted-task recovery, and frontend project/source integration are complete in code; container connectivity and PostgreSQL concurrency validation remain.
+The active phase remains the first Markdown ingestion vertical slice. API persistence, manual/worker parsing, interrupted-task recovery, and frontend project/source integration are complete in code; native local-service connectivity and PostgreSQL concurrency validation remain.
 
 Expected outcomes:
 
-- Validate PostgreSQL, pgvector, and Neo4j services on a machine with Docker.
-- Validate the integrated frontend project/source flow against PostgreSQL in the local container environment.
+- Validate the user's locally installed PostgreSQL, pgvector, and Neo4j services; Docker is optional.
+- Validate the integrated frontend project/source flow against native local PostgreSQL.
 - Validate worker/API contention and lease recovery against PostgreSQL before advancing to extraction.
 
 Acceptance criteria:

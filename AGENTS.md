@@ -100,6 +100,7 @@ For every change:
 
 ## Scope and safety
 
+- Use the user's natively installed PostgreSQL (with pgvector) and Neo4j for local development and acceptance by default. Docker Compose is optional and must not be a prerequisite for real-service validation.
 - Prefer the smallest vertical slice that advances the Markdown-to-evidence-answer workflow.
 - Do not add team collaboration, complex permissions, IDE plugins, or large-scale deployment unless explicitly requested.
 - Local commits at the end of completed turns are authorized by the user; follow the commit workflow below. Do not push, publish, deploy, rotate credentials, or modify external services without separate explicit user authorization.

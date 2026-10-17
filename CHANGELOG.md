@@ -34,11 +34,12 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Changed
 
+- Native local PostgreSQL/pgvector and Neo4j are the default development and acceptance path; setup guides and plans now treat Docker Compose as optional and document actual local connection settings.
 - Expanded the project README with current status, quick start, architecture, repository structure, and MVP definition.
 
 ### Known limitations
 
-- Docker service connectivity has not been verified in the current environment because Docker is unavailable.
-- Worker leases are fixed without heartbeats or preemptive cancellation; real PostgreSQL contention and Docker startup remain unverified.
+- Native local PostgreSQL/Neo4j connectivity and PostgreSQL contention remain unverified. Optional Docker startup has not been verified either.
+- Worker leases are fixed without heartbeats or preemptive cancellation.
 - Complete CommonMark parsing, extraction, graph projection, retrieval, and real Agent responses are not implemented.
 - Graph and question views remain Mock; real question history, routing, and persisted view preferences are not implemented.

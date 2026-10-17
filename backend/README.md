@@ -28,11 +28,9 @@ python -m venv .venv
 python -m pip install -e ".[dev]"
 ```
 
-Copy `.env.example` to `.env`. From the repository root, start PostgreSQL and Neo4j:
+Copy `.env.example` to `.env` and set `DATABASE_URL`, `NEO4J_URI`, `NEO4J_USERNAME`, and `NEO4J_PASSWORD` to your native local service settings. The example credentials are development placeholders, not your existing database credentials. API and worker must use the same environment file from `backend/`.
 
-```bash
-docker compose up -d postgres neo4j
-```
+Start your locally installed PostgreSQL and Neo4j, and create a dedicated `knowledge_atlas` database (or configure another database name). PostgreSQL must have pgvector installed: the initial migration runs `CREATE EXTENSION IF NOT EXISTS vector`, so the account needs permission or an administrator must enable it in the target database first. Docker is not required.
 
 Then apply the schema and start the API:
 
@@ -87,7 +85,7 @@ Each claim gets a fresh internal execution UUID, an incremented attempt count, a
 
 Both success and failure updates require the current execution UUID and running status. Chunks, source state, and final task state commit atomically. A replaced process cannot overwrite the current result even if it resumes later. Leases have no heartbeat: a live parser exceeding its lease can overlap a replacement in computation, so size the lease above normal parsing duration. SIGINT/SIGTERM request exit after the current iteration; forced termination relies on lease recovery.
 
-From the repository root, `docker compose up -d --build` also starts the worker. It waits for the API's liveness check, which runs after migrations. The worker uses the same backend image and has no HTTP port. Docker and real PostgreSQL contention/recovery still require validation on a machine with Docker.
+Docker Compose is an optional alternative: from the repository root, `docker compose up -d --build` also starts the worker. It waits for the API's liveness check after migrations, uses the same backend image, and has no HTTP port. Default acceptance uses native local PostgreSQL/Neo4j; real connectivity and PostgreSQL contention/recovery remain to be validated. Optional container startup has not been verified.
 
 ## Test
 
@@ -95,7 +93,7 @@ From the repository root, `docker compose up -d --build` also starts the worker.
 python -m pytest
 ```
 
-Tests use isolated SQLite databases and cover parsing, API behavior, failure/retry, access isolation, migration upgrade/downgrade with legacy running tasks, offline PostgreSQL SQL compilation, worker recovery/fencing across independent sessions, and actual one-shot worker subprocesses. Run `/api/v1/health/ready` against the Docker environment to verify the real PostgreSQL and Neo4j connections. Offline compilation is not a live database integration test.
+Tests use isolated SQLite databases and cover parsing, API behavior, failure/retry, access isolation, migration upgrade/downgrade with legacy running tasks, offline PostgreSQL SQL compilation, worker recovery/fencing across independent sessions, and actual one-shot worker subprocesses. Run `/api/v1/health/ready` against your configured native local services to verify the real PostgreSQL and Neo4j connections. Both dependencies must report `up` for acceptance. Offline compilation is not a live database integration test.
 
 ## Structure
 

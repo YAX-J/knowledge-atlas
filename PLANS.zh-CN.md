@@ -25,12 +25,12 @@
 
 ## 当前阶段
 
-当前仍处于第一个 Markdown 导入纵向功能切片。API 持久化、手动/Worker 解析、中断恢复和前端项目/资料接入已完成代码实现；容器联通和 PostgreSQL 并发验证仍待完成。
+当前仍处于第一个 Markdown 导入纵向功能切片。API 持久化、手动/Worker 解析、中断恢复和前端项目/资料接入已完成代码实现；本机原生服务联通和 PostgreSQL 并发验证仍待完成。
 
 预期成果：
 
-- 在具备 Docker 的机器上验证 PostgreSQL、pgvector 和 Neo4j 服务。
-- 在本地容器环境中，使用 PostgreSQL 验证已经接通的前端项目/资料流程。
+- 验证用户本机安装的 PostgreSQL、pgvector 和 Neo4j 服务，Docker 为可选方案。
+- 使用本机原生 PostgreSQL 验证已经接通的前端项目/资料流程。
 - 进入知识抽取之前，验证 PostgreSQL 下 Worker/API 的竞争和租约恢复。
 
 验收标准：
