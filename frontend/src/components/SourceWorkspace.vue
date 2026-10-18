@@ -33,8 +33,11 @@ const emit = defineEmits<{
 }>()
 const name = ref('')
 const description = ref('')
-const fileInput = ref<HTMLInputElement | null>(null)
+const singleFileInput = ref<HTMLInputElement | null>(null)
+const folderInput = ref<HTMLInputElement | null>(null)
 const fileError = ref('')
+const selectionNote = ref('')
+const uploadKind = ref<'file' | 'folder' | ''>('')
 const projectPages = computed(() => Math.max(1, Math.ceil((props.projects?.total ?? 0) / (props.projects?.page_size ?? 20))))
 const sourcePages = computed(() => Math.max(1, Math.ceil((props.sources?.total ?? 0) / (props.sources?.page_size ?? 20))))
 const chunkPages = computed(() => Math.max(1, Math.ceil((props.chunks?.total ?? 0) / (props.chunks?.page_size ?? 20))))
@@ -47,7 +50,14 @@ const statusLabels: Record<string, string> = {
 const kindLabels: Record<string, string> = {
   heading: '标题', paragraph: '段落', list: '列表', code: '代码', comment: '注释', type: '类型', method: '方法',
 }
-watch(() => props.project?.id, () => { fileError.value = '' })
+watch(() => props.project?.id, () => {
+  fileError.value = ''
+  selectionNote.value = ''
+  uploadKind.value = ''
+})
+watch(() => props.loading.upload, (busy, wasBusy) => {
+  if (wasBusy && !busy) uploadKind.value = ''
+})
 watch(() => props.loading.create, (busy, wasBusy) => {
   if (wasBusy && !busy && !props.errors.create) {
     name.value = ''
@@ -61,26 +71,47 @@ function submitProject() {
   }
 }
 
-function chooseFiles(event: Event) {
+function selectedFiles(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files ?? [])
   input.value = ''
-  if (!files.length) return
+  return files
+}
+
+function chooseSingleFile(event: Event) {
+  const file = selectedFiles(event)[0]
+  if (!file) return
   fileError.value = ''
+  selectionNote.value = ''
+  if (!/\.(md|markdown|java)$/i.test(file.name)) {
+    fileError.value = '请选择 .md、.markdown 或 .java 文件。'
+    return
+  }
+  if (!file.size) {
+    fileError.value = '文件为空，请选择有内容的文本资料。'
+    return
+  }
+  uploadKind.value = 'file'
+  emit('upload', [file])
+}
+
+function chooseFolder(event: Event) {
+  const selected = selectedFiles(event)
+  if (!selected.length) return
+  fileError.value = ''
+  selectionNote.value = ''
+  const files = selected.filter(file => /\.(md|markdown|java)$/i.test(file.name) && file.size)
+  const ignored = selected.length - files.length
+  if (!files.length) {
+    fileError.value = '这个文件夹中没有可上传的非空 Markdown 或 Java 文件。'
+    return
+  }
   if (files.length > 50) {
-    fileError.value = '一次最多选择 50 个文件。'
+    fileError.value = `文件夹中有 ${files.length} 个可上传文件，一次最多上传 50 个。`
     return
   }
-  const unsupported = files.filter(file => !/\.(md|markdown|java)$/i.test(file.name))
-  if (unsupported.length) {
-    fileError.value = `以下文件格式不支持：${unsupported.slice(0, 3).map(file => file.name).join('、')}${unsupported.length > 3 ? ` 等 ${unsupported.length} 个文件` : ''}。`
-    return
-  }
-  const empty = files.filter(file => !file.size)
-  if (empty.length) {
-    fileError.value = `以下文件为空：${empty.slice(0, 3).map(file => file.name).join('、')}${empty.length > 3 ? ` 等 ${empty.length} 个文件` : ''}。`
-    return
-  }
+  if (ignored) selectionNote.value = `已忽略 ${ignored} 个格式不支持或内容为空的文件。`
+  uploadKind.value = 'folder'
   emit('upload', files)
 }
 
@@ -162,11 +193,14 @@ function calleeName(call: JavaCodeStructure['calls'][number]) {
             <div><h2>{{ project.name }}</h2><p>{{ project.description || '在这里保存项目的技术笔记。' }}</p></div>
             <div class="upload-control">
               <button class="text-button" type="button" :disabled="locked" @click="emit('graph')">查看项目图谱</button>
-              <input ref="fileInput" class="file-picker" type="file" accept=".md,.markdown,.java,text/markdown,text/x-java-source" aria-label="选择一个或多个 Markdown 或 Java 文件" tabindex="-1" :disabled="locked" multiple @change="chooseFiles" />
-              <button class="primary-button" type="button" :disabled="locked" @click="fileInput?.click()">{{ loading.upload ? '正在上传…' : '批量上传资料' }}</button>
+              <input ref="singleFileInput" class="file-picker" type="file" accept=".md,.markdown,.java,text/markdown,text/x-java-source" aria-label="选择一个 Markdown 或 Java 文件" tabindex="-1" :disabled="locked" @change="chooseSingleFile" />
+              <button class="primary-button" type="button" :disabled="locked" @click="singleFileInput?.click()">{{ loading.upload && uploadKind === 'file' ? '正在上传…' : '上传单个文件' }}</button>
+              <input ref="folderInput" class="file-picker" type="file" aria-label="选择包含 Markdown 或 Java 文件的文件夹" tabindex="-1" :disabled="locked" webkitdirectory directory multiple @change="chooseFolder" />
+              <button class="primary-button" type="button" :disabled="locked" @click="folderInput?.click()">{{ loading.upload && uploadKind === 'folder' ? '正在上传文件夹…' : '上传文件夹' }}</button>
             </div>
           </header>
-          <p class="source-upload-hint">支持 UTF-8 Markdown 与 Java 源文件，一次最多 50 份。相同内容会复用已有资料；单份失败不会影响其他文件。</p>
+          <p class="source-upload-hint">可上传单个 UTF-8 Markdown/Java 文件，或从文件夹中导入最多 50 份支持的文件。文件夹层级不会保存；其他类型与空文件会被忽略。</p>
+          <p v-if="selectionNote" class="muted-copy" role="status">{{ selectionNote }}</p>
           <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
           <p v-if="fileError || errors.upload" class="inline-error" role="alert">{{ fileError || errors.upload }}</p>
 

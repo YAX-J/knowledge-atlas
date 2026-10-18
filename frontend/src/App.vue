@@ -372,11 +372,12 @@ async function uploadFiles(files: File[]) {
   const failures: string[] = []
   let lastResult: SourceUploadResult | null = null
   for (const [index, file] of files.entries()) {
-    notice.value = `正在接收第 ${index + 1} / ${files.length} 份资料：${file.name}`
+    const fileLabel = file.webkitRelativePath || file.name
+    notice.value = `正在接收第 ${index + 1} / ${files.length} 份资料：${fileLabel}`
     try {
       lastResult = await uploadSource(projectId, file)
     } catch (error) {
-      failures.push(`${file.name}：${errorMessage(error)}`)
+      failures.push(`${fileLabel}：${errorMessage(error)}`)
     }
   }
   const succeeded = files.length - failures.length

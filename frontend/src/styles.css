@@ -210,6 +210,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 .source-project-heading > div:first-child { min-width: 0; }
 .source-project-heading h2 { font-size: 23px; overflow-wrap: anywhere; }
 .source-project-heading p { color: var(--muted); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; white-space: pre-wrap; }
+.upload-control { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .file-picker { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
 .source-upload-hint, .muted-copy { margin: 8px 0 16px; color: var(--muted); font-size: 12px; line-height: 1.8; }
 .source-list { border-top: 1px solid var(--line); margin-bottom: 16px; }
