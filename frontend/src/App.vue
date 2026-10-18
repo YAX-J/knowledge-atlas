@@ -15,10 +15,11 @@ import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
   runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
   getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
+  getJavaCodeStructure,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
-  CandidateList, ExtractionResult,
+  CandidateList, ExtractionResult, JavaCodeStructure,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
 import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchMode, KnowledgeSearchResult, QuestionAnswer } from './types'
@@ -38,13 +39,15 @@ const selectedTaskId = ref<string | null>(null)
 const source = ref<ApiSource | null>(null)
 const task = ref<ProcessingTask | null>(null)
 const chunks = ref<SourceChunkList | null>(null)
+const codeStructure = ref<JavaCodeStructure | null>(null)
 const notice = ref('')
-const loading = reactive<IngestionLoading>({ projects: false, create: false, sources: false, upload: false, detail: false, task: false, chunks: false })
-const errors = reactive<IngestionErrors>({ projects: '', create: '', sources: '', upload: '', detail: '', task: '', chunks: '' })
+const loading = reactive<IngestionLoading>({ projects: false, create: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false })
+const errors = reactive<IngestionErrors>({ projects: '', create: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '' })
 let projectsRequest = 0
 let sourcesRequest = 0
 let detailRequest = 0
 let chunksRequest = 0
+let structureRequest = 0
 let reviewsRequest = 0
 let reviewAction = 0
 const candidates = ref<CandidateList | null>(null)
@@ -200,13 +203,15 @@ function clearSourceSelection() {
   resolving.value = reviewsError.value = reviewsNotice.value = ''
   detailRequest++
   chunksRequest++
+  structureRequest++
   selectedSourceId.value = ''
   selectedTaskId.value = null
   source.value = null
   task.value = null
   chunks.value = null
-  errors.detail = errors.task = errors.chunks = ''
-  loading.detail = loading.chunks = false
+  codeStructure.value = null
+  errors.detail = errors.task = errors.chunks = errors.structure = ''
+  loading.detail = loading.chunks = loading.structure = false
 }
 
 async function loadProjects(page = 1) {
@@ -310,7 +315,11 @@ async function refreshSource() {
       item.task_status = taskResult?.status ?? null
       item.updated_at = sourceResult.updated_at
     }
-    if (taskResult?.status === 'succeeded') await Promise.all([loadChunks(1), loadReviews(1)])
+    if (taskResult?.status === 'succeeded') {
+      const requests: Promise<void>[] = [loadChunks(1), loadReviews(1)]
+      if (sourceResult.source_type === 'java') requests.push(loadCodeStructure())
+      await Promise.all(requests)
+    }
   } catch (error) {
     if (request === detailRequest) errors.detail = errorMessage(error)
   } finally {
@@ -331,6 +340,23 @@ async function loadChunks(page = 1) {
     if (request === chunksRequest) errors.chunks = errorMessage(error)
   } finally {
     if (request === chunksRequest) loading.chunks = false
+  }
+}
+
+async function loadCodeStructure() {
+  const sourceId = selectedSourceId.value
+  if (!sourceId) return
+  const request = ++structureRequest
+  loading.structure = true
+  errors.structure = ''
+  codeStructure.value = null
+  try {
+    const result = await getJavaCodeStructure(sourceId)
+    if (request === structureRequest && sourceId === selectedSourceId.value) codeStructure.value = result
+  } catch (error) {
+    if (request === structureRequest) errors.structure = errorMessage(error)
+  } finally {
+    if (request === structureRequest) loading.structure = false
   }
 }
 
@@ -592,6 +618,7 @@ function setTimeline(value: number) {
       v-if="activeNav === 'projects' || activeNav === 'sources'"
       :view="activeNav" :projects="projects" :project="project" :sources="sources"
       :selected-source-id="selectedSourceId" :source="source" :task="task" :chunks="chunks"
+      :code-structure="codeStructure"
       :loading="loading" :errors="errors" :notice="notice"
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
       @sources-page="loadSources" @select-source="selectSource" @upload="uploadFile"

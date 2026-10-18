@@ -18,7 +18,18 @@ METHOD_DECLARATION = re.compile(
     r"(?P<name>[A-Za-z_$][\w$]*)\s*\((?P<params>[^;{}]*)\)\s*"
     r"(?:throws\s+[^;{]+)?(?P<end>[{;])"
 )
+FIELD_DECLARATION = re.compile(
+    r"(?m)^[ \t]*(?:@[A-Za-z_$][\w$]*(?:\s*\([^;{}]*?\))?\s*)*"
+    r"(?:(?:public|protected|private|static|final|transient|volatile)\s+)*"
+    r"(?P<type>[A-Za-z_$][\w$\.<>?,\[\]& \t]*)\s+"
+    r"(?P<name>[A-Za-z_$][\w$]*)(?P<tail>[^;{}]*);"
+)
+LOCAL_CALL = re.compile(
+    r"(?<![\w$.])(?:(?:this)\s*\.\s*)?(?P<name>[A-Za-z_$][\w$]*)\s*\("
+)
 CONTROL_WORDS = {"if", "for", "while", "switch", "catch", "try", "do", "new", "return", "throw"}
+MAX_STRUCTURE_SYMBOLS = 200
+MAX_STRUCTURE_CALLS = 500
 
 
 @dataclass(frozen=True)
@@ -31,6 +42,52 @@ class JavaChunk:
     end_line: int
     content: str
     content_sha256: str
+
+
+@dataclass(frozen=True)
+class JavaSymbol:
+    id: uuid.UUID
+    kind: str
+    name: str
+    qualified_name: str
+    owner: str | None
+    start_line: int
+    end_line: int
+
+
+@dataclass(frozen=True)
+class JavaCall:
+    id: uuid.UUID
+    caller_id: uuid.UUID
+    callee_ids: list[uuid.UUID]
+    callee_name: str
+    line: int
+    resolution: str
+
+
+@dataclass(frozen=True)
+class JavaStructure:
+    symbols: list[JavaSymbol]
+    calls: list[JavaCall]
+    truncated: bool
+
+
+@dataclass(frozen=True)
+class _TypeDeclaration:
+    name: str
+    start: int
+    opening: int
+    end: int
+    member_depth: int
+
+
+@dataclass(frozen=True)
+class _MethodDeclaration:
+    owner: str
+    name: str
+    start: int
+    opening: int | None
+    end: int
 
 
 def _lex_java(content: str) -> tuple[str, set[int]]:
@@ -158,58 +215,83 @@ def _closing_brace(text: str, opening: int) -> int:
     return len(text) - 1
 
 
+def _declarations(text: str) -> list[tuple[_TypeDeclaration, list[_MethodDeclaration]]]:
+    depths = _depths(text)
+    result: list[tuple[_TypeDeclaration, list[_MethodDeclaration]]] = []
+    for match in TYPE_DECLARATION.finditer(text):
+        if depths[match.start()] != 0:
+            continue
+        opening = text.find("{", match.end())
+        if opening < 0 or text.find(";", match.end(), opening) >= 0:
+            continue
+        closing = _closing_brace(text, opening)
+        type_declaration = _TypeDeclaration(
+            name=match.group("name"), start=match.start(), opening=opening,
+            end=closing, member_depth=depths[opening] + 1,
+        )
+        methods: list[_MethodDeclaration] = []
+        for method_match in METHOD_DECLARATION.finditer(text, opening + 1, closing):
+            if depths[method_match.start()] != type_declaration.member_depth:
+                continue
+            method_name = method_match.group("name")
+            if method_name in CONTROL_WORDS or "new" in method_match.group("prefix").split():
+                continue
+            end_offset = method_match.end() - 1
+            method_opening = end_offset if method_match.group("end") == "{" else None
+            if method_opening is not None:
+                end_offset = _closing_brace(text, method_opening)
+            methods.append(_MethodDeclaration(
+                owner=type_declaration.name, name=method_name,
+                start=method_match.start(), opening=method_opening, end=end_offset,
+            ))
+        result.append((type_declaration, methods))
+    return result
+
+
+def _line_resolver(content: str):
+    newlines = [index for index, character in enumerate(content) if character == "\n"]
+
+    def resolve(offset: int) -> int:
+        return bisect_right(newlines, max(0, offset)) + 1
+
+    return resolve
+
+
+def _type_start_line(lines: list[str], declaration_line: int) -> int:
+    start_line = declaration_line
+    while start_line > 1 and lines[start_line - 2].lstrip().startswith("@"):
+        start_line -= 1
+    return start_line
+
+
 def parse_java(content: str, *, source_id: uuid.UUID) -> list[JavaChunk]:
     lines = content.splitlines(keepends=True)
     if not lines:
         return []
     sanitized, comment_only_lines = _lex_java(content)
-    depths = _depths(sanitized)
-    newlines = [index for index, character in enumerate(content) if character == "\n"]
-
-    def line_number(offset: int) -> int:
-        return bisect_right(newlines, max(0, offset)) + 1
-
-    types: list[tuple[int, int, str, int, int]] = []
-    for match in TYPE_DECLARATION.finditer(sanitized):
-        if depths[match.start()] != 0:
-            continue
-        opening = sanitized.find("{", match.end())
-        if opening < 0:
-            continue
-        semicolon = sanitized.find(";", match.end(), opening)
-        if semicolon >= 0:
-            continue
-        closing = _closing_brace(sanitized, opening)
-        types.append((match.start(), closing, match.group("name"), opening, depths[opening] + 1))
+    line_number = _line_resolver(content)
+    declarations = _declarations(sanitized)
 
     sections: list[tuple[int, int, str, list[str]]] = []
     cursor_line = 1
-    for type_start, type_end, type_name, opening, member_depth in types:
-        declaration_line = line_number(type_start)
-        type_start_line = declaration_line
-        while type_start_line > 1 and lines[type_start_line - 2].lstrip().startswith("@"):
-            type_start_line -= 1
-        type_end_line = line_number(type_end)
+    for type_declaration, methods in declarations:
+        declaration_line = line_number(type_declaration.start)
+        type_start_line = _type_start_line(lines, declaration_line)
+        type_end_line = line_number(type_declaration.end)
         if cursor_line < type_start_line:
             sections.append((cursor_line, type_start_line - 1, "code", []))
-        methods: list[tuple[int, int, str]] = []
-        for match in METHOD_DECLARATION.finditer(sanitized, opening + 1, type_end):
-            if depths[match.start()] != member_depth or match.group("name") in CONTROL_WORDS:
-                continue
-            if "new" in match.group("prefix").split():
-                continue
-            end_offset = match.end() - 1
-            if match.group("end") == "{":
-                end_offset = _closing_brace(sanitized, end_offset)
-            methods.append((line_number(match.start()), line_number(end_offset), match.group("name")))
         member_line = type_start_line
-        for method_start, method_end, method_name in methods:
+        for method in methods:
+            method_start = line_number(method.start)
+            method_end = line_number(method.end)
             if member_line < method_start:
-                sections.append((member_line, method_start - 1, "type", [type_name]))
-            sections.append((method_start, method_end, "method", [type_name, method_name]))
+                sections.append((member_line, method_start - 1, "type", [type_declaration.name]))
+            sections.append((
+                method_start, method_end, "method", [type_declaration.name, method.name]
+            ))
             member_line = method_end + 1
         if member_line <= type_end_line:
-            sections.append((member_line, type_end_line, "type", [type_name]))
+            sections.append((member_line, type_end_line, "type", [type_declaration.name]))
         cursor_line = type_end_line + 1
     if cursor_line <= len(lines):
         sections.append((cursor_line, len(lines), "code", []))
@@ -241,3 +323,107 @@ def parse_java(content: str, *, source_id: uuid.UUID) -> list[JavaChunk]:
             content_sha256=digest,
         ))
     return chunks
+
+
+def analyze_java(content: str, *, source_id: uuid.UUID) -> JavaStructure:
+    """Return a bounded, read-only symbol and same-file call view for one Java source."""
+    if not content:
+        return JavaStructure(symbols=[], calls=[], truncated=False)
+    sanitized, _ = _lex_java(content)
+    depths = _depths(sanitized)
+    lines = content.splitlines(keepends=True)
+    line_number = _line_resolver(content)
+    declarations = _declarations(sanitized)
+    symbols: list[JavaSymbol] = []
+    method_records: list[tuple[_MethodDeclaration, JavaSymbol]] = []
+
+    for type_declaration, methods in declarations:
+        type_start = _type_start_line(lines, line_number(type_declaration.start))
+        type_end = line_number(type_declaration.end)
+        type_symbol = JavaSymbol(
+            id=uuid.uuid5(source_id, f"symbol:type:{type_declaration.name}:{type_start}:{type_end}"),
+            kind="type", name=type_declaration.name, qualified_name=type_declaration.name,
+            owner=None, start_line=type_start, end_line=type_end,
+        )
+        symbols.append(type_symbol)
+
+        method_ranges = [(method.start, method.end) for method in methods]
+        for field_match in FIELD_DECLARATION.finditer(
+            sanitized, type_declaration.opening + 1, type_declaration.end
+        ):
+            if depths[field_match.start()] != type_declaration.member_depth:
+                continue
+            if any(start <= field_match.start() <= end for start, end in method_ranges):
+                continue
+            tail = field_match.group("tail")
+            before_initializer = tail.split("=", 1)[0]
+            if "(" in before_initializer:
+                continue
+            field_name = field_match.group("name")
+            field_start, field_end = line_number(field_match.start()), line_number(field_match.end() - 1)
+            qualified_name = f"{type_declaration.name}.{field_name}"
+            symbols.append(JavaSymbol(
+                id=uuid.uuid5(source_id, f"symbol:field:{qualified_name}:{field_start}:{field_end}"),
+                kind="field", name=field_name, qualified_name=qualified_name,
+                owner=type_declaration.name, start_line=field_start, end_line=field_end,
+            ))
+
+        for method in methods:
+            method_start, method_end = line_number(method.start), line_number(method.end)
+            qualified_name = f"{type_declaration.name}.{method.name}"
+            method_symbol = JavaSymbol(
+                id=uuid.uuid5(source_id, f"symbol:method:{qualified_name}:{method_start}:{method_end}"),
+                kind="method", name=method.name, qualified_name=qualified_name,
+                owner=type_declaration.name, start_line=method_start, end_line=method_end,
+            )
+            symbols.append(method_symbol)
+            method_records.append((method, method_symbol))
+
+    methods_by_owner_name: dict[tuple[str, str], list[JavaSymbol]] = {}
+    for _, method_symbol in method_records:
+        methods_by_owner_name.setdefault(
+            (method_symbol.owner or "", method_symbol.name), []
+        ).append(method_symbol)
+
+    kind_order = {"type": 0, "field": 1, "method": 2}
+    symbols.sort(key=lambda item: (
+        item.start_line, kind_order.get(item.kind, 99), item.end_line, item.qualified_name
+    ))
+
+    calls: list[JavaCall] = []
+    seen_calls: set[tuple[uuid.UUID, str, int]] = set()
+    for method, caller in method_records:
+        if method.opening is None:
+            continue
+        for call_match in LOCAL_CALL.finditer(sanitized, method.opening + 1, method.end):
+            callee_name = call_match.group("name")
+            targets = methods_by_owner_name.get((caller.owner or "", callee_name), [])
+            if not targets or callee_name in CONTROL_WORDS:
+                continue
+            prefix = sanitized[max(method.opening + 1, call_match.start() - 12):call_match.start()]
+            if re.search(r"\bnew\s*$", prefix):
+                continue
+            call_line = line_number(call_match.start())
+            call_key = (caller.id, callee_name, call_line)
+            if call_key in seen_calls:
+                continue
+            seen_calls.add(call_key)
+            resolution = "resolved" if len(targets) == 1 else "ambiguous"
+            calls.append(JavaCall(
+                id=uuid.uuid5(source_id, f"call:{caller.id}:{callee_name}:{call_line}"),
+                caller_id=caller.id, callee_ids=[target.id for target in targets],
+                callee_name=callee_name, line=call_line, resolution=resolution,
+            ))
+
+    visible_symbols = symbols[:MAX_STRUCTURE_SYMBOLS]
+    visible_symbol_ids = {symbol.id for symbol in visible_symbols}
+    visible_calls = [
+        call for call in calls
+        if call.caller_id in visible_symbol_ids
+        and all(callee_id in visible_symbol_ids for callee_id in call.callee_ids)
+    ]
+    truncated = len(symbols) > MAX_STRUCTURE_SYMBOLS or len(visible_calls) > MAX_STRUCTURE_CALLS
+    return JavaStructure(
+        symbols=visible_symbols, calls=visible_calls[:MAX_STRUCTURE_CALLS],
+        truncated=truncated,
+    )

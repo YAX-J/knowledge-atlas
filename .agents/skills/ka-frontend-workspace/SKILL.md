@@ -42,7 +42,7 @@ npm run preview
 | `KnowledgeGraph.vue` | Mock SVG 图谱、缩放、节点选择 |
 | `InsightPanel.vue` | Mock 节点详情、证据、关联、追问 |
 | `TimelineBar.vue` | Mock 时间回放 |
-| `SourceWorkspace.vue` | 项目/资料列表、Markdown/Java 上传、MD/JAVA 标记、解析、结构分块分页 |
+| `SourceWorkspace.vue` | 项目/资料列表、Markdown/Java 上传、MD/JAVA 标记、解析、结构分块分页及 Java 符号/同文件调用大纲 |
 | `CandidateReview.vue` | 候选、证据、改名/摘要、确认/拒绝 |
 | `ProjectGraph.vue` | 真实项目图谱、筛选、邻域、详情与证据 |
 | `KnowledgeSearch.vue` | 项目关键词/语义/混合检索、显式索引更新、组成得分、关系解释、结果证据与清空/重试/选择意图 |

@@ -4,7 +4,12 @@ from fastapi import APIRouter, File, Form, Query, UploadFile, status
 
 from app.api.dependencies import CurrentUserId, DatabaseSession
 from app.core.config import get_settings
+from app.core.errors import AppError
+from app.models.domain import SourceStatus
 from app.schemas.sources import (
+    JavaCallRead,
+    JavaStructureRead,
+    JavaSymbolRead,
     SourceChunkList,
     SourceChunkRead,
     SourceRead,
@@ -13,6 +18,7 @@ from app.schemas.sources import (
     SourceUploadResponse,
 )
 from app.services import ingestion, parsing
+from app.services.java_source import analyze_java
 
 
 router = APIRouter(tags=["sources"])
@@ -102,5 +108,31 @@ def list_source_chunks(
     return SourceChunkList(
         items=[SourceChunkRead.model_validate(item) for item in items],
         page=page, page_size=page_size, total=total,
+    )
+
+
+@router.get("/sources/{source_id}/code-structure", response_model=JavaStructureRead)
+def get_code_structure(
+    source_id: uuid.UUID,
+    db: DatabaseSession,
+    user_id: CurrentUserId,
+) -> JavaStructureRead:
+    source = ingestion.get_source(db, user_id=user_id, source_id=source_id)
+    if source.source_type != "java":
+        raise AppError(
+            status_code=409, code="CODE_STRUCTURE_UNAVAILABLE",
+            message="当前资料不是 Java 源文件",
+        )
+    if source.status != SourceStatus.READY:
+        raise AppError(
+            status_code=409, code="SOURCE_NOT_PARSED",
+            message="请先完成 Java 资料解析",
+        )
+    structure = analyze_java(source.content, source_id=source.id)
+    return JavaStructureRead(
+        source_id=source.id,
+        symbols=[JavaSymbolRead.model_validate(item) for item in structure.symbols],
+        calls=[JavaCallRead.model_validate(item) for item in structure.calls],
+        truncated=structure.truncated,
     )
 

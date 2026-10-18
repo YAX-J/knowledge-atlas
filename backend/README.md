@@ -16,6 +16,7 @@ FastAPI service for Knowledge Atlas persistence, Markdown/Java ingestion, eviden
 - Persist Markdown headings/paragraphs/lists/fenced code and Java code/comment/type/method chunks with exact text, structure paths, hashes, and one-based inclusive line ranges. Top-level type annotations stay with the type; comment-only lines outside methods are separate comment chunks.
 - Reuse the original source/task on identical-byte uploads within a user's project and source type, even if the filename changes.
 - Paginate stored chunks and safely repeat completed tasks or retry failed tasks.
+- Derive a bounded read-only Java outline with stable type/field/method symbols and unqualified or `this.` same-file call hints; derived structure is not promoted into the formal graph.
 - Persist project, source, task, and candidate-knowledge records.
 - Promote confirmed candidates into scoped PostgreSQL entities, relationships, and evidence within the review transaction, with stable UUIDs, endpoint promotion, idempotent repeats, and legacy-confirmation replay.
 - Serve read-only project graph, entity-detail, and relationship-detail views with user/project/time scoping, node/edge limits, and server-calculated evidence lines.
@@ -57,7 +58,7 @@ Use the interactive API documentation in this order:
 
 Markdown tasks use `markdown_parsing`, Java tasks use `code_parsing`, and legacy queued `knowledge_extraction` uploads can run Markdown parsing only. Successful tasks end at `succeeded`/`parsed`/100 and sources become `ready`. This does not mean knowledge extraction has run. Execution failures return HTTP 200 with a `failed` task and a sanitized error; the same endpoint retries failed tasks. Repeating a succeeded task returns the existing result, while running/cancelled tasks return HTTP 409. Re-upload responses contain the reused task's current status, which need not be `queued`.
 
-The Markdown parser supports ATX/Setext headings, paragraphs, lists, and fenced code. The bounded Java parser identifies top-level types and conventional direct-member methods, while retaining all source text. Chunk IDs remain stable for the same source and boundaries. Changed bytes create a separate source rather than updating an existing source. PostgreSQL project locks serialize duplicate upload creation; SQLite does not validate those locking guarantees. The manual endpoint runs parsing in the API process; automatic execution uses the worker described below. Complete CommonMark/Java ASTs, Java call graphs, GitHub import, and incremental repository sync are not implemented.
+The Markdown parser supports ATX/Setext headings, paragraphs, lists, and fenced code. The bounded Java parser identifies top-level types and conventional direct-member methods, while retaining all source text. Chunk IDs remain stable for the same source and boundaries. Changed bytes create a separate source rather than updating an existing source. PostgreSQL project locks serialize duplicate upload creation; SQLite does not validate those locking guarantees. The manual endpoint runs parsing in the API process; automatic execution uses the worker described below. Complete CommonMark/Java ASTs, cross-file Java call graphs, GitHub import, and incremental repository sync are not implemented.
 
 ## Automatic parsing worker
 

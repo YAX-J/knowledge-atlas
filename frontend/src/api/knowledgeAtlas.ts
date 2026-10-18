@@ -57,6 +57,28 @@ export interface SourceChunkList {
   total: number
 }
 
+export interface JavaCodeStructure {
+  source_id: string
+  symbols: {
+    id: string
+    kind: 'type' | 'field' | 'method'
+    name: string
+    qualified_name: string
+    owner: string | null
+    start_line: number
+    end_line: number
+  }[]
+  calls: {
+    id: string
+    caller_id: string
+    callee_ids: string[]
+    callee_name: string
+    line: number
+    resolution: 'resolved' | 'ambiguous'
+  }[]
+  truncated: boolean
+}
+
 export interface SourceListItem {
   id: string
   project_id: string
@@ -150,6 +172,10 @@ export function listSourceChunks(
 ): Promise<SourceChunkList> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
   return apiRequest<SourceChunkList>(`/sources/${sourceId}/chunks?${query}`)
+}
+
+export function getJavaCodeStructure(sourceId: string): Promise<JavaCodeStructure> {
+  return apiRequest<JavaCodeStructure>(`/sources/${sourceId}/code-structure`)
 }
 
 export interface CandidateList {

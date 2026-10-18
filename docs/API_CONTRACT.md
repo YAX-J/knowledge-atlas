@@ -16,6 +16,7 @@
 | `GET /api/v1/tasks/{task_id}` | 已实现 |
 | `POST /api/v1/tasks/{task_id}/run` | 已实现，同步执行 Markdown/Java 解析 |
 | `GET /api/v1/sources/{source_id}/chunks` | 已实现，分页查询原文分块 |
+| `GET /api/v1/sources/{source_id}/code-structure` | 已实现，派生 Java 符号与同文件调用 |
 | `GET /api/v1/sources/{source_id}/extraction` | 已实现，读取候选提取任务状态 |
 | `POST /api/v1/sources/{source_id}/extract` | 已实现，显式 DeepSeek 候选提取 |
 | `GET /api/v1/projects/{project_id}/reviews` | 已实现，分页候选查询 |
@@ -180,7 +181,15 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 `items` 中每条记录包含：`id`、`project_id`、`source_id`、从 0 开始的 `position`、`kind`、`heading_path`、从 1 开始且包含两端的 `start_line` / `end_line`、原始 `content` 和 `content_sha256`。Markdown 的 `kind` 为 `heading`、`paragraph`、`list` 或 `code`；Java 的 `kind` 为 `code`、`comment`、`type` 或 `method`。原文换行符保留，哈希为该片段 UTF-8 字节的 SHA-256。同一来源中相同边界和内容的分块 UUID 稳定。标题块的路径包含自身；正文块继承标题路径；Java 类型路径为 `[类型]`，方法路径为 `[类型, 方法]`。顶层类型前连续的注解行归入类型；方法外只含注释的行单独标记为 `comment`。
 
-Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，其余语法作为文本保留。Java 当前识别顶层类型和常规直接成员方法，并保留其余源码；不提供完整 Java AST、嵌套类型语义、重载签名、调用关系或仓库增量同步。边界见 [ADR 0012](adr/0012-bounded-java-source-ingestion.zh-CN.md)。
+Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，其余语法作为文本保留。Java 当前识别顶层类型和常规直接成员方法，并保留其余源码；不提供完整 Java AST、嵌套类型语义、重载签名、跨文件调用解析或仓库增量同步。边界见 [ADR 0012](adr/0012-bounded-java-source-ingestion.zh-CN.md)。
+
+### 查询 Java 源码结构
+
+`GET /api/v1/sources/{source_id}/code-structure`
+
+仅用于状态为 `ready` 的 Java 来源。返回最多 200 个 `type` / `field` / `method` 符号及最多 500 条同文件方法调用；每个符号包含稳定 `id`、名称、限定名、所属类型和包含式行号。调用包含调用方、候选被调方法 ID、名称、行号及 `resolved` / `ambiguous` 状态。`truncated=true` 表示至少一类结果达到上限。
+
+调用关系只识别未限定名或 `this.` 调用，并要求名称能匹配同文件方法；不解析接收者类型、静态限定调用、继承、依赖注入、跨文件符号或动态分派。结果按需从不可变原文派生，不写入正式图谱。非 Java 来源或未完成解析分别返回 HTTP 409。边界见 [ADR 0013](adr/0013-derived-java-source-structure.zh-CN.md)。
 
 ## 知识图谱
 

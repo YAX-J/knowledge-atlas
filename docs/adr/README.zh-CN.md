@@ -75,3 +75,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0010：融合一跳图信号的可解释混合检索](0010-explainable-hybrid-graph-retrieval.zh-CN.md)
 - [ADR 0011：使用同步问答与受校验引用实现证据回答](0011-synchronous-evidence-grounded-questions.zh-CN.md)
 - [ADR 0012：使用保留行号的有界 Java 源码导入](0012-bounded-java-source-ingestion.zh-CN.md)
+- [ADR 0013：在正式图谱之外派生有界 Java 源码结构](0013-derived-java-source-structure.zh-CN.md)

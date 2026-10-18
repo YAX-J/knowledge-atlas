@@ -49,6 +49,36 @@ class SourceChunkList(BaseModel):
     total: int
 
 
+class JavaSymbolRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    kind: str
+    name: str
+    qualified_name: str
+    owner: str | None
+    start_line: int
+    end_line: int
+
+
+class JavaCallRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    caller_id: uuid.UUID
+    callee_ids: list[uuid.UUID]
+    callee_name: str
+    line: int
+    resolution: str
+
+
+class JavaStructureRead(BaseModel):
+    source_id: uuid.UUID
+    symbols: list[JavaSymbolRead]
+    calls: list[JavaCallRead]
+    truncated: bool
+
+
 class SourceListItem(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

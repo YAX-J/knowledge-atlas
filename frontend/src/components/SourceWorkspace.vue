@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type {
-  ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
+  ApiProject, ApiProjectList, ApiSource, JavaCodeStructure, ProcessingTask, SourceChunkList, SourceList,
 } from '../api/knowledgeAtlas'
 import type { IngestionErrors, IngestionLoading } from '../types'
 
@@ -14,6 +14,7 @@ const props = defineProps<{
   source: ApiSource | null
   task: ProcessingTask | null
   chunks: SourceChunkList | null
+  codeStructure: JavaCodeStructure | null
   loading: IngestionLoading
   errors: IngestionErrors
   notice: string
@@ -37,6 +38,7 @@ const fileError = ref('')
 const projectPages = computed(() => Math.max(1, Math.ceil((props.projects?.total ?? 0) / (props.projects?.page_size ?? 20))))
 const sourcePages = computed(() => Math.max(1, Math.ceil((props.sources?.total ?? 0) / (props.sources?.page_size ?? 20))))
 const chunkPages = computed(() => Math.max(1, Math.ceil((props.chunks?.total ?? 0) / (props.chunks?.page_size ?? 20))))
+const codeSymbolsById = computed(() => new Map((props.codeStructure?.symbols ?? []).map(item => [item.id, item])))
 const locked = computed(() => props.loading.create || props.loading.upload || props.loading.task)
 const statusLabels: Record<string, string> = {
   uploaded: '待解析', processing: '解析中', ready: '已解析', failed: '解析失败',
@@ -81,6 +83,16 @@ function formatSize(bytes: number) {
 }
 function sourceTypeLabel(sourceType: string) {
   return sourceType === 'java' ? 'JAVA' : 'MD'
+}
+function codeSymbolKindLabel(kind: string) {
+  return ({ type: '类型', field: '字段', method: '方法' } as Record<string, string>)[kind] ?? kind
+}
+function callerName(callerId: string) {
+  return codeSymbolsById.value.get(callerId)?.qualified_name ?? '未知调用方'
+}
+function calleeName(call: JavaCodeStructure['calls'][number]) {
+  const calleeId = call.callee_ids.length === 1 ? call.callee_ids[0] : undefined
+  return calleeId ? codeSymbolsById.value.get(calleeId)?.qualified_name ?? call.callee_name : call.callee_name
 }
 </script>
 
@@ -174,7 +186,7 @@ function sourceTypeLabel(sourceType: string) {
             <button type="button" :disabled="loading.sources || locked || (sources?.page ?? 1) >= sourcePages" @click="emit('sourcesPage', (sources?.page ?? 1) + 1)">下一页</button>
           </nav>
 
-          <section v-if="selectedSourceId" class="source-reader" aria-label="原文与解析结果" :aria-busy="loading.detail || loading.task || loading.chunks">
+          <section v-if="selectedSourceId" class="source-reader" aria-label="原文与解析结果" :aria-busy="loading.detail || loading.task || loading.chunks || loading.structure">
             <div class="source-section-heading reader-heading">
               <div><h3>{{ source?.original_name ?? '资料详情' }}</h3><p v-if="source" class="muted-copy">{{ source.line_count }} 行原文 · {{ formatSize(source.size_bytes) }}</p></div>
               <button class="text-button" type="button" :disabled="loading.detail || locked || loading.chunks" @click="emit('refresh')">刷新状态</button>
@@ -196,6 +208,35 @@ function sourceTypeLabel(sourceType: string) {
               <p v-if="errors.task" class="inline-error" role="alert">{{ errors.task }}</p>
               <details v-if="task?.status !== 'succeeded'" class="raw-preview" open><summary>原文预览（最多 4000 字符）</summary><pre>{{ source.content_preview }}</pre></details>
               <template v-else>
+                <section v-if="source.source_type === 'java'" class="code-structure" aria-labelledby="code-structure-title">
+                  <div class="source-section-heading">
+                    <h3 id="code-structure-title">源码结构</h3>
+                    <span v-if="codeStructure" class="muted-copy">{{ codeStructure.symbols.length }} 个符号 · {{ codeStructure.calls.length }} 条同文件调用</span>
+                  </div>
+                  <p class="source-upload-hint">结构关系由本地规则推导，不会自动写入已审核的正式知识图谱。</p>
+                  <p v-if="loading.structure" class="muted-copy" role="status">正在读取源码结构…</p>
+                  <p v-else-if="errors.structure" class="inline-error" role="alert">{{ errors.structure }} 请刷新状态重试。</p>
+                  <template v-else-if="codeStructure">
+                    <p v-if="codeStructure.truncated" class="inline-error">文件结构较大，当前仅展示有界结果。</p>
+                    <div v-if="codeStructure.symbols.length" class="code-symbol-grid">
+                      <article v-for="symbol in codeStructure.symbols" :key="symbol.id" class="code-symbol-card">
+                        <span>{{ codeSymbolKindLabel(symbol.kind) }}</span>
+                        <strong>{{ symbol.qualified_name }}</strong>
+                        <small>第 {{ symbol.start_line }}–{{ symbol.end_line }} 行</small>
+                      </article>
+                    </div>
+                    <p v-else class="empty-copy">没有识别到可展示的 Java 符号。</p>
+                    <div v-if="codeStructure.calls.length" class="code-call-list">
+                      <h4>同文件方法调用</h4>
+                      <p v-for="call in codeStructure.calls" :key="call.id">
+                        <strong>{{ callerName(call.caller_id) }}</strong>
+                        <span aria-hidden="true">→</span>
+                        <strong>{{ calleeName(call) }}</strong>
+                        <small>第 {{ call.line }} 行<span v-if="call.resolution === 'ambiguous'"> · {{ call.callee_ids.length }} 个同名候选</span></small>
+                      </p>
+                    </div>
+                  </template>
+                </section>
                 <div class="source-section-heading"><h3>原文分块 <span v-if="chunks">{{ chunks.total }}</span></h3><span class="muted-copy">行号对应上传原文</span></div>
                 <p class="source-upload-hint">分块保留原文与行号；下方可提取有原文证据的候选知识。</p>
                 <p v-if="loading.chunks" role="status" class="muted-copy">正在读取分块…</p>

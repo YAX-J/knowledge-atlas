@@ -41,6 +41,7 @@ Implemented in this slice:
 - Stable one-based inclusive line ranges, hashes, structure paths, and chunk UUIDs for `code`, `comment`, `type`, and `method` chunks, with type annotations grouped into the type.
 - `code_parsing` support in manual execution and the leased database worker.
 - Desktop source-workspace upload, MD/JAVA labels, and Java chunk-kind display.
+- A bounded source-structure endpoint and desktop outline for stable type/field/method symbols plus same-file unqualified/`this.` call hints, kept outside the formal graph.
 
 Acceptance still needed:
 
@@ -56,7 +57,7 @@ Project keyword, semantic-vector, explainable one-hop graph hybrid retrieval, an
 ## Later phases
 
 1. Representative real-answer acceptance and retrieval/prompt quality evaluation.
-2. Complete Java symbol/call modeling, then GitHub ingestion and incremental synchronization.
+2. Add repository identity and cross-file Java resolution, then GitHub ingestion and incremental synchronization.
 3. Temporal evolution, governance, experiments, and deployment.
 
 Markdown parsing, schema-constrained review, and confirmed-candidate graph persistence are complete as bounded slices.
