@@ -22,6 +22,7 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 - 必须 UTF-8，否则 422 `SOURCE_ENCODING_INVALID`；空内容 422 `SOURCE_EMPTY`。
 - 保存原文、字节数、SHA-256、媒体类型和规范化的 `original_name`（去掉路径）。
 - 上传成功始终返回 HTTP 202，响应里的 `status` 可能是 `queued`、`running`、`succeeded`、`failed`、`cancelled`。
+- 桌面端批量导入不改变后端契约：一次最多选择 50 份文件并顺序调用单文件接口；单份失败不回滚其他成功请求。
 
 ## 去重语义
 

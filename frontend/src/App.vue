@@ -19,7 +19,7 @@ import {
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
-  CandidateList, ExtractionResult, JavaCodeStructure,
+  CandidateList, ExtractionResult, JavaCodeStructure, SourceUploadResult,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
 import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchMode, KnowledgeSearchResult, QuestionAnswer } from './types'
@@ -360,27 +360,40 @@ async function loadCodeStructure() {
   }
 }
 
-async function uploadFile(file: File) {
+async function uploadFiles(files: File[]) {
   const projectId = project.value?.id
-  if (!projectId || loading.create || loading.upload || loading.task) return
+  if (!projectId || !files.length || loading.create || loading.upload || loading.task) return
   loading.upload = true
   errors.upload = ''
   notice.value = ''
   // Prevent an older automatic selection from replacing the upload result.
   sourcesRequest++
   clearSourceSelection()
-  try {
-    const result = await uploadSource(projectId, file)
-    selectedSourceId.value = result.source_id
-    selectedTaskId.value = result.task_id
-    notice.value = '资料已接收。相同内容会复用已有资料，请查看当前解析状态。'
-    await Promise.all([loadSources(1), refreshSource()])
-  } catch (error) {
-    errors.upload = errorMessage(error)
-  } finally {
-    loading.upload = false
-    loading.sources = false
+  const failures: string[] = []
+  let lastResult: SourceUploadResult | null = null
+  for (const [index, file] of files.entries()) {
+    notice.value = `正在接收第 ${index + 1} / ${files.length} 份资料：${file.name}`
+    try {
+      lastResult = await uploadSource(projectId, file)
+    } catch (error) {
+      failures.push(`${file.name}：${errorMessage(error)}`)
+    }
   }
+  const succeeded = files.length - failures.length
+  if (lastResult) {
+    selectedSourceId.value = lastResult.source_id
+    selectedTaskId.value = lastResult.task_id
+    notice.value = `已接收 ${succeeded} / ${files.length} 份资料。相同内容会复用已有资料，请查看当前解析状态。`
+    await Promise.all([loadSources(1), refreshSource()])
+  } else {
+    notice.value = ''
+  }
+  if (failures.length) {
+    const visibleFailures = failures.slice(0, 3).join('；')
+    errors.upload = `有 ${failures.length} 份资料上传失败：${visibleFailures}${failures.length > 3 ? `；另有 ${failures.length - 3} 份未列出` : ''}`
+  }
+  loading.upload = false
+  loading.sources = false
 }
 
 async function parseSource() {
@@ -621,7 +634,7 @@ function setTimeline(value: number) {
       :code-structure="codeStructure"
       :loading="loading" :errors="errors" :notice="notice"
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
-      @sources-page="loadSources" @select-source="selectSource" @upload="uploadFile"
+      @sources-page="loadSources" @select-source="selectSource" @upload="uploadFiles"
       @run="parseSource" @refresh="refreshSource" @chunks-page="loadChunks"
       @graph="openProjectGraph"
     >

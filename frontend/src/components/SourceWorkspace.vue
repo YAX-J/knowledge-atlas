@@ -25,7 +25,7 @@ const emit = defineEmits<{
   projectsPage: [page: number]
   sourcesPage: [page: number]
   selectSource: [sourceId: string, taskId: string | null]
-  upload: [file: File]
+  upload: [files: File[]]
   run: []
   refresh: []
   chunksPage: [page: number]
@@ -61,21 +61,27 @@ function submitProject() {
   }
 }
 
-function chooseFile(event: Event) {
+function chooseFiles(event: Event) {
   const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
+  const files = Array.from(input.files ?? [])
   input.value = ''
-  if (!file) return
+  if (!files.length) return
   fileError.value = ''
-  if (!/\.(md|markdown|java)$/i.test(file.name)) {
-    fileError.value = '请选择 .md、.markdown 或 .java 文件。'
+  if (files.length > 50) {
+    fileError.value = '一次最多选择 50 个文件。'
     return
   }
-  if (!file.size) {
-    fileError.value = '文件为空，请选择有内容的文本资料。'
+  const unsupported = files.filter(file => !/\.(md|markdown|java)$/i.test(file.name))
+  if (unsupported.length) {
+    fileError.value = `以下文件格式不支持：${unsupported.slice(0, 3).map(file => file.name).join('、')}${unsupported.length > 3 ? ` 等 ${unsupported.length} 个文件` : ''}。`
     return
   }
-  emit('upload', file)
+  const empty = files.filter(file => !file.size)
+  if (empty.length) {
+    fileError.value = `以下文件为空：${empty.slice(0, 3).map(file => file.name).join('、')}${empty.length > 3 ? ` 等 ${empty.length} 个文件` : ''}。`
+    return
+  }
+  emit('upload', files)
 }
 
 function formatSize(bytes: number) {
@@ -156,11 +162,11 @@ function calleeName(call: JavaCodeStructure['calls'][number]) {
             <div><h2>{{ project.name }}</h2><p>{{ project.description || '在这里保存项目的技术笔记。' }}</p></div>
             <div class="upload-control">
               <button class="text-button" type="button" :disabled="locked" @click="emit('graph')">查看项目图谱</button>
-              <input ref="fileInput" class="file-picker" type="file" accept=".md,.markdown,.java,text/markdown,text/x-java-source" aria-label="选择 Markdown 或 Java 文件" tabindex="-1" :disabled="locked" @change="chooseFile" />
-              <button class="primary-button" type="button" :disabled="locked" @click="fileInput?.click()">{{ loading.upload ? '正在上传…' : '上传资料' }}</button>
+              <input ref="fileInput" class="file-picker" type="file" accept=".md,.markdown,.java,text/markdown,text/x-java-source" aria-label="选择一个或多个 Markdown 或 Java 文件" tabindex="-1" :disabled="locked" multiple @change="chooseFiles" />
+              <button class="primary-button" type="button" :disabled="locked" @click="fileInput?.click()">{{ loading.upload ? '正在上传…' : '批量上传资料' }}</button>
             </div>
           </header>
-          <p class="source-upload-hint">支持 UTF-8 Markdown 与 Java 源文件。相同内容会复用已有资料；上传后可选择开始解析。</p>
+          <p class="source-upload-hint">支持 UTF-8 Markdown 与 Java 源文件，一次最多 50 份。相同内容会复用已有资料；单份失败不会影响其他文件。</p>
           <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
           <p v-if="fileError || errors.upload" class="inline-error" role="alert">{{ fileError || errors.upload }}</p>
 
