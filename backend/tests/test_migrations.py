@@ -70,6 +70,8 @@ def test_postgresql_migrations_compile_without_a_live_server(monkeypatch) -> Non
     assert "CREATE TABLE knowledge_entities" in sql
     assert "fk_relationship_source_scope" in sql
     assert "CREATE TABLE knowledge_evidence" in sql
+    assert "CREATE TABLE knowledge_embeddings" in sql
+    assert "VECTOR(1024)" in sql
 
 
 def test_lease_migration_preserves_legacy_running_tasks(tmp_path, monkeypatch) -> None:
@@ -134,7 +136,7 @@ def test_graph_migration_preserves_reviewed_candidates_and_is_reversible(tmp_pat
                                  payload={}, review_status=ReviewStatus.CONFIRMED))
         db.commit()
     command.upgrade(config, "head")
-    assert {"knowledge_entities", "knowledge_relationships", "knowledge_evidence"} <= set(inspect(engine).get_table_names())
+    assert {"knowledge_entities", "knowledge_relationships", "knowledge_evidence", "knowledge_embeddings"} <= set(inspect(engine).get_table_names())
     with Session(engine) as db:
         from app.models.domain import utc_now
         candidate = db.get(CandidateKnowledge, candidate_id)

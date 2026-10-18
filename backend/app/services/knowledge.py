@@ -5,7 +5,7 @@ import math
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select, update
+from sqlalchemy import case, func, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -230,6 +230,7 @@ def list_reviews(
         query = query.where(CandidateKnowledge.confidence >= min_confidence)
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
     items = list(db.scalars(query.order_by(
+        case((CandidateKnowledge.payload["kind"].as_string() == "entity", 0), else_=1),
         CandidateKnowledge.created_at, CandidateKnowledge.id,
     ).offset((page - 1) * page_size).limit(page_size)))
     ids = graph.knowledge_ids(db, items)

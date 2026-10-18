@@ -20,6 +20,9 @@ const props = defineProps<{
   searchResult: KnowledgeSearchResult | null
   searchLoading: boolean
   searchError: string
+  searchErrorAction: 'search' | 'rebuild'
+  searchRebuilding: boolean
+  searchNotice: string
 }>()
 const emit = defineEmits<{
   back: []
@@ -32,7 +35,8 @@ const emit = defineEmits<{
   reset: []
   filterType: [value: string]
   depth: [value: number]
-  search: [query: string, types: string]
+  search: [query: string, types: string, mode: 'keyword' | 'vector']
+  rebuildSearch: []
   clearSearch: []
   retrySearch: []
   selectSearchEntity: [id: string]
@@ -72,8 +76,10 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
       <div><span class="graph-kicker">项目知识 / 已确认</span><h1 id="project-graph-title">{{ project?.name ?? '项目图谱' }}</h1><p>沿着关系找回原文，让每条知识都有依据。</p></div>
       <div class="graph-actions"><button type="button" @click="emit('back')">返回资料</button><button type="button" @click="emit('demo')">演示图谱</button><button type="button" :disabled="loading" @click="emit('refresh')">刷新图谱</button></div>
     </header>
-    <KnowledgeSearch :key="project?.id" :result="searchResult" :loading="searchLoading" :error="searchError" :labels="labels"
-      @search="(query, types) => emit('search', query, types)" @clear="emit('clearSearch')" @retry="emit('retrySearch')" @select="id => emit('selectSearchEntity', id)" />
+    <KnowledgeSearch :key="project?.id" :result="searchResult" :loading="searchLoading" :error="searchError" :error-action="searchErrorAction" :labels="labels"
+      :rebuilding="searchRebuilding" :notice="searchNotice"
+      @search="(query, types, mode) => emit('search', query, types, mode)" @rebuild="emit('rebuildSearch')"
+      @clear="emit('clearSearch')" @retry="emit('retrySearch')" @select="id => emit('selectSearchEntity', id)" />
     <div class="graph-toolbar">
       <span class="graph-real-label">真实项目图谱</span>
       <label>知识类型 <select :value="typeFilter" :disabled="loading" @change="filter"><option value="">全部类型</option><option v-for="(label, type) in labels" :key="type" :value="type">{{ label }}</option></select></label>

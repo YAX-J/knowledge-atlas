@@ -40,6 +40,7 @@ def test_confirmation_persists_graph_and_locatable_evidence(client, db_session, 
     project_id, source, items = extracted(client, monkeypatch)
     url = f"/api/v1/projects/{project_id}/graph"
     assert client.get(url).json() == {"nodes": [], "edges": [], "truncated": False}
+    assert [item["kind"] for item in items] == ["entity", "entity", "relation"]
     confirmed = [confirm(client, item) for item in items]
     result = client.get(url)
     assert result.status_code == 200

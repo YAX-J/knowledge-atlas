@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     deepseek_model: str = "deepseek-flash"
     deepseek_timeout_seconds: float = Field(default=120, ge=5, le=180)
     extraction_max_input_chars: int = Field(default=60000, ge=1000, le=200000)
+    embedding_api_key: SecretStr | None = None
+    embedding_base_url: str = ""
+    embedding_model: str = ""
+    embedding_dimensions: int = Field(default=1024, ge=1, le=2000)
+    embedding_timeout_seconds: float = Field(default=60, ge=5, le=180)
+    embedding_batch_size: int = Field(default=32, ge=1, le=100)
 
     model_config = SettingsConfigDict(
         env_file=".env",

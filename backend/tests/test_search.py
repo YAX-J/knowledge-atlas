@@ -2,13 +2,17 @@ import uuid
 from datetime import timedelta
 
 import pytest
+from pydantic import SecretStr
 from sqlalchemy import select
 
 from app.api.dependencies import get_current_user_id
+from app.api.routes import search as search_routes
+from app.core.config import Settings
 from app.main import app
 from app.models.domain import Project, utc_now
 from app.models.graph import KnowledgeEntity
 from app.services import deepseek
+from app.services import embeddings
 from tests.test_graph import confirm, extracted
 from tests.test_knowledge import configured
 
@@ -112,9 +116,83 @@ def test_search_counts_matching_evidence_once_and_caps_excerpts(client, configur
     assert all('PostgreSQL' in evidence['quote'] for evidence in hit['evidence'])
 
 
+def test_vector_index_rebuild_and_semantic_search(client, configured, monkeypatch):
+    settings = Settings(
+        _env_file=None,
+        embedding_api_key=SecretStr('embedding-secret'),
+        embedding_base_url='https://embeddings.example/v1',
+        embedding_model='test-embedding-1024',
+    )
+    monkeypatch.setattr(search_routes, 'get_settings', lambda: settings)
+
+    calls = []
+    def fake_embeddings(_settings, texts):
+        calls.append(list(texts))
+        vectors = []
+        for text in texts:
+            vector = [0.0] * 1024
+            vector[0 if text.startswith('Technology\nPostgreSQL') or text == 'durable database' else 1] = 1.0
+            vectors.append(vector)
+        return vectors
+    monkeypatch.setattr(embeddings, 'embed_texts', fake_embeddings)
+
+    project_id, source, items = extracted(client, monkeypatch)
+    for item in sorted(items, key=lambda item: item['kind'] != 'entity'):
+        confirm(client, item)
+    rebuild_url = f'/api/v1/projects/{project_id}/embeddings/rebuild'
+    first = client.post(rebuild_url)
+    assert first.status_code == 200
+    assert first.json() == {
+        'model': 'test-embedding-1024', 'dimensions': 1024,
+        'eligible_count': 2, 'updated_count': 2, 'reused_count': 0,
+    }
+    assert client.post(rebuild_url).json()['reused_count'] == 2
+    assert len(calls) == 1  # Rebuild does not call the provider for unchanged content.
+
+    result = client.get(
+        f'/api/v1/projects/{project_id}/search',
+        params={'q': 'durable database', 'mode': 'vector'},
+    )
+    assert result.status_code == 200
+    data = result.json()
+    assert data['mode'] == 'vector' and data['indexed_count'] == data['eligible_count'] == 2
+    assert data['items'][0]['entity']['name'] == 'PostgreSQL'
+    assert data['items'][0]['vector_score'] == 1.0
+    assert data['items'][0]['keyword_score'] is None and data['items'][0]['matched_fields'] == []
+    assert data['items'][0]['evidence'][0]['source_id'] == source['source_id']
+
+
+def test_vector_search_requires_embedding_configuration(client, monkeypatch):
+    monkeypatch.setattr(search_routes, 'get_settings', lambda: Settings(_env_file=None))
+    project_id = client.post('/api/v1/projects', json={'name': 'Semantic'}).json()['id']
+    response = client.get(
+        f'/api/v1/projects/{project_id}/search', params={'q': 'question', 'mode': 'vector'},
+    )
+    assert response.status_code == 503
+    assert response.json()['error']['code'] == 'EMBEDDING_NOT_CONFIGURED'
+
+
+def test_embedding_transport_rejects_zero_vectors(monkeypatch):
+    settings = Settings(
+        _env_file=None,
+        embedding_api_key=SecretStr('embedding-secret'),
+        embedding_base_url='https://embeddings.example/v1',
+        embedding_model='test-embedding-1024',
+    )
+    class Response:
+        status_code = 200
+        content = b'{}'
+        def json(self):
+            return {'data': [{'index': 0, 'embedding': [0.0] * 1024}]}
+    monkeypatch.setattr(embeddings.httpx, 'post', lambda *args, **kwargs: Response())
+    with pytest.raises(embeddings.EmbeddingError) as caught:
+        embeddings.embed_texts(settings, ['query'])
+    assert caught.value.code == 'EMBEDDING_OUTPUT_INVALID'
+
+
 @pytest.mark.parametrize('params', [
     {}, {'q': ''}, {'q': '   '}, {'q': 'a ' * 9}, {'q': 'x' * 201},
-    {'q': 'x', 'mode': 'vector'}, {'q': 'x', 'mode': 'hybrid'},
+    {'q': 'x', 'mode': 'hybrid'},
     {'q': 'x', 'types': 'Invented'}, {'q': 'x', 'top_k': 0}, {'q': 'x', 'top_k': 51},
     {'q': 'x', 'valid_at': '2026-10-17T00:00:00'},
 ])

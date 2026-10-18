@@ -71,3 +71,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0006: Explicit DeepSeek candidates with evidence-gated review](0006-deepseek-candidate-review.md)
 - [ADR 0007: Promote confirmed candidates into the PostgreSQL graph](0007-confirmed-postgresql-graph.md)
 - [ADR 0008: Evidence-backed project keyword search](0008-project-keyword-search.md)
+- [ADR 0009: Build the formal-knowledge semantic index explicitly](0009-explicit-semantic-index.md)

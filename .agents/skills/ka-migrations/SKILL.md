@@ -22,8 +22,9 @@ description: Knowledge Atlas 的 SQLAlchemy 模型与 Alembic 迁移。新增/�
 | `20261017_0003` | 任务执行租约、`execution_id`、`attempt_count`（batch alter） |
 | `20261017_0004` | `review_events` 审核事件 |
 | `20261017_0005` | 正式图谱：实体、关系、证据与作用域外键 |
+| `20261018_0006` | 正式实体语义向量：1024 维 pgvector、内容哈希与模型元数据 |
 
-当前 head 是 `20261017_0005`。文档里若仍写 `0004`，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
+当前 head 是 `20261018_0006`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
 
 ## 规则
 

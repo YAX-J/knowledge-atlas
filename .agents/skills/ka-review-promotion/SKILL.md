@@ -71,7 +71,7 @@ description: Knowledge Atlas 的候选审核与正式图谱写入。确认/拒�
 
 ## 关键词检索
 
-关键词检索：`GET /api/v1/projects/{project_id}/search` 只返回正式实体，搜索名称/摘要/同作用域证据，沿用图谱 `visible` 与项目校验。`q` 长 1–200，空白分词最多 8 个且所有词需命中；通配符按字面处理。名称精确匹配加 50，每词名称/摘要/证据分别加 10/3/1；同分按名称/UUID 排序。`top_k` 1–50，最多 3 条证据。无模型调用或写入；关系、向量和融合尚未接入。修改时追加 `tests/test_search.py`，并同步 ADR 0008 和 API 文档。
+关键词/语义检索：`GET /api/v1/projects/{project_id}/search` 只返回正式实体，沿用图谱 `visible` 与项目校验。关键词搜索名称、摘要和同作用域证据；语义模式只读查询显式构建的 1024 维索引。混合与关系检索尚未接入。修改时追加 `tests/test_search.py`，并同步 ADR 0008/0009 和 API 文档。
 
 ## 禁止事项
 

@@ -13,7 +13,7 @@ import { ApiError } from './api/client'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
   runTask, uploadMarkdown, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
-  getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge,
+  getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
@@ -69,35 +69,66 @@ let graphRequest = 0
 let graphDetailRequest = 0
 const searchResult = ref<KnowledgeSearchResult | null>(null)
 const searchLoading = ref(false)
+const searchRebuilding = ref(false)
 const searchError = ref('')
+const searchErrorAction = ref<'search' | 'rebuild'>('search')
+const searchNotice = ref('')
 let searchRequest = 0
+let embeddingRebuildRequest = 0
 let searchQuery = ''
 let searchTypes = ''
+let searchMode: 'keyword' | 'vector' = 'keyword'
 
 function clearSearch() {
   searchRequest++
+  embeddingRebuildRequest++
   searchResult.value = null
   searchError.value = ''
+  searchErrorAction.value = 'search'
+  searchNotice.value = ''
   searchLoading.value = false
+  searchRebuilding.value = false
   searchQuery = searchTypes = ''
+  searchMode = 'keyword'
 }
 
-async function runSearch(query: string, types: string) {
+async function runSearch(query: string, types: string, mode: 'keyword' | 'vector') {
   const projectId = project.value?.id
   if (!projectId) return
   const request = ++searchRequest
   searchQuery = query
   searchTypes = types
+  searchMode = mode
   searchLoading.value = true
+  searchErrorAction.value = 'search'
   searchError.value = ''
   searchResult.value = null
   try {
-    const result = await searchKnowledge(projectId, query, types)
+    const result = await searchKnowledge(projectId, query, types, mode)
     if (request === searchRequest && project.value?.id === projectId) searchResult.value = result
   } catch (error) {
     if (request === searchRequest) searchError.value = errorMessage(error)
   } finally {
     if (request === searchRequest) searchLoading.value = false
+  }
+}
+
+async function rebuildSemanticIndex() {
+  const projectId = project.value?.id
+  if (!projectId || searchRebuilding.value) return
+  const request = ++embeddingRebuildRequest
+  searchRebuilding.value = true
+  searchErrorAction.value = 'rebuild'
+  searchError.value = searchNotice.value = ''
+  try {
+    const result = await rebuildProjectEmbeddings(projectId)
+    if (request !== embeddingRebuildRequest || project.value?.id !== projectId) return
+    searchNotice.value = `语义索引已更新：新增或刷新 ${result.updated_count} 条，复用 ${result.reused_count} 条。`
+    if (searchQuery && searchMode === 'vector') await runSearch(searchQuery, searchTypes, searchMode)
+  } catch (error) {
+    if (request === embeddingRebuildRequest && project.value?.id === projectId) searchError.value = errorMessage(error)
+  } finally {
+    if (request === embeddingRebuildRequest) searchRebuilding.value = false
   }
 }
 
@@ -532,7 +563,8 @@ function setTimeline(value: number) {
     </SourceWorkspace>
     <ProjectGraph v-else-if="activeNav === 'projectGraph'" :project="project" :graph="realGraph"
       :search-result="searchResult" :search-loading="searchLoading" :search-error="searchError"
-      @search="runSearch" @clear-search="clearSearch" @retry-search="runSearch(searchQuery, searchTypes)" @select-search-entity="openSearchEntity"
+      :search-rebuilding="searchRebuilding" :search-notice="searchNotice" :search-error-action="searchErrorAction"
+      @search="runSearch" @rebuild-search="rebuildSemanticIndex" @clear-search="clearSearch" @retry-search="runSearch(searchQuery, searchTypes, searchMode)" @select-search-entity="openSearchEntity"
       :entity-detail="realEntityDetail" :relationship-detail="realRelationshipDetail"
       :loading="graphLoading" :detail-loading="graphDetailLoading" :error="graphError" :detail-error="graphDetailError"
       :selected-id="graphSelectedId" :center="graphCenter" :depth="graphDepth" :type-filter="graphType"

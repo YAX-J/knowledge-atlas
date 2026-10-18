@@ -129,12 +129,23 @@ export interface RelationshipDetail {
 
 export interface KnowledgeSearchResult {
   query: string
-  mode: 'keyword'
+  mode: 'keyword' | 'vector'
   items: {
     entity: FormalKnowledgeNode
-    keyword_score: number
+    keyword_score: number | null
+    vector_score: number | null
     matched_fields: ('name' | 'summary' | 'evidence')[]
     evidence: FormalEvidence[]
   }[]
   truncated: boolean
+  indexed_count: number | null
+  eligible_count: number | null
+}
+
+export interface EmbeddingRebuildResult {
+  model: string
+  dimensions: number
+  eligible_count: number
+  updated_count: number
+  reused_count: number
 }

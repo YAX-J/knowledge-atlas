@@ -88,13 +88,17 @@ uvicorn app.main:app --reload
 
 在 OpenAPI 界面验证导入时，依次创建项目、上传 Markdown、调用 `POST /api/v1/tasks/{task_id}/run`，并查询 `GET /api/v1/sources/{source_id}/chunks`。也可以在另一个已激活环境的终端中，从 `backend/` 运行 `python -m app.worker`，自动消费上传任务。先应用包含执行租约与图谱表的最新迁移。`python -m app.worker --once` 最多处理一个符合条件的任务后退出。配置、恢复规则、退出码和解析限制见 [后端说明](../backend/README.zh-CN.md)。
 
-验证本机服务配置时，从 `backend/` 运行 `alembic current`，预期版本为 `20261017_0005`；查询 `/api/v1/health/ready`，PostgreSQL 应为 `up`。随后使用真实本地数据库验证项目创建、上传、自动解析、重复复用、重启持久化，以及 Worker/API 竞争。SQLite 测试不能验证原生服务联通或 PostgreSQL 锁行为。
+验证本机服务配置时，从 `backend/` 运行 `alembic current`，预期版本为 `20261018_0006`；查询 `/api/v1/health/ready`，PostgreSQL 应为 `up`。随后使用真实本地数据库验证项目创建、上传、自动解析、重复复用、重启持久化，以及 Worker/API 竞争。SQLite 测试不能验证原生服务联通、PostgreSQL 锁或 pgvector 距离运算。
 
 如果选择容器方案，从仓库根目录运行 `docker compose up -d --build` 可启动完整环境。Worker 等待 API 应用迁移并通过存活检查后启动。Docker 不是验收前提。
 
 ## DeepSeek 候选提取
 
 先应用最新迁移，包括 `review_events` 和正式图谱表。在后端 `.env` 中填写 `DEEPSEEK_API_KEY`（不得放在前端），保留 `DEEPSEEK_BASE_URL=https://api.deepseek.com`，按需设置模型 `DEEPSEEK_MODEL`（默认 `deepseek-flash`）。重启 API 后打开已解析资料，点击“提取候选知识”；只有显式请求时才把该篇资料分块发送到 DeepSeek。核对引用后确认或拒绝，关系必须先确认两端实体；确认会在同一事务内写入受限的实体、关系和证据。Worker 解析不调用模型。测试与浏览器验证使用模拟响应，真实模型调用仍需验收，详见 [后端说明](../backend/README.zh-CN.md#deepseek-候选提取与审核)。
+
+## 语义向量检索
+
+在后端 `.env` 配置 `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL`、`EMBEDDING_MODEL`；当前 `EMBEDDING_DIMENSIONS` 必须为 `1024`。在项目图谱点击“更新语义索引”后再选择语义模式搜索。实体文本和查询会发送到所配置的服务；知识确认不调用嵌入服务。真实服务与原生 pgvector 路径需单独验收。
 
 ## 前端验证
 
@@ -112,6 +116,7 @@ npm run build
 - 追问状态。
 - 候选提取、审核和旧确认补写。
 - 项目图谱加载、筛选、一跳/二跳邻域、详情证据，以及空数据和截断状态。
+- 关键词/语义模式切换、索引更新、未配置嵌入服务错误和索引覆盖数量。
 - 桌面和手机布局。
 - 键盘焦点和面板滚动。
 

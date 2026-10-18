@@ -25,10 +25,11 @@ Completed:
 - Explicit DeepSeek extraction with evidence validation, audited review, and promotion of confirmed candidates into scoped PostgreSQL entities, relationships, and evidence.
 - Read-only project graph, entity-detail, and relationship-detail APIs with user/project/time scoping and node/edge limits, plus a real project-graph frontend page.
 - Evidence-backed project keyword search over formal entity names, summaries, and quotes, with ranking, type/time filters, bounded results, and graph/detail navigation.
+- Explicit 1024-dimensional formal-entity semantic indexing, pgvector cosine retrieval, content-hash reuse, and frontend keyword/vector mode switching.
 
 ## Active phase
 
-The active slice is project keyword retrieval with evidence. The user reports the native PostgreSQL 17/pgvector ingestion path, duplicate reuse, restart persistence, and automatic parsing passed. Disposable-schema checks on PostgreSQL 17.10 passed graph migrations, evidence reads, concurrent identical confirmations, and keyword ranking/matching. Worker/API contention, lease recovery, native-database browser acceptance, and real-model acceptance remain outstanding. The application database has been upgraded to `20261017_0005`; graph/review/source reads returned 200 after the missing-migration repair.
+The active slice is the two-lane keyword and semantic-vector retrieval baseline. Migration head is `20261018_0006`; APIs, SQLite simulated-vector tests, PostgreSQL offline SQL, and the frontend build are verified. Real embedding-provider and native pgvector retrieval acceptance, Worker/API contention, lease recovery, native-database browser acceptance, and real DeepSeek acceptance remain outstanding.
 
 Implemented in this slice:
 
@@ -37,6 +38,7 @@ Implemented in this slice:
 - Project-graph search form with empty/error/retry/clear states and selection into entity details or neighborhoods.
 - Independent request counters for search results across project changes and clearing; demo-header search remains separate.
 - Backend tests, frontend build, isolated browser checks, and native PostgreSQL SQL validation.
+- Explicit semantic-index rebuild, model/content-hash reuse, 1024-dimension validation, exact pgvector cosine retrieval, and frontend mode switching.
 
 Acceptance still needed:
 
@@ -44,12 +46,13 @@ Acceptance still needed:
 - Review evidence quality and model output on representative inputs; simulated tests do not establish real extraction quality.
 - Verify the real project graph against native PostgreSQL in a browser, including empty, truncated, filtered, and time-filtered states.
 - Retain PostgreSQL Worker/API concurrency and recovery validation; review/promotion repeated-confirmation contention has passed in a disposable schema.
+- Configure a real OpenAI-compatible embedding provider and validate the 1024-dimensional index and semantic ranking on native PostgreSQL.
 
-Project keyword search with evidence is implemented. Entity disambiguation, semantic retrieval, and Agent answers remain future work. Confirmed candidates now promote to formal graph objects; the demo graph and question view remain Mock. Neo4j remains deferred under ADR 0005. See [ADR 0006](docs/adr/0006-deepseek-candidate-review.md) and [ADR 0007](docs/adr/0007-confirmed-postgresql-graph.md) for these slices' boundaries.
+Project keyword and semantic-vector retrieval with evidence are implemented. Entity disambiguation, hybrid ranking, and Agent answers remain future work. Confirmed candidates promote to formal graph objects; the demo graph and question view remain Mock. See [ADR 0009](docs/adr/0009-explicit-semantic-index.md) for the semantic boundary.
 
 ## Later phases
 
-1. Vector retrieval and graph-score fusion beyond the keyword baseline.
+1. Fuse keyword, vector, and graph-relation scores.
 2. Evidence-grounded Agent answers.
 3. Code and GitHub ingestion.
 4. Temporal evolution, governance, experiments, and deployment.

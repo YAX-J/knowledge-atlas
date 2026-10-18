@@ -3,6 +3,7 @@ from datetime import datetime
 
 from sqlalchemy import CheckConstraint, DateTime, Float, ForeignKey, ForeignKeyConstraint, Index, JSON, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
+from pgvector.sqlalchemy import VECTOR
 
 from app.db.base import Base
 from app.models.domain import TimestampMixin
@@ -73,3 +74,26 @@ class KnowledgeEvidence(TimestampMixin, Base):
     start_line: Mapped[int] = mapped_column(nullable=False)
     end_line: Mapped[int] = mapped_column(nullable=False)
     heading_path: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+
+
+class KnowledgeEmbedding(TimestampMixin, Base):
+    __tablename__ = "knowledge_embeddings"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["entity_id", "user_id", "project_id"],
+            ["knowledge_entities.id", "knowledge_entities.user_id", "knowledge_entities.project_id"],
+            ondelete="CASCADE",
+            name="fk_embedding_entity_scope",
+        ),
+        CheckConstraint("dimensions = 1024", name="ck_embeddings_dimensions"),
+        Index("ix_embeddings_scope_model", "user_id", "project_id", "model"),
+    )
+    entity_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    model: Mapped[str] = mapped_column(String(255), nullable=False)
+    dimensions: Mapped[int] = mapped_column(nullable=False)
+    content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(VECTOR(1024), nullable=False)

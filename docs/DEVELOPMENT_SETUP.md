@@ -86,13 +86,17 @@ Useful endpoints:
 
 To verify ingestion in the OpenAPI interface, create a project, upload Markdown, call `POST /api/v1/tasks/{task_id}/run`, and query `GET /api/v1/sources/{source_id}/chunks`. Alternatively, run `python -m app.worker` from `backend/` in a second activated terminal to consume uploads automatically. Apply the latest migration first, including execution lease and graph tables. `python -m app.worker --once` handles at most one eligible task and exits. See [backend instructions](../backend/README.md) for configuration, recovery rules, exit codes, and parsing limitations.
 
-Validate the native service setup by running `alembic current` from `backend/` (expected `20261017_0005`) and querying `/api/v1/health/ready`; PostgreSQL must report `up`. Then verify project creation, upload, automatic parsing, duplicate reuse, restart persistence, and worker/API contention against the real local database. SQLite tests do not validate native service connectivity or PostgreSQL locking.
+Validate the native service setup by running `alembic current` from `backend/` (expected `20261018_0006`) and querying `/api/v1/health/ready`; PostgreSQL must report `up`. Then verify project creation, upload, automatic parsing, duplicate reuse, restart persistence, and worker/API contention against the real local database. SQLite tests do not validate native connectivity, PostgreSQL locking, or pgvector distance operations.
 
 For optional container use, `docker compose up -d --build` from the repository root starts the complete stack. The worker waits for the API to apply migrations and pass its liveness check. Docker is not a prerequisite for acceptance.
 
 ## DeepSeek candidate extraction
 
 Apply the latest migration first, including `review_events` and the formal graph tables. Add `DEEPSEEK_API_KEY` to the backend `.env` (never the frontend), retain `DEEPSEEK_BASE_URL=https://api.deepseek.com`, and configure `DEEPSEEK_MODEL` (default `deepseek-flash`). Restart the API, open a parsed source, and choose the candidate-extraction action. It sends that source's chunks to DeepSeek only on explicit request. Review each quote and confirm or reject; a relationship requires both endpoint entities confirmed first. Confirmation writes scoped entities, relationships, and evidence in the same transaction. Worker parsing does not invoke the model. Tests and browser verification use simulated responses; real model acceptance is still required. See [backend instructions](../backend/README.md#deepseek-candidate-extraction-and-review).
+
+## Semantic-vector retrieval
+
+Configure `EMBEDDING_API_KEY`, `EMBEDDING_BASE_URL`, and `EMBEDDING_MODEL` in the backend `.env`; `EMBEDDING_DIMENSIONS` must currently be `1024`. Use “Update semantic index” on the project graph before vector search. Entity text and queries are sent to the configured service; confirmation does not invoke embeddings. Validate the real provider and native pgvector path separately.
 
 ## Frontend verification
 
@@ -110,6 +114,7 @@ For visible changes, manually verify:
 - Follow-up question states.
 - Candidate extraction, review, and legacy-confirmation replay.
 - Project graph loading, filtering, one/two-hop neighborhoods, detail evidence, and empty/truncated states.
+- Keyword/vector mode switching, index rebuild, unconfigured-provider errors, and index coverage counts.
 - Desktop and mobile layouts.
 - Keyboard focus and panel scrolling.
 

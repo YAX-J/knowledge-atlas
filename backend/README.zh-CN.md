@@ -20,7 +20,7 @@
 - 确认候选时在审核事务内写入受限的 PostgreSQL 实体、关系和证据，支持稳定 UUID、端点提升、幂等重复和旧确认重放。
 - 提供只读项目图谱、实体详情和关系详情接口，按用户/项目/时间过滤，限制节点与边数量，并返回后端计算的行号。
 
-已实现显式 DeepSeek 候选提取、精确原文证据校验、候选分页、带审计的确认/拒绝及名称/摘要修正。确认会将候选提升为正式图谱，读取有界且只读。项目关键词搜索已实现；实体消歧、语义搜索和 Agent 回答尚未实现，真实 DeepSeek 调用仍待验收。正式图谱使用 PostgreSQL，暂缓引入 Neo4j，启动和验收均不要求它，见 [ADR 0005](../docs/adr/0005-postgresql-only-storage.zh-CN.md)。
+已实现显式 DeepSeek 候选提取、审核与正式图谱提升，以及项目关键词和语义向量检索。语义索引使用显式重建操作和可配置的 OpenAI-compatible Embeddings 服务；真实 DeepSeek、真实嵌入服务及原生 pgvector 查询仍待验收。实体消歧、混合检索和 Agent 回答尚未实现。
 
 ## 环境配置
 
@@ -91,7 +91,7 @@ Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose 
 
 ## DeepSeek 候选提取与审核
 
-审核前先执行 `alembic upgrade head`，当前预期版本为 `20261017_0005`。只在后端 `.env` 中配置：
+审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261018_0006`。只在后端 `.env` 中配置：
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key
@@ -99,6 +99,10 @@ DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-flash
 DEEPSEEK_TIMEOUT_SECONDS=120
 EXTRACTION_MAX_INPUT_CHARS=60000
+EMBEDDING_API_KEY=your_embedding_key
+EMBEDDING_BASE_URL=https://your-provider.example/v1
+EMBEDDING_MODEL=your-1024-dimension-model
+EMBEDDING_DIMENSIONS=1024
 ```
 
 默认模型依据 [DeepSeek 官方接口文档](https://api-docs.deepseek.com/)。适配器使用 JSON 输出和非思考模式，仍由后端自行校验 Schema。修改配置后重启 API。本地环境文件已补齐缺失的空值/默认配置字段，真实密钥不得提交或放进前端配置。
@@ -109,7 +113,7 @@ EXTRACTION_MAX_INPUT_CHARS=60000
 
 通过 `GET /api/v1/projects/{project_id}/reviews` 和 `POST /api/v1/reviews/{review_id}/resolve` 查询与审核候选。允许确认/拒绝，确认前可修改名称和摘要；关系两端实体必须先确认。相同决策重复提交幂等，当前不支持改判、合并、撤销或重新提取。迁移 `0004` 增加操作者、时间及前后值审计记录；迁移 `0005` 增加正式图谱表，回滚会删除图谱记录和证据，但保留来源、候选与审核事件。
 
-确认候选时，在同一条审核事务内写入 `knowledge_entities`、`knowledge_relationships` 和 `knowledge_evidence`。写入前重新校验引用与作用域，使用稳定 `uuid5` 标识，并按候选幂等。已确认但缺少正式记录的旧候选可在审核页面重放补写，不重复增加审计事件。实体合并、消歧、语义检索和真实问答仍待开发。自动测试与浏览器检查模拟 DeepSeek 响应，仍需配置密钥并用短篇笔记验收真实模型行为。
+确认候选时，在同一条审核事务内写入正式实体、关系和证据。语义向量由之后的显式索引操作生成，不影响确认事务。实体合并、消歧、混合检索和真实问答仍待开发；真实 DeepSeek 与嵌入服务都需单独验收。
 
 ## 项目图谱
 
@@ -119,9 +123,13 @@ EXTRACTION_MAX_INPUT_CHARS=60000
 
 2026-10-17 验证：后端 100 项测试通过；前端构建及桌面/手机浏览器流程通过，使用隔离 SQLite 和模拟抽取。本机 PostgreSQL 17.10 + pgvector 在临时 schema 中通过迁移升级/回退/再升级、图谱和证据读取，以及每个候选四个独立会话的并发重复确认。临时 schema 已删除。之后已将业务 schema 升级至 `20261017_0005` 修复缺失图谱表，真实图谱/候选/资料/搜索读取均返回 200。真实 DeepSeek 质量、原生数据库的浏览器验收及 Worker/API 竞争和恢复仍需单独检查。
 
-## 关键词搜索
+2026-10-18 验证：102 项后端测试、前端生产构建及桌面/手机真实页面走查通过；业务数据库完成 `0005 → 0006 → 0005 → 0006`，确认 pgvector `0.8.7`、`vector(1024)` 列和余弦运算可用。测试使用模拟嵌入；当前 `.env` 未配置嵌入服务，真实语义召回质量尚未验收。
 
-`GET /api/v1/projects/{project_id}/search?q=PostgreSQL&mode=keyword` 搜索正式实体的名称、摘要和同作用域的原文证据。查询按空白切分，所有词均需命中（1–200 字符，最多 8 个词）。可选 `types`、带时区的 `valid_at` 和 `top_k`（1–50，默认 10）。每项返回 `entity`、`keyword_score`、`matched_fields` 及最多 3 条证据。名称权重高于摘要和证据，同分按名称/UUID 排序。采用字面子串匹配，中文不自动分词，通配符会转义；不调用 DeepSeek。关系搜索、vector/hybrid 和真实问答尚未实现。PostgreSQL 17.10 临时 schema 已通过关键词排序、证据行号、多词匹配和字面通配符检查。本轮不新增迁移，head 保持 `20261017_0005`。见 [ADR 0008](../docs/adr/0008-project-keyword-search.zh-CN.md)。
+## 关键词与语义向量搜索
+
+`GET /api/v1/projects/{project_id}/search` 支持 `mode=keyword` 和 `mode=vector`。关键词模式保留名称、摘要、证据的确定性加权；向量模式先用当前配置模型生成查询向量，再通过 pgvector 余弦距离对已索引正式实体精确排序。两者都支持 `types`、带时区的 `valid_at`、`top_k`，并返回最多 3 条原文证据。
+
+语义搜索前调用 `POST /api/v1/projects/{project_id}/embeddings/rebuild`。它将正式实体类型、名称、摘要及证据发送到配置的嵌入服务，保存到 `knowledge_embeddings`；模型和内容哈希未变化时不重复生成。该操作与知识确认事务分离。当前向量固定 1024 维，未建立近似索引；`hybrid`、图得分融合和真实问答尚未实现。见 [ADR 0009](../docs/adr/0009-explicit-semantic-index.zh-CN.md)。
 
 ## 测试
 

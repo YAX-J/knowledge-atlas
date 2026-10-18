@@ -6,7 +6,7 @@
 
 Knowledge Atlas is a graduation project for a single developer. It organizes technical notes, code, project documents, and Git records into a temporal personal knowledge graph and uses evidence-grounded retrieval to answer questions.
 
-The repository currently contains an interactive Mock demo graph, a real API-backed project/source workspace, FastAPI persistence APIs, Markdown parsing with manual execution or an optional database-backed worker with lease recovery, explicit DeepSeek candidate extraction with evidence validation and audited review, and promotion of confirmed candidates into a read-only, scoped PostgreSQL project graph. Project keyword search with evidence is implemented. Entity disambiguation, semantic retrieval, and Agent answers are not implemented. Real DeepSeek acceptance remains separate from tests with simulated responses.
+The repository currently contains an interactive Mock demo graph, a real API-backed project/source workspace, Markdown parsing and recovery, DeepSeek candidate extraction with audited review, promotion into a scoped PostgreSQL graph, and evidence-backed keyword plus explicit-index semantic-vector retrieval. Entity disambiguation, hybrid retrieval, and Agent answers are not implemented. Real DeepSeek, embedding-provider, and native pgvector acceptance remain separate from simulated tests.
 
 ## Read before changing code
 

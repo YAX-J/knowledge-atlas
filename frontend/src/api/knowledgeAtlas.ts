@@ -1,5 +1,5 @@
 import { apiRequest } from './client'
-import type { EntityDetail, KnowledgeCandidate, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail, ReviewDecision } from '../types'
+import type { EmbeddingRebuildResult, EntityDetail, KnowledgeCandidate, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail, ReviewDecision } from '../types'
 
 export interface ApiProject {
   id: string
@@ -199,8 +199,14 @@ export function getRelationshipDetail(id: string): Promise<RelationshipDetail> {
   return apiRequest<RelationshipDetail>(`/knowledge/relationships/${id}`)
 }
 
-export function searchKnowledge(projectId: string, query: string, types = ''): Promise<KnowledgeSearchResult> {
-  const params = new URLSearchParams({ q: query, mode: 'keyword', top_k: '10' })
+export function searchKnowledge(projectId: string, query: string, types = '', mode: 'keyword' | 'vector' = 'keyword'): Promise<KnowledgeSearchResult> {
+  const params = new URLSearchParams({ q: query, mode, top_k: '10' })
   if (types) params.set('types', types)
   return apiRequest<KnowledgeSearchResult>(`/projects/${projectId}/search?${params}`)
+}
+
+export function rebuildProjectEmbeddings(projectId: string): Promise<EmbeddingRebuildResult> {
+  return apiRequest<EmbeddingRebuildResult>(`/projects/${projectId}/embeddings/rebuild`, {
+    method: 'POST', signal: AbortSignal.timeout(240_000),
+  })
 }

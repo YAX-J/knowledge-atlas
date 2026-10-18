@@ -1,6 +1,6 @@
 # Knowledge Atlas 前后端接口草案
 
-本文定义第一版前后端协作所需的最小接口。项目、Markdown 来源、任务、健康检查、候选提取、基础审核、图谱和关键词检索接口已经实现；语义/混合检索和问答接口仍是设计草案。字段调整时应保持错误结构和分页结构一致。
+本文定义第一版前后端协作所需的最小接口。项目、Markdown 来源、任务、健康检查、候选提取、审核、图谱，以及关键词/语义向量检索接口已经实现；混合检索和问答接口仍是设计草案。字段调整时应保持错误结构和分页结构一致。
 
 ## 实现状态
 
@@ -23,8 +23,9 @@
 | `GET /api/v1/projects/{project_id}/graph` | 已实现，只读局部图谱 |
 | `GET /api/v1/knowledge/entities/{entity_id}` | 已实现，实体详情、证据与直接关系 |
 | `GET /api/v1/knowledge/relationships/{relationship_id}` | 已实现，关系详情与证据 |
-| `GET /api/v1/projects/{project_id}/search` | 已实现，正式实体关键词检索与证据 |
-| 向量/混合检索和问答接口 | 规划中 |
+| `POST /api/v1/projects/{project_id}/embeddings/rebuild` | 已实现，显式生成或复用正式实体向量 |
+| `GET /api/v1/projects/{project_id}/search` | 已实现，正式实体关键词/向量检索与证据 |
+| 混合检索和问答接口 | 规划中 |
 
 ## 基本约定
 
@@ -271,7 +272,13 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 ## 搜索
 
-状态：已实现正式实体的关键词检索；向量与混合检索仍规划中。
+状态：已实现正式实体的关键词检索和显式构建索引的向量检索；混合检索仍规划中。
+
+### 重建项目语义索引
+
+`POST /api/v1/projects/{project_id}/embeddings/rebuild`
+
+无请求体。后端将正式实体的类型、名称、摘要和证据摘录发送到已配置的 OpenAI-compatible 嵌入服务，保存 1024 维向量；模型与内容哈希未变化的记录复用。返回 `model`、`dimensions`、`eligible_count`、`updated_count` 和 `reused_count`。未配置服务返回 503 `EMBEDDING_NOT_CONFIGURED`，供应商失败返回 503 `EMBEDDING_PROVIDER_FAILED`。调用是显式的，不属于知识确认事务。
 
 ### 搜索知识
 
@@ -279,17 +286,17 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 查询参数：
 
-- `q`：必填，1–200 字符，按空白切分为 1–8 个词，所有词都需在名称、摘要或证据摘录中命中；重复词只计分一次。
-- `mode`：当前仅 `keyword`，默认也是 `keyword`；`vector`、`hybrid` 返回 422。
+- `q`：必填，1–200 字符。`keyword` 模式按空白切分为 1–8 个词，所有词都需在名称、摘要或证据摘录中命中；重复词只计分一次。`vector` 模式把规范化后的完整文本作为查询。
+- `mode`：`keyword`（默认）或 `vector`；`hybrid` 仍返回 422。
 - `types`：可选，逗号分隔的实体类型。
 - `valid_at`：可选带时区时间，沿用图谱的有效区间和归档过滤。
 - `top_k`：1–50，默认 10。
 
-返回 `{ "query": "规范化空白后的查询", "mode": "keyword", "items": [...], "truncated": false }`。每条 `items` 包含 `entity`（与图谱节点字段一致）、整数 `keyword_score`、`matched_fields`（`name`/`summary`/`evidence`）及最多 3 条 `evidence`（与实体详情证据字段一致，优先匹配摘录）。结果仅含正式实体，不含待审核/拒绝候选或关系。
+返回 `{ "query": "规范化空白后的查询", "mode": "keyword", "items": [...], "truncated": false }`。每条 `items` 包含 `entity`、`keyword_score` 或 `vector_score`、`matched_fields` 及最多 3 条 `evidence`。向量模式还返回 `indexed_count` 和 `eligible_count`；结果仅含正式实体，不含待审核/拒绝候选或关系。
 
-得分规则：名称与完整查询忽略大小写完全相同加 50，每个不同词在名称/摘要/证据中命中分别加 10/3/1，不按重复引用计分。同分按名称、UUID 稳定排序。分数不表示置信度；目前没有向量、图关系或融合得分。无结果返回空数组，超出 `top_k` 设置 `truncated`。
+关键词得分规则：名称与完整查询忽略大小写完全相同加 50，每个不同词在名称/摘要/证据中命中分别加 10/3/1，不按重复引用计分。向量模式使用同模型的余弦相似度，PostgreSQL 执行 pgvector 精确距离排序。同分按名称、UUID 稳定排序；分数均不表示知识置信度。无结果返回空数组，超出 `top_k` 设置 `truncated`。
 
-匹配采用忽略大小写的字面子串；`%`、`_` 不作通配符，中文不自动分词。搜索校验用户与项目，归档/不可访问项目返回 404；空白或超过 8 个词返回 422 `SEARCH_QUERY_INVALID`，未知类型返回 422 `SEARCH_TYPES_INVALID`，其余参数错误沿用 `INVALID_REQUEST`。查询不调用模型或修改数据，见 ADR 0008。
+关键词匹配采用忽略大小写的字面子串；`%`、`_` 不作通配符，中文不自动分词。搜索校验用户与项目，归档/不可访问项目返回 404；关键词空白或超过 8 个词返回 422 `SEARCH_QUERY_INVALID`，未知类型返回 422 `SEARCH_TYPES_INVALID`。关键词查询不调用模型；向量查询会把查询文本发送到已配置的嵌入服务，但只读数据库。见 ADR 0008 与 ADR 0009。
 
 ## 证据问答
 
@@ -364,7 +371,7 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 `GET /api/v1/projects/{project_id}/reviews`
 
-分页返回 `items`、`page`、`page_size`、`total`，按创建时间、ID 稳定排序。`page >= 1`、`1 <= page_size <= 100`；支持 `source_id`、`review_status`（`pending`/`confirmed`/`rejected`）、`candidate_type` 和 `min_confidence`（0–1）。不传审核状态时包含所有候选，空列表或越界页返回空 `items`。不存在、其他用户或已归档项目返回 HTTP 404；来源筛选必须属于当前项目。
+分页返回 `items`、`page`、`page_size`、`total`，实体候选稳定排在关系候选之前，各组再按创建时间、ID 排序。`page >= 1`、`1 <= page_size <= 100`；支持 `source_id`、`review_status`（`pending`/`confirmed`/`rejected`）、`candidate_type` 和 `min_confidence`（0–1）。不传审核状态时包含所有候选，空列表或越界页返回空 `items`。不存在、其他用户或已归档项目返回 HTTP 404；来源筛选必须属于当前项目。
 
 每项包含 `id`、`project_id`、`source_id`、`task_id`、`kind`（`entity`/`relation`）、`type`、`name`、`summary`、`confidence`、`review_status`、`created_at`、`updated_at` 及 `evidence`。证据包含 `chunk_id`、`quote`、准确 `start_line`/`end_line` 和 `heading_path`；行号由后端计算。关系另外包含同批实体的 `source_candidate_id`/`target_candidate_id`，实体对应字段为 `null`。不暴露操作者内部标识、密钥或模型原始响应。
 
@@ -383,7 +390,7 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 `action` 当前只允许 `confirm` 和 `reject`。`changes` 可省略，只允许非空 `name`（最多 255 字符）和 `summary`（最多 2000 字符）；拒绝不能同时修改内容。返回更新后的候选对象，已确认时包含 `knowledge_id`；正式图谱对象通过图谱接口读取。确认时在同一事务内重新校验引用、写入正式实体/关系/证据，使用稳定 UUID 并按候选幂等。未处理候选只能处理一次，重复相同动作/相同修改返回原结果且不新增审核事件；改判或不同修改返回 HTTP 409 `REVIEW_ALREADY_RESOLVED`。关系确认前，两端同批实体必须已确认，否则 HTTP 409 `REVIEW_ENDPOINTS_UNCONFIRMED`。不可访问候选返回 HTTP 404。审核状态、`review_events` 前后记录和正式图谱写入同一事务提交。
 
-已确认但尚未生成正式记录的旧候选，可再次提交相同确认进行补写；该重放不重复模型调用，也不新增审核事件。当前不支持 `merge`、撤销、修改类型/证据/端点；实体消歧、检索和问答仍属于后续设计。
+已确认但尚未生成正式记录的旧候选，可再次提交相同确认进行补写；该重放不重复模型调用，也不新增审核事件。当前不支持 `merge`、撤销、修改类型/证据/端点；实体消歧、混合检索和问答仍属于后续设计。
 
 ## 第一版接口优先级
 
