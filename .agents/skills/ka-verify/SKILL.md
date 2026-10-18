@@ -43,6 +43,7 @@ cd ../frontend && npm run build
 | 关键词检索 | `python -m pytest tests/test_search.py`；原生 PostgreSQL 验证排序、证据、多词、通配符；浏览器检查清空、重试、类型、详情和迟到响应 |
 | 语义检索 | `python -m pytest tests/test_search.py tests/test_migrations.py`；原生 PostgreSQL 验证 1024 维写入和余弦排序；真实嵌入服务验收必须单独注明 |
 | 混合检索 | `python -m pytest tests/test_search.py tests/test_graph.py`；验证归一化组成得分、关系归档/时间过滤、稳定排序；真实 PostgreSQL 与嵌入服务验收单独注明 |
+| 证据问答 | `python -m pytest tests/test_questions.py tests/test_search.py`；验证无证据不调用模型、严格引用归属、错误映射、切换项目迟到响应；真实 DeepSeek 质量单独注明 |
 | 导入/解析/Worker | `python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_worker.py` |
 | 迁移/模型 | `python -m pytest tests/test_migrations.py` + `alembic upgrade head` |
 | 前端可见界面 | 浏览器桌面 + 手机宽度走查 |
@@ -67,6 +68,7 @@ cd ../frontend && npm run build
 - [ ] 原文只做文本插值，没有 `v-html`。
 - [ ] 真实接口失败时展示错误，不回退成假数据。
 - [ ] 图谱页：节点/关系可选，详情证据可读，筛选/深度/返回总览可用。
+- [ ] 问答页：支持/不足/错误状态可达，引用可跳实体，切换项目不保留旧回答，手机宽度可滚动。
 
 ## 真实服务验收（涉及导入/抽取/图谱时）
 

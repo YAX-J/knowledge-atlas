@@ -1,5 +1,5 @@
 import { apiRequest } from './client'
-import type { EmbeddingRebuildResult, EntityDetail, KnowledgeCandidate, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail, ReviewDecision } from '../types'
+import type { EmbeddingRebuildResult, EntityDetail, KnowledgeCandidate, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, QuestionAnswer, RelationshipDetail, ReviewDecision } from '../types'
 
 export interface ApiProject {
   id: string
@@ -208,5 +208,13 @@ export function searchKnowledge(projectId: string, query: string, types = '', mo
 export function rebuildProjectEmbeddings(projectId: string): Promise<EmbeddingRebuildResult> {
   return apiRequest<EmbeddingRebuildResult>(`/projects/${projectId}/embeddings/rebuild`, {
     method: 'POST', signal: AbortSignal.timeout(240_000),
+  })
+}
+
+export function askQuestion(projectId: string, question: string): Promise<QuestionAnswer> {
+  return apiRequest<QuestionAnswer>(`/projects/${projectId}/questions`, {
+    method: 'POST',
+    body: JSON.stringify({ question }),
+    signal: AbortSignal.timeout(240_000),
   })
 }

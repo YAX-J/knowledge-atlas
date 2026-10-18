@@ -164,3 +164,26 @@ export interface EmbeddingRebuildResult {
   updated_count: number
   reused_count: number
 }
+
+export interface QuestionEvidence extends FormalEvidence {
+  entity_id: string
+  entity_name: string
+}
+
+export interface QuestionAnswer {
+  id: string
+  question: string
+  supported: boolean
+  answer: string
+  confidence: number
+  entity_ids: string[]
+  evidence: QuestionEvidence[]
+  retrieval: {
+    keyword_hits: number
+    vector_hits: number
+    graph_hits: number
+    indexed_count: number
+    eligible_count: number
+  }
+  missing_information: string[]
+}

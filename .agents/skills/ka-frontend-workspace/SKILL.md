@@ -5,7 +5,7 @@ description: Knowledge Atlas 的 Vue 3 前端工作台。修改组件、项目/�
 
 # Vue 前端工作台
 
-前端同时服务两种数据：Mock 演示图谱，以及接真实 API 的项目/资料/审核/图谱页面。两者必须保持边界，不能互相冒充。
+前端同时服务两种数据：Mock 演示图谱，以及接真实 API 的项目/资料/审核/图谱/证据问答页面。两者必须保持边界，不能互相冒充。
 
 ## 何时使用
 
@@ -46,23 +46,25 @@ npm run preview
 | `CandidateReview.vue` | 候选、证据、改名/摘要、确认/拒绝 |
 | `ProjectGraph.vue` | 真实项目图谱、筛选、邻域、详情与证据 |
 | `KnowledgeSearch.vue` | 项目关键词/语义/混合检索、显式索引更新、组成得分、关系解释、结果证据与清空/重试/选择意图 |
+| `QuestionWorkspace.vue` | 真实同步问答、证据不足/错误状态、检索统计、引用原文与实体跳转意图 |
 
 ## 状态与请求
 
 - 页面级状态集中在 `App.vue`；组件只收 props、发事件，不直接发请求。
-- 用请求序号（`projectsRequest`、`sourcesRequest`、`detailRequest`、`chunksRequest`、`reviewsRequest`、`reviewAction`、`graphRequest`、`graphDetailRequest`）丢弃迟到响应。
+- 用请求序号（`projectsRequest`、`sourcesRequest`、`detailRequest`、`chunksRequest`、`reviewsRequest`、`reviewAction`、`graphRequest`、`graphDetailRequest`、`searchRequest`、`questionRequest`）丢弃迟到响应。
 - 切换项目/资料时先清空旧详情并递增对应序号；上传、执行、审核期间禁止切上下文。
-- 默认 HTTP 超时 30 秒；候选抽取 240 秒；都不自动重试。
+- 默认 HTTP 超时 30 秒；候选抽取和证据问答 240 秒；都不自动重试。
 - 后端失败时展示错误和重试入口，不回退成演示数据。
 - 分页参数：`page` 从 1 开始，`page_size` 1–100，默认 20。
 
 ## Mock 与真实数据边界
 
 - `VITE_DATA_SOURCE=mock`（默认）打开演示图谱；`api` 默认打开资料工作台。
-- 两种模式下，演示图谱与问答都仍是 Mock，页面已标注。
-- 真实页面：项目、资料、分块、候选、审核、项目图谱。
+- 两种模式下，演示图谱及节点追问仍是 Mock，页面已标注。
+- 真实页面：项目、资料、分块、候选、审核、项目图谱、独立证据问答。
 - 不要把 Mock 记录塞进真实页面，也不要在请求失败时伪造成功。
 - 项目搜索使用独立关键词/语义/混合模式与类型筛选，页头仍只搜 Mock。混合模式展示三路组成得分和可见一跳关系解释。语义索引必须由用户显式更新，组件只发出重建意图。`App.vue` 用 `searchRequest` 丢弃切换项目、清空和新搜索后的迟到响应；组件不直接发请求。选择画布外结果时加载邻域，再聚焦正式详情。
+- 问答只保留当前内存结果，不伪造历史。切换项目、清空和新提问必须使旧响应失效；引用实体跳转到真实项目图谱。无证据、供应商错误都由后端真实结果驱动。
 - 搜索结果样式使用 `.keyword-results`；全局 `.search-results` 属于页头演示下拉，不能复用。
 
 ## 视觉与无障碍

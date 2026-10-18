@@ -8,7 +8,7 @@ const items = [
   { id: 'graph', label: '知识图谱', icon: Connection },
   { id: 'projects', label: '我的项目', icon: Collection },
   { id: 'sources', label: '资料来源', icon: Document },
-  { id: 'questions', label: '问答记录', icon: QuestionFilled },
+  { id: 'questions', label: '证据问答', icon: QuestionFilled },
 ]
 </script>
 

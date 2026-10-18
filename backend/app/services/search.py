@@ -42,12 +42,12 @@ def _base_conditions(
 
 def _keyword_ranked(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, query: str,
-    types: list[str], at: datetime, limit: int,
+    types: list[str], at: datetime, limit: int, strict_term_limit: bool = True,
 ):
     words = query.split()
-    if not words or len(words) > 8:
+    if not words or (strict_term_limit and len(words) > 8):
         raise AppError(status_code=422, code='SEARCH_QUERY_INVALID', message='请输入 1–8 个关键词，以空格分隔')
-    terms = list(dict.fromkeys(word.lower() for word in words))
+    terms = list(dict.fromkeys(word.lower() for word in words))[:8]
     normalized = ' '.join(query.split())
     evidence = select(KnowledgeEvidence.id).join(
         SourceDocument, SourceDocument.id == KnowledgeEvidence.source_id,
@@ -184,7 +184,7 @@ def _hybrid_search(
     at = valid_at or utc_now()
     normalized, _, keyword_ranked = _keyword_ranked(
         db, user_id=user_id, project_id=project_id, query=query, types=types,
-        at=at, limit=HYBRID_POOL_LIMIT,
+        at=at, limit=HYBRID_POOL_LIMIT, strict_term_limit=False,
     )
     _, vector_ranked, indexed_count, eligible_count = _vector_ranked(
         db, user_id=user_id, project_id=project_id, query=normalized, types=types,

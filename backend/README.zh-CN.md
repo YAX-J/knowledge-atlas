@@ -20,7 +20,7 @@
 - 确认候选时在审核事务内写入受限的 PostgreSQL 实体、关系和证据，支持稳定 UUID、端点提升、幂等重复和旧确认重放。
 - 提供只读项目图谱、实体详情和关系详情接口，按用户/项目/时间过滤，限制节点与边数量，并返回后端计算的行号。
 
-已实现显式 DeepSeek 候选提取、审核与正式图谱提升，以及项目关键词、语义向量和一跳图关系混合检索。语义索引使用显式重建操作和可配置的 OpenAI-compatible Embeddings 服务；真实服务/原生 pgvector 浏览器冒烟已通过，包含关系的代表性质量验收与真实 DeepSeek 仍待完成。实体消歧和 Agent 回答尚未实现。
+已实现显式 DeepSeek 候选提取、审核与正式图谱提升、项目关键词/语义向量/一跳图关系混合检索，以及同步证据问答。语义索引使用显式重建操作和可配置的 OpenAI-compatible Embeddings 服务；真实服务/原生 pgvector 搜索冒烟已通过，包含关系的代表性召回和真实回答质量仍待验收。实体消歧、问答历史和多轮 Agent 尚未实现。
 
 ## 环境配置
 
@@ -113,7 +113,7 @@ EMBEDDING_DIMENSIONS=1024
 
 通过 `GET /api/v1/projects/{project_id}/reviews` 和 `POST /api/v1/reviews/{review_id}/resolve` 查询与审核候选。允许确认/拒绝，确认前可修改名称和摘要；关系两端实体必须先确认。相同决策重复提交幂等，当前不支持改判、合并、撤销或重新提取。迁移 `0004` 增加操作者、时间及前后值审计记录；迁移 `0005` 增加正式图谱表，回滚会删除图谱记录和证据，但保留来源、候选与审核事件。
 
-确认候选时，在同一条审核事务内写入正式实体、关系和证据。语义向量由之后的显式索引操作生成，不影响确认事务。实体合并、消歧和真实问答仍待开发；真实 DeepSeek 与嵌入服务都需单独验收。
+确认候选时，在同一条审核事务内写入正式实体、关系和证据。语义向量由之后的显式索引操作生成，不影响确认事务。实体合并和消歧仍待开发；真实 DeepSeek 回答质量与嵌入服务都需单独验收。
 
 ## 项目图谱
 
@@ -127,11 +127,17 @@ EMBEDDING_DIMENSIONS=1024
 
 2026-10-18 后续验证：加入混合检索后，全量测试增至 104 项并全部通过。已配置的真实嵌入服务与原生 PostgreSQL/pgvector 在浏览器中返回 7 条已索引混合结果，组成得分和证据可见；该项目没有已确认关系，因此非零图关系解释由自动测试覆盖，尚未在这组冒烟数据中出现。
 
+2026-10-18 最终验证达到 109 项后端测试全部通过。问答聚焦测试覆盖支持性回答、越界引用拒绝、无证据时不调用回答模型、缺少配置、供应商失败和请求校验；前端生产构建及桌面/390 px 浏览器走查通过。可见回答使用浏览器本地拦截响应，因此真实 DeepSeek 回答质量仍未验收。
+
 ## 关键词、语义向量与图关系混合搜索
 
 `GET /api/v1/projects/{project_id}/search` 支持 `mode=keyword`、`mode=vector` 和 `mode=hybrid`。关键词模式保留名称、摘要、证据的确定性加权；向量模式先用当前配置模型生成查询向量，再通过 pgvector 余弦距离对已索引正式实体精确排序；混合模式按固定 `0.3/0.4/0.3` 权重融合关键词、向量和可见一跳关系，并返回归一化分量与关系解释。三种模式都支持 `types`、带时区的 `valid_at`、`top_k`，并返回最多 3 条原文证据。
 
-语义或混合搜索前调用 `POST /api/v1/projects/{project_id}/embeddings/rebuild`。它将正式实体类型、名称、摘要及证据发送到配置的嵌入服务，保存到 `knowledge_embeddings`；模型和内容哈希未变化时不重复生成。该操作与知识确认事务分离。当前向量固定 1024 维，未建立近似索引；真实问答尚未实现。见 [ADR 0009](../docs/adr/0009-explicit-semantic-index.zh-CN.md) 与 [ADR 0010](../docs/adr/0010-explainable-hybrid-graph-retrieval.zh-CN.md)。
+语义、混合搜索或问答前调用 `POST /api/v1/projects/{project_id}/embeddings/rebuild`。它将正式实体类型、名称、摘要及证据发送到配置的嵌入服务，保存到 `knowledge_embeddings`；模型和内容哈希未变化时不重复生成。该操作与知识确认事务分离。当前向量固定 1024 维，未建立近似索引。见 [ADR 0009](../docs/adr/0009-explicit-semantic-index.zh-CN.md) 与 [ADR 0010](../docs/adr/0010-explainable-hybrid-graph-retrieval.zh-CN.md)。
+
+## 证据问答
+
+`POST /api/v1/projects/{project_id}/questions` 接受 1–200 字的问题和可选的带时区 `valid_at`。接口同步执行有界混合检索，只把选定的正式证据交给 DeepSeek，校验严格 JSON 与引用归属，并只返回实际引用的证据、实体和检索统计。没有证据时直接返回确定性拒答，不调用回答模型。响应不持久化；问答历史、流式输出和多轮编排留待后续。见 [ADR 0011](../docs/adr/0011-synchronous-evidence-grounded-questions.zh-CN.md)。
 
 ## 测试
 

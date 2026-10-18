@@ -1,6 +1,6 @@
 # Knowledge Atlas 前后端接口草案
 
-本文定义第一版前后端协作所需的最小接口。项目、Markdown 来源、任务、健康检查、候选提取、审核、图谱，以及关键词/语义向量/一跳图关系混合检索接口已经实现；问答接口仍是设计草案。字段调整时应保持错误结构和分页结构一致。
+本文定义第一版前后端协作所需的最小接口。项目、Markdown 来源、任务、健康检查、候选提取、审核、图谱、关键词/语义向量/一跳图关系混合检索及同步证据问答接口已经实现。字段调整时应保持错误结构和分页结构一致。
 
 ## 实现状态
 
@@ -25,7 +25,7 @@
 | `GET /api/v1/knowledge/relationships/{relationship_id}` | 已实现，关系详情与证据 |
 | `POST /api/v1/projects/{project_id}/embeddings/rebuild` | 已实现，显式生成或复用正式实体向量 |
 | `GET /api/v1/projects/{project_id}/search` | 已实现，正式实体关键词/向量/一跳图关系混合检索与证据 |
-| 问答接口 | 规划中 |
+| `POST /api/v1/projects/{project_id}/questions` | 已实现，同步、非持久化的证据问答 |
 
 ## 基本约定
 
@@ -286,7 +286,7 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 查询参数：
 
-- `q`：必填，1–200 字符。`keyword` 和 `hybrid` 模式按空白切分为 1–8 个词，关键词分支要求所有词都在名称、摘要或证据摘录中命中；重复词只计分一次。`vector` 与 `hybrid` 的向量分支把规范化后的完整文本作为查询。
+- `q`：必填，1–200 字符。`keyword` 模式按空白切分为 1–8 个词；`hybrid` 的关键词分支最多使用前 8 个不同词，两者都要求所用词在名称、摘要或证据摘录中命中，重复词只计分一次。`vector` 与 `hybrid` 的向量分支把规范化后的完整文本作为查询。
 - `mode`：`keyword`（默认）、`vector` 或 `hybrid`。
 - `types`：可选，逗号分隔的实体类型。
 - `valid_at`：可选带时区时间，沿用图谱的有效区间和归档过滤。
@@ -298,11 +298,11 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 关键词/向量模式同分按名称、UUID 稳定排序；混合模式按最终得分、名称、UUID 排序。所有分数都不表示知识置信度。无结果返回空数组，超出 `top_k` 或图扩展上限时设置 `truncated`。
 
-关键词匹配采用忽略大小写的字面子串；`%`、`_` 不作通配符，中文不自动分词。搜索校验用户与项目，归档/不可访问项目返回 404；关键词/混合查询空白或超过 8 个词返回 422 `SEARCH_QUERY_INVALID`，未知类型返回 422 `SEARCH_TYPES_INVALID`。关键词查询不调用模型；向量与混合查询会把查询文本发送到已配置的嵌入服务，但只读数据库。关系也必须符合用户、项目、状态和有效时间边界。见 ADR 0008、ADR 0009 与 ADR 0010。
+关键词匹配采用忽略大小写的字面子串；`%`、`_` 不作通配符，中文不自动分词。搜索校验用户与项目，归档/不可访问项目返回 404；关键词查询空白或超过 8 个词返回 422 `SEARCH_QUERY_INVALID`，混合查询只在空白时返回该错误，未知类型返回 422 `SEARCH_TYPES_INVALID`。关键词查询不调用模型；向量与混合查询会把查询文本发送到已配置的嵌入服务，但只读数据库。关系也必须符合用户、项目、状态和有效时间边界。见 ADR 0008、ADR 0009 与 ADR 0010。
 
 ## 证据问答
 
-状态：规划中，当前未实现；页面中的问答为演示数据。
+状态：已实现同步、非持久化的第一版。每次请求复用混合检索，只允许模型依据选定的正式证据回答；当前不提供历史查询、流式输出或多轮会话。
 
 ### 创建问答请求
 
@@ -311,38 +311,51 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 ```json
 {
   "question": "事件驱动架构在哪些代码中实现？",
-  "center_entity_id": "可选中心节点",
   "valid_at": null
 }
 ```
 
-普通响应可以直接返回完整结果；流式实现建议使用 Server-Sent Events。
+`question` 去除首尾空白后必须为 1–200 字符；`valid_at` 可选，提供时必须带时区。服务固定执行混合检索，最多选 5 个实体和 12 条证据。问题全文用于向量查询；关键词分支最多使用前 8 个不同空白分词。语义索引和嵌入服务要求与 `mode=hybrid` 搜索一致。
 
 ```json
 {
   "id": "...",
+  "question": "事件驱动架构在哪些代码中实现？",
+  "supported": true,
   "answer": "...",
   "confidence": 0.88,
-  "entities": ["..."],
+  "entity_ids": ["..."],
   "evidence": [
     {
       "id": "...",
+      "entity_id": "...",
+      "entity_name": "DomainEvent",
+      "source_id": "...",
       "title": "DomainEvent.java",
       "uri": "project://commerce-core/domain/DomainEvent.java",
-      "locator": { "start_line": 12, "end_line": 28 },
-      "excerpt": "..."
+      "chunk_id": "...",
+      "quote": "...",
+      "start_line": 12,
+      "end_line": 28,
+      "heading_path": ["Domain"]
     }
   ],
   "retrieval": {
     "keyword_hits": 3,
-    "vector_hits": 6,
-    "graph_hits": 4
+    "vector_hits": 5,
+    "graph_hits": 2,
+    "indexed_count": 7,
+    "eligible_count": 7
   },
   "missing_information": []
 }
 ```
 
-证据不足时 `answer` 应明确表达无法确认，`missing_information` 返回需要补充的资料，不能编造结论。
+DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题、行号和引用原文。模型输出经过严格 Schema 校验：`supported=true` 必须引用证据；`supported=false` 必须填写 `missing_information`；引用 ID 必须属于本次检索集合，最多返回 5 条引用。接口只返回实际引用的证据。
+
+检索不到正式证据时，接口直接返回 `supported=false`、置信度 0 和补充资料建议，不调用回答模型。检索到证据但未配置 DeepSeek 时返回 503 `QUESTION_NOT_CONFIGURED`；供应商调用失败或响应无效分别返回 503 `QUESTION_PROVIDER_FAILED` / `QUESTION_OUTPUT_INVALID`；引用越界返回 502 `QUESTION_EVIDENCE_INVALID`。项目不可访问沿用 404，输入校验失败返回 422。
+
+本接口不写入问题或答案；响应 `id` 仅用于标识当次载荷，不能用于后续查询。决策见 ADR 0011。
 
 ## 人工确认
 

@@ -10,6 +10,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Synchronous, non-persistent evidence-grounded questions with bounded hybrid retrieval, strict DeepSeek JSON output, application-validated citation UUIDs, deterministic no-evidence refusal, retrieval summaries, and a responsive real frontend workspace with source-line and entity navigation.
 - Explainable `hybrid` project search with fixed keyword/vector/one-hop graph weights, bounded visible-relationship expansion, normalized score components, relationship explanations, stable ranking, and frontend mode switching.
 - Explicit formal-entity semantic indexing with a configurable OpenAI-compatible Embeddings service, 1024-dimensional pgvector storage, content-hash reuse, exact cosine retrieval, index coverage counts, and frontend keyword/vector mode switching.
 - Evidence-backed project keyword search over confirmed entity names, summaries, and quotes, with deterministic ranking, type/time filters, literal wildcard handling, bounded results, and detail/neighborhood navigation. No migration or model call is required.
@@ -52,5 +53,5 @@ The project is pre-release. Version numbers and release dates will be added when
 
 - The user reports PostgreSQL 17/pgvector startup, upload/parsing, duplicate reuse, restart persistence, and automatic parsing passed. PostgreSQL contention and lease-recovery fault injection remain unverified. Optional Docker startup has not been verified either.
 - Worker leases are fixed without heartbeats or preemptive cancellation.
-- Complete CommonMark parsing, entity disambiguation, retrieval-weight tuning, and real Agent responses are not implemented. Real DeepSeek and representative native-pgvector hybrid quality with confirmed relationships remain unverified; automated tests cover nonzero graph fusion, while a seven-entity real-provider browser smoke passed without relationships.
-- The demo graph and question view remain Mock; the project graph uses real API data. Real question history, routing, and persisted view preferences are not implemented.
+- Complete CommonMark parsing, entity disambiguation, retrieval-weight tuning, and multi-turn Agent behavior are not implemented. Real DeepSeek answer quality and representative native-pgvector hybrid quality with confirmed relationships remain unverified; automated tests cover nonzero graph fusion, while a seven-entity real-provider search smoke passed without relationships.
+- The independent evidence-question workspace uses the real API, while demo-graph follow-up remains Mock. Question history, streaming, routing, and persisted view preferences are not implemented.

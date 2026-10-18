@@ -1,6 +1,6 @@
 # Knowledge Atlas 系统架构
 
-本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Markdown 导入、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、项目图谱，以及关键词、显式索引语义向量和一跳图关系混合检索；实体消歧和 Agent 仍属于后续阶段。真实 DeepSeek 与嵌入服务调用尚未验收。当前只使用 PostgreSQL/pgvector，暂缓引入 Neo4j，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。
+本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Markdown 导入、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、项目图谱、关键词/显式索引语义向量/一跳图关系混合检索，以及同步、非持久化的证据问答；实体消歧和多轮 Agent 仍属于后续阶段。真实问答质量仍待专项验收。当前只使用 PostgreSQL/pgvector，暂缓引入 Neo4j，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。
 
 ## 架构目标
 
@@ -129,7 +129,7 @@ Neo4j 不参与当前运行环境或验收。如果实测查询复杂度、性�
 
 ### 关键词、语义向量与图关系混合检索（已实现三路基线）
 
-`GET /api/v1/projects/{project_id}/search` 支持 `keyword`、`vector` 与 `hybrid`。关键词模式只读匹配正式实体的名称、摘要和作用域内证据；语义模式通过配置的 OpenAI-compatible 服务生成查询向量，并在 `knowledge_embeddings` 中用 pgvector 余弦距离精确排序。混合模式从关键词/向量候选出发扩展可见一跳关系，以固定 `0.3/0.4/0.3` 权重融合三路信号，并返回归一化分量、最终得分及具体关系解释。用户通过显式重建接口生成实体向量，内容哈希与模型未变化时复用；知识确认事务不依赖嵌入服务。三种模式都沿用项目、类型、有效时间和归档过滤，并返回原文证据。真实问答仍是规划。决策见 [ADR 0008](adr/0008-project-keyword-search.zh-CN.md)、[ADR 0009](adr/0009-explicit-semantic-index.zh-CN.md) 与 [ADR 0010](adr/0010-explainable-hybrid-graph-retrieval.zh-CN.md)。
+`GET /api/v1/projects/{project_id}/search` 支持 `keyword`、`vector` 与 `hybrid`。关键词模式只读匹配正式实体的名称、摘要和作用域内证据；语义模式通过配置的 OpenAI-compatible 服务生成查询向量，并在 `knowledge_embeddings` 中用 pgvector 余弦距离精确排序。混合模式从关键词/向量候选出发扩展可见一跳关系，以固定 `0.3/0.4/0.3` 权重融合三路信号，并返回归一化分量、最终得分及具体关系解释。用户通过显式重建接口生成实体向量，内容哈希与模型未变化时复用；知识确认事务不依赖嵌入服务。三种模式都沿用项目、类型、有效时间和归档过滤，并返回原文证据。同步证据问答复用混合模式。检索决策见 [ADR 0008](adr/0008-project-keyword-search.zh-CN.md)、[ADR 0009](adr/0009-explicit-semantic-index.zh-CN.md) 与 [ADR 0010](adr/0010-explainable-hybrid-graph-retrieval.zh-CN.md)。
 
 ### 候选提取与审核（已实现接口）
 
@@ -162,16 +162,16 @@ sequenceDiagram
     API->>DB: 同一事务提交正式节点、关系、证据与审核状态
 ```
 
-## 证据问答流程
+## 证据问答流程（已实现第一版）
 
-1. 对问题进行分类，识别项目、技术、代码标识符和时间范围。
-2. 根据问题类型选择关键词、向量、图关系和时间过滤工具。
-3. 合并多路结果，保留每条结果的组成得分和来源。
-4. 判断证据是否足够；不足时返回需要补充的资料。
-5. 模型只能依据已选证据生成回答。
-6. 返回答案、知识实体、证据片段、来源位置和可信度。
+1. `POST /api/v1/projects/{project_id}/questions` 校验项目边界、问题长度和可选有效时间。
+2. 服务固定执行三路混合检索，最多保留 5 个实体和 12 条正式证据；不允许模型自行访问数据库或工具。
+3. 没有证据时直接返回证据不足，不调用回答模型。
+4. 有证据时只把问题与选定证据发送给 DeepSeek，要求严格 JSON；支持性回答必须引用证据，不支持回答必须列出缺失信息。
+5. 后端再次校验每个引用 UUID 属于本次检索集合，只返回实际引用的实体、原文、文件和行号。
+6. 前端展示当前回答、检索组成和引用，并可跳转到实体详情；问答历史当前不保存。
 
-第一版可以使用固定权重：关键词 `0.3`、向量 `0.4`、图关系 `0.3`。权重需要通过实验数据调整，不能作为最终结论直接写入论文。
+这是一条有界的同步线性流程，暂不引入 LangGraph、流式响应、多轮记忆或问题表。固定权重仍为关键词 `0.3`、向量 `0.4`、图关系 `0.3`，需通过实验数据继续调整。见 [ADR 0011](adr/0011-synchronous-evidence-grounded-questions.zh-CN.md)。
 
 ## 数据一致性
 

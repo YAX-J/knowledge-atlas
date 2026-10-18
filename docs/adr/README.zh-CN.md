@@ -73,3 +73,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0008：带证据的项目关键词检索](0008-project-keyword-search.zh-CN.md)
 - [ADR 0009：显式构建正式知识语义索引](0009-explicit-semantic-index.zh-CN.md)
 - [ADR 0010：融合一跳图信号的可解释混合检索](0010-explainable-hybrid-graph-retrieval.zh-CN.md)
+- [ADR 0011：使用同步问答与受校验引用实现证据回答](0011-synchronous-evidence-grounded-questions.zh-CN.md)

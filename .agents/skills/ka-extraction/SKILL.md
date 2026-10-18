@@ -5,13 +5,14 @@ description: Knowledge Atlas 的 DeepSeek 候选知识抽取。修改抽取 Sche
 
 # 候选知识抽取
 
-模型只生成候选，不写权威表；每个候选必须能回到原文。实现入口：`backend/app/services/knowledge.py::run_extraction`、`backend/app/services/deepseek.py`、`backend/app/schemas/knowledge.py`。
+模型只生成候选或基于已选证据生成回答，不直接写权威表；每个候选和支持性回答都必须能回到原文。候选入口：`backend/app/services/knowledge.py::run_extraction`、`backend/app/services/deepseek.py`、`backend/app/schemas/knowledge.py`；回答入口：`backend/app/services/questions.py`、`backend/app/schemas/questions.py`。
 
 ## 何时使用
 
 - 修改抽取 Schema、提示词、模型参数或证据规则。
 - 排查 `EXTRACTION_*` 错误、候选为空、证据不匹配。
 - 验收真实 DeepSeek 调用。
+- 修改证据问答提示词、严格回答 Schema 或引用边界。
 - 调整抽取任务、租约或输入上限。
 
 ## 链路（按顺序理解）
@@ -99,6 +100,14 @@ response = client.post(f"/api/v1/sources/{source['source_id']}/extract")
 2. 重启 API，上传一篇短篇公开 Markdown 并完成解析。
 3. 页面点击“提取候选知识”，逐条核对：名称、摘要、置信度、引用是否逐字、行号是否准确。
 4. 记录结果到 `PLANS.md`/`CHANGELOG.md` 的已知限制或验收记录；模拟测试不能替代真实质量结论。
+
+## 证据问答边界
+
+- `POST /projects/{project_id}/questions` 同步且不持久化，复用混合检索，最多 5 个实体、12 条输入证据和 5 条输出引用。
+- 只把问题和选定证据发送给模型；`supported=true` 必须引用证据，`supported=false` 必须说明缺失信息。
+- `questions.py` 必须验证每个引用 UUID 属于本次检索集合；未知引用返回 `QUESTION_EVIDENCE_INVALID`，不能降级为无引用回答。
+- 没有检索证据时不调用回答模型。不得记录问题、提示词、回答正文或完整证据。
+- 回答提示词当前没有任务复用语义，不使用候选抽取的 `PROMPT_VERSION`；修改输出结构时同步 `tests/test_questions.py`、API 契约与 ADR 0011。
 
 ## 常见失败
 

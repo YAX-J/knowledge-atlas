@@ -9,18 +9,19 @@ import TimelineBar from './components/TimelineBar.vue'
 import SourceWorkspace from './components/SourceWorkspace.vue'
 import CandidateReview from './components/CandidateReview.vue'
 import ProjectGraph from './components/ProjectGraph.vue'
+import QuestionWorkspace from './components/QuestionWorkspace.vue'
 import { ApiError } from './api/client'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
   runTask, uploadMarkdown, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
-  getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings,
+  getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
   CandidateList, ExtractionResult,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
-import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchMode, KnowledgeSearchResult } from './types'
+import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchMode, KnowledgeSearchResult, QuestionAnswer } from './types'
 
 const selectedId = ref('event-driven')
 const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'graph')
@@ -78,6 +79,41 @@ let embeddingRebuildRequest = 0
 let searchQuery = ''
 let searchTypes = ''
 let searchMode: KnowledgeSearchMode = 'keyword'
+const questionResult = ref<QuestionAnswer | null>(null)
+const questionLoading = ref(false)
+const questionError = ref('')
+let questionText = ''
+let questionRequest = 0
+
+function clearQuestion() {
+  questionRequest++
+  questionResult.value = null
+  questionError.value = ''
+  questionLoading.value = false
+  questionText = ''
+}
+
+async function runQuestion(question: string) {
+  const projectId = project.value?.id
+  if (!projectId || questionLoading.value) return
+  const request = ++questionRequest
+  questionText = question
+  questionLoading.value = true
+  questionError.value = ''
+  questionResult.value = null
+  try {
+    const result = await askQuestion(projectId, question)
+    if (request === questionRequest && project.value?.id === projectId) questionResult.value = result
+  } catch (error) {
+    if (request === questionRequest && project.value?.id === projectId) questionError.value = errorMessage(error)
+  } finally {
+    if (request === questionRequest) questionLoading.value = false
+  }
+}
+
+function retryQuestion() {
+  if (questionText) void runQuestion(questionText)
+}
 
 function clearSearch() {
   searchRequest++
@@ -139,6 +175,17 @@ async function openSearchEntity(id: string) {
   if (project.value?.id === projectId && graphSelectedId.value === id) document.getElementById('formal-knowledge-detail')?.focus()
 }
 
+async function openQuestionEntity(id: string) {
+  if (!project.value) return
+  activeNav.value = 'projectGraph'
+  clearSearch()
+  graphType.value = ''
+  graphSelectedId.value = id
+  await loadRealGraph(id)
+  await nextTick()
+  if (graphSelectedId.value === id) document.getElementById('formal-knowledge-detail')?.focus()
+}
+
 function errorMessage(error: unknown): string {
   if (error instanceof ApiError) return error.message
   return '无法确认请求结果。请检查后端服务和网络连接，刷新后重试。'
@@ -180,6 +227,7 @@ async function loadProjects(page = 1) {
 
 function selectProject(value: ApiProject) {
   if (loading.upload || loading.task) return
+  clearQuestion()
   project.value = value
   clearSearch()
   graphRequest++
@@ -503,11 +551,7 @@ function changeNav(value: string) {
     openProjectGraph()
     return
   }
-  if (value === 'questions') {
-    ElMessage({ message: '真实问答尚未接入，可以在演示图谱中体验模拟问答。', type: 'info' })
-    return
-  }
-  if (value === 'graph' || value === 'projects' || value === 'sources') {
+  if (value === 'graph' || value === 'projects' || value === 'sources' || value === 'questions') {
     activeNav.value = value
     filterOpen.value = false
     if (value !== 'graph' && !projects.value && !loading.projects) void loadProjects()
@@ -571,6 +615,11 @@ function setTimeline(value: number) {
       @back="activeNav = 'sources'" @demo="activeNav = 'graph'" @refresh="loadRealGraph()"
       @select-entity="selectGraphEntity" @select-relationship="selectGraphRelationship" @neighborhood="loadRealGraph"
       @reset="loadRealGraph('')" @filter-type="filterGraph" @depth="setGraphDepth" @retry-detail="retryGraphDetail" />
+    <QuestionWorkspace v-else-if="activeNav === 'questions'" :key="project?.id ?? 'no-project'"
+      :projects="projects" :project="project" :projects-loading="loading.projects" :projects-error="errors.projects"
+      :result="questionResult" :loading="questionLoading" :error="questionError"
+      @select-project="selectProject" @retry-projects="loadProjects()" @ask="runQuestion" @retry="retryQuestion"
+      @clear="clearQuestion" @open-entity="openQuestionEntity" />
     <main v-else class="atlas-main" :class="{ 'panel-collapsed': !panelOpen }">
       <section class="graph-workspace">
         <div class="workspace-title">
