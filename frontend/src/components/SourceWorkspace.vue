@@ -43,7 +43,7 @@ const statusLabels: Record<string, string> = {
   queued: '待解析', running: '解析中', succeeded: '已解析', cancelled: '已取消',
 }
 const kindLabels: Record<string, string> = {
-  heading: '标题', paragraph: '段落', list: '列表', code: '代码', type: '类型', method: '方法',
+  heading: '标题', paragraph: '段落', list: '列表', code: '代码', comment: '注释', type: '类型', method: '方法',
 }
 watch(() => props.project?.id, () => { fileError.value = '' })
 watch(() => props.loading.create, (busy, wasBusy) => {

@@ -28,7 +28,7 @@ Completed:
 - Explicit 1024-dimensional formal-entity semantic indexing, pgvector cosine retrieval, content-hash reuse, and frontend keyword/vector mode switching.
 - Explainable hybrid retrieval with fixed keyword/vector/one-hop graph weights, bounded candidates, visible-relationship filtering, and per-hit score composition.
 - Synchronous evidence-grounded questions with bounded hybrid retrieval, strict DeepSeek output, application-validated citation UUIDs, and a real frontend workspace.
-- Local UTF-8 Java source upload with deterministic `code`/`type`/`method` chunks, exact source lines, and reuse of the existing parsing worker and evidence pipeline.
+- Local UTF-8 Java source upload with deterministic `code`/`comment`/`type`/`method` chunks, exact source lines, and reuse of the existing parsing worker and evidence pipeline.
 
 ## Active phase
 
@@ -38,7 +38,7 @@ Implemented in this slice:
 
 - `.java` upload validation and `source_type=java`, with source type included in duplicate-reuse semantics.
 - A deterministic local parser for top-level types and conventional direct-member methods, including comment/string/text-block shielding while retaining exact chunk text.
-- Stable one-based inclusive line ranges, hashes, structure paths, and chunk UUIDs for `code`, `type`, and `method` chunks.
+- Stable one-based inclusive line ranges, hashes, structure paths, and chunk UUIDs for `code`, `comment`, `type`, and `method` chunks, with type annotations grouped into the type.
 - `code_parsing` support in manual execution and the leased database worker.
 - Desktop source-workspace upload, MD/JAVA labels, and Java chunk-kind display.
 

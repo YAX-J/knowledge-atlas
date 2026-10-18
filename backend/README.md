@@ -13,7 +13,7 @@ FastAPI service for Knowledge Atlas persistence, Markdown/Java ingestion, eviden
 - Validate and store UTF-8 Markdown and Java source with a SHA-256 content hash.
 - Create/query parsing tasks and explicitly run them through the API.
 - Automatically consume queued parsing tasks in an optional independent worker process, with leased claims, interrupted-task recovery, and fenced result writes.
-- Persist Markdown headings/paragraphs/lists/fenced code and Java code/type/method chunks with exact text, structure paths, hashes, and one-based inclusive line ranges.
+- Persist Markdown headings/paragraphs/lists/fenced code and Java code/comment/type/method chunks with exact text, structure paths, hashes, and one-based inclusive line ranges. Top-level type annotations stay with the type; comment-only lines outside methods are separate comment chunks.
 - Reuse the original source/task on identical-byte uploads within a user's project and source type, even if the filename changes.
 - Paginate stored chunks and safely repeat completed tasks or retry failed tasks.
 - Persist project, source, task, and candidate-knowledge records.

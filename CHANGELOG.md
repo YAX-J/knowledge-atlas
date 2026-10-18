@@ -10,7 +10,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
-- Bounded local Java source ingestion with `.java` upload validation, `code_parsing` tasks, leased-worker support, exact line-preserving `code`/`type`/`method` chunks, stable structure paths/UUIDs, and desktop MD/JAVA source presentation. Complete ASTs, call graphs, GitHub import, and incremental repository sync remain out of scope.
+- Bounded local Java source ingestion with `.java` upload validation, `code_parsing` tasks, leased-worker support, exact line-preserving `code`/`comment`/`type`/`method` chunks, stable structure paths/UUIDs, type-level annotation grouping, and desktop MD/JAVA source presentation. Complete ASTs, call graphs, GitHub import, and incremental repository sync remain out of scope.
 - Synchronous, non-persistent evidence-grounded questions with bounded hybrid retrieval, strict DeepSeek JSON output, application-validated citation UUIDs, deterministic no-evidence refusal, retrieval summaries, and a responsive real frontend workspace with source-line and entity navigation.
 - Explainable `hybrid` project search with fixed keyword/vector/one-hop graph weights, bounded visible-relationship expansion, normalized score components, relationship explanations, stable ranking, and frontend mode switching.
 - Explicit formal-entity semantic indexing with a configurable OpenAI-compatible Embeddings service, 1024-dimensional pgvector storage, content-hash reuse, exact cosine retrieval, index coverage counts, and frontend keyword/vector mode switching.

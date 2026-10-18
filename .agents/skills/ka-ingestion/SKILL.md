@@ -46,7 +46,8 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 `parse_java(content, source_id=...)`：
 
 - 保留精确整行原文，识别顶层类型和常规直接成员方法。
-- `kind`：类型外为 `code`，类型片段为 `type`，方法为 `method`。
+- `kind`：类型外为 `code`，方法外的纯注释行为 `comment`，类型片段为 `type`，方法为 `method`。
+- 顶层类型正上方连续的注解行归入 `type`；方法注解归入 `method`。
 - 路径：类型为 `[type]`，方法为 `[type, method]`。
 - 屏蔽注释、字符串、字符和文本块时保持偏移/换行；不提供完整 AST、嵌套类型语义、重载签名或调用图。
 

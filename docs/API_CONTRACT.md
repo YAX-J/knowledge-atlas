@@ -178,7 +178,7 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 `page >= 1`，`1 <= page_size <= 100`。按原文顺序返回 `items`、`page`、`page_size`、`total`。未解析来源返回空列表；不存在或不属于当前用户的来源返回 HTTP 404。
 
-`items` 中每条记录包含：`id`、`project_id`、`source_id`、从 0 开始的 `position`、`kind`、`heading_path`、从 1 开始且包含两端的 `start_line` / `end_line`、原始 `content` 和 `content_sha256`。Markdown 的 `kind` 为 `heading`、`paragraph`、`list` 或 `code`；Java 的 `kind` 为 `code`、`type` 或 `method`。原文换行符保留，哈希为该片段 UTF-8 字节的 SHA-256。同一来源中相同边界和内容的分块 UUID 稳定。标题块的路径包含自身；正文块继承标题路径；Java 类型路径为 `[类型]`，方法路径为 `[类型, 方法]`。
+`items` 中每条记录包含：`id`、`project_id`、`source_id`、从 0 开始的 `position`、`kind`、`heading_path`、从 1 开始且包含两端的 `start_line` / `end_line`、原始 `content` 和 `content_sha256`。Markdown 的 `kind` 为 `heading`、`paragraph`、`list` 或 `code`；Java 的 `kind` 为 `code`、`comment`、`type` 或 `method`。原文换行符保留，哈希为该片段 UTF-8 字节的 SHA-256。同一来源中相同边界和内容的分块 UUID 稳定。标题块的路径包含自身；正文块继承标题路径；Java 类型路径为 `[类型]`，方法路径为 `[类型, 方法]`。顶层类型前连续的注解行归入类型；方法外只含注释的行单独标记为 `comment`。
 
 Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，其余语法作为文本保留。Java 当前识别顶层类型和常规直接成员方法，并保留其余源码；不提供完整 Java AST、嵌套类型语义、重载签名、调用关系或仓库增量同步。边界见 [ADR 0012](adr/0012-bounded-java-source-ingestion.zh-CN.md)。
 

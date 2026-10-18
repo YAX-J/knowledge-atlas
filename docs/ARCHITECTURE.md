@@ -91,7 +91,7 @@ flowchart TB
 - 校验模型输出，不允许模型直接写入数据库。
 - 将证据位置转换为前端可消费的统一格式。
 
-当前已实现项目、Markdown/Java 来源、处理任务和原文分块接口。上传事务保存原文及其 SHA-256 并创建 `queued` 任务；相同用户、项目、来源类型中的相同字节复用来源和任务，PostgreSQL 项目行锁串行化上传去重。Markdown 使用 `markdown_parsing`，Java 使用 `code_parsing`；手动解析接口与独立 Worker 共享执行服务。Java 解析保存 `code`/`type`/`method` 精确行片段，但不承诺完整 AST 或调用图。候选确认时，审核状态、审计事件、正式实体/关系/证据在同一事务写入；图谱查询只读并按用户、项目、时间和数量限制返回。设计依据见 ADR 0003、0004、0006、0007 与 [ADR 0012](adr/0012-bounded-java-source-ingestion.zh-CN.md)。
+当前已实现项目、Markdown/Java 来源、处理任务和原文分块接口。上传事务保存原文及其 SHA-256 并创建 `queued` 任务；相同用户、项目、来源类型中的相同字节复用来源和任务，PostgreSQL 项目行锁串行化上传去重。Markdown 使用 `markdown_parsing`，Java 使用 `code_parsing`；手动解析接口与独立 Worker 共享执行服务。Java 解析保存 `code`/`comment`/`type`/`method` 精确行片段，类型注解随类型保存，但不承诺完整 AST 或调用图。候选确认时，审核状态、审计事件、正式实体/关系/证据在同一事务写入；图谱查询只读并按用户、项目、时间和数量限制返回。设计依据见 ADR 0003、0004、0006、0007 与 [ADR 0012](adr/0012-bounded-java-source-ingestion.zh-CN.md)。
 
 ### Worker
 

@@ -10,7 +10,7 @@ Knowledge Atlas 的重要变化记录在此。
 
 ### 新增
 
-- 有界的本地 Java 源码导入：`.java` 上传校验、`code_parsing` 任务、带租约 Worker、保留精确行号的 `code`/`type`/`method` 分块、稳定结构路径/UUID，以及桌面端 MD/JAVA 来源展示。完整 AST、调用图、GitHub 导入和仓库增量同步仍不在本切片范围内。
+- 有界的本地 Java 源码导入：`.java` 上传校验、`code_parsing` 任务、带租约 Worker、保留精确行号的 `code`/`comment`/`type`/`method` 分块、稳定结构路径/UUID、类型级注解归组，以及桌面端 MD/JAVA 来源展示。完整 AST、调用图、GitHub 导入和仓库增量同步仍不在本切片范围内。
 - 同步且不持久化的证据问答：有界混合检索、严格 DeepSeek JSON 输出、应用层引用 UUID 校验、无证据时确定性拒答、检索统计，以及支持来源行号与实体跳转的响应式真实前端工作台。
 - 可解释的项目 `hybrid` 搜索：按固定权重融合关键词、向量和可见一跳关系，限制关系扩展规模，返回归一化组成得分与关系解释，并接入前端模式切换和稳定排序。
 - 显式构建的正式实体语义索引：可配置 OpenAI-compatible Embeddings 服务、1024 维 pgvector 存储、内容哈希复用、精确余弦检索、索引覆盖统计，以及前端关键词/语义模式切换。

@@ -13,7 +13,7 @@ The Markdown-to-evidence workflow is complete enough to extend source coverage. 
 
 - Accept UTF-8 `.java` files through the existing source upload endpoint, using `source_type=java` and task type `code_parsing`.
 - Keep `SourceDocument`, `ProcessingTask`, and `SourceChunk` as the storage boundary. Duplicate reuse is scoped by user, project, source type, and content SHA-256.
-- Use a deterministic local structural parser that blanks comments and literals while preserving offsets, identifies top-level Java types and conventional direct-member methods, and stores exact full-line slices as `code`, `type`, or `method` chunks.
+- Use a deterministic local structural parser that blanks comments and literals while preserving offsets, identifies top-level Java types and conventional direct-member methods, and stores exact full-line slices as `code`, `comment`, `type`, or `method` chunks. Contiguous annotations immediately above a top-level type belong to its `type` chunk; comment-only lines outside methods use `comment` rather than being folded into a type fragment.
 - Preserve one-based inclusive line ranges, content hashes, heading paths, and stable chunk UUIDs. A type path is `[type]`; a method path is `[type, method]`.
 - Reuse the existing worker, manual task execution, candidate extraction/review, graph, search, and evidence-question flows after parsing.
 

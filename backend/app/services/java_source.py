@@ -33,9 +33,12 @@ class JavaChunk:
     content_sha256: str
 
 
-def _sanitized(content: str) -> str:
-    """Blank comments and literals while preserving offsets and newlines."""
+def _lex_java(content: str) -> tuple[str, set[int]]:
+    """Blank comments/literals and identify comment-only lines without moving offsets."""
     chars = list(content)
+    line_has_comment = [False] * (content.count("\n") + 1)
+    line_has_code = [False] * len(line_has_comment)
+    line_index = 0
     index = 0
     state = "code"
     while index < len(chars):
@@ -43,48 +46,73 @@ def _sanitized(content: str) -> str:
         following = chars[index + 1] if index + 1 < len(chars) else ""
         if state == "code":
             if content.startswith('"""', index):
+                line_has_code[line_index] = True
                 chars[index:index + 3] = [" ", " ", " "]
                 index += 3
                 state = "text_block"
                 continue
             if current == "/" and following == "/":
+                line_has_comment[line_index] = True
                 chars[index] = chars[index + 1] = " "
                 index += 2
                 state = "line_comment"
                 continue
             if current == "/" and following == "*":
+                line_has_comment[line_index] = True
                 chars[index] = chars[index + 1] = " "
                 index += 2
                 state = "block_comment"
                 continue
             if current in {'"', "'"}:
+                line_has_code[line_index] = True
                 quote = current
                 chars[index] = " "
                 index += 1
                 state = "string" if quote == '"' else "char"
                 continue
+            if current == "\n":
+                line_index += 1
+            elif not current.isspace():
+                line_has_code[line_index] = True
         elif state == "line_comment":
+            line_has_comment[line_index] = True
             if current in "\r\n":
                 state = "code"
+                if current == "\n":
+                    line_index += 1
             else:
                 chars[index] = " "
         elif state == "block_comment":
+            line_has_comment[line_index] = True
             if current == "*" and following == "/":
                 chars[index] = chars[index + 1] = " "
                 index += 2
                 state = "code"
                 continue
-            if current not in "\r\n":
+            if current == "\n":
+                line_index += 1
+            elif current != "\r":
                 chars[index] = " "
         elif state == "text_block":
             if content.startswith('"""', index):
+                line_has_code[line_index] = True
                 chars[index:index + 3] = [" ", " ", " "]
                 index += 3
                 state = "code"
                 continue
-            if current not in "\r\n":
+            if current == "\n":
+                line_index += 1
+            elif current != "\r":
+                if not current.isspace():
+                    line_has_code[line_index] = True
                 chars[index] = " "
         else:
+            if current == "\n":
+                line_index += 1
+                index += 1
+                continue
+            if current != "\r" and not current.isspace():
+                line_has_code[line_index] = True
             if current == "\\":
                 chars[index] = " "
                 if index + 1 < len(chars) and chars[index + 1] not in "\r\n":
@@ -97,7 +125,12 @@ def _sanitized(content: str) -> str:
             elif current not in "\r\n":
                 chars[index] = " "
         index += 1
-    return "".join(chars)
+    comment_only_lines = {
+        line + 1
+        for line, (has_comment, has_code) in enumerate(zip(line_has_comment, line_has_code))
+        if has_comment and not has_code
+    }
+    return "".join(chars), comment_only_lines
 
 
 def _depths(text: str) -> list[int]:
@@ -129,7 +162,7 @@ def parse_java(content: str, *, source_id: uuid.UUID) -> list[JavaChunk]:
     lines = content.splitlines(keepends=True)
     if not lines:
         return []
-    sanitized = _sanitized(content)
+    sanitized, comment_only_lines = _lex_java(content)
     depths = _depths(sanitized)
     newlines = [index for index, character in enumerate(content) if character == "\n"]
 
@@ -152,7 +185,11 @@ def parse_java(content: str, *, source_id: uuid.UUID) -> list[JavaChunk]:
     sections: list[tuple[int, int, str, list[str]]] = []
     cursor_line = 1
     for type_start, type_end, type_name, opening, member_depth in types:
-        type_start_line, type_end_line = line_number(type_start), line_number(type_end)
+        declaration_line = line_number(type_start)
+        type_start_line = declaration_line
+        while type_start_line > 1 and lines[type_start_line - 2].lstrip().startswith("@"):
+            type_start_line -= 1
+        type_end_line = line_number(type_end)
         if cursor_line < type_start_line:
             sections.append((cursor_line, type_start_line - 1, "code", []))
         methods: list[tuple[int, int, str]] = []
@@ -177,8 +214,22 @@ def parse_java(content: str, *, source_id: uuid.UUID) -> list[JavaChunk]:
     if cursor_line <= len(lines):
         sections.append((cursor_line, len(lines), "code", []))
 
-    chunks: list[JavaChunk] = []
+    refined_sections: list[tuple[int, int, str, list[str]]] = []
     for start_line, end_line, kind, heading_path in sections:
+        if kind == "method":
+            refined_sections.append((start_line, end_line, kind, heading_path))
+            continue
+        group_start = start_line
+        group_kind = "comment" if start_line in comment_only_lines else kind
+        for current_line in range(start_line + 1, end_line + 1):
+            current_kind = "comment" if current_line in comment_only_lines else kind
+            if current_kind != group_kind:
+                refined_sections.append((group_start, current_line - 1, group_kind, heading_path))
+                group_start, group_kind = current_line, current_kind
+        refined_sections.append((group_start, end_line, group_kind, heading_path))
+
+    chunks: list[JavaChunk] = []
+    for start_line, end_line, kind, heading_path in refined_sections:
         text = "".join(lines[start_line - 1:end_line])
         if not text.strip():
             continue

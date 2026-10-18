@@ -42,7 +42,7 @@ export interface SourceChunk {
   project_id: string
   source_id: string
   position: number
-  kind: 'heading' | 'paragraph' | 'list' | 'code' | 'type' | 'method'
+  kind: 'heading' | 'paragraph' | 'list' | 'code' | 'comment' | 'type' | 'method'
   heading_path: string[]
   start_line: number
   end_line: number
