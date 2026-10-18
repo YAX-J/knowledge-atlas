@@ -1,5 +1,6 @@
 import math
 import uuid
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from sqlalchemy import case, func, or_, select
@@ -8,26 +9,41 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.errors import AppError
 from app.models.domain import SourceChunk, SourceDocument, utc_now
-from app.models.graph import KnowledgeEmbedding, KnowledgeEntity, KnowledgeEvidence
-from app.schemas.search import SearchHit, SearchRead
+from app.models.graph import KnowledgeEmbedding, KnowledgeEntity, KnowledgeEvidence, KnowledgeRelationship
+from app.schemas.search import GraphSearchSignal, SearchHit, SearchRead, SearchWeights
 from app.services import embeddings as embedding_service
 from app.services import graph
 from app.services.projects import get_project
 
 
+HYBRID_POOL_LIMIT = 100
+HYBRID_EDGE_LIMIT = 500
+HYBRID_WEIGHTS = SearchWeights(keyword=0.3, vector=0.4, graph=0.3)
+
+
+@dataclass
+class _HybridCandidate:
+    entity: KnowledgeEntity
+    keyword_score: int = 0
+    vector_score: float | None = None
+    matched_fields: list[str] = field(default_factory=list)
+    graph_score: float = 0.0
+    graph_connections: list[GraphSearchSignal] = field(default_factory=list)
+
+
 def _base_conditions(
-    user_id: uuid.UUID, project_id: uuid.UUID, valid_at: datetime | None, types: list[str],
+    user_id: uuid.UUID, project_id: uuid.UUID, at: datetime, types: list[str],
 ):
-    conditions = list(graph.visible(KnowledgeEntity, user_id, project_id, valid_at or utc_now()))
+    conditions = list(graph.visible(KnowledgeEntity, user_id, project_id, at))
     if types:
         conditions.append(KnowledgeEntity.type.in_(types))
     return conditions
 
 
-def _keyword_search(
+def _keyword_ranked(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, query: str,
-    types: list[str], valid_at: datetime | None, top_k: int,
-) -> SearchRead:
+    types: list[str], at: datetime, limit: int,
+):
     words = query.split()
     if not words or len(words) > 8:
         raise AppError(status_code=422, code='SEARCH_QUERY_INVALID', message='请输入 1–8 个关键词，以空格分隔')
@@ -57,9 +73,26 @@ def _keyword_search(
             score = score + case((matches[field], weight), else_=0)
     flags = [or_(*matches).label(field) for field, matches in field_matches.items()]
     statement = select(KnowledgeEntity, score.label('keyword_score'), *flags).where(
-        *_base_conditions(user_id, project_id, valid_at, types), *term_conditions,
+        *_base_conditions(user_id, project_id, at, types), *term_conditions,
     )
-    rows = db.execute(statement.order_by(score.desc(), KnowledgeEntity.name, KnowledgeEntity.id).limit(top_k + 1)).all()
+    rows = db.execute(statement.order_by(score.desc(), KnowledgeEntity.name, KnowledgeEntity.id).limit(limit)).all()
+    ranked = [(
+        row[0], int(row[1]),
+        [field for field, matched in zip(field_matches, row[2:], strict=True) if matched],
+    ) for row in rows]
+    return normalized, terms, ranked
+
+
+def _keyword_search(
+    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, query: str,
+    types: list[str], valid_at: datetime | None, top_k: int,
+) -> SearchRead:
+    at = valid_at or utc_now()
+    normalized, terms, ranked = _keyword_ranked(
+        db, user_id=user_id, project_id=project_id, query=query, types=types,
+        at=at, limit=top_k + 1,
+    )
+    rows = ranked
     truncated = len(rows) > top_k
     rows = rows[:top_k]
     entities = graph._reads(db, [row[0] for row in rows])
@@ -69,7 +102,7 @@ def _keyword_search(
         quotes.sort(key=lambda item: not any(term in item.quote.lower() for term in terms))
         items.append(SearchHit(
             entity=entity, keyword_score=row[1],
-            matched_fields=[field for field, matched in zip(field_matches, row[2:], strict=True) if matched],
+            matched_fields=row[2],
             evidence=quotes[:3],
         ))
     return SearchRead(query=normalized, mode='keyword', items=items, truncated=truncated)
@@ -82,10 +115,10 @@ def _cosine(left: list[float], right: list[float]) -> float:
     return numerator / (left_norm * right_norm) if left_norm and right_norm else 0.0
 
 
-def _vector_search(
+def _vector_ranked(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, query: str,
-    types: list[str], valid_at: datetime | None, top_k: int, settings: Settings,
-) -> SearchRead:
+    types: list[str], at: datetime, limit: int, settings: Settings,
+):
     normalized = ' '.join(query.split())
     if not normalized:
         raise AppError(status_code=422, code='SEARCH_QUERY_INVALID', message='请输入要检索的问题或描述')
@@ -94,7 +127,7 @@ def _vector_search(
     except embedding_service.EmbeddingError as exc:
         raise AppError(status_code=503, code=exc.code, message=exc.message) from exc
 
-    conditions = _base_conditions(user_id, project_id, valid_at, types)
+    conditions = _base_conditions(user_id, project_id, at, types)
     eligible_count = db.scalar(select(func.count()).select_from(KnowledgeEntity).where(*conditions)) or 0
     joined = select(KnowledgeEntity, KnowledgeEmbedding).join(
         KnowledgeEmbedding, KnowledgeEmbedding.entity_id == KnowledgeEntity.id,
@@ -110,14 +143,25 @@ def _vector_search(
         distance = KnowledgeEmbedding.embedding.cosine_distance(query_vector)
         rows = db.execute(joined.add_columns(distance.label('distance')).order_by(
             distance, KnowledgeEntity.name, KnowledgeEntity.id,
-        ).limit(top_k + 1)).all()
+        ).limit(limit)).all()
         ranked = [(row[0], max(-1.0, min(1.0, 1.0 - float(row[2])))) for row in rows]
     else:
         candidates = db.execute(joined).all()
         ranked = sorted(
             ((row[0], _cosine(list(row[1].embedding), query_vector)) for row in candidates),
             key=lambda item: (-item[1], item[0].name, str(item[0].id)),
-        )[:top_k + 1]
+        )[:limit]
+    return normalized, ranked, indexed_count, eligible_count
+
+
+def _vector_search(
+    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, query: str,
+    types: list[str], valid_at: datetime | None, top_k: int, settings: Settings,
+) -> SearchRead:
+    normalized, ranked, indexed_count, eligible_count = _vector_ranked(
+        db, user_id=user_id, project_id=project_id, query=query, types=types,
+        at=valid_at or utc_now(), limit=top_k + 1, settings=settings,
+    )
     truncated = len(ranked) > top_k
     ranked = ranked[:top_k]
     reads = graph._reads(db, [item[0] for item in ranked])
@@ -133,12 +177,134 @@ def _vector_search(
     )
 
 
+def _hybrid_search(
+    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, query: str,
+    types: list[str], valid_at: datetime | None, top_k: int, settings: Settings,
+) -> SearchRead:
+    at = valid_at or utc_now()
+    normalized, _, keyword_ranked = _keyword_ranked(
+        db, user_id=user_id, project_id=project_id, query=query, types=types,
+        at=at, limit=HYBRID_POOL_LIMIT,
+    )
+    _, vector_ranked, indexed_count, eligible_count = _vector_ranked(
+        db, user_id=user_id, project_id=project_id, query=normalized, types=types,
+        at=at, limit=HYBRID_POOL_LIMIT, settings=settings,
+    )
+    candidates: dict[uuid.UUID, _HybridCandidate] = {}
+    for entity, score, matched_fields in keyword_ranked:
+        candidates[entity.id] = _HybridCandidate(
+            entity=entity, keyword_score=score, matched_fields=matched_fields,
+        )
+    for entity, score in vector_ranked:
+        candidate = candidates.setdefault(entity.id, _HybridCandidate(entity=entity))
+        candidate.vector_score = score
+
+    max_keyword = max((candidate.keyword_score for candidate in candidates.values()), default=0)
+    seed_strength = {
+        entity_id: max(
+            candidate.keyword_score / max_keyword if max_keyword else 0.0,
+            max(0.0, min(1.0, candidate.vector_score or 0.0)),
+        )
+        for entity_id, candidate in candidates.items()
+    }
+    seed_ids = set(seed_strength)
+    edge_rows = []
+    if seed_ids:
+        edge_rows = list(db.scalars(
+            graph._edge_query(user_id, project_id, at).where(or_(
+                KnowledgeRelationship.source_id.in_(seed_ids),
+                KnowledgeRelationship.target_id.in_(seed_ids),
+            )).order_by(
+                KnowledgeRelationship.confidence.desc(), KnowledgeRelationship.name,
+                KnowledgeRelationship.id,
+            ).limit(HYBRID_EDGE_LIMIT + 1)
+        ))
+    graph_truncated = len(edge_rows) > HYBRID_EDGE_LIMIT
+    edge_rows = edge_rows[:HYBRID_EDGE_LIMIT]
+    endpoint_ids = {identifier for edge in edge_rows for identifier in (edge.source_id, edge.target_id)}
+    eligible_entities = {
+        entity.id: entity for entity in db.scalars(select(KnowledgeEntity).where(
+            KnowledgeEntity.id.in_(endpoint_ids),
+            *_base_conditions(user_id, project_id, at, types),
+        ))
+    } if endpoint_ids else {}
+
+    signals: dict[uuid.UUID, list[GraphSearchSignal]] = {}
+    for edge in edge_rows:
+        for seed_id, candidate_id in ((edge.source_id, edge.target_id), (edge.target_id, edge.source_id)):
+            strength = seed_strength.get(seed_id, 0.0)
+            candidate_entity = eligible_entities.get(candidate_id)
+            related_entity = eligible_entities.get(seed_id) or candidates.get(seed_id, None)
+            if candidate_entity is None or candidate_id == seed_id or strength <= 0:
+                continue
+            related_name = (
+                related_entity.entity.name if isinstance(related_entity, _HybridCandidate)
+                else related_entity.name if related_entity is not None else ''
+            )
+            score = max(0.0, min(1.0, strength * edge.confidence))
+            signals.setdefault(candidate_id, []).append(GraphSearchSignal(
+                relationship_id=edge.id, relationship_type=edge.type,
+                relationship_name=edge.name, related_entity_id=seed_id,
+                related_entity_name=related_name, score=round(score, 6),
+            ))
+            candidate = candidates.setdefault(candidate_id, _HybridCandidate(entity=candidate_entity))
+            candidate.graph_score = max(candidate.graph_score, score)
+
+    for entity_id, candidate in candidates.items():
+        candidate.graph_connections = sorted(
+            signals.get(entity_id, []),
+            key=lambda signal: (-signal.score, signal.relationship_name, str(signal.relationship_id)),
+        )[:3]
+
+    def components(candidate: _HybridCandidate):
+        keyword = candidate.keyword_score / max_keyword if max_keyword else 0.0
+        vector = max(0.0, min(1.0, candidate.vector_score or 0.0))
+        graph_score = candidate.graph_score
+        total = (
+            HYBRID_WEIGHTS.keyword * keyword
+            + HYBRID_WEIGHTS.vector * vector
+            + HYBRID_WEIGHTS.graph * graph_score
+        )
+        return keyword, vector, graph_score, total
+
+    ranked = sorted(
+        ((candidate, *components(candidate)) for candidate in candidates.values()),
+        key=lambda item: (-item[4], item[0].entity.name, str(item[0].entity.id)),
+    )
+    truncated = graph_truncated or len(ranked) > top_k
+    ranked = ranked[:top_k]
+    reads = graph._reads(db, [item[0].entity for item in ranked])
+    items = []
+    for item, read in zip(ranked, reads, strict=True):
+        candidate, keyword_component, vector_component, graph_score, hybrid_score = item
+        items.append(SearchHit(
+            entity=read,
+            keyword_score=candidate.keyword_score,
+            vector_score=round(candidate.vector_score, 6) if candidate.vector_score is not None else None,
+            keyword_component=round(keyword_component, 6),
+            vector_component=round(vector_component, 6),
+            graph_score=round(graph_score, 6), hybrid_score=round(hybrid_score, 6),
+            matched_fields=candidate.matched_fields,
+            graph_connections=candidate.graph_connections,
+            evidence=graph._evidence_read(db, candidate.entity)[:3],
+        ))
+    return SearchRead(
+        query=normalized, mode='hybrid', items=items, truncated=truncated,
+        indexed_count=indexed_count, eligible_count=eligible_count, weights=HYBRID_WEIGHTS,
+    )
+
+
 def search_knowledge(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, query: str,
     types: list[str], valid_at: datetime | None, top_k: int, mode: str,
     settings: Settings,
 ) -> SearchRead:
     get_project(db, user_id=user_id, project_id=project_id)
+    if mode == 'hybrid':
+        return _hybrid_search(
+            db, user_id=user_id, project_id=project_id, query=query, types=types,
+            valid_at=valid_at, top_k=top_k, settings=settings,
+        )
     if mode == 'vector':
         return _vector_search(
             db, user_id=user_id, project_id=project_id, query=query, types=types,

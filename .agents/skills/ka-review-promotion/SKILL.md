@@ -69,9 +69,9 @@ description: Knowledge Atlas 的候选审核与正式图谱写入。确认/拒�
 - `GET /api/v1/knowledge/entities/{entity_id}`：按用户过滤；校验项目有效；按 `valid_at` 判断可见；直接关系最多 100 条（查 101 判断截断）；证据带 `title`、`uri = project://{project_id}/sources/{source_id}`、`quote`、行号、标题路径。
 - `GET /api/v1/knowledge/relationships/{relationship_id}`：同样的作用域与时间可见性，返回关系与证据。
 
-## 关键词检索
+## 项目检索
 
-关键词/语义检索：`GET /api/v1/projects/{project_id}/search` 只返回正式实体，沿用图谱 `visible` 与项目校验。关键词搜索名称、摘要和同作用域证据；语义模式只读查询显式构建的 1024 维索引。混合与关系检索尚未接入。修改时追加 `tests/test_search.py`，并同步 ADR 0008/0009 和 API 文档。
+关键词/语义/混合检索：`GET /api/v1/projects/{project_id}/search` 只返回正式实体，沿用图谱 `visible` 与项目校验。关键词搜索名称、摘要和同作用域证据；语义模式只读查询显式构建的 1024 维索引；混合模式按 ADR 0010 以固定权重融合关键词、向量和可见一跳关系，并返回关系解释。修改时追加 `tests/test_search.py`，并同步 ADR 0008/0009/0010 和 API 文档。
 
 ## 禁止事项
 

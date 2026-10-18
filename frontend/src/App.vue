@@ -20,7 +20,7 @@ import type {
   CandidateList, ExtractionResult,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
-import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchResult } from './types'
+import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchMode, KnowledgeSearchResult } from './types'
 
 const selectedId = ref('event-driven')
 const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'graph')
@@ -77,7 +77,7 @@ let searchRequest = 0
 let embeddingRebuildRequest = 0
 let searchQuery = ''
 let searchTypes = ''
-let searchMode: 'keyword' | 'vector' = 'keyword'
+let searchMode: KnowledgeSearchMode = 'keyword'
 
 function clearSearch() {
   searchRequest++
@@ -92,7 +92,7 @@ function clearSearch() {
   searchMode = 'keyword'
 }
 
-async function runSearch(query: string, types: string, mode: 'keyword' | 'vector') {
+async function runSearch(query: string, types: string, mode: KnowledgeSearchMode) {
   const projectId = project.value?.id
   if (!projectId) return
   const request = ++searchRequest
@@ -124,7 +124,7 @@ async function rebuildSemanticIndex() {
     const result = await rebuildProjectEmbeddings(projectId)
     if (request !== embeddingRebuildRequest || project.value?.id !== projectId) return
     searchNotice.value = `语义索引已更新：新增或刷新 ${result.updated_count} 条，复用 ${result.reused_count} 条。`
-    if (searchQuery && searchMode === 'vector') await runSearch(searchQuery, searchTypes, searchMode)
+    if (searchQuery && searchMode !== 'keyword') await runSearch(searchQuery, searchTypes, searchMode)
   } catch (error) {
     if (request === embeddingRebuildRequest && project.value?.id === projectId) searchError.value = errorMessage(error)
   } finally {

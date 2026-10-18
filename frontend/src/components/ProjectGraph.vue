@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import KnowledgeSearch from './KnowledgeSearch.vue'
 import type { ApiProject } from '../api/knowledgeAtlas'
-import type { EntityDetail, FormalKnowledgeEdge, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail } from '../types'
+import type { EntityDetail, FormalKnowledgeEdge, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail } from '../types'
 
 const props = defineProps<{
   project: ApiProject | null
@@ -35,7 +35,7 @@ const emit = defineEmits<{
   reset: []
   filterType: [value: string]
   depth: [value: number]
-  search: [query: string, types: string, mode: 'keyword' | 'vector']
+  search: [query: string, types: string, mode: KnowledgeSearchMode]
   rebuildSearch: []
   clearSearch: []
   retrySearch: []

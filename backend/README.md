@@ -20,7 +20,7 @@ FastAPI service for Knowledge Atlas persistence, Markdown ingestion, evidence-va
 - Promote confirmed candidates into scoped PostgreSQL entities, relationships, and evidence within the review transaction, with stable UUIDs, endpoint promotion, idempotent repeats, and legacy-confirmation replay.
 - Serve read-only project graph, entity-detail, and relationship-detail views with user/project/time scoping, node/edge limits, and server-calculated evidence lines.
 
-Explicit DeepSeek extraction, review, formal graph promotion, and project keyword/vector retrieval are implemented. The semantic index uses an explicit rebuild operation and a configurable OpenAI-compatible Embeddings service. Real DeepSeek, embedding-provider, and native pgvector retrieval acceptance remain outstanding. Entity disambiguation, hybrid retrieval, and Agent answers are not implemented.
+Explicit DeepSeek extraction, review, formal graph promotion, and project keyword/vector/one-hop graph hybrid retrieval are implemented. The semantic index uses an explicit rebuild operation and a configurable OpenAI-compatible Embeddings service. A real-provider/native-pgvector browser smoke has passed; representative graph-bearing quality acceptance and real DeepSeek remain outstanding. Entity disambiguation and Agent answers are not implemented.
 
 ## Setup
 
@@ -113,7 +113,7 @@ Outputs must match the schema, reference only extracted entities, and quote exac
 
 Review candidates through `GET /api/v1/projects/{project_id}/reviews` and `POST /api/v1/reviews/{review_id}/resolve`. Confirm or reject, optionally editing name/summary before confirmation. Relationships require confirmed endpoint entities. Repeating the same decision is idempotent; changed decisions, merge, undo, and re-extraction are not supported. Migration `0004` adds audit records with actor, time, and before/after values. Migration `0005` adds formal graph tables; downgrading it removes graph records and evidence while preserving sources, candidates, and review events.
 
-Confirmation writes formal entities, relationships, and evidence in the review transaction. Semantic vectors are generated later by an explicit index operation and cannot fail confirmation. Entity merging, disambiguation, hybrid retrieval, and real answers remain future work; real DeepSeek and embedding providers require separate acceptance.
+Confirmation writes formal entities, relationships, and evidence in the review transaction. Semantic vectors are generated later by an explicit index operation and cannot fail confirmation. Entity merging, disambiguation, and real answers remain future work; real DeepSeek and embedding providers require separate acceptance.
 
 ## Project graph
 
@@ -125,11 +125,13 @@ Verification on 2026-10-17: 100 backend tests passed; the frontend build and des
 
 Verification on 2026-10-18: 102 backend tests, the frontend production build, and desktop/mobile real-page walkthrough passed. The application database completed `0005 → 0006 → 0005 → 0006`; pgvector `0.8.7`, the `vector(1024)` column, and cosine operations were confirmed. Tests use simulated embeddings; no embedding provider is configured in the current `.env`, so real semantic-recall quality remains unverified.
 
-## Keyword and semantic-vector search
+Later on 2026-10-18: the full suite reached 104 passing tests after hybrid retrieval was added. A configured real embedding provider and native PostgreSQL/pgvector returned seven indexed hybrid results in the browser, with visible component scores and evidence; that project had no confirmed relationships, so nonzero graph explanations remain covered by automated tests rather than this smoke dataset.
 
-`GET /api/v1/projects/{project_id}/search` supports `mode=keyword` and `mode=vector`. Keyword mode retains deterministic name/summary/evidence weighting. Vector mode embeds the query with the configured model and performs exact pgvector cosine-distance ranking over indexed formal entities. Both modes support `types`, timezone-aware `valid_at`, and `top_k` and return up to three source evidence records.
+## Keyword, semantic-vector, and hybrid graph search
 
-Call `POST /api/v1/projects/{project_id}/embeddings/rebuild` before semantic search. It sends formal entity type, name, summary, and evidence to the configured embedding service and writes `knowledge_embeddings`; unchanged model/content hashes are reused. This is separate from confirmation. Vectors are currently fixed at 1024 dimensions and no approximate index is created. `hybrid`, graph-score fusion, and real answers remain unimplemented. See [ADR 0009](../docs/adr/0009-explicit-semantic-index.md).
+`GET /api/v1/projects/{project_id}/search` supports `mode=keyword`, `mode=vector`, and `mode=hybrid`. Keyword mode retains deterministic name/summary/evidence weighting. Vector mode embeds the query with the configured model and performs exact pgvector cosine-distance ranking over indexed formal entities. Hybrid mode uses fixed `0.3/0.4/0.3` keyword/vector/one-hop graph weights, bounded visible relationships, and returns normalized components plus relationship explanations. All modes support `types`, timezone-aware `valid_at`, and `top_k` and return up to three source evidence records.
+
+Call `POST /api/v1/projects/{project_id}/embeddings/rebuild` before semantic or hybrid search. It sends formal entity type, name, summary, and evidence to the configured embedding service and writes `knowledge_embeddings`; unchanged model/content hashes are reused. This is separate from confirmation. Vectors are currently fixed at 1024 dimensions and no approximate index is created. Real answers remain unimplemented. See [ADR 0009](../docs/adr/0009-explicit-semantic-index.md) and [ADR 0010](../docs/adr/0010-explainable-hybrid-graph-retrieval.md).
 
 ## Test
 

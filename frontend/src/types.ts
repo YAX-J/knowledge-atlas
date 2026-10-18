@@ -127,19 +127,34 @@ export interface RelationshipDetail {
   evidence: FormalEvidence[]
 }
 
+export type KnowledgeSearchMode = 'keyword' | 'vector' | 'hybrid'
+
 export interface KnowledgeSearchResult {
   query: string
-  mode: 'keyword' | 'vector'
+  mode: KnowledgeSearchMode
   items: {
     entity: FormalKnowledgeNode
     keyword_score: number | null
     vector_score: number | null
+    keyword_component: number | null
+    vector_component: number | null
+    graph_score: number | null
+    hybrid_score: number | null
     matched_fields: ('name' | 'summary' | 'evidence')[]
+    graph_connections: {
+      relationship_id: string
+      relationship_type: string
+      relationship_name: string
+      related_entity_id: string
+      related_entity_name: string
+      score: number
+    }[]
     evidence: FormalEvidence[]
   }[]
   truncated: boolean
   indexed_count: number | null
   eligible_count: number | null
+  weights: { keyword: number; vector: number; graph: number } | null
 }
 
 export interface EmbeddingRebuildResult {

@@ -1,6 +1,6 @@
 # Knowledge Atlas 系统架构
 
-本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Markdown 导入、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、项目图谱，以及关键词和显式构建索引的语义向量检索；实体消歧、混合检索和 Agent 仍属于后续阶段。真实 DeepSeek 与嵌入服务调用尚未验收。当前只使用 PostgreSQL/pgvector，暂缓引入 Neo4j，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。
+本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Markdown 导入、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、项目图谱，以及关键词、显式索引语义向量和一跳图关系混合检索；实体消歧和 Agent 仍属于后续阶段。真实 DeepSeek 与嵌入服务调用尚未验收。当前只使用 PostgreSQL/pgvector，暂缓引入 Neo4j，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。
 
 ## 架构目标
 
@@ -127,9 +127,9 @@ PostgreSQL 是业务数据和原始证据的事实来源。
 
 Neo4j 不参与当前运行环境或验收。如果实测查询复杂度、性能或图算法需求需要专用图数据库，再通过新 ADR 决定；届时 PostgreSQL 继续作为事实来源，业务 UUID 保持稳定。
 
-### 关键词与语义向量检索（已实现两路基线）
+### 关键词、语义向量与图关系混合检索（已实现三路基线）
 
-`GET /api/v1/projects/{project_id}/search` 支持 `keyword` 与 `vector`。关键词模式只读匹配正式实体的名称、摘要和作用域内证据；语义模式通过配置的 OpenAI-compatible 服务生成查询向量，并在 `knowledge_embeddings` 中用 pgvector 余弦距离精确排序。用户通过显式重建接口生成实体向量，内容哈希与模型未变化时复用；知识确认事务不依赖嵌入服务。两种模式都沿用项目、类型、有效时间和归档过滤，并返回原文证据。混合排序、图得分融合和真实问答仍是规划。决策见 [ADR 0008](adr/0008-project-keyword-search.zh-CN.md) 与 [ADR 0009](adr/0009-explicit-semantic-index.zh-CN.md)。
+`GET /api/v1/projects/{project_id}/search` 支持 `keyword`、`vector` 与 `hybrid`。关键词模式只读匹配正式实体的名称、摘要和作用域内证据；语义模式通过配置的 OpenAI-compatible 服务生成查询向量，并在 `knowledge_embeddings` 中用 pgvector 余弦距离精确排序。混合模式从关键词/向量候选出发扩展可见一跳关系，以固定 `0.3/0.4/0.3` 权重融合三路信号，并返回归一化分量、最终得分及具体关系解释。用户通过显式重建接口生成实体向量，内容哈希与模型未变化时复用；知识确认事务不依赖嵌入服务。三种模式都沿用项目、类型、有效时间和归档过滤，并返回原文证据。真实问答仍是规划。决策见 [ADR 0008](adr/0008-project-keyword-search.zh-CN.md)、[ADR 0009](adr/0009-explicit-semantic-index.zh-CN.md) 与 [ADR 0010](adr/0010-explainable-hybrid-graph-retrieval.zh-CN.md)。
 
 ### 候选提取与审核（已实现接口）
 
@@ -205,4 +205,4 @@ sequenceDiagram
 - 代码解析使用 Tree-sitter 还是按语言分别实现。
 - 在线模型与 Ollama 的统一适配接口。
 - PostgreSQL 图关系表的索引、递归查询与实际数据下的性能边界。
-- 混合检索的归一化和排序策略。
+- 混合检索固定权重的实验评估与调优策略。

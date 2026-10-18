@@ -10,7 +10,7 @@ from app.api.routes import search as search_routes
 from app.core.config import Settings
 from app.main import app
 from app.models.domain import Project, utc_now
-from app.models.graph import KnowledgeEntity
+from app.models.graph import KnowledgeEntity, KnowledgeRelationship
 from app.services import deepseek
 from app.services import embeddings
 from tests.test_graph import confirm, extracted
@@ -162,11 +162,67 @@ def test_vector_index_rebuild_and_semantic_search(client, configured, monkeypatc
     assert data['items'][0]['evidence'][0]['source_id'] == source['source_id']
 
 
-def test_vector_search_requires_embedding_configuration(client, monkeypatch):
+def test_hybrid_search_fuses_keyword_vector_and_visible_graph_signals(
+    client, db_session, configured, monkeypatch,
+):
+    settings = Settings(
+        _env_file=None,
+        embedding_api_key=SecretStr('embedding-secret'),
+        embedding_base_url='https://embeddings.example/v1',
+        embedding_model='test-embedding-1024',
+    )
+    monkeypatch.setattr(search_routes, 'get_settings', lambda: settings)
+
+    def fake_embeddings(_settings, texts):
+        vectors = []
+        for text in texts:
+            vector = [0.0] * 1024
+            vector[0 if text.startswith('Technology\nPostgreSQL') or text == 'durable database' else 1] = 1.0
+            vectors.append(vector)
+        return vectors
+    monkeypatch.setattr(embeddings, 'embed_texts', fake_embeddings)
+
+    project_id, _, items = extracted(client, monkeypatch)
+    for item in sorted(items, key=lambda item: item['kind'] != 'entity'):
+        confirm(client, item)
+    client.post(f'/api/v1/projects/{project_id}/embeddings/rebuild')
+    url = f'/api/v1/projects/{project_id}/search'
+    result = client.get(url, params={'q': 'durable database', 'mode': 'hybrid'})
+    assert result.status_code == 200
+    data = result.json()
+    assert data['mode'] == 'hybrid'
+    assert data['weights'] == {'keyword': .3, 'vector': .4, 'graph': .3}
+    assert data['indexed_count'] == data['eligible_count'] == 2
+    assert [hit['entity']['name'] for hit in data['items']] == ['PostgreSQL', 'Store knowledge']
+    assert data['items'][0]['hybrid_score'] == .4
+    related = data['items'][1]
+    assert related['keyword_score'] == 0 and related['vector_score'] == 0
+    assert related['keyword_component'] == 0 and related['vector_component'] == 0
+    assert related['graph_score'] == .9 and related['hybrid_score'] == .27
+    assert related['graph_connections'][0]['related_entity_name'] == 'PostgreSQL'
+    assert related['graph_connections'][0]['relationship_type'] == 'USES'
+
+    edge = db_session.scalar(select(KnowledgeRelationship))
+    edge.status = 'archived'
+    db_session.commit()
+    without_graph = client.get(url, params={'q': 'durable database', 'mode': 'hybrid'}).json()
+    store = next(hit for hit in without_graph['items'] if hit['entity']['name'] == 'Store knowledge')
+    assert store['graph_score'] == 0 and store['graph_connections'] == []
+
+    edge.status = 'active'
+    edge.valid_from = utc_now() + timedelta(days=1)
+    db_session.commit()
+    before_relation = client.get(url, params={'q': 'durable database', 'mode': 'hybrid'}).json()
+    store = next(hit for hit in before_relation['items'] if hit['entity']['name'] == 'Store knowledge')
+    assert store['graph_score'] == 0 and store['graph_connections'] == []
+
+
+@pytest.mark.parametrize('mode', ['vector', 'hybrid'])
+def test_semantic_search_requires_embedding_configuration(client, monkeypatch, mode):
     monkeypatch.setattr(search_routes, 'get_settings', lambda: Settings(_env_file=None))
     project_id = client.post('/api/v1/projects', json={'name': 'Semantic'}).json()['id']
     response = client.get(
-        f'/api/v1/projects/{project_id}/search', params={'q': 'question', 'mode': 'vector'},
+        f'/api/v1/projects/{project_id}/search', params={'q': 'question', 'mode': mode},
     )
     assert response.status_code == 503
     assert response.json()['error']['code'] == 'EMBEDDING_NOT_CONFIGURED'
@@ -192,7 +248,7 @@ def test_embedding_transport_rejects_zero_vectors(monkeypatch):
 
 @pytest.mark.parametrize('params', [
     {}, {'q': ''}, {'q': '   '}, {'q': 'a ' * 9}, {'q': 'x' * 201},
-    {'q': 'x', 'mode': 'hybrid'},
+    {'q': 'x', 'mode': 'fusion'},
     {'q': 'x', 'types': 'Invented'}, {'q': 'x', 'top_k': 0}, {'q': 'x', 'top_k': 51},
     {'q': 'x', 'valid_at': '2026-10-17T00:00:00'},
 ])
