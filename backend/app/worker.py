@@ -1,4 +1,4 @@
-"""Optional database-backed Markdown consumer: python -m app.worker [--once]."""
+"""Optional database-backed source parser: python -m app.worker [--once]."""
 
 import argparse
 import logging
@@ -33,7 +33,7 @@ def process_next(
             ProcessingTask.user_id == user_id,
             SourceDocument.user_id == user_id,
             SourceDocument.project_id == ProcessingTask.project_id,
-            SourceDocument.source_type == "markdown",
+            SourceDocument.source_type.in_(("markdown", "java")),
             Project.user_id == user_id,
             Project.archived_at.is_(None),
             ProcessingTask.type.in_(PARSING_TASK_TYPES),
@@ -86,7 +86,7 @@ def serve(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Consume queued Markdown parsing tasks")
+    parser = argparse.ArgumentParser(description="Consume queued source parsing tasks")
     parser.add_argument("--once", action="store_true", help="Handle at most one task and exit")
     parser.add_argument("--user-id", type=uuid.UUID, default=DEVELOPMENT_USER_ID,
                         help="Only process this user's projects (development user by default)")

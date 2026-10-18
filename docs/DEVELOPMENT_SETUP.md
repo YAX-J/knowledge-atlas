@@ -84,7 +84,7 @@ Useful endpoints:
 | `GET /api/v1/health/live` | Process liveness |
 | `GET /api/v1/health/ready` | PostgreSQL dependency health |
 
-To verify ingestion in the OpenAPI interface, create a project, upload Markdown, call `POST /api/v1/tasks/{task_id}/run`, and query `GET /api/v1/sources/{source_id}/chunks`. Alternatively, run `python -m app.worker` from `backend/` in a second activated terminal to consume uploads automatically. Apply the latest migration first, including execution lease and graph tables. `python -m app.worker --once` handles at most one eligible task and exits. See [backend instructions](../backend/README.md) for configuration, recovery rules, exit codes, and parsing limitations.
+To verify ingestion in the OpenAPI interface, create a project, upload UTF-8 Markdown or Java source, call `POST /api/v1/tasks/{task_id}/run`, and query `GET /api/v1/sources/{source_id}/chunks`. Alternatively, run `python -m app.worker` from `backend/` in a second activated terminal to consume uploads automatically. Apply the latest migration first, including execution lease and graph tables. `python -m app.worker --once` handles at most one eligible task and exits. See [backend instructions](../backend/README.md) for configuration, recovery rules, exit codes, and parsing limitations.
 
 Validate the native service setup by running `alembic current` from `backend/` (expected `20261018_0006`) and querying `/api/v1/health/ready`; PostgreSQL must report `up`. Then verify project creation, upload, automatic parsing, duplicate reuse, restart persistence, and worker/API contention against the real local database. SQLite tests do not validate native connectivity, PostgreSQL locking, or pgvector distance operations.
 

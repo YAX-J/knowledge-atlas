@@ -42,7 +42,7 @@ export interface SourceChunk {
   project_id: string
   source_id: string
   position: number
-  kind: 'heading' | 'paragraph' | 'list' | 'code'
+  kind: 'heading' | 'paragraph' | 'list' | 'code' | 'type' | 'method'
   heading_path: string[]
   start_line: number
   end_line: number
@@ -61,6 +61,7 @@ export interface SourceListItem {
   id: string
   project_id: string
   original_name: string
+  source_type: string
   size_bytes: number
   status: ApiSource['status']
   created_at: string
@@ -112,13 +113,13 @@ export function createProject(input: {
   })
 }
 
-export function uploadMarkdown(
+export function uploadSource(
   projectId: string,
   file: File,
 ): Promise<SourceUploadResult> {
   const body = new FormData()
   body.append('file', file)
-  body.append('source_type', 'markdown')
+  body.append('source_type', file.name.toLowerCase().endsWith('.java') ? 'java' : 'markdown')
   return apiRequest<SourceUploadResult>(`/projects/${projectId}/sources`, {
     method: 'POST',
     body,

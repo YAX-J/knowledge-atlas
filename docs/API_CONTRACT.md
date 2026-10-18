@@ -1,6 +1,6 @@
 # Knowledge Atlas 前后端接口草案
 
-本文定义第一版前后端协作所需的最小接口。项目、Markdown 来源、任务、健康检查、候选提取、审核、图谱、关键词/语义向量/一跳图关系混合检索及同步证据问答接口已经实现。字段调整时应保持错误结构和分页结构一致。
+本文定义第一版前后端协作所需的最小接口。项目、Markdown/Java 来源、任务、健康检查、候选提取、审核、图谱、关键词/语义向量/一跳图关系混合检索及同步证据问答接口已经实现。字段调整时应保持错误结构和分页结构一致。
 
 ## 实现状态
 
@@ -10,11 +10,11 @@
 | `GET /api/v1/health/ready` | 已实现 |
 | `GET/POST /api/v1/projects` | 已实现 |
 | `GET /api/v1/projects/{project_id}` | 已实现 |
-| `POST /api/v1/projects/{project_id}/sources` | 已实现，仅 Markdown |
+| `POST /api/v1/projects/{project_id}/sources` | 已实现，Markdown 与 Java 源文件 |
 | `GET /api/v1/projects/{project_id}/sources` | 已实现，分页查询项目资料及最新任务 |
 | `GET /api/v1/sources/{source_id}` | 已实现 |
 | `GET /api/v1/tasks/{task_id}` | 已实现 |
-| `POST /api/v1/tasks/{task_id}/run` | 已实现，同步执行 Markdown 解析 |
+| `POST /api/v1/tasks/{task_id}/run` | 已实现，同步执行 Markdown/Java 解析 |
 | `GET /api/v1/sources/{source_id}/chunks` | 已实现，分页查询原文分块 |
 | `GET /api/v1/sources/{source_id}/extraction` | 已实现，读取候选提取任务状态 |
 | `POST /api/v1/sources/{source_id}/extract` | 已实现，显式 DeepSeek 候选提取 |
@@ -98,7 +98,7 @@
 
 `GET /api/v1/projects/{project_id}/sources?page=1&page_size=20`
 
-返回 `items`、`page`、`page_size`、`total`，按上传时间降序、ID 稳定排序。每条资料包含 `id`、`project_id`、`original_name`、`size_bytes`、来源 `status`、`created_at`、`updated_at`，以及当前用户/项目下最新任务的 `task_id` 和 `task_status`（无任务时为 `null`）。列表不返回原文或预览内容，详情从来源接口读取。
+返回 `items`、`page`、`page_size`、`total`，按上传时间降序、ID 稳定排序。每条资料包含 `id`、`project_id`、`original_name`、`source_type`、`size_bytes`、来源 `status`、`created_at`、`updated_at`，以及当前用户/项目下最新任务的 `task_id` 和 `task_status`（无任务时为 `null`）。列表不返回原文或预览内容，详情从来源接口读取。
 
 `page >= 1`，`1 <= page_size <= 100`。空项目或越过最后一页返回空列表；项目不存在、已归档或不属于当前用户时返回 HTTP 404。
 
@@ -108,8 +108,8 @@
 
 表单字段：
 
-- `file`：当前只接受 UTF-8 Markdown 文件，默认最大 10 MiB。
-- `source_type`：可选，未填写时由后端识别。
+- `file`：接受 UTF-8 `.md`、`.markdown` 或 `.java` 文件，默认最大 10 MiB。
+- `source_type`：可选，未填写时由后缀识别；填写时必须与后缀推断出的 `markdown` 或 `java` 一致。
 
 响应：
 
@@ -121,7 +121,7 @@
 }
 ```
 
-同一用户、同一项目中，相同文件字节（SHA-256 一致）的重复上传会复用已有 `source_id` 与 `task_id`，不受文件名影响。始终返回 HTTP 202；`status` 为复用任务的当前状态，因此也可能是 `running`、`succeeded`、`failed` 或 `cancelled`。原文件名保留首次上传值。内容变化或项目不同会创建独立来源，不自动替换旧来源。
+同一用户、同一项目、同一来源类型中，相同文件字节（SHA-256 一致）的重复上传会复用已有 `source_id` 与 `task_id`，不受文件名影响。始终返回 HTTP 202；`status` 为复用任务的当前状态，因此也可能是 `running`、`succeeded`、`failed` 或 `cancelled`。原文件名保留首次上传值。来源类型、内容或项目不同会创建独立来源，不自动替换旧来源。
 
 ### 查询任务状态
 
@@ -132,7 +132,7 @@
   "id": "...",
   "project_id": "...",
   "source_id": "...",
-  "type": "markdown_parsing",
+  "type": "code_parsing",
   "status": "succeeded",
   "stage": "parsed",
   "progress": 100,
@@ -150,7 +150,7 @@
 
 `POST /api/v1/tasks/{task_id}/run`
 
-无需请求体，同步返回与任务查询相同的结构。上传事务只排队；启动独立 Worker 后会自动消费，也可通过此接口手动执行。旧版 `knowledge_extraction` 上传任务也只执行解析，不调用模型。
+无需请求体，同步返回与任务查询相同的结构。上传事务只排队；启动独立 Worker 后会自动消费，也可通过此接口手动执行。Markdown 使用 `markdown_parsing`，Java 使用 `code_parsing`；旧版 `knowledge_extraction` 上传任务也只执行 Markdown 解析，不调用模型。
 
 - `queued` 或 `failed`：原子认领后进入 `running` / `parsing`，成功后为 `succeeded` / `parsed` / 100，来源变为 `ready`。
 - `succeeded`：直接返回原结果，不重复创建分块。
@@ -178,9 +178,9 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 `page >= 1`，`1 <= page_size <= 100`。按原文顺序返回 `items`、`page`、`page_size`、`total`。未解析来源返回空列表；不存在或不属于当前用户的来源返回 HTTP 404。
 
-`items` 中每条记录包含：`id`、`project_id`、`source_id`、从 0 开始的 `position`、`kind`（`heading`、`paragraph`、`list`、`code`）、`heading_path`、从 1 开始且包含两端的 `start_line` / `end_line`、原始 `content` 和 `content_sha256`。原文换行符保留，哈希为该片段 UTF-8 字节的 SHA-256。同一来源中相同边界和内容的分块 UUID 稳定。标题块的路径包含自身；正文块继承其所在标题路径。
+`items` 中每条记录包含：`id`、`project_id`、`source_id`、从 0 开始的 `position`、`kind`、`heading_path`、从 1 开始且包含两端的 `start_line` / `end_line`、原始 `content` 和 `content_sha256`。Markdown 的 `kind` 为 `heading`、`paragraph`、`list` 或 `code`；Java 的 `kind` 为 `code`、`type` 或 `method`。原文换行符保留，哈希为该片段 UTF-8 字节的 SHA-256。同一来源中相同边界和内容的分块 UUID 稳定。标题块的路径包含自身；正文块继承标题路径；Java 类型路径为 `[类型]`，方法路径为 `[类型, 方法]`。
 
-当前解析范围为 ATX/Setext 标题、段落、列表和围栏代码块，其余语法作为文本保留，尚未提供完整 CommonMark 语法树。
+Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，其余语法作为文本保留。Java 当前识别顶层类型和常规直接成员方法，并保留其余源码；不提供完整 Java AST、嵌套类型语义、重载签名、调用关系或仓库增量同步。边界见 [ADR 0012](adr/0012-bounded-java-source-ingestion.zh-CN.md)。
 
 ## 知识图谱
 
@@ -410,7 +410,7 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 ## 第一版接口优先级
 
 1. 项目创建与查询。
-2. Markdown 上传与任务状态。
+2. Markdown/Java 上传、解析与任务状态。
 3. 候选知识查询与确认。
 4. 局部图谱和节点详情。
 5. 证据问答。

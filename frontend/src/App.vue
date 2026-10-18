@@ -13,7 +13,7 @@ import QuestionWorkspace from './components/QuestionWorkspace.vue'
 import { ApiError } from './api/client'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
-  runTask, uploadMarkdown, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
+  runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
   getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
 } from './api/knowledgeAtlas'
 import type {
@@ -344,7 +344,7 @@ async function uploadFile(file: File) {
   sourcesRequest++
   clearSourceSelection()
   try {
-    const result = await uploadMarkdown(projectId, file)
+    const result = await uploadSource(projectId, file)
     selectedSourceId.value = result.source_id
     selectedTaskId.value = result.task_id
     notice.value = '资料已接收。相同内容会复用已有资料，请查看当前解析状态。'

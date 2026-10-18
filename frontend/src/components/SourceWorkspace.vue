@@ -42,7 +42,9 @@ const statusLabels: Record<string, string> = {
   uploaded: '待解析', processing: '解析中', ready: '已解析', failed: '解析失败',
   queued: '待解析', running: '解析中', succeeded: '已解析', cancelled: '已取消',
 }
-const kindLabels = { heading: '标题', paragraph: '段落', list: '列表', code: '代码' }
+const kindLabels: Record<string, string> = {
+  heading: '标题', paragraph: '段落', list: '列表', code: '代码', type: '类型', method: '方法',
+}
 watch(() => props.project?.id, () => { fileError.value = '' })
 watch(() => props.loading.create, (busy, wasBusy) => {
   if (wasBusy && !busy && !props.errors.create) {
@@ -63,12 +65,12 @@ function chooseFile(event: Event) {
   input.value = ''
   if (!file) return
   fileError.value = ''
-  if (!/\.(md|markdown)$/i.test(file.name)) {
-    fileError.value = '请选择 .md 或 .markdown 文件。'
+  if (!/\.(md|markdown|java)$/i.test(file.name)) {
+    fileError.value = '请选择 .md、.markdown 或 .java 文件。'
     return
   }
   if (!file.size) {
-    fileError.value = '文件为空，请选择有内容的 Markdown 文件。'
+    fileError.value = '文件为空，请选择有内容的文本资料。'
     return
   }
   emit('upload', file)
@@ -77,6 +79,9 @@ function chooseFile(event: Event) {
 function formatSize(bytes: number) {
   return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`
 }
+function sourceTypeLabel(sourceType: string) {
+  return sourceType === 'java' ? 'JAVA' : 'MD'
+}
 </script>
 
 <template>
@@ -84,7 +89,7 @@ function formatSize(bytes: number) {
     <header class="source-page-heading">
       <div>
         <h1 id="source-workspace-title">{{ view === 'projects' ? '我的项目' : '资料来源' }}</h1>
-        <p>把技术笔记留在项目里，让每段原文都有迹可循。</p>
+        <p>把技术笔记和源码留在项目里，让每段证据都有迹可循。</p>
       </div>
       <span class="data-label">真实项目与资料</span>
     </header>
@@ -132,18 +137,18 @@ function formatSize(bytes: number) {
         <div v-if="!project" class="source-empty-state">
           <span class="empty-source-mark" aria-hidden="true">⌑</span>
           <h2>从一篇笔记开始</h2>
-          <p>选择或创建项目，然后上传 Markdown。解析后可以查看标题层级、段落和对应行号。</p>
+          <p>选择或创建项目，然后上传 Markdown 或 Java 源文件。解析后可以查看结构和对应行号。</p>
         </div>
         <template v-else>
           <header class="source-project-heading">
             <div><h2>{{ project.name }}</h2><p>{{ project.description || '在这里保存项目的技术笔记。' }}</p></div>
             <div class="upload-control">
               <button class="text-button" type="button" :disabled="locked" @click="emit('graph')">查看项目图谱</button>
-              <input ref="fileInput" class="file-picker" type="file" accept=".md,.markdown,text/markdown" aria-label="选择 Markdown 文件" tabindex="-1" :disabled="locked" @change="chooseFile" />
-              <button class="primary-button" type="button" :disabled="locked" @click="fileInput?.click()">{{ loading.upload ? '正在上传…' : '上传 Markdown' }}</button>
+              <input ref="fileInput" class="file-picker" type="file" accept=".md,.markdown,.java,text/markdown,text/x-java-source" aria-label="选择 Markdown 或 Java 文件" tabindex="-1" :disabled="locked" @change="chooseFile" />
+              <button class="primary-button" type="button" :disabled="locked" @click="fileInput?.click()">{{ loading.upload ? '正在上传…' : '上传资料' }}</button>
             </div>
           </header>
-          <p class="source-upload-hint">支持 UTF-8 Markdown。相同内容会复用已有资料；上传后可选择开始解析。</p>
+          <p class="source-upload-hint">支持 UTF-8 Markdown 与 Java 源文件。相同内容会复用已有资料；上传后可选择开始解析。</p>
           <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
           <p v-if="fileError || errors.upload" class="inline-error" role="alert">{{ fileError || errors.upload }}</p>
 
@@ -158,7 +163,7 @@ function formatSize(bytes: number) {
             <button v-for="item in sources?.items ?? []" :key="item.id" class="source-row" type="button"
               :class="{ selected: selectedSourceId === item.id }" :aria-pressed="selectedSourceId === item.id"
               :disabled="locked" @click="emit('selectSource', item.id, item.task_id)">
-              <span class="source-file-type" aria-hidden="true">MD</span>
+              <span class="source-file-type" aria-hidden="true">{{ sourceTypeLabel(item.source_type) }}</span>
               <span class="source-file-name"><strong>{{ item.original_name }}</strong><small>{{ formatSize(item.size_bytes) }}</small></span>
               <span class="source-status" :class="`status-${item.task_status ?? item.status}`">{{ statusLabels[item.task_status ?? item.status] }}</span>
             </button>

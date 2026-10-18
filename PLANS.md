@@ -28,25 +28,23 @@ Completed:
 - Explicit 1024-dimensional formal-entity semantic indexing, pgvector cosine retrieval, content-hash reuse, and frontend keyword/vector mode switching.
 - Explainable hybrid retrieval with fixed keyword/vector/one-hop graph weights, bounded candidates, visible-relationship filtering, and per-hit score composition.
 - Synchronous evidence-grounded questions with bounded hybrid retrieval, strict DeepSeek output, application-validated citation UUIDs, and a real frontend workspace.
+- Local UTF-8 Java source upload with deterministic `code`/`type`/`method` chunks, exact source lines, and reuse of the existing parsing worker and evidence pipeline.
 
 ## Active phase
 
-The active slice is the first evidence-grounded answer baseline. Migration head remains `20261018_0006`; questions are synchronous and non-persistent, reuse bounded hybrid retrieval, and validate every model citation against the selected formal evidence. Representative real DeepSeek answer quality, prompt-injection behavior, native data with nonzero graph signals, Worker/API contention, and lease recovery remain outstanding.
+The active phase is Stage 4 code ingestion. Its first bounded slice accepts local Java files without a migration, uses `code_parsing`, preserves exact source lines in structural chunks, and reuses the existing worker and evidence workflow. It does not claim a complete Java AST, symbol graph, call graph, GitHub import, or incremental repository synchronization. See [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.md).
 
 Implemented in this slice:
 
-- Scoped, read-only keyword matching of formal entity names, summaries, and evidence; all terms must match and SQL wildcards stay literal.
-- Reproducible field-weight ranking, stable tie order, type/time filters, bounded hits, and evidence excerpts.
-- Project-graph search form with empty/error/retry/clear states and selection into entity details or neighborhoods.
-- Independent request counters for search results across project changes and clearing; demo-header search remains separate.
-- Backend tests, frontend build, isolated browser checks, and native PostgreSQL SQL validation.
-- Explicit semantic-index rebuild, model/content-hash reuse, 1024-dimension validation, exact pgvector cosine retrieval, and frontend mode switching.
-- Fixed `0.3/0.4/0.3` keyword/vector/graph fusion, one-hop visible-relation expansion, stable ranking, and relationship explanations in the frontend.
-- A project-scoped question endpoint and frontend workspace with evidence-insufficient handling, retrieval summaries, cited source lines, and entity navigation.
-- A deterministic no-evidence refusal path, strict answer schema, and rejection of citations outside the retrieval set; no question-history schema or LangGraph dependency was added.
+- `.java` upload validation and `source_type=java`, with source type included in duplicate-reuse semantics.
+- A deterministic local parser for top-level types and conventional direct-member methods, including comment/string/text-block shielding while retaining exact chunk text.
+- Stable one-based inclusive line ranges, hashes, structure paths, and chunk UUIDs for `code`, `type`, and `method` chunks.
+- `code_parsing` support in manual execution and the leased database worker.
+- Desktop source-workspace upload, MD/JAVA labels, and Java chunk-kind display.
 
 Acceptance still needed:
 
+- Manually upload and parse representative Java files, including comments, string literals, text blocks, multiple top-level types, constructors, methods, and syntax the bounded parser intentionally leaves as type/code text.
 - Configure a local DeepSeek key and verify a real model response against a short public Markdown note.
 - Review evidence quality and model output on representative inputs; simulated tests do not establish real extraction quality.
 - Verify the real project graph against native PostgreSQL in a browser, including empty, truncated, filtered, and time-filtered states.
@@ -58,7 +56,7 @@ Project keyword, semantic-vector, explainable one-hop graph hybrid retrieval, an
 ## Later phases
 
 1. Representative real-answer acceptance and retrieval/prompt quality evaluation.
-2. Code and GitHub ingestion.
+2. Complete Java symbol/call modeling, then GitHub ingestion and incremental synchronization.
 3. Temporal evolution, governance, experiments, and deployment.
 
 Markdown parsing, schema-constrained review, and confirmed-candidate graph persistence are complete as bounded slices.

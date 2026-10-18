@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-为 Knowledge Atlas 持久化、Markdown 导入、带证据校验的候选提取与审核，以及有界只读项目图谱查询提供服务的 FastAPI 后端。
+为 Knowledge Atlas 持久化、Markdown/Java 导入、带证据校验的候选提取与审核，以及有界只读项目图谱查询提供服务的 FastAPI 后端。
 
 ## 已实现能力
 
@@ -10,11 +10,11 @@
 - 请求 ID、CORS、请求日志和稳定的错误结构。
 - 在开发用户边界内创建、列出和查询项目。
 - 在同一用户/项目边界内分页查询资料元数据及最新任务。
-- 校验并保存 UTF-8 Markdown，记录 SHA-256 内容哈希。
+- 校验并保存 UTF-8 Markdown 与 Java 源码，记录 SHA-256 内容哈希。
 - 创建/查询解析任务，并通过 API 显式执行。
 - 可选独立 Worker 自动消费排队任务，提供租约认领、中断恢复和结果写入保护。
-- 持久化标题、段落、列表和围栏代码块，保留精确原文、标题路径、哈希和从 1 开始且包含两端的行号范围。
-- 同一用户项目内，相同字节的上传复用原来源/任务，即使文件名不同。
+- 持久化 Markdown 标题/段落/列表/围栏代码和 Java 代码/类型/方法分块，保留精确原文、结构路径、哈希和从 1 开始且包含两端的行号范围。
+- 同一用户项目和来源类型内，相同字节的上传复用原来源/任务，即使文件名不同。
 - 分页查询分块，安全地重复执行已完成任务或重试失败任务。
 - 持久化项目、来源、任务和候选知识记录。
 - 确认候选时在审核事务内写入受限的 PostgreSQL 实体、关系和证据，支持稳定 UUID、端点提升、幂等重复和旧确认重放。
@@ -48,16 +48,16 @@ OpenAPI 文档地址为 `http://localhost:8000/docs`。
 在交互式 API 文档中依次调用：
 
 1. `POST /api/v1/projects`：创建项目。
-2. `POST /api/v1/projects/{project_id}/sources`：上传 UTF-8 `.md` 或 `.markdown` 文件。
+2. `POST /api/v1/projects/{project_id}/sources`：上传 UTF-8 `.md`、`.markdown` 或 `.java` 文件。
 3. `POST /api/v1/tasks/{task_id}/run`：同步执行解析。
 4. `GET /api/v1/tasks/{task_id}`：查看状态和错误信息。
 5. `GET /api/v1/sources/{source_id}/chunks?page=1&page_size=20`：查看证据原文和行号位置。
 
 `GET /api/v1/projects/{project_id}/sources` 用于前端刷新后恢复资料列表及每份资料的最新任务。列表不包含原文，预览内容通过来源详情接口读取。
 
-新任务类型为 `markdown_parsing`；旧版排队的 `knowledge_extraction` 上传任务也只执行解析。成功后任务为 `succeeded`/`parsed`/100，来源变为 `ready`，这不代表已经执行知识抽取。执行失败时返回 HTTP 200，任务状态为 `failed`，错误内容经过脱敏；可调用同一接口重试。重复执行成功任务会返回已有结果；运行中或已取消任务返回 HTTP 409。重复上传响应中返回的是复用任务的当前状态，不一定为 `queued`。
+Markdown 任务使用 `markdown_parsing`，Java 任务使用 `code_parsing`；旧版排队的 `knowledge_extraction` 上传任务也只执行 Markdown 解析。成功后任务为 `succeeded`/`parsed`/100，来源变为 `ready`，这不代表已经执行知识抽取。执行失败时返回 HTTP 200，任务状态为 `failed`，错误内容经过脱敏；可调用同一接口重试。重复执行成功任务会返回已有结果；运行中或已取消任务返回 HTTP 409。重复上传响应中返回的是复用任务的当前状态，不一定为 `queued`。
 
-解析器支持 Markdown 的结构化子集：ATX/Setext 标题、段落、列表和围栏代码。其余语法作为文本保留。同一来源与分块边界下，分块 ID 保持稳定。文件字节变化时创建独立来源，不修改既有来源。PostgreSQL 项目行锁串行化重复上传创建；SQLite 不验证这类锁保证。手动接口在 API 进程中解析，自动执行使用下文的 Worker。尚未实现完整 CommonMark 抽象语法树（AST）。
+Markdown 解析器支持 ATX/Setext 标题、段落、列表和围栏代码。Java 有界解析器识别顶层类型和常规直接成员方法，同时保留全部源码。同一来源与分块边界下，分块 ID 保持稳定。文件字节变化时创建独立来源，不修改既有来源。PostgreSQL 项目行锁串行化重复上传创建；SQLite 不验证这类锁保证。手动接口在 API 进程中解析，自动执行使用下文的 Worker。尚未实现完整 CommonMark/Java AST、Java 调用图、GitHub 导入或仓库增量同步。
 
 ## 自动解析 Worker
 

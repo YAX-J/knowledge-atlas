@@ -55,6 +55,7 @@ class SourceListItem(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
     original_name: str
+    source_type: str
     size_bytes: int
     status: SourceStatus
     created_at: datetime

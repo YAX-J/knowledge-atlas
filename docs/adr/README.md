@@ -74,3 +74,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0009: Build the formal-knowledge semantic index explicitly](0009-explicit-semantic-index.md)
 - [ADR 0010: Explainable hybrid retrieval with one-hop graph signals](0010-explainable-hybrid-graph-retrieval.md)
 - [ADR 0011: Synchronous evidence-grounded questions with validated citations](0011-synchronous-evidence-grounded-questions.md)
+- [ADR 0012: Bounded Java source ingestion with line-preserving chunks](0012-bounded-java-source-ingestion.md)

@@ -105,11 +105,11 @@
 
 不同数据源可以使用不同定位字段，但 API 应统一返回 `title`、`uri`、`locator` 和 `excerpt`。
 
-## 当前 Markdown 原文分块
+## 当前原文分块
 
-后端已保存 `SourceChunk` 作为原文证据的基础记录；确认候选时会生成 `KnowledgeEvidence` 并引用分块。每个分块带有稳定 UUID、`user_id`、`project_id`、`source_id`、从 0 开始的顺序、块类型、标题路径、原文、SHA-256 及从 1 开始且包含两端的行号。分块原文保留来源中的换行符，标题路径包含当前标题。相同来源、位置边界、块类型和内容产生相同 UUID；不同来源的分块不会共享 UUID。
+后端已保存 `SourceChunk` 作为原文证据的基础记录；确认候选时会生成 `KnowledgeEvidence` 并引用分块。每个分块带有稳定 UUID、`user_id`、`project_id`、`source_id`、从 0 开始的顺序、块类型、结构路径、原文、SHA-256 及从 1 开始且包含两端的行号。Markdown 使用标题/段落/列表/代码类型与标题路径；Java 使用代码/类型/方法类型，路径为 `[类型]` 或 `[类型, 方法]`。分块保留来源换行符。相同来源、位置边界、块类型和内容产生相同 UUID；不同来源的分块不会共享 UUID。
 
-来源在当前阶段保持不可变：相同项目中的相同文件字节复用来源，修改字节则创建独立来源。这不表示新旧来源之间已经建立版本或 `SUPERSEDES` 关系。`ready` 仅表示来源解析完成，不表示知识已抽取或确认。决策见 [ADR 0003](adr/0003-markdown-parsing-execution.md)。
+来源在当前阶段保持不可变：同一项目、来源类型中的相同文件字节复用来源，修改字节则创建独立来源。这不表示新旧来源之间已经建立版本或 `SUPERSEDES` 关系。Java 类型和方法分块也不是自动创建的正式 `CodeEntity`；`ready` 仅表示来源解析完成，不表示知识已抽取或确认。决策见 [ADR 0003](adr/0003-markdown-parsing-execution.md) 与 [ADR 0012](adr/0012-bounded-java-source-ingestion.md)。
 
 ## 当前候选与审核
 

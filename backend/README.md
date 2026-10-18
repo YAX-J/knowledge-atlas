@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md)
 
-FastAPI service for Knowledge Atlas persistence, Markdown ingestion, evidence-validated candidate extraction/review, and bounded read-only project-graph queries.
+FastAPI service for Knowledge Atlas persistence, Markdown/Java ingestion, evidence-validated candidate extraction/review, and bounded read-only project-graph queries.
 
 ## Implemented behavior
 
@@ -10,11 +10,11 @@ FastAPI service for Knowledge Atlas persistence, Markdown ingestion, evidence-va
 - Request IDs, CORS, request logging, and a stable error envelope.
 - Create, list, and retrieve projects within a development-user boundary.
 - Paginate a project's source metadata and latest tasks within the same user/project boundary.
-- Validate and store UTF-8 Markdown with a SHA-256 content hash.
+- Validate and store UTF-8 Markdown and Java source with a SHA-256 content hash.
 - Create/query parsing tasks and explicitly run them through the API.
 - Automatically consume queued parsing tasks in an optional independent worker process, with leased claims, interrupted-task recovery, and fenced result writes.
-- Persist headings, paragraphs, lists, and fenced code with exact text, heading paths, hashes, and one-based inclusive line ranges.
-- Reuse the original source/task on identical-byte uploads within a user's project, even if the filename changes.
+- Persist Markdown headings/paragraphs/lists/fenced code and Java code/type/method chunks with exact text, structure paths, hashes, and one-based inclusive line ranges.
+- Reuse the original source/task on identical-byte uploads within a user's project and source type, even if the filename changes.
 - Paginate stored chunks and safely repeat completed tasks or retry failed tasks.
 - Persist project, source, task, and candidate-knowledge records.
 - Promote confirmed candidates into scoped PostgreSQL entities, relationships, and evidence within the review transaction, with stable UUIDs, endpoint promotion, idempotent repeats, and legacy-confirmation replay.
@@ -48,16 +48,16 @@ OpenAPI documentation is available at `http://localhost:8000/docs`.
 Use the interactive API documentation in this order:
 
 1. `POST /api/v1/projects` to create a project.
-2. `POST /api/v1/projects/{project_id}/sources` to upload a UTF-8 `.md` or `.markdown` file.
+2. `POST /api/v1/projects/{project_id}/sources` to upload a UTF-8 `.md`, `.markdown`, or `.java` file.
 3. `POST /api/v1/tasks/{task_id}/run` to synchronously execute parsing.
 4. `GET /api/v1/tasks/{task_id}` to inspect status and error information.
 5. `GET /api/v1/sources/{source_id}/chunks?page=1&page_size=20` to inspect evidence text and line locations.
 
 `GET /api/v1/projects/{project_id}/sources` restores the source list and each source's latest task after a frontend refresh. It excludes original content; use the source-detail endpoint for preview text.
 
-New tasks use type `markdown_parsing`; legacy queued `knowledge_extraction` uploads can also run parsing only. Successful tasks end at `succeeded`/`parsed`/100 and sources become `ready`. This does not mean knowledge extraction has run. Execution failures return HTTP 200 with a `failed` task and a sanitized error; the same endpoint retries failed tasks. Repeating a succeeded task returns the existing result, while running/cancelled tasks return HTTP 409. Re-upload responses contain the reused task's current status, which need not be `queued`.
+Markdown tasks use `markdown_parsing`, Java tasks use `code_parsing`, and legacy queued `knowledge_extraction` uploads can run Markdown parsing only. Successful tasks end at `succeeded`/`parsed`/100 and sources become `ready`. This does not mean knowledge extraction has run. Execution failures return HTTP 200 with a `failed` task and a sanitized error; the same endpoint retries failed tasks. Repeating a succeeded task returns the existing result, while running/cancelled tasks return HTTP 409. Re-upload responses contain the reused task's current status, which need not be `queued`.
 
-The parser supports a structural subset: ATX/Setext headings, paragraphs, lists, and fenced code. Other syntax is retained as text. Chunk IDs remain stable for the same source and boundaries. Changed file bytes create a separate source rather than updating an existing source. PostgreSQL project locks serialize duplicate upload creation; SQLite does not validate those locking guarantees. The manual endpoint runs parsing in the API process; automatic execution uses the worker described below. A complete CommonMark AST is not implemented.
+The Markdown parser supports ATX/Setext headings, paragraphs, lists, and fenced code. The bounded Java parser identifies top-level types and conventional direct-member methods, while retaining all source text. Chunk IDs remain stable for the same source and boundaries. Changed bytes create a separate source rather than updating an existing source. PostgreSQL project locks serialize duplicate upload creation; SQLite does not validate those locking guarantees. The manual endpoint runs parsing in the API process; automatic execution uses the worker described below. Complete CommonMark/Java ASTs, Java call graphs, GitHub import, and incremental repository sync are not implemented.
 
 ## Automatic parsing worker
 

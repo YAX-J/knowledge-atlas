@@ -78,7 +78,7 @@ def run_extraction(
     if task and task.status == TaskStatus.RUNNING and lease_is_active(task.lease_expires_at, now):
         raise AppError(status_code=409, code="EXTRACTION_RUNNING", message="知识提取正在执行，请稍后刷新候选状态")
     if source.status != SourceStatus.READY:
-        raise AppError(status_code=409, code="SOURCE_NOT_PARSED", message="请先完成 Markdown 解析")
+        raise AppError(status_code=409, code="SOURCE_NOT_PARSED", message="请先完成资料解析")
     if not settings.deepseek_api_key or not settings.deepseek_api_key.get_secret_value().strip():
         raise AppError(status_code=503, code="EXTRACTION_NOT_CONFIGURED", message="请先在后端 .env 中配置 DEEPSEEK_API_KEY 并重启后端")
     chunks = list(db.scalars(select(SourceChunk).where(
@@ -93,7 +93,7 @@ def run_extraction(
         "heading_path": list(chunk.heading_path),
     } for chunk in chunks}
     if len(chunks) > 100 or len(json.dumps({"chunks": model_input}, ensure_ascii=False)) > settings.extraction_max_input_chars:
-        raise AppError(status_code=413, code="EXTRACTION_INPUT_TOO_LARGE", message="资料超过单次提取限制，请拆分为较小的 Markdown 文件")
+        raise AppError(status_code=413, code="EXTRACTION_INPUT_TOO_LARGE", message="资料超过单次提取限制，请拆分为较小的文件")
     execution_id = uuid.uuid4()
     if task is None:
         task = ProcessingTask(

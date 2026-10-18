@@ -17,11 +17,17 @@ from app.models.domain import (
     utc_now,
 )
 from app.services.ingestion import get_source, get_task
+from app.services.java_source import JavaChunk, parse_java
 from app.services.markdown import MarkdownChunk, parse_markdown
 from app.services.projects import get_project
 
 
-PARSING_TASK_TYPES = ("markdown_parsing", "knowledge_extraction")
+PARSING_TASK_TYPES = ("markdown_parsing", "knowledge_extraction", "code_parsing")
+TASK_TYPES_BY_SOURCE = {
+    "markdown": {"markdown_parsing", "knowledge_extraction"},
+    "java": {"code_parsing"},
+}
+ParsedChunk = MarkdownChunk | JavaChunk
 logger = logging.getLogger(__name__)
 
 
@@ -41,7 +47,7 @@ def expired_task_filter(now: datetime, lease_seconds: int) -> ColumnElement[bool
 
 def _finish_task(
     db: Session, *, task: ProcessingTask, execution_id: uuid.UUID,
-    chunks: list[MarkdownChunk] | None,
+    chunks: list[ParsedChunk] | None,
 ) -> bool:
     succeeded = chunks is not None
     result = db.execute(
@@ -56,7 +62,7 @@ def _finish_task(
             stage="parsed" if succeeded else "parsing",
             progress=100 if succeeded else 0,
             error=None if succeeded else {
-                "code": "SOURCE_PARSE_FAILED", "message": "Markdown 解析失败，可重试任务"
+                "code": "SOURCE_PARSE_FAILED", "message": "资料解析失败，可重试任务"
             },
             completed_at=utc_now(), execution_id=None, lease_expires_at=None,
         ).execution_options(synchronize_session=False)
@@ -102,12 +108,11 @@ def run_task(
     get_project(db, user_id=user_id, project_id=task.project_id)
     if (
         source.project_id != task.project_id
-        or source.source_type != "markdown"
-        or task.type not in PARSING_TASK_TYPES
+        or task.type not in TASK_TYPES_BY_SOURCE.get(source.source_type, set())
     ):
         raise AppError(
             status_code=409, code="TASK_TYPE_UNSUPPORTED",
-            message="此任务不支持 Markdown 解析",
+            message="此任务不支持当前资料类型的解析",
         )
 
     now = utc_now()
@@ -174,7 +179,11 @@ def run_task(
     db.commit()
 
     try:
-        chunks = parse_markdown(source.content, source_id=source.id)
+        chunks = (
+            parse_java(source.content, source_id=source.id)
+            if source.source_type == "java"
+            else parse_markdown(source.content, source_id=source.id)
+        )
         _finish_task(db, task=task, execution_id=execution_id, chunks=chunks)
     except Exception as error:
         db.rollback()

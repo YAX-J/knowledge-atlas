@@ -1,6 +1,6 @@
 # Knowledge Atlas 系统架构
 
-本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Markdown 导入、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、项目图谱、关键词/显式索引语义向量/一跳图关系混合检索，以及同步、非持久化的证据问答；实体消歧和多轮 Agent 仍属于后续阶段。真实问答质量仍待专项验收。当前只使用 PostgreSQL/pgvector，暂缓引入 Neo4j，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。
+本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Markdown 与本地 Java 源码导入、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、项目图谱、关键词/显式索引语义向量/一跳图关系混合检索，以及同步、非持久化的证据问答；实体消歧、完整代码语义和多轮 Agent 仍属于后续阶段。当前只使用 PostgreSQL/pgvector，暂缓引入 Neo4j，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。
 
 ## 架构目标
 
@@ -16,7 +16,7 @@
 ```mermaid
 flowchart TB
     subgraph Sources[开发知识来源]
-        S1[Markdown 与文本]
+        S1[Markdown 与本地 Java 源码]
         S2[代码文件]
         S3[GitHub Repository]
         S4[Commit Issue Pull Request]
@@ -91,7 +91,7 @@ flowchart TB
 - 校验模型输出，不允许模型直接写入数据库。
 - 将证据位置转换为前端可消费的统一格式。
 
-当前已实现项目、Markdown 来源、处理任务和原文分块接口。上传事务保存原文及其 SHA-256 并创建 `queued` 任务；相同用户项目中的相同字节复用来源和任务，PostgreSQL 项目行锁串行化上传去重。手动解析接口与独立 Worker 共享执行服务：原子认领任务并保存执行 UUID/租约后，在事务中保存分块及最终状态。成功任务重复执行返回原结果，普通失败任务等待手动重试。候选确认时，审核状态、审计事件、正式实体/关系/证据在同一事务写入；图谱查询只读并按用户、项目、时间和数量限制返回。设计依据见 [ADR 0003](adr/0003-markdown-parsing-execution.md)、[ADR 0004](adr/0004-database-backed-parsing-worker.md)、[ADR 0006](adr/0006-deepseek-candidate-review.zh-CN.md) 与 [ADR 0007](adr/0007-confirmed-postgresql-graph.zh-CN.md)。
+当前已实现项目、Markdown/Java 来源、处理任务和原文分块接口。上传事务保存原文及其 SHA-256 并创建 `queued` 任务；相同用户、项目、来源类型中的相同字节复用来源和任务，PostgreSQL 项目行锁串行化上传去重。Markdown 使用 `markdown_parsing`，Java 使用 `code_parsing`；手动解析接口与独立 Worker 共享执行服务。Java 解析保存 `code`/`type`/`method` 精确行片段，但不承诺完整 AST 或调用图。候选确认时，审核状态、审计事件、正式实体/关系/证据在同一事务写入；图谱查询只读并按用户、项目、时间和数量限制返回。设计依据见 ADR 0003、0004、0006、0007 与 [ADR 0012](adr/0012-bounded-java-source-ingestion.zh-CN.md)。
 
 ### Worker
 
@@ -102,7 +102,7 @@ flowchart TB
 - 向量生成和索引更新。
 - LLM 抽取、实体消歧和治理检测。
 
-当前实现为 `backend/app/worker.py` 独立进程，轮询数据库中的 Markdown 任务，不引入消息代理。查询限定用户及有效项目，并校验来源的用户/项目边界。租约过期后可重新认领，成功与失败写入都必须匹配当前执行 UUID，因此旧进程无法覆盖新执行结果。过期任务达到尝试次数上限后转为失败。租约固定、尚无心跳；超长任务可能计算重叠，但持久化结果有执行标识保护。向量、代码和模型抽取等 Worker 能力仍属于目标设计；当前 DeepSeek 候选提取使用独立的显式 HTTP 操作，不由解析 Worker 消费。
+当前实现为 `backend/app/worker.py` 独立进程，轮询数据库中的 Markdown 与 Java 解析任务，不引入消息代理。查询限定用户及有效项目，并校验来源的用户/项目边界。租约过期后可重新认领，成功与失败写入都必须匹配当前执行 UUID，因此旧进程无法覆盖新执行结果。过期任务达到尝试次数上限后转为失败。租约固定、尚无心跳；超长任务可能计算重叠，但持久化结果有执行标识保护。向量和模型抽取不由解析 Worker 消费。
 
 ### PostgreSQL 与 pgvector
 

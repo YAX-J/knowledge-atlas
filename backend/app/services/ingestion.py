@@ -12,7 +12,10 @@ from app.models.domain import ProcessingTask, Project, SourceDocument, TaskStatu
 from app.services.projects import get_project
 
 
-ALLOWED_SUFFIXES = {".md", ".markdown"}
+SOURCE_TYPE_BY_SUFFIX = {".md": "markdown", ".markdown": "markdown", ".java": "java"}
+TASK_TYPE_BY_SOURCE = {"markdown": "markdown_parsing", "java": "code_parsing"}
+MEDIA_TYPE_BY_SOURCE = {"markdown": "text/markdown", "java": "text/x-java-source"}
+PARSING_TASK_TYPES = ("markdown_parsing", "knowledge_extraction", "code_parsing")
 
 
 async def create_source_and_task(
@@ -27,16 +30,18 @@ async def create_source_and_task(
     get_project(db, user_id=user_id, project_id=project_id)
 
     original_name = Path(upload.filename or "").name
-    if not original_name or Path(original_name).suffix.lower() not in ALLOWED_SUFFIXES:
+    suffix = Path(original_name).suffix.lower()
+    inferred_source_type = SOURCE_TYPE_BY_SUFFIX.get(suffix)
+    if not original_name or inferred_source_type is None:
         raise AppError(
             status_code=415,
             code="UNSUPPORTED_SOURCE_TYPE",
-            message="当前阶段仅支持 Markdown 文件",
-            details={"allowed_extensions": sorted(ALLOWED_SUFFIXES)},
+            message="当前阶段仅支持 Markdown 与 Java 源文件",
+            details={"allowed_extensions": sorted(SOURCE_TYPE_BY_SUFFIX)},
         )
 
-    normalized_source_type = (source_type or "markdown").strip().lower()
-    if normalized_source_type != "markdown":
+    normalized_source_type = (source_type or inferred_source_type).strip().lower()
+    if normalized_source_type != inferred_source_type:
         raise AppError(
             status_code=422,
             code="SOURCE_TYPE_INVALID",
@@ -59,7 +64,7 @@ async def create_source_and_task(
         raise AppError(
             status_code=422,
             code="SOURCE_ENCODING_INVALID",
-            message="Markdown 文件必须使用 UTF-8 编码",
+            message="文本资料必须使用 UTF-8 编码",
         ) from exc
 
     if not content.strip():
@@ -82,10 +87,11 @@ async def create_source_and_task(
         .where(
             SourceDocument.user_id == user_id,
             SourceDocument.project_id == project_id,
+            SourceDocument.source_type == normalized_source_type,
             SourceDocument.content_sha256 == content_sha256,
             ProcessingTask.user_id == user_id,
             ProcessingTask.project_id == project_id,
-            ProcessingTask.type.in_(("markdown_parsing", "knowledge_extraction")),
+            ProcessingTask.type.in_(PARSING_TASK_TYPES),
         )
         .order_by(
             SourceDocument.created_at, SourceDocument.id,
@@ -101,7 +107,7 @@ async def create_source_and_task(
         user_id=user_id,
         project_id=project_id,
         original_name=original_name,
-        media_type=upload.content_type or "text/markdown",
+        media_type=MEDIA_TYPE_BY_SOURCE[normalized_source_type],
         source_type=normalized_source_type,
         size_bytes=len(raw_content),
         content_sha256=content_sha256,
@@ -111,7 +117,7 @@ async def create_source_and_task(
         user_id=user_id,
         project_id=project_id,
         source=source,
-        type="markdown_parsing",
+        type=TASK_TYPE_BY_SOURCE[normalized_source_type],
         status=TaskStatus.QUEUED,
         stage="uploaded",
         progress=0,
@@ -164,7 +170,7 @@ def list_sources(
                 ProcessingTask.user_id == user_id,
                 ProcessingTask.project_id == project_id,
                 ProcessingTask.source_id.in_([source.id for source in sources]),
-                ProcessingTask.type.in_(("markdown_parsing", "knowledge_extraction")),
+                ProcessingTask.type.in_(PARSING_TASK_TYPES),
             ).order_by(ProcessingTask.created_at.desc(), ProcessingTask.id.desc())
         )
         for task in tasks:
