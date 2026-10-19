@@ -6,7 +6,7 @@
 
 Knowledge Atlas is a graduation project for a single developer. It organizes technical notes, code, project documents, and Git records into a temporal personal knowledge graph and uses evidence-grounded retrieval to answer questions.
 
-The repository currently contains an interactive Mock demo graph, a real API-backed project/source workspace with separate desktop single-file and folder Markdown/Java upload, Markdown parsing, bounded local Java source parsing with a derived type/field/method and same-file call outline, leased recovery, DeepSeek candidate extraction with audited review, promotion into a scoped PostgreSQL graph, evidence-backed keyword/vector/one-hop hybrid retrieval, and synchronous non-persistent evidence questions with validated citations. Cross-file code semantics/GitHub sync, directory-hierarchy persistence, entity disambiguation, question history, and multi-turn Agent behavior are not implemented. Derived code structure is not formal knowledge. Real DeepSeek quality and representative native pgvector acceptance remain separate from simulated tests.
+The repository currently contains an interactive Mock demo graph, a real API-backed project/source workspace with separate desktop single-file and folder Markdown/Java upload plus relative-path persistence, Markdown parsing, bounded local Java source parsing with a derived type/field/method and same-file call outline, leased recovery, DeepSeek candidate extraction with audited review, promotion into a scoped PostgreSQL graph, evidence-backed keyword/vector/one-hop hybrid retrieval, and synchronous non-persistent evidence questions with validated citations. Cross-file code semantics/GitHub sync, repository identity, entity disambiguation, question history, and multi-turn Agent behavior are not implemented. Derived code structure is not formal knowledge. Real DeepSeek quality and representative native pgvector acceptance remain separate from simulated tests.
 
 ## Read before changing code
 
@@ -82,25 +82,29 @@ Index: `.agents/skills/README.md`. Skills describe procedures; the rules in this
 
 ## Verification
 
-For frontend changes, run from `frontend/`:
+Verification is user-operated by default. Unless the user explicitly asks the agent to run verification, the agent must not execute tests, builds, migration upgrade/downgrade checks, service smoke tests, browser walkthroughs, `git diff --check`, or equivalent validation commands.
+
+For every change, provide the user with concrete verification steps, commands, prerequisites, and expected results. Mark the work as unverified until the user reports the results; never imply that a check passed merely because the implementation was reviewed statically.
+
+For frontend changes, ask the user to run from `frontend/`:
 
 ```bash
 npm run build
 ```
 
-For backend changes, run from `backend/`:
+For backend changes, ask the user to run from `backend/`:
 
 ```bash
 python -m pytest
 ```
 
-For visible UI changes, also verify the affected flow in a real browser at desktop and mobile widths. Check keyboard focus, empty states, clipping, and panel scrolling.
+For visible UI changes, also give the user a real-browser walkthrough for desktop and mobile widths, including keyboard focus, empty states, clipping, and panel scrolling.
 
 For every change:
 
-- Run `git diff --check`.
+- Include `git diff --check` in the user-run verification steps.
 - Confirm generated files, build output, dependencies, and secrets are not accidentally tracked.
-- Report checks that were actually run. Do not claim tests passed if they were not executed.
+- Report checks only when the user explicitly asked the agent to run them or supplied the results. Otherwise state that verification is pending user execution.
 - Add focused tests when a test harness exists; do not replace tests with manual inspection.
 
 ## Documentation responsibilities
@@ -125,12 +129,12 @@ For every change:
 ## Commit after each completed turn
 
 - Unless the user explicitly requests otherwise, commit the completed changes from each conversation turn before sending the final response. This is standing authorization for local commits; do not ask for confirmation again.
-- Run the checks appropriate to the changes, synchronize relevant documentation, and review the staged diff before committing. Include only changes belonging to the completed work; preserve unrelated user changes.
+- Prepare the checks appropriate to the changes for the user, synchronize relevant documentation, and review the staged diff before committing. Include only changes belonging to the completed work; preserve unrelated user changes.
 - Use a concise commit message that describes the resulting behavior. Separate independent changes into focused commits when appropriate.
 - If the turn makes no file changes, do not create an empty commit.
-- If required checks fail or the commit cannot be created, preserve the work and report the failure instead of claiming completion or a successful commit.
+- If the user reports a required check failure or the commit cannot be created, preserve the work and report the failure instead of claiming completion or a successful commit.
 - In the final response, report the commit hash or hashes and any remaining uncommitted changes. A local commit does not authorize pushing to a remote.
 
 ## Definition of done
 
-A change is done when its requested behavior is implemented, relevant validation passes, documentation is synchronized, completed changes are committed according to the workflow above, and remaining limitations are stated. Completing one roadmap phase does not authorize starting the next phase.
+A change is implementation-complete when its requested behavior and focused tests are implemented, documentation is synchronized, completed changes are committed according to the workflow above, user-run verification steps are provided, and remaining limitations are stated. Do not call the change verified until the user reports that the relevant checks passed. Completing one roadmap phase does not authorize starting the next phase.
