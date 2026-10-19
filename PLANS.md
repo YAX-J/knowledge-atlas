@@ -29,11 +29,11 @@ Completed:
 - Explainable hybrid retrieval with fixed keyword/vector/one-hop graph weights, bounded candidates, visible-relationship filtering, and per-hit score composition.
 - Synchronous evidence-grounded questions with bounded hybrid retrieval, strict DeepSeek output, application-validated citation UUIDs, and a real frontend workspace.
 - Local UTF-8 Java source upload with deterministic `code`/`comment`/`type`/`method` chunks, exact source lines, and reuse of the existing parsing worker and evidence pipeline.
-- Separate desktop single-file and folder-upload entry points; folders contribute up to 50 supported Markdown/Java files, uploaded sequentially with per-file deduplication and partial-success retention.
+- Separate desktop single-file and folder-upload entry points; folders contribute up to 50 supported Markdown/Java files, uploaded sequentially with persisted relative paths, per-file deduplication, and partial-success retention.
 
 ## Active phase
 
-The active phase is Stage 4 code ingestion. Its first bounded slice accepts local Java files without a migration, uses `code_parsing`, preserves exact source lines in structural chunks, and reuses the existing worker and evidence workflow. It does not claim a complete Java AST, symbol graph, call graph, GitHub import, or incremental repository synchronization. See [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.md).
+The active phase is Stage 4 code ingestion. Its bounded local-file slice accepts Java files, uses `code_parsing`, preserves exact source lines in structural chunks, persists optional folder-relative paths, and reuses the existing worker and evidence workflow. It does not claim a complete Java AST, symbol graph, call graph, GitHub import, or incremental repository synchronization. See [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.md).
 
 Implemented in this slice:
 
@@ -43,7 +43,7 @@ Implemented in this slice:
 - `code_parsing` support in manual execution and the leased database worker.
 - Desktop source-workspace upload, MD/JAVA labels, and Java chunk-kind display.
 - A bounded source-structure endpoint and desktop outline for stable type/field/method symbols plus same-file unqualified/`this.` call hints, kept outside the formal graph.
-- Separate desktop single-file and folder upload; folders ignore unsupported/empty files and import up to 50 Markdown/Java sources without preserving their directory hierarchy. Failures are reported per file without rolling back successful uploads.
+- Separate desktop single-file and folder upload; folders ignore unsupported/empty files and import up to 50 Markdown/Java sources while persisting normalized relative paths. Failures are reported per file without rolling back successful uploads.
 
 Acceptance still needed:
 

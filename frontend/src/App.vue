@@ -375,7 +375,7 @@ async function uploadFiles(files: File[]) {
     const fileLabel = file.webkitRelativePath || file.name
     notice.value = `正在接收第 ${index + 1} / ${files.length} 份资料：${fileLabel}`
     try {
-      lastResult = await uploadSource(projectId, file)
+      lastResult = await uploadSource(projectId, file, file.webkitRelativePath || undefined)
     } catch (error) {
       failures.push(`${fileLabel}：${errorMessage(error)}`)
     }

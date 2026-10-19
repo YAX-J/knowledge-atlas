@@ -195,7 +195,9 @@ def get_graph(
 
 def _evidence_read(db: Session, record):
     owner = KnowledgeEvidence.entity_id if isinstance(record, KnowledgeEntity) else KnowledgeEvidence.relationship_id
-    rows = db.execute(select(KnowledgeEvidence, SourceDocument.original_name).join(
+    rows = db.execute(select(
+        KnowledgeEvidence, SourceDocument.original_name, SourceDocument.relative_path,
+    ).join(
         SourceDocument, SourceDocument.id == KnowledgeEvidence.source_id,
     ).join(SourceChunk, SourceChunk.id == KnowledgeEvidence.chunk_id).where(
         owner == record.id, KnowledgeEvidence.user_id == record.user_id, KnowledgeEvidence.project_id == record.project_id,
@@ -204,10 +206,10 @@ def _evidence_read(db: Session, record):
         SourceChunk.user_id == record.user_id, SourceChunk.project_id == record.project_id,
     ).order_by(KnowledgeEvidence.start_line, KnowledgeEvidence.id))
     return [FormalEvidenceRead(
-        id=item.id, source_id=item.source_id, chunk_id=item.chunk_id, title=title,
+        id=item.id, source_id=item.source_id, chunk_id=item.chunk_id, title=relative_path or title,
         uri=f"project://{record.project_id}/sources/{item.source_id}", quote=item.quote,
         start_line=item.start_line, end_line=item.end_line, heading_path=item.heading_path,
-    ) for item, title in rows]
+    ) for item, title, relative_path in rows]
 
 
 def entity_detail(db: Session, *, user_id: uuid.UUID, entity_id: uuid.UUID, valid_at: datetime | None) -> EntityDetail:

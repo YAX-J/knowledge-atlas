@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api.dependencies import get_current_user_id
 from app.core.errors import AppError
 from app.main import app
-from app.models.domain import CandidateKnowledge, Project, ReviewEvent, ReviewStatus, utc_now
+from app.models.domain import CandidateKnowledge, Project, ReviewEvent, ReviewStatus, SourceDocument, utc_now
 from app.models.graph import KnowledgeEntity, KnowledgeEvidence, KnowledgeRelationship
 from app.schemas.knowledge import ExtractionDraft
 from app.services import deepseek, graph
@@ -38,6 +38,9 @@ def count(db, model):
 
 def test_confirmation_persists_graph_and_locatable_evidence(client, db_session, configured, monkeypatch):
     project_id, source, items = extracted(client, monkeypatch)
+    stored_source = db_session.get(SourceDocument, uuid.UUID(source["source_id"]))
+    stored_source.relative_path = "repository/docs/note.md"
+    db_session.commit()
     url = f"/api/v1/projects/{project_id}/graph"
     assert client.get(url).json() == {"nodes": [], "edges": [], "truncated": False}
     assert [item["kind"] for item in items] == ["entity", "entity", "relation"]
@@ -56,7 +59,7 @@ def test_confirmation_persists_graph_and_locatable_evidence(client, db_session, 
         assert detail["entity"] == node and len(detail["relationships"]) == 1
         evidence = detail["evidence"][0]
         assert evidence["source_id"] == source["source_id"]
-        assert evidence["title"] == "note.md" and evidence["start_line"] == 3
+        assert evidence["title"] == "repository/docs/note.md" and evidence["start_line"] == 3
         assert evidence["quote"] == "Use PostgreSQL for storage."
         assert evidence["uri"].startswith("project://") and "file://" not in str(detail)
     edge_detail = client.get(f"/api/v1/knowledge/relationships/{data['edges'][0]['id']}")

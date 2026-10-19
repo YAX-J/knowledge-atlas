@@ -16,6 +16,30 @@ SOURCE_TYPE_BY_SUFFIX = {".md": "markdown", ".markdown": "markdown", ".java": "j
 TASK_TYPE_BY_SOURCE = {"markdown": "markdown_parsing", "java": "code_parsing"}
 MEDIA_TYPE_BY_SOURCE = {"markdown": "text/markdown", "java": "text/x-java-source"}
 PARSING_TASK_TYPES = ("markdown_parsing", "knowledge_extraction", "code_parsing")
+MAX_RELATIVE_PATH_LENGTH = 1024
+
+
+def normalize_relative_path(relative_path: str | None, *, original_name: str) -> str | None:
+    if relative_path is None or not relative_path.strip():
+        return None
+
+    normalized = relative_path.strip().replace("\\", "/")
+    parts = normalized.split("/")
+    drive_prefixed = len(normalized) >= 3 and normalized[0].isalpha() and normalized[1:3] == ":/"
+    if (
+        len(normalized) > MAX_RELATIVE_PATH_LENGTH
+        or normalized.startswith("/")
+        or drive_prefixed
+        or any(not part or part in {".", ".."} or "\x00" in part for part in parts)
+        or parts[-1] != original_name
+    ):
+        raise AppError(
+            status_code=422,
+            code="SOURCE_PATH_INVALID",
+            message="资料相对路径无效",
+            details={"max_length": MAX_RELATIVE_PATH_LENGTH},
+        )
+    return normalized
 
 
 async def create_source_and_task(
@@ -26,10 +50,11 @@ async def create_source_and_task(
     project_id: uuid.UUID,
     upload: UploadFile,
     source_type: str | None,
+    relative_path: str | None,
 ) -> tuple[SourceDocument, ProcessingTask]:
     get_project(db, user_id=user_id, project_id=project_id)
 
-    original_name = Path(upload.filename or "").name
+    original_name = Path((upload.filename or "").replace("\\", "/")).name
     suffix = Path(original_name).suffix.lower()
     inferred_source_type = SOURCE_TYPE_BY_SUFFIX.get(suffix)
     if not original_name or inferred_source_type is None:
@@ -39,6 +64,10 @@ async def create_source_and_task(
             message="当前阶段仅支持 Markdown 与 Java 源文件",
             details={"allowed_extensions": sorted(SOURCE_TYPE_BY_SUFFIX)},
         )
+
+    normalized_relative_path = normalize_relative_path(
+        relative_path, original_name=original_name
+    )
 
     normalized_source_type = (source_type or inferred_source_type).strip().lower()
     if normalized_source_type != inferred_source_type:
@@ -107,6 +136,7 @@ async def create_source_and_task(
         user_id=user_id,
         project_id=project_id,
         original_name=original_name,
+        relative_path=normalized_relative_path,
         media_type=MEDIA_TYPE_BY_SOURCE[normalized_source_type],
         source_type=normalized_source_type,
         size_bytes=len(raw_content),

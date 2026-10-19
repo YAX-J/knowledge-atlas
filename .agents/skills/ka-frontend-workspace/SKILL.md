@@ -53,7 +53,7 @@ npm run preview
 - 页面级状态集中在 `App.vue`；组件只收 props、发事件，不直接发请求。
 - 用请求序号（`projectsRequest`、`sourcesRequest`、`detailRequest`、`chunksRequest`、`reviewsRequest`、`reviewAction`、`graphRequest`、`graphDetailRequest`、`searchRequest`、`questionRequest`）丢弃迟到响应。
 - 切换项目/资料时先清空旧详情并递增对应序号；上传、执行、审核期间禁止切上下文。
-- 文件夹上传由 `App.vue` 顺序调用单文件 API；逐份捕获错误，保留成功项，最终选择最后一份成功资料。相对路径只用于进度/错误提示，不写入来源。
+- 文件夹上传由 `App.vue` 顺序调用单文件 API，并提交 `webkitRelativePath`；逐份捕获错误，保留成功项，最终选择最后一份成功资料。列表、详情与正式证据标题优先展示后端返回的相对路径。
 - 默认 HTTP 超时 30 秒；候选抽取和证据问答 240 秒；都不自动重试。
 - 后端失败时展示错误和重试入口，不回退成演示数据。
 - 分页参数：`page` 从 1 开始，`page_size` 1–100，默认 20。

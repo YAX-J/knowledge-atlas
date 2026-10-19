@@ -16,6 +16,7 @@ class SourceRead(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
     original_name: str
+    relative_path: str | None
     media_type: str
     source_type: str
     size_bytes: int
@@ -85,6 +86,7 @@ class SourceListItem(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
     original_name: str
+    relative_path: str | None
     source_type: str
     size_bytes: int
     status: SourceStatus

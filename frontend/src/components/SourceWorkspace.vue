@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type {
-  ApiProject, ApiProjectList, ApiSource, JavaCodeStructure, ProcessingTask, SourceChunkList, SourceList,
+  ApiProject, ApiProjectList, ApiSource, JavaCodeStructure, ProcessingTask, SourceChunkList, SourceList, SourceListItem,
 } from '../api/knowledgeAtlas'
 import type { IngestionErrors, IngestionLoading } from '../types'
 
@@ -131,6 +131,10 @@ function calleeName(call: JavaCodeStructure['calls'][number]) {
   const calleeId = call.callee_ids.length === 1 ? call.callee_ids[0] : undefined
   return calleeId ? codeSymbolsById.value.get(calleeId)?.qualified_name ?? call.callee_name : call.callee_name
 }
+
+function sourceName(source: SourceListItem | ApiSource) {
+  return source.relative_path || source.original_name
+}
 </script>
 
 <template>
@@ -199,7 +203,7 @@ function calleeName(call: JavaCodeStructure['calls'][number]) {
               <button class="primary-button" type="button" :disabled="locked" @click="folderInput?.click()">{{ loading.upload && uploadKind === 'folder' ? '正在上传文件夹…' : '上传文件夹' }}</button>
             </div>
           </header>
-          <p class="source-upload-hint">可上传单个 UTF-8 Markdown/Java 文件，或从文件夹中导入最多 50 份支持的文件。文件夹层级不会保存；其他类型与空文件会被忽略。</p>
+          <p class="source-upload-hint">可上传单个 UTF-8 Markdown/Java 文件，或从文件夹中导入最多 50 份支持的文件。文件夹相对路径会随资料保存；其他类型与空文件会被忽略。</p>
           <p v-if="selectionNote" class="muted-copy" role="status">{{ selectionNote }}</p>
           <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
           <p v-if="fileError || errors.upload" class="inline-error" role="alert">{{ fileError || errors.upload }}</p>
@@ -216,7 +220,7 @@ function calleeName(call: JavaCodeStructure['calls'][number]) {
               :class="{ selected: selectedSourceId === item.id }" :aria-pressed="selectedSourceId === item.id"
               :disabled="locked" @click="emit('selectSource', item.id, item.task_id)">
               <span class="source-file-type" aria-hidden="true">{{ sourceTypeLabel(item.source_type) }}</span>
-              <span class="source-file-name"><strong>{{ item.original_name }}</strong><small>{{ formatSize(item.size_bytes) }}</small></span>
+              <span class="source-file-name"><strong>{{ sourceName(item) }}</strong><small>{{ formatSize(item.size_bytes) }}</small></span>
               <span class="source-status" :class="`status-${item.task_status ?? item.status}`">{{ statusLabels[item.task_status ?? item.status] }}</span>
             </button>
           </div>
@@ -228,7 +232,7 @@ function calleeName(call: JavaCodeStructure['calls'][number]) {
 
           <section v-if="selectedSourceId" class="source-reader" aria-label="原文与解析结果" :aria-busy="loading.detail || loading.task || loading.chunks || loading.structure">
             <div class="source-section-heading reader-heading">
-              <div><h3>{{ source?.original_name ?? '资料详情' }}</h3><p v-if="source" class="muted-copy">{{ source.line_count }} 行原文 · {{ formatSize(source.size_bytes) }}</p></div>
+              <div><h3>{{ source ? sourceName(source) : '资料详情' }}</h3><p v-if="source" class="muted-copy">{{ source.line_count }} 行原文 · {{ formatSize(source.size_bytes) }}</p></div>
               <button class="text-button" type="button" :disabled="loading.detail || locked || loading.chunks" @click="emit('refresh')">刷新状态</button>
             </div>
             <p v-if="loading.detail" role="status" class="muted-copy">正在读取原文与任务…</p>

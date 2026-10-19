@@ -92,6 +92,7 @@ class SourceDocument(TimestampMixin, Base):
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
     original_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    relative_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     media_type: Mapped[str] = mapped_column(String(120), nullable=False)
     source_type: Mapped[str] = mapped_column(String(50), nullable=False)
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)

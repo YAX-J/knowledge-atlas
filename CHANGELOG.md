@@ -10,7 +10,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
-- Separate desktop single-file and folder-upload entry points. Folder selection ignores unsupported/empty files, imports up to 50 Markdown/Java sources through the existing sequential upload contract, shows relative paths during progress/errors, and retains successful uploads when another file fails; directory hierarchy is not persisted.
+- Separate desktop single-file and folder-upload entry points. Folder selection ignores unsupported/empty files, imports up to 50 Markdown/Java sources through the existing sequential upload contract, persists normalized relative paths, shows them in source/evidence views, and retains successful uploads when another file fails.
 - A bounded read-only Java source-structure endpoint and desktop outline with stable type/field/method symbols, source lines, and same-file unqualified/`this.` call hints. Derived relationships remain separate from reviewed formal knowledge and report overload collisions as ambiguous.
 - Bounded local Java source ingestion with `.java` upload validation, `code_parsing` tasks, leased-worker support, exact line-preserving `code`/`comment`/`type`/`method` chunks, stable structure paths/UUIDs, type-level annotation grouping, and desktop MD/JAVA source presentation. Complete ASTs, call graphs, GitHub import, and incremental repository sync remain out of scope.
 - Synchronous, non-persistent evidence-grounded questions with bounded hybrid retrieval, strict DeepSeek JSON output, application-validated citation UUIDs, deterministic no-evidence refusal, retrieval summaries, and a responsive real frontend workspace with source-line and entity navigation.

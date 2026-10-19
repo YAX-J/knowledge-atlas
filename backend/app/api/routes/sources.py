@@ -55,6 +55,7 @@ async def upload_source(
     user_id: CurrentUserId,
     file: UploadFile = File(...),
     source_type: str | None = Form(default=None),
+    relative_path: str | None = Form(default=None),
 ) -> SourceUploadResponse:
     source, task = await ingestion.create_source_and_task(
         db,
@@ -63,6 +64,7 @@ async def upload_source(
         project_id=project_id,
         upload=file,
         source_type=source_type,
+        relative_path=relative_path,
     )
     return SourceUploadResponse(
         source_id=source.id,
@@ -82,6 +84,7 @@ def get_source(
         id=source.id,
         project_id=source.project_id,
         original_name=source.original_name,
+        relative_path=source.relative_path,
         media_type=source.media_type,
         source_type=source.source_type,
         size_bytes=source.size_bytes,

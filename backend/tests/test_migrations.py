@@ -19,6 +19,29 @@ def migration_config() -> Config:
     return config
 
 
+def insert_legacy_source(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    source_id: uuid.UUID | None = None,
+    original_name: str = "old.md",
+) -> uuid.UUID:
+    source_id = source_id or uuid.uuid4()
+    db.execute(SourceDocument.__table__.insert().values(
+        id=source_id,
+        user_id=user_id,
+        project_id=project_id,
+        original_name=original_name,
+        source_type="markdown",
+        media_type="text/markdown",
+        size_bytes=4,
+        content_sha256="0" * 64,
+        content="Note",
+    ))
+    return source_id
+
+
 def test_chunks_migration_preserves_sources_and_is_reversible(tmp_path, monkeypatch) -> None:
     url = f"sqlite+pysqlite:///{(tmp_path / 'migration.db').as_posix()}"
     monkeypatch.setattr(app_config, "get_settings", lambda: SimpleNamespace(database_url=url))
@@ -30,11 +53,9 @@ def test_chunks_migration_preserves_sources_and_is_reversible(tmp_path, monkeypa
         project = Project(user_id=uuid.uuid4(), name="Migration test")
         db.add(project)
         db.flush()
-        db.add(SourceDocument(
-            id=source_id, user_id=project.user_id, project_id=project.id,
-            original_name="old.md", source_type="markdown", media_type="text/markdown",
-            size_bytes=4, content_sha256="0" * 64, content="Note",
-        ))
+        insert_legacy_source(
+            db, source_id=source_id, user_id=project.user_id, project_id=project.id
+        )
         db.commit()
     command.upgrade(config, "head")
     assert "source_chunks" in inspect(engine).get_table_names()
@@ -43,8 +64,11 @@ def test_chunks_migration_preserves_sources_and_is_reversible(tmp_path, monkeypa
         assert db.scalar(select(SourceDocument.content).where(SourceDocument.id == source_id)) == "Note"
     command.downgrade(config, "20261017_0001")
     assert "source_chunks" not in inspect(engine).get_table_names()
-    with Session(engine) as db:
-        assert db.get(SourceDocument, source_id).content == "Note"
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT content FROM source_documents WHERE id = :id"),
+            {"id": source_id.hex},
+        ).scalar_one() == "Note"
     command.upgrade(config, "head")
     command.downgrade(config, "base")
     assert set(inspect(engine).get_table_names()) <= {"alembic_version"}
@@ -72,6 +96,40 @@ def test_postgresql_migrations_compile_without_a_live_server(monkeypatch) -> Non
     assert "CREATE TABLE knowledge_evidence" in sql
     assert "CREATE TABLE knowledge_embeddings" in sql
     assert "VECTOR(1024)" in sql
+    assert "ADD COLUMN relative_path VARCHAR(1024)" in sql
+
+
+def test_source_relative_path_migration_preserves_legacy_sources_and_is_reversible(
+    tmp_path, monkeypatch
+) -> None:
+    url = f"sqlite+pysqlite:///{(tmp_path / 'source-path.db').as_posix()}"
+    monkeypatch.setattr(app_config, "get_settings", lambda: SimpleNamespace(database_url=url))
+    config = migration_config()
+    command.upgrade(config, "20261018_0006")
+    engine = create_engine(url)
+    with Session(engine) as db:
+        project = Project(user_id=uuid.uuid4(), name="Path migration")
+        db.add(project)
+        db.flush()
+        source_id = insert_legacy_source(db, user_id=project.user_id, project_id=project.id)
+        db.commit()
+
+    command.upgrade(config, "head")
+    assert "relative_path" in {
+        column["name"] for column in inspect(engine).get_columns("source_documents")
+    }
+    with Session(engine) as db:
+        source = db.get(SourceDocument, source_id)
+        assert source is not None and source.relative_path is None
+        source.relative_path = "repository/docs/old.md"
+        db.commit()
+
+    command.downgrade(config, "20261018_0006")
+    assert "relative_path" not in {
+        column["name"] for column in inspect(engine).get_columns("source_documents")
+    }
+    command.upgrade(config, "head")
+    engine.dispose()
 
 
 def test_lease_migration_preserves_legacy_running_tasks(tmp_path, monkeypatch) -> None:
@@ -84,11 +142,9 @@ def test_lease_migration_preserves_legacy_running_tasks(tmp_path, monkeypatch) -
     with Session(engine) as db:
         db.add(Project(id=project_id, user_id=user_id, name="Existing project"))
         db.flush()
-        db.add(SourceDocument(
-            id=source_id, user_id=user_id, project_id=project_id,
-            original_name="old.md", source_type="markdown", media_type="text/markdown",
-            size_bytes=4, content_sha256="0" * 64, content="Note",
-        ))
+        insert_legacy_source(
+            db, source_id=source_id, user_id=user_id, project_id=project_id
+        )
         db.commit()
     with engine.begin() as connection:
         connection.execute(text(
@@ -122,16 +178,15 @@ def test_graph_migration_preserves_reviewed_candidates_and_is_reversible(tmp_pat
         project = Project(user_id=uuid.uuid4(), name="Legacy project")
         db.add(project)
         db.flush()
-        source = SourceDocument(user_id=project.user_id, project_id=project.id, original_name="note.md",
-                                source_type="markdown", media_type="text/markdown", size_bytes=4, content_sha256="0"*64, content="Note")
-        db.add(source)
-        db.flush()
-        task = ProcessingTask(user_id=project.user_id, project_id=project.id, source_id=source.id, type="knowledge_candidates")
+        source_id = insert_legacy_source(
+            db, user_id=project.user_id, project_id=project.id, original_name="note.md"
+        )
+        task = ProcessingTask(user_id=project.user_id, project_id=project.id, source_id=source_id, type="knowledge_candidates")
         db.add(task)
         db.flush()
-        db.add(SourceChunk(id=chunk_id, user_id=project.user_id, project_id=project.id, source_id=source.id,
+        db.add(SourceChunk(id=chunk_id, user_id=project.user_id, project_id=project.id, source_id=source_id,
                            position=0, kind="paragraph", heading_path=[], content="Note", content_sha256="0"*64, start_line=1, end_line=1))
-        db.add(CandidateKnowledge(id=candidate_id, user_id=project.user_id, project_id=project.id, source_id=source.id,
+        db.add(CandidateKnowledge(id=candidate_id, user_id=project.user_id, project_id=project.id, source_id=source_id,
                                  task_id=task.id, name="Existing", summary="Kept", candidate_type="Concept", confidence=.8,
                                  payload={}, review_status=ReviewStatus.CONFIRMED))
         db.commit()
@@ -171,16 +226,14 @@ def test_review_migration_preserves_existing_candidates(tmp_path, monkeypatch) -
         project = Project(user_id=user_id, name="Existing project")
         db.add(project)
         db.flush()
-        source = SourceDocument(user_id=user_id, project_id=project.id, original_name="old.md",
-                                source_type="markdown", media_type="text/markdown", size_bytes=4,
-                                content_sha256="0" * 64, content="Note")
-        db.add(source)
-        db.flush()
-        task = ProcessingTask(user_id=user_id, project_id=project.id, source_id=source.id, type="markdown_parsing")
+        source_id = insert_legacy_source(
+            db, user_id=user_id, project_id=project.id
+        )
+        task = ProcessingTask(user_id=user_id, project_id=project.id, source_id=source_id, type="markdown_parsing")
         db.add(task)
         db.flush()
         db.add(CandidateKnowledge(id=candidate_id, user_id=user_id, project_id=project.id,
-                                 source_id=source.id, task_id=task.id, candidate_type="Concept",
+                                 source_id=source_id, task_id=task.id, candidate_type="Concept",
                                  name="Existing", summary="Kept", confidence=.8, payload={}))
         db.commit()
     command.upgrade(config, "head")

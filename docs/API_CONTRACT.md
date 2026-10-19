@@ -99,7 +99,7 @@
 
 `GET /api/v1/projects/{project_id}/sources?page=1&page_size=20`
 
-返回 `items`、`page`、`page_size`、`total`，按上传时间降序、ID 稳定排序。每条资料包含 `id`、`project_id`、`original_name`、`source_type`、`size_bytes`、来源 `status`、`created_at`、`updated_at`，以及当前用户/项目下最新任务的 `task_id` 和 `task_status`（无任务时为 `null`）。列表不返回原文或预览内容，详情从来源接口读取。
+返回 `items`、`page`、`page_size`、`total`，按上传时间降序、ID 稳定排序。每条资料包含 `id`、`project_id`、`original_name`、可空的 `relative_path`、`source_type`、`size_bytes`、来源 `status`、`created_at`、`updated_at`，以及当前用户/项目下最新任务的 `task_id` 和 `task_status`（无任务时为 `null`）。列表不返回原文或预览内容，详情从来源接口读取。
 
 `page >= 1`，`1 <= page_size <= 100`。空项目或越过最后一页返回空列表；项目不存在、已归档或不属于当前用户时返回 HTTP 404。
 
@@ -111,6 +111,7 @@
 
 - `file`：接受 UTF-8 `.md`、`.markdown` 或 `.java` 文件，默认最大 10 MiB。
 - `source_type`：可选，未填写时由后缀识别；填写时必须与后缀推断出的 `markdown` 或 `java` 一致。
+- `relative_path`：可选，供文件夹上传保存包含文件名的相对路径；最长 1024 字符，统一为 `/`，不得是绝对路径、包含空段、`.`/`..`，末段必须与上传文件名一致。单文件上传通常省略。
 
 响应：
 
@@ -122,7 +123,7 @@
 }
 ```
 
-同一用户、同一项目、同一来源类型中，相同文件字节（SHA-256 一致）的重复上传会复用已有 `source_id` 与 `task_id`，不受文件名影响。始终返回 HTTP 202；`status` 为复用任务的当前状态，因此也可能是 `running`、`succeeded`、`failed` 或 `cancelled`。原文件名保留首次上传值。来源类型、内容或项目不同会创建独立来源，不自动替换旧来源。
+同一用户、同一项目、同一来源类型中，相同文件字节（SHA-256 一致）的重复上传会复用已有 `source_id` 与 `task_id`，不受文件名或相对路径影响。始终返回 HTTP 202；`status` 为复用任务的当前状态，因此也可能是 `running`、`succeeded`、`failed` 或 `cancelled`。原文件名与 `relative_path` 保留首次上传值。来源类型、内容或项目不同会创建独立来源，不自动替换旧来源。无效相对路径返回 HTTP 422 `SOURCE_PATH_INVALID`。
 
 ### 查询任务状态
 
@@ -171,7 +172,7 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 `GET /api/v1/sources/{source_id}`
 
-返回资料元数据、SHA-256、解析状态、行数和最多 4000 字符的可预览内容，不返回服务器文件路径。
+返回资料元数据（包括可空的 `relative_path`）、SHA-256、解析状态、行数和最多 4000 字符的可预览内容，不返回服务器绝对路径。
 
 ### 查询资料分块
 

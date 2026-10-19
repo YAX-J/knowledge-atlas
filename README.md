@@ -4,7 +4,7 @@
 
 Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成带有来源、时间和上下文的知识网络，帮助开发者重新找到历史方案、理解技术决策，并基于真实证据回答问题。
 
-> 当前进度：Markdown 与本地 Java 源文件桌面端单文件/文件夹导入、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、关键词/语义向量/一跳图关系融合检索，以及同步证据问答已经实现。Java 当前提供有界结构分块，不代表完整 AST、调用图或 GitHub 同步已完成。
+> 当前进度：Markdown 与本地 Java 源文件桌面端单文件/文件夹导入（含相对路径持久化）、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、关键词/语义向量/一跳图关系融合检索，以及同步证据问答已经实现。Java 当前提供有界结构分块，不代表完整 AST、调用图或 GitHub 同步已完成。
 
 ![Knowledge Atlas 知识图谱工作台](docs/images/knowledge-atlas-overview.png)
 
@@ -46,7 +46,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - 通过时间轴回放不同阶段的知识状态。
 - 基于当前节点生成模拟证据回答。
 - 桌面端与移动端响应式布局。
-- 真实项目列表与创建、项目资料列表，以及 Markdown/Java 的桌面端单文件上传或文件夹导入（最多 50 份支持文件）。
+- 真实项目列表与创建、项目资料列表，以及 Markdown/Java 的桌面端单文件上传或文件夹导入（最多 50 份支持文件，保存文件夹相对路径）。
 - 显式开始/重试解析、原文预览、标题或代码结构与行号分块查询。
 - Java 类型、字段、方法及有界同文件调用关系展示，明确与已审核正式图谱分离。
 - 候选知识确认/拒绝、名称摘要修正和旧确认补写入图谱。
@@ -122,7 +122,7 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-候选提取和语义索引需要先应用最新迁移（`20261018_0006`）。候选提取在后端 `.env` 设置 `DEEPSEEK_API_KEY`；语义检索需另外配置 `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL` 和 `EMBEDDING_MODEL`，当前固定 1024 维。两类外部调用都由用户显式触发。详细设置见 [后端说明](backend/README.zh-CN.md)。
+候选提取和语义索引需要先应用最新迁移（`20261019_0007`）。候选提取在后端 `.env` 设置 `DEEPSEEK_API_KEY`；语义检索需另外配置 `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL` 和 `EMBEDDING_MODEL`，当前固定 1024 维。两类外部调用都由用户显式触发。详细设置见 [后端说明](backend/README.zh-CN.md)。
 
 接口文档地址为 `http://localhost:8000/docs`，存活检查地址为 `http://localhost:8000/api/v1/health/live`。
 

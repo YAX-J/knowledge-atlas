@@ -20,15 +20,15 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 - `source_type` 省略时由后缀推断；填写时必须与 `markdown` / `java` 推断值一致，否则 422 `SOURCE_TYPE_INVALID`。
 - 默认最大 10 MiB（`MAX_UPLOAD_BYTES`），超出 413 `SOURCE_TOO_LARGE`。
 - 必须 UTF-8，否则 422 `SOURCE_ENCODING_INVALID`；空内容 422 `SOURCE_EMPTY`。
-- 保存原文、字节数、SHA-256、媒体类型和规范化的 `original_name`（去掉路径）。
+- 保存原文、字节数、SHA-256、媒体类型和规范化的 `original_name`（去掉路径）；文件夹上传还可保存最长 1024 字符的规范化 `relative_path`。
 - 上传成功始终返回 HTTP 202，响应里的 `status` 可能是 `queued`、`running`、`succeeded`、`failed`、`cancelled`。
-- 桌面端单文件/文件夹导入不改变后端契约：文件夹最多提取 50 份支持文件并顺序调用单文件接口；单份失败不回滚其他成功请求，目录层级不持久化。
+- 桌面端文件夹最多提取 50 份支持文件并顺序调用单文件接口，同时提交浏览器提供的相对路径；单份失败不回滚其他成功请求。
 
 ## 去重语义
 
 - 作用域：同一用户、同一项目、同一来源类型。
-- 键：文件字节的 SHA-256（与文件名无关）。
-- 先对项目行加锁，再查已有来源 + 解析任务；命中则复用原 `source_id` 和 `task_id`，保留首次上传的文件名。
+- 键：文件字节的 SHA-256（与文件名、相对路径无关）。
+- 先对项目行加锁，再查已有来源 + 解析任务；命中则复用原 `source_id` 和 `task_id`，保留首次上传的文件名与相对路径。
 - 内容变化或换项目 → 新来源，不自动建立版本/`SUPERSEDES` 关系。
 - 复用返回的是任务**当前**状态，不要假设一定是 `queued`。
 

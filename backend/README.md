@@ -10,7 +10,7 @@ FastAPI service for Knowledge Atlas persistence, Markdown/Java ingestion, eviden
 - Request IDs, CORS, request logging, and a stable error envelope.
 - Create, list, and retrieve projects within a development-user boundary.
 - Paginate a project's source metadata and latest tasks within the same user/project boundary.
-- Validate and store UTF-8 Markdown and Java source with a SHA-256 content hash.
+- Validate and store UTF-8 Markdown and Java source with a SHA-256 content hash and an optional normalized folder-relative path.
 - Create/query parsing tasks and explicitly run them through the API.
 - Automatically consume queued parsing tasks in an optional independent worker process, with leased claims, interrupted-task recovery, and fenced result writes.
 - Persist Markdown headings/paragraphs/lists/fenced code and Java code/comment/type/method chunks with exact text, structure paths, hashes, and one-based inclusive line ranges. Top-level type annotations stay with the type; comment-only lines outside methods are separate comment chunks.
@@ -49,12 +49,12 @@ OpenAPI documentation is available at `http://localhost:8000/docs`.
 Use the interactive API documentation in this order:
 
 1. `POST /api/v1/projects` to create a project.
-2. `POST /api/v1/projects/{project_id}/sources` to upload a UTF-8 `.md`, `.markdown`, or `.java` file.
+2. `POST /api/v1/projects/{project_id}/sources` to upload a UTF-8 `.md`, `.markdown`, or `.java` file. Folder clients may also send `relative_path`; it must be a normalized relative path ending in the uploaded filename.
 3. `POST /api/v1/tasks/{task_id}/run` to synchronously execute parsing.
 4. `GET /api/v1/tasks/{task_id}` to inspect status and error information.
 5. `GET /api/v1/sources/{source_id}/chunks?page=1&page_size=20` to inspect evidence text and line locations.
 
-`GET /api/v1/projects/{project_id}/sources` restores the source list and each source's latest task after a frontend refresh. It excludes original content; use the source-detail endpoint for preview text.
+`GET /api/v1/projects/{project_id}/sources` restores the source list and each source's latest task after a frontend refresh. It includes nullable `relative_path` metadata but excludes original content; use the source-detail endpoint for preview text. Identical-byte reuse retains the first source's filename and relative path.
 
 Markdown tasks use `markdown_parsing`, Java tasks use `code_parsing`, and legacy queued `knowledge_extraction` uploads can run Markdown parsing only. Successful tasks end at `succeeded`/`parsed`/100 and sources become `ready`. This does not mean knowledge extraction has run. Execution failures return HTTP 200 with a `failed` task and a sanitized error; the same endpoint retries failed tasks. Repeating a succeeded task returns the existing result, while running/cancelled tasks return HTTP 409. Re-upload responses contain the reused task's current status, which need not be `queued`.
 
@@ -92,7 +92,7 @@ Docker Compose is an optional alternative: from the repository root, `docker com
 
 ## DeepSeek candidate extraction and review
 
-Apply `alembic upgrade head` (expected `20261018_0006`) before review or semantic-index operations. Configure only the backend `.env`:
+Apply `alembic upgrade head` (expected `20261019_0007`) before review or semantic-index operations. Configure only the backend `.env`:
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key

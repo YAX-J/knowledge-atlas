@@ -26,6 +26,7 @@ export interface ApiSource {
   id: string
   project_id: string
   original_name: string
+  relative_path: string | null
   media_type: string
   source_type: string
   size_bytes: number
@@ -83,6 +84,7 @@ export interface SourceListItem {
   id: string
   project_id: string
   original_name: string
+  relative_path: string | null
   source_type: string
   size_bytes: number
   status: ApiSource['status']
@@ -138,10 +140,12 @@ export function createProject(input: {
 export function uploadSource(
   projectId: string,
   file: File,
+  relativePath?: string,
 ): Promise<SourceUploadResult> {
   const body = new FormData()
   body.append('file', file)
   body.append('source_type', file.name.toLowerCase().endsWith('.java') ? 'java' : 'markdown')
+  if (relativePath) body.append('relative_path', relativePath)
   return apiRequest<SourceUploadResult>(`/projects/${projectId}/sources`, {
     method: 'POST',
     body,
