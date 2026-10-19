@@ -16,6 +16,7 @@ import {
   runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
   getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
   getJavaCodeStructure,
+  resolveLocalRepository,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
@@ -371,11 +372,33 @@ async function uploadFiles(files: File[]) {
   clearSourceSelection()
   const failures: string[] = []
   let lastResult: SourceUploadResult | null = null
+  const folderPath = files[0]?.webkitRelativePath ?? ''
+  const folderRoot = folderPath.split('/').filter(Boolean)[0] ?? ''
+  let repositoryId: string | undefined
+  let repositoryName = ''
+  if (folderRoot) {
+    try {
+      const repository = await resolveLocalRepository(projectId, folderRoot)
+      repositoryId = repository.id
+      repositoryName = repository.name
+      notice.value = `已识别本地仓库“${repository.name}”，正在接收资料。`
+    } catch (error) {
+      errors.upload = errorMessage(error)
+      loading.upload = false
+      return
+    }
+  }
   for (const [index, file] of files.entries()) {
     const fileLabel = file.webkitRelativePath || file.name
     notice.value = `正在接收第 ${index + 1} / ${files.length} 份资料：${fileLabel}`
     try {
-      lastResult = await uploadSource(projectId, file, file.webkitRelativePath || undefined)
+      const pathParts = file.webkitRelativePath.split('/').filter(Boolean)
+      const repositoryPath = repositoryId
+        ? pathParts.slice(1).join('/') || file.name
+        : undefined
+      lastResult = await uploadSource(
+        projectId, file, repositoryPath, repositoryId,
+      )
     } catch (error) {
       failures.push(`${fileLabel}：${errorMessage(error)}`)
     }
@@ -384,7 +407,7 @@ async function uploadFiles(files: File[]) {
   if (lastResult) {
     selectedSourceId.value = lastResult.source_id
     selectedTaskId.value = lastResult.task_id
-    notice.value = `已接收 ${succeeded} / ${files.length} 份资料。相同内容会复用已有资料，请查看当前解析状态。`
+    notice.value = `${repositoryId ? `本地仓库“${repositoryName}”` : '单文件'}已接收 ${succeeded} / ${files.length} 份资料。相同仓库中的相同内容会复用已有资料，请查看当前解析状态。`
     await Promise.all([loadSources(1), refreshSource()])
   } else {
     notice.value = ''

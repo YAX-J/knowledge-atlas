@@ -30,10 +30,12 @@ Completed:
 - Synchronous evidence-grounded questions with bounded hybrid retrieval, strict DeepSeek output, application-validated citation UUIDs, and a real frontend workspace.
 - Local UTF-8 Java source upload with deterministic `code`/`comment`/`type`/`method` chunks, exact source lines, and reuse of the existing parsing worker and evidence pipeline.
 - Separate desktop single-file and folder-upload entry points; folders contribute up to 50 supported Markdown/Java files, uploaded sequentially with persisted relative paths, per-file deduplication, and partial-success retention.
+- Bounded repository-scoped Java `extends`/`implements` resolution across ready sources using package and import rules, shown with target paths and lines outside the formal graph.
+- Project-scoped local-folder repository identities, repository-relative paths, repository-aware duplicate reuse, and repository-bounded Java type resolution.
 
 ## Active phase
 
-The active phase is Stage 4 code ingestion. Its bounded local-file slice accepts Java files, uses `code_parsing`, preserves exact source lines in structural chunks, persists optional folder-relative paths, and reuses the existing worker and evidence workflow. It does not claim a complete Java AST, symbol graph, call graph, GitHub import, or incremental repository synchronization. See [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.md).
+The active phase is Stage 4 code ingestion. Its bounded local-file slice accepts Java files, uses `code_parsing`, preserves exact source lines in structural chunks, persists local-folder repository identities and repository-relative paths, and reuses the existing worker and evidence workflow. It resolves a small repository-local subset of cross-file type relationships, but does not claim Git-backed identity, a complete Java AST, symbol graph, cross-file method call graph, GitHub import, or incremental synchronization. See [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.md), [ADR 0014](docs/adr/0014-bounded-cross-file-java-types.md), and [ADR 0015](docs/adr/0015-local-folder-repository-identity.md).
 
 Implemented in this slice:
 
@@ -44,6 +46,8 @@ Implemented in this slice:
 - Desktop source-workspace upload, MD/JAVA labels, and Java chunk-kind display.
 - A bounded source-structure endpoint and desktop outline for stable type/field/method symbols plus same-file unqualified/`this.` call hints, kept outside the formal graph.
 - Separate desktop single-file and folder upload; folders ignore unsupported/empty files and import up to 50 Markdown/Java sources while persisting normalized relative paths. Failures are reported per file without rolling back successful uploads.
+- Project-scoped top-level `extends`/`implements` resolution across at most 100 ready Java sources using explicit imports, same-package lookup, and wildcard imports, with ambiguity and truncation surfaced in the source outline.
+- A stable local-folder repository UUID resolved from project, kind, and folder-root name; folder sources store repository-relative paths, deduplicate within that repository, and do not resolve Java types across repository boundaries.
 
 Acceptance still needed:
 
@@ -59,7 +63,7 @@ Project keyword, semantic-vector, explainable one-hop graph hybrid retrieval, an
 ## Later phases
 
 1. Representative real-answer acceptance and retrieval/prompt quality evaluation.
-2. Add repository identity and cross-file Java resolution, then GitHub ingestion and incremental synchronization.
+2. Extend local identity with Git remote identity and broader cross-file Java method resolution, then add GitHub ingestion and incremental synchronization.
 3. Temporal evolution, governance, experiments, and deployment.
 
 Markdown parsing, schema-constrained review, and confirmed-candidate graph persistence are complete as bounded slices.

@@ -251,6 +251,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 .code-call-list p:last-child { border-bottom: 0; }
 .code-call-list strong { overflow-wrap: anywhere; }
 .code-call-list small { color: var(--muted); white-space: nowrap; }
+.code-type-relations small { grid-column: 1 / -1; overflow-wrap: anywhere; white-space: normal; }
 .source-chunk { margin-top: 12px; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
 .source-chunk header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 10px 12px; color: var(--muted); background: #eaf0f0; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
 .source-chunk header strong { color: var(--teal); font-weight: 500; margin-left: 8px; }

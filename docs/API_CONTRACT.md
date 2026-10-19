@@ -10,13 +10,15 @@
 | `GET /api/v1/health/ready` | 已实现 |
 | `GET/POST /api/v1/projects` | 已实现 |
 | `GET /api/v1/projects/{project_id}` | 已实现 |
+| `POST /api/v1/projects/{project_id}/repositories/resolve` | 已实现，幂等解析本地文件夹仓库身份 |
+| `GET /api/v1/projects/{project_id}/repositories` | 已实现，分页查询来源仓库 |
 | `POST /api/v1/projects/{project_id}/sources` | 已实现，Markdown 与 Java 源文件 |
 | `GET /api/v1/projects/{project_id}/sources` | 已实现，分页查询项目资料及最新任务 |
 | `GET /api/v1/sources/{source_id}` | 已实现 |
 | `GET /api/v1/tasks/{task_id}` | 已实现 |
 | `POST /api/v1/tasks/{task_id}/run` | 已实现，同步执行 Markdown/Java 解析 |
 | `GET /api/v1/sources/{source_id}/chunks` | 已实现，分页查询原文分块 |
-| `GET /api/v1/sources/{source_id}/code-structure` | 已实现，派生 Java 符号与同文件调用 |
+| `GET /api/v1/sources/{source_id}/code-structure` | 已实现，派生 Java 符号、同文件调用与有界跨文件类型关系 |
 | `GET /api/v1/sources/{source_id}/extraction` | 已实现，读取候选提取任务状态 |
 | `POST /api/v1/sources/{source_id}/extract` | 已实现，显式 DeepSeek 候选提取 |
 | `GET /api/v1/projects/{project_id}/reviews` | 已实现，分页候选查询 |
@@ -95,11 +97,26 @@
 
 ## 资料与任务
 
+### 解析与查询本地来源仓库
+
+`POST /api/v1/projects/{project_id}/repositories/resolve`
+
+```json
+{
+  "name": "commerce-core",
+  "kind": "local_folder"
+}
+```
+
+`name` 为浏览器文件夹选择提供的单个根目录名，去除首尾空白后长度为 1–255，不得为 `.` / `..`，也不得包含路径分隔符、NUL 或换行。当前 `kind` 只允许 `local_folder`。接口按当前用户、项目、类型和名称幂等返回稳定仓库 UUID；相同输入不会重复创建。
+
+`GET /api/v1/projects/{project_id}/repositories?page=1&page_size=20` 分页返回 `id`、`project_id`、`name`、`kind`、`created_at` 与 `updated_at`。项目不可访问时返回 HTTP 404。
+
 ### 查询项目资料
 
 `GET /api/v1/projects/{project_id}/sources?page=1&page_size=20`
 
-返回 `items`、`page`、`page_size`、`total`，按上传时间降序、ID 稳定排序。每条资料包含 `id`、`project_id`、`original_name`、可空的 `relative_path`、`source_type`、`size_bytes`、来源 `status`、`created_at`、`updated_at`，以及当前用户/项目下最新任务的 `task_id` 和 `task_status`（无任务时为 `null`）。列表不返回原文或预览内容，详情从来源接口读取。
+返回 `items`、`page`、`page_size`、`total`，按上传时间降序、ID 稳定排序。每条资料包含 `id`、`project_id`、可空的 `repository_id` / `repository_name`、`original_name`、可空的 `relative_path`、`source_type`、`size_bytes`、来源 `status`、`created_at`、`updated_at`，以及当前用户/项目下最新任务的 `task_id` 和 `task_status`（无任务时为 `null`）。列表不返回原文或预览内容，详情从来源接口读取。
 
 `page >= 1`，`1 <= page_size <= 100`。空项目或越过最后一页返回空列表；项目不存在、已归档或不属于当前用户时返回 HTTP 404。
 
@@ -111,7 +128,8 @@
 
 - `file`：接受 UTF-8 `.md`、`.markdown` 或 `.java` 文件，默认最大 10 MiB。
 - `source_type`：可选，未填写时由后缀识别；填写时必须与后缀推断出的 `markdown` 或 `java` 一致。
-- `relative_path`：可选，供文件夹上传保存包含文件名的相对路径；最长 1024 字符，统一为 `/`，不得是绝对路径、包含空段、`.`/`..`，末段必须与上传文件名一致。单文件上传通常省略。
+- `repository_id`：可选，必须属于当前用户和项目；文件夹导入先通过仓库解析接口取得。
+- `relative_path`：可选，供文件夹上传保存包含文件名的仓库内相对路径；最长 1024 字符，统一为 `/`，不得是绝对路径、包含空段、`.`/`..`，末段必须与上传文件名一致。提供 `repository_id` 时必填；单文件上传通常同时省略两者。
 
 响应：
 
@@ -123,7 +141,7 @@
 }
 ```
 
-同一用户、同一项目、同一来源类型中，相同文件字节（SHA-256 一致）的重复上传会复用已有 `source_id` 与 `task_id`，不受文件名或相对路径影响。始终返回 HTTP 202；`status` 为复用任务的当前状态，因此也可能是 `running`、`succeeded`、`failed` 或 `cancelled`。原文件名与 `relative_path` 保留首次上传值。来源类型、内容或项目不同会创建独立来源，不自动替换旧来源。无效相对路径返回 HTTP 422 `SOURCE_PATH_INVALID`。
+同一用户、同一项目、同一可空仓库和同一来源类型中，相同文件字节（SHA-256 一致）的重复上传会复用已有 `source_id` 与 `task_id`，不受文件名或相对路径影响；相同字节位于不同仓库时创建独立来源。始终返回 HTTP 202；`status` 为复用任务的当前状态，因此也可能是 `running`、`succeeded`、`failed` 或 `cancelled`。原文件名与 `relative_path` 保留首次上传值。来源类型、内容、仓库或项目不同会创建独立来源，不自动替换旧来源。无效相对路径返回 HTTP 422 `SOURCE_PATH_INVALID`；仓库来源缺少路径返回 `SOURCE_REPOSITORY_PATH_REQUIRED`；仓库不存在或越界返回 HTTP 404 `SOURCE_REPOSITORY_NOT_FOUND`。
 
 ### 查询任务状态
 
@@ -172,7 +190,7 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 `GET /api/v1/sources/{source_id}`
 
-返回资料元数据（包括可空的 `relative_path`）、SHA-256、解析状态、行数和最多 4000 字符的可预览内容，不返回服务器绝对路径。
+返回资料元数据（包括可空的 `repository_id`、`repository_name` 与 `relative_path`）、SHA-256、解析状态、行数和最多 4000 字符的可预览内容，不返回服务器绝对路径。
 
 ### 查询资料分块
 
@@ -188,9 +206,11 @@ Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，�
 
 `GET /api/v1/sources/{source_id}/code-structure`
 
-仅用于状态为 `ready` 的 Java 来源。返回最多 200 个 `type` / `field` / `method` 符号及最多 500 条同文件方法调用；每个符号包含稳定 `id`、名称、限定名、所属类型和包含式行号。调用包含调用方、候选被调方法 ID、名称、行号及 `resolved` / `ambiguous` 状态。`truncated=true` 表示至少一类结果达到上限。
+仅用于状态为 `ready` 的 Java 来源。返回最多 200 个 `type` / `field` / `method` 符号、最多 500 条同文件方法调用，以及同仓库最多 100 份已解析 Java 来源中的有界跨文件类型关系；相关来源原文累计最多读取 20 MiB。未归属仓库的旧来源只在同项目的未归属集合中解析。每个符号包含稳定 `id`、名称、限定名、所属类型和包含式行号。调用包含调用方、候选被调方法 ID、名称、行号及 `resolved` / `ambiguous` 状态。
 
-调用关系只识别未限定名或 `this.` 调用，并要求名称能匹配同文件方法；不解析接收者类型、静态限定调用、继承、依赖注入、跨文件符号或动态分派。结果按需从不可变原文派生，不写入正式图谱。非 Java 来源或未完成解析分别返回 HTTP 409。边界见 [ADR 0013](adr/0013-derived-java-source-structure.zh-CN.md)。
+`related_types` 返回关系目标的稳定类型 ID、来源 ID、相对路径优先的 `source_path`、包限定名和行号；`type_relationships` 返回当前类型符号 ID、目标 ID 列表、源码中的目标名、`extends` / `implements`、声明行及 `resolved` / `ambiguous`。解析遵循显式导入、同包和通配导入优先级，只返回能匹配同仓库已解析来源的目标；外部库、其他仓库和未解析文件不会伪造关系。同一路径的多个不可变版本若声明相同包限定类型，也会作为多个候选显示为 `ambiguous`。`truncated=true` 表示符号、调用、相关类型、类型关系或仓库来源至少一类达到上限。
+
+调用关系仍只识别未限定名或 `this.` 调用，并要求名称能匹配同文件方法；不解析接收者类型、静态限定调用、跨文件方法调用、继承方法分派、依赖注入或动态分派。结果按需从不可变原文派生，不写入正式图谱。非 Java 来源或未完成解析分别返回 HTTP 409。边界见 [ADR 0013](adr/0013-derived-java-source-structure.zh-CN.md) 与 [ADR 0014](adr/0014-bounded-cross-file-java-types.zh-CN.md)。
 
 ## 知识图谱
 

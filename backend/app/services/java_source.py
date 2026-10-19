@@ -11,6 +11,12 @@ TYPE_DECLARATION = re.compile(
     r"(?m)^[ \t]*(?:(?:public|protected|private|abstract|static|final|sealed|non-sealed|strictfp)\s+)*"
     r"(?P<kind>@interface|class|interface|enum|record)\s+(?P<name>[A-Za-z_$][\w$]*)\b"
 )
+PACKAGE_DECLARATION = re.compile(
+    r"(?m)^[ \t]*package\s+(?P<name>[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\s*;"
+)
+IMPORT_DECLARATION = re.compile(
+    r"(?m)^[ \t]*import\s+(?!static\b)(?P<name>[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)(?P<wildcard>\.\*)?\s*;"
+)
 METHOD_DECLARATION = re.compile(
     r"(?m)^[ \t]*(?:@[A-Za-z_$][\w$]*(?:\s*\([^;{}]*?\))?\s*)*"
     r"(?P<prefix>(?:(?:public|protected|private|static|final|abstract|synchronized|native|default|strictfp)\s+)*"
@@ -30,6 +36,8 @@ LOCAL_CALL = re.compile(
 CONTROL_WORDS = {"if", "for", "while", "switch", "catch", "try", "do", "new", "return", "throw"}
 MAX_STRUCTURE_SYMBOLS = 200
 MAX_STRUCTURE_CALLS = 500
+MAX_RELATED_TYPES = 400
+MAX_TYPE_RELATIONSHIPS = 500
 
 
 @dataclass(frozen=True)
@@ -66,16 +74,49 @@ class JavaCall:
 
 
 @dataclass(frozen=True)
+class JavaSourceInput:
+    source_id: uuid.UUID
+    source_path: str
+    content: str
+
+
+@dataclass(frozen=True)
+class JavaRelatedType:
+    id: uuid.UUID
+    source_id: uuid.UUID
+    source_path: str
+    name: str
+    qualified_name: str
+    start_line: int
+    end_line: int
+
+
+@dataclass(frozen=True)
+class JavaTypeRelationship:
+    id: uuid.UUID
+    source_symbol_id: uuid.UUID
+    target_ids: list[uuid.UUID]
+    target_name: str
+    kind: str
+    line: int
+    resolution: str
+
+
+@dataclass(frozen=True)
 class JavaStructure:
     symbols: list[JavaSymbol]
     calls: list[JavaCall]
+    related_types: list[JavaRelatedType]
+    type_relationships: list[JavaTypeRelationship]
     truncated: bool
 
 
 @dataclass(frozen=True)
 class _TypeDeclaration:
+    kind: str
     name: str
     start: int
+    header_start: int
     opening: int
     end: int
     member_depth: int
@@ -88,6 +129,18 @@ class _MethodDeclaration:
     start: int
     opening: int | None
     end: int
+
+
+@dataclass(frozen=True)
+class _JavaTypeIndex:
+    source_id: uuid.UUID
+    source_path: str
+    package_name: str
+    imports: dict[str, str]
+    wildcard_imports: tuple[str, ...]
+    types: tuple[JavaRelatedType, ...]
+    declarations: tuple[_TypeDeclaration, ...]
+    sanitized: str
 
 
 def _lex_java(content: str) -> tuple[str, set[int]]:
@@ -226,7 +279,8 @@ def _declarations(text: str) -> list[tuple[_TypeDeclaration, list[_MethodDeclara
             continue
         closing = _closing_brace(text, opening)
         type_declaration = _TypeDeclaration(
-            name=match.group("name"), start=match.start(), opening=opening,
+            kind=match.group("kind"), name=match.group("name"), start=match.start(),
+            header_start=match.end(), opening=opening,
             end=closing, member_depth=depths[opening] + 1,
         )
         methods: list[_MethodDeclaration] = []
@@ -246,6 +300,215 @@ def _declarations(text: str) -> list[tuple[_TypeDeclaration, list[_MethodDeclara
             ))
         result.append((type_declaration, methods))
     return result
+
+
+def _type_symbol_id(
+    source_id: uuid.UUID, *, name: str, start_line: int, end_line: int
+) -> uuid.UUID:
+    return uuid.uuid5(source_id, f"symbol:type:{name}:{start_line}:{end_line}")
+
+
+def _split_type_list(value: str) -> list[tuple[str, int]]:
+    """Split a Java type list on top-level commas while retaining segment offsets."""
+    result: list[tuple[str, int]] = []
+    start = 0
+    angle_depth = 0
+    round_depth = 0
+    for index, character in enumerate(value):
+        if character == "<":
+            angle_depth += 1
+        elif character == ">":
+            angle_depth = max(0, angle_depth - 1)
+        elif character == "(":
+            round_depth += 1
+        elif character == ")":
+            round_depth = max(0, round_depth - 1)
+        elif character == "," and angle_depth == 0 and round_depth == 0:
+            result.append((value[start:index], start))
+            start = index + 1
+    result.append((value[start:], start))
+    return result
+
+
+def _referenced_type_name(value: str) -> tuple[str, int] | None:
+    match = re.search(
+        r"[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*",
+        value,
+    )
+    if match is None:
+        return None
+    return re.sub(r"\s+", "", match.group(0)), match.start()
+
+
+def _heritage_references(
+    declaration: _TypeDeclaration, sanitized: str
+) -> list[tuple[str, str, int]]:
+    header = sanitized[declaration.header_start:declaration.opening]
+    clause_pattern = re.compile(
+        r"\b(?P<kind>extends|implements)\s+(?P<types>.*?)"
+        r"(?=\b(?:implements|permits)\b|$)",
+        re.DOTALL,
+    )
+    references: list[tuple[str, str, int]] = []
+    for clause in clause_pattern.finditer(header):
+        kind = clause.group("kind")
+        type_list = clause.group("types")
+        type_list_offset = declaration.header_start + clause.start("types")
+        for segment, segment_offset in _split_type_list(type_list):
+            referenced = _referenced_type_name(segment)
+            if referenced is None:
+                continue
+            name, name_offset = referenced
+            references.append((kind, name, type_list_offset + segment_offset + name_offset))
+    return references
+
+
+def _index_java_source(source: JavaSourceInput) -> _JavaTypeIndex:
+    sanitized, _ = _lex_java(source.content)
+    line_number = _line_resolver(source.content)
+    lines = source.content.splitlines(keepends=True)
+    package_match = PACKAGE_DECLARATION.search(sanitized)
+    package_name = package_match.group("name") if package_match else ""
+    imports: dict[str, str] = {}
+    wildcard_imports: list[str] = []
+    for match in IMPORT_DECLARATION.finditer(sanitized):
+        import_name = match.group("name")
+        if match.group("wildcard"):
+            wildcard_imports.append(import_name)
+        else:
+            imports[import_name.rsplit(".", 1)[-1]] = import_name
+
+    declarations = tuple(item[0] for item in _declarations(sanitized))
+    types: list[JavaRelatedType] = []
+    for declaration in declarations:
+        start_line = _type_start_line(lines, line_number(declaration.start))
+        end_line = line_number(declaration.end)
+        qualified_name = (
+            f"{package_name}.{declaration.name}" if package_name else declaration.name
+        )
+        types.append(JavaRelatedType(
+            id=_type_symbol_id(
+                source.source_id,
+                name=declaration.name,
+                start_line=start_line,
+                end_line=end_line,
+            ),
+            source_id=source.source_id,
+            source_path=source.source_path,
+            name=declaration.name,
+            qualified_name=qualified_name,
+            start_line=start_line,
+            end_line=end_line,
+        ))
+    return _JavaTypeIndex(
+        source_id=source.source_id,
+        source_path=source.source_path,
+        package_name=package_name,
+        imports=imports,
+        wildcard_imports=tuple(wildcard_imports),
+        types=tuple(types),
+        declarations=declarations,
+        sanitized=sanitized,
+    )
+
+
+def _resolve_type_relationships(
+    current: _JavaTypeIndex,
+    source_indexes: list[_JavaTypeIndex],
+    *,
+    visible_source_symbol_ids: set[uuid.UUID],
+) -> tuple[list[JavaRelatedType], list[JavaTypeRelationship], bool]:
+    types_by_qualified_name: dict[str, list[JavaRelatedType]] = {}
+    for index in source_indexes:
+        for type_definition in index.types:
+            types_by_qualified_name.setdefault(
+                type_definition.qualified_name, []
+            ).append(type_definition)
+
+    related_by_id: dict[uuid.UUID, JavaRelatedType] = {}
+    relationships: list[JavaTypeRelationship] = []
+    line_number = _line_resolver(current.sanitized)
+    current_types_by_name = {item.name: item for item in current.types}
+    for declaration in current.declarations:
+        source_type = current_types_by_name.get(declaration.name)
+        if (
+            source_type is None
+            or source_type.id not in visible_source_symbol_ids
+        ):
+            continue
+        for kind, target_name, target_offset in _heritage_references(
+            declaration, current.sanitized
+        ):
+            if "." in target_name:
+                targets = types_by_qualified_name.get(target_name, [])
+            elif target_name in current.imports:
+                targets = types_by_qualified_name.get(
+                    current.imports[target_name], []
+                )
+            else:
+                same_package = (
+                    f"{current.package_name}.{target_name}"
+                    if current.package_name else target_name
+                )
+                targets = types_by_qualified_name.get(same_package, [])
+                if not targets:
+                    targets = [
+                        match
+                        for package in current.wildcard_imports
+                        for match in types_by_qualified_name.get(
+                            f"{package}.{target_name}", []
+                        )
+                    ]
+            targets = [
+                target
+                for target in targets
+                if target.source_id != current.source_id
+            ]
+            if not targets:
+                continue
+
+            target_ids = [target.id for target in targets]
+            for target in targets:
+                related_by_id[target.id] = target
+            relationship_line = line_number(target_offset)
+            relationships.append(JavaTypeRelationship(
+                id=uuid.uuid5(
+                    current.source_id,
+                    f"type-relationship:{source_type.id}:{kind}:{target_name}:{relationship_line}",
+                ),
+                source_symbol_id=source_type.id,
+                target_ids=target_ids,
+                target_name=target_name,
+                kind=kind,
+                line=relationship_line,
+                resolution="resolved" if len(targets) == 1 else "ambiguous",
+            ))
+
+    related_types = sorted(
+        related_by_id.values(),
+        key=lambda item: (item.source_path, item.start_line, item.qualified_name, str(item.id)),
+    )
+    relationships.sort(key=lambda item: (item.line, item.kind, item.target_name, str(item.id)))
+    truncated = (
+        len(related_types) > MAX_RELATED_TYPES
+        or len(relationships) > MAX_TYPE_RELATIONSHIPS
+    )
+    visible_related_types = related_types[:MAX_RELATED_TYPES]
+    visible_target_ids = {item.id for item in visible_related_types}
+    visible_relationships = [
+        item for item in relationships
+        if all(target_id in visible_target_ids for target_id in item.target_ids)
+    ][:MAX_TYPE_RELATIONSHIPS]
+    referenced_target_ids = {
+        target_id
+        for relationship in visible_relationships
+        for target_id in relationship.target_ids
+    }
+    visible_related_types = [
+        item for item in visible_related_types
+        if item.id in referenced_target_ids
+    ]
+    return visible_related_types, visible_relationships, truncated
 
 
 def _line_resolver(content: str):
@@ -325,10 +588,19 @@ def parse_java(content: str, *, source_id: uuid.UUID) -> list[JavaChunk]:
     return chunks
 
 
-def analyze_java(content: str, *, source_id: uuid.UUID) -> JavaStructure:
-    """Return a bounded, read-only symbol and same-file call view for one Java source."""
+def analyze_java(
+    content: str,
+    *,
+    source_id: uuid.UUID,
+    source_path: str = "",
+    related_sources: list[JavaSourceInput] | None = None,
+    related_sources_truncated: bool = False,
+) -> JavaStructure:
+    """Return a bounded symbol view using only caller-supplied related sources."""
     if not content:
-        return JavaStructure(symbols=[], calls=[], truncated=False)
+        return JavaStructure(
+            symbols=[], calls=[], related_types=[], type_relationships=[], truncated=False
+        )
     sanitized, _ = _lex_java(content)
     depths = _depths(sanitized)
     lines = content.splitlines(keepends=True)
@@ -341,7 +613,12 @@ def analyze_java(content: str, *, source_id: uuid.UUID) -> JavaStructure:
         type_start = _type_start_line(lines, line_number(type_declaration.start))
         type_end = line_number(type_declaration.end)
         type_symbol = JavaSymbol(
-            id=uuid.uuid5(source_id, f"symbol:type:{type_declaration.name}:{type_start}:{type_end}"),
+            id=_type_symbol_id(
+                source_id,
+                name=type_declaration.name,
+                start_line=type_start,
+                end_line=type_end,
+            ),
             kind="type", name=type_declaration.name, qualified_name=type_declaration.name,
             owner=None, start_line=type_start, end_line=type_end,
         )
@@ -422,8 +699,31 @@ def analyze_java(content: str, *, source_id: uuid.UUID) -> JavaStructure:
         if call.caller_id in visible_symbol_ids
         and all(callee_id in visible_symbol_ids for callee_id in call.callee_ids)
     ]
-    truncated = len(symbols) > MAX_STRUCTURE_SYMBOLS or len(visible_calls) > MAX_STRUCTURE_CALLS
+    current_input = JavaSourceInput(
+        source_id=source_id, source_path=source_path, content=content
+    )
+    inputs = [current_input]
+    inputs.extend(
+        item for item in (related_sources or []) if item.source_id != source_id
+    )
+    indexes = [_index_java_source(item) for item in inputs]
+    related_types, type_relationships, related_structure_truncated = (
+        _resolve_type_relationships(
+            indexes[0],
+            indexes,
+            visible_source_symbol_ids=visible_symbol_ids,
+        )
+    )
+    truncated = (
+        len(symbols) > MAX_STRUCTURE_SYMBOLS
+        or len(visible_calls) > MAX_STRUCTURE_CALLS
+        or related_structure_truncated
+        or related_sources_truncated
+    )
     return JavaStructure(
-        symbols=visible_symbols, calls=visible_calls[:MAX_STRUCTURE_CALLS],
+        symbols=visible_symbols,
+        calls=visible_calls[:MAX_STRUCTURE_CALLS],
+        related_types=related_types,
+        type_relationships=type_relationships,
         truncated=truncated,
     )

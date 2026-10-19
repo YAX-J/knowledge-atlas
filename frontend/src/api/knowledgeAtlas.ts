@@ -25,6 +25,8 @@ export interface SourceUploadResult {
 export interface ApiSource {
   id: string
   project_id: string
+  repository_id: string | null
+  repository_name: string | null
   original_name: string
   relative_path: string | null
   media_type: string
@@ -77,12 +79,32 @@ export interface JavaCodeStructure {
     line: number
     resolution: 'resolved' | 'ambiguous'
   }[]
+  related_types: {
+    id: string
+    source_id: string
+    source_path: string
+    name: string
+    qualified_name: string
+    start_line: number
+    end_line: number
+  }[]
+  type_relationships: {
+    id: string
+    source_symbol_id: string
+    target_ids: string[]
+    target_name: string
+    kind: 'extends' | 'implements'
+    line: number
+    resolution: 'resolved' | 'ambiguous'
+  }[]
   truncated: boolean
 }
 
 export interface SourceListItem {
   id: string
   project_id: string
+  repository_id: string | null
+  repository_name: string | null
   original_name: string
   relative_path: string | null
   source_type: string
@@ -96,6 +118,22 @@ export interface SourceListItem {
 
 export interface SourceList {
   items: SourceListItem[]
+  page: number
+  page_size: number
+  total: number
+}
+
+export interface SourceRepository {
+  id: string
+  project_id: string
+  name: string
+  kind: 'local_folder'
+  created_at: string
+  updated_at: string
+}
+
+export interface SourceRepositoryList {
+  items: SourceRepository[]
   page: number
   page_size: number
   total: number
@@ -141,15 +179,36 @@ export function uploadSource(
   projectId: string,
   file: File,
   relativePath?: string,
+  repositoryId?: string,
 ): Promise<SourceUploadResult> {
   const body = new FormData()
   body.append('file', file)
   body.append('source_type', file.name.toLowerCase().endsWith('.java') ? 'java' : 'markdown')
   if (relativePath) body.append('relative_path', relativePath)
+  if (repositoryId) body.append('repository_id', repositoryId)
   return apiRequest<SourceUploadResult>(`/projects/${projectId}/sources`, {
     method: 'POST',
     body,
   })
+}
+
+export function resolveLocalRepository(
+  projectId: string,
+  name: string,
+): Promise<SourceRepository> {
+  return apiRequest<SourceRepository>(`/projects/${projectId}/repositories/resolve`, {
+    method: 'POST',
+    body: JSON.stringify({ name, kind: 'local_folder' }),
+  })
+}
+
+export function listRepositories(
+  projectId: string,
+  page = 1,
+  pageSize = 20,
+): Promise<SourceRepositoryList> {
+  const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  return apiRequest<SourceRepositoryList>(`/projects/${projectId}/repositories?${query}`)
 }
 
 export function getTask(taskId: string): Promise<ProcessingTask> {

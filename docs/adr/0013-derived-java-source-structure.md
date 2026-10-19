@@ -5,6 +5,8 @@
 - Status: Accepted
 - Date: 2026-10-18
 
+The cross-file limitation recorded here is expanded for bounded top-level type relationships by [ADR 0014](0014-bounded-cross-file-java-types.md); same-file method-call rules remain unchanged.
+
 ## Context
 
 Java chunks preserve evidence, but a developer also needs a concise file outline and navigable method-call hints. Automatically promoting parser guesses into the reviewed knowledge graph would bypass the existing evidence and review boundary.

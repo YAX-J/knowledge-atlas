@@ -5,6 +5,7 @@ from app.models.domain import (
     ReviewEvent,
     SourceChunk,
     SourceDocument,
+    SourceRepository,
 )
 from app.models.graph import KnowledgeEmbedding, KnowledgeEntity, KnowledgeEvidence, KnowledgeRelationship
 
@@ -15,6 +16,7 @@ __all__ = [
     "ReviewEvent",
     "SourceChunk",
     "SourceDocument",
+    "SourceRepository",
     "KnowledgeEntity",
     "KnowledgeEmbedding",
     "KnowledgeEvidence",

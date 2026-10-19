@@ -77,6 +77,41 @@ class Project(TimestampMixin, Base):
     candidates: Mapped[list["CandidateKnowledge"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    repositories: Mapped[list["SourceRepository"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+
+
+class SourceRepository(TimestampMixin, Base):
+    __tablename__ = "source_repositories"
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('local_folder')",
+            name="ck_source_repositories_kind",
+        ),
+        UniqueConstraint(
+            "user_id", "project_id", "kind", "name",
+            name="uq_source_repositories_scope_name",
+        ),
+        Index(
+            "ix_source_repositories_project_created", "project_id", "created_at"
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    kind: Mapped[str] = mapped_column(
+        String(30), default="local_folder", nullable=False
+    )
+
+    project: Mapped[Project] = relationship(back_populates="repositories")
+    sources: Mapped[list["SourceDocument"]] = relationship(
+        back_populates="repository"
+    )
 
 
 class SourceDocument(TimestampMixin, Base):
@@ -84,12 +119,24 @@ class SourceDocument(TimestampMixin, Base):
     __table_args__ = (
         Index("ix_sources_project_created", "project_id", "created_at"),
         Index("ix_sources_project_sha256", "project_id", "content_sha256"),
+        Index(
+            "ix_sources_repository_dedupe",
+            "project_id",
+            "repository_id",
+            "source_type",
+            "content_sha256",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
     project_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    repository_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("source_repositories.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     original_name: Mapped[str] = mapped_column(String(255), nullable=False)
     relative_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
@@ -110,6 +157,9 @@ class SourceDocument(TimestampMixin, Base):
     )
 
     project: Mapped[Project] = relationship(back_populates="sources")
+    repository: Mapped[SourceRepository | None] = relationship(
+        back_populates="sources"
+    )
     chunks: Mapped[list["SourceChunk"]] = relationship(
         back_populates="source", cascade="all, delete-orphan"
     )

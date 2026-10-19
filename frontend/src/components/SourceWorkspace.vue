@@ -42,6 +42,7 @@ const projectPages = computed(() => Math.max(1, Math.ceil((props.projects?.total
 const sourcePages = computed(() => Math.max(1, Math.ceil((props.sources?.total ?? 0) / (props.sources?.page_size ?? 20))))
 const chunkPages = computed(() => Math.max(1, Math.ceil((props.chunks?.total ?? 0) / (props.chunks?.page_size ?? 20))))
 const codeSymbolsById = computed(() => new Map((props.codeStructure?.symbols ?? []).map(item => [item.id, item])))
+const relatedTypesById = computed(() => new Map((props.codeStructure?.related_types ?? []).map(item => [item.id, item])))
 const locked = computed(() => props.loading.create || props.loading.upload || props.loading.task)
 const statusLabels: Record<string, string> = {
   uploaded: '待解析', processing: '解析中', ready: '已解析', failed: '解析失败',
@@ -131,9 +132,27 @@ function calleeName(call: JavaCodeStructure['calls'][number]) {
   const calleeId = call.callee_ids.length === 1 ? call.callee_ids[0] : undefined
   return calleeId ? codeSymbolsById.value.get(calleeId)?.qualified_name ?? call.callee_name : call.callee_name
 }
+function typeRelationshipLabel(kind: JavaCodeStructure['type_relationships'][number]['kind']) {
+  return kind === 'extends' ? '继承' : '实现'
+}
+function relatedTypeName(relationship: JavaCodeStructure['type_relationships'][number]) {
+  const targetId = relationship.target_ids.length === 1 ? relationship.target_ids[0] : undefined
+  return targetId ? relatedTypesById.value.get(targetId)?.qualified_name ?? relationship.target_name : relationship.target_name
+}
+function relatedTypeLocations(relationship: JavaCodeStructure['type_relationships'][number]) {
+  return relationship.target_ids
+    .map(id => relatedTypesById.value.get(id))
+    .filter((item): item is JavaCodeStructure['related_types'][number] => Boolean(item))
+    .map(item => `${item.source_path} · 第 ${item.start_line}–${item.end_line} 行`)
+    .join('；')
+}
 
 function sourceName(source: SourceListItem | ApiSource) {
   return source.relative_path || source.original_name
+}
+function sourceMeta(source: SourceListItem | ApiSource) {
+  const repository = source.repository_name ? `仓库 · ${source.repository_name} · ` : ''
+  return `${repository}${formatSize(source.size_bytes)}`
 }
 </script>
 
@@ -203,7 +222,7 @@ function sourceName(source: SourceListItem | ApiSource) {
               <button class="primary-button" type="button" :disabled="locked" @click="folderInput?.click()">{{ loading.upload && uploadKind === 'folder' ? '正在上传文件夹…' : '上传文件夹' }}</button>
             </div>
           </header>
-          <p class="source-upload-hint">可上传单个 UTF-8 Markdown/Java 文件，或从文件夹中导入最多 50 份支持的文件。文件夹相对路径会随资料保存；其他类型与空文件会被忽略。</p>
+          <p class="source-upload-hint">可上传单个 UTF-8 Markdown/Java 文件，或把文件夹识别为本地仓库并导入最多 50 份支持的文件。仓库身份与仓库内相对路径会随资料保存；其他类型与空文件会被忽略。</p>
           <p v-if="selectionNote" class="muted-copy" role="status">{{ selectionNote }}</p>
           <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
           <p v-if="fileError || errors.upload" class="inline-error" role="alert">{{ fileError || errors.upload }}</p>
@@ -220,7 +239,7 @@ function sourceName(source: SourceListItem | ApiSource) {
               :class="{ selected: selectedSourceId === item.id }" :aria-pressed="selectedSourceId === item.id"
               :disabled="locked" @click="emit('selectSource', item.id, item.task_id)">
               <span class="source-file-type" aria-hidden="true">{{ sourceTypeLabel(item.source_type) }}</span>
-              <span class="source-file-name"><strong>{{ sourceName(item) }}</strong><small>{{ formatSize(item.size_bytes) }}</small></span>
+              <span class="source-file-name"><strong>{{ sourceName(item) }}</strong><small>{{ sourceMeta(item) }}</small></span>
               <span class="source-status" :class="`status-${item.task_status ?? item.status}`">{{ statusLabels[item.task_status ?? item.status] }}</span>
             </button>
           </div>
@@ -232,7 +251,7 @@ function sourceName(source: SourceListItem | ApiSource) {
 
           <section v-if="selectedSourceId" class="source-reader" aria-label="原文与解析结果" :aria-busy="loading.detail || loading.task || loading.chunks || loading.structure">
             <div class="source-section-heading reader-heading">
-              <div><h3>{{ source ? sourceName(source) : '资料详情' }}</h3><p v-if="source" class="muted-copy">{{ source.line_count }} 行原文 · {{ formatSize(source.size_bytes) }}</p></div>
+              <div><h3>{{ source ? sourceName(source) : '资料详情' }}</h3><p v-if="source" class="muted-copy">{{ source.repository_name ? `仓库 · ${source.repository_name} · ` : '' }}{{ source.line_count }} 行原文 · {{ formatSize(source.size_bytes) }}</p></div>
               <button class="text-button" type="button" :disabled="loading.detail || locked || loading.chunks" @click="emit('refresh')">刷新状态</button>
             </div>
             <p v-if="loading.detail" role="status" class="muted-copy">正在读取原文与任务…</p>
@@ -255,7 +274,7 @@ function sourceName(source: SourceListItem | ApiSource) {
                 <section v-if="source.source_type === 'java'" class="code-structure" aria-labelledby="code-structure-title">
                   <div class="source-section-heading">
                     <h3 id="code-structure-title">源码结构</h3>
-                    <span v-if="codeStructure" class="muted-copy">{{ codeStructure.symbols.length }} 个符号 · {{ codeStructure.calls.length }} 条同文件调用</span>
+                    <span v-if="codeStructure" class="muted-copy">{{ codeStructure.symbols.length }} 个符号 · {{ codeStructure.calls.length }} 条同文件调用 · {{ codeStructure.type_relationships.length }} 条跨文件类型关系</span>
                   </div>
                   <p class="source-upload-hint">结构关系由本地规则推导，不会自动写入已审核的正式知识图谱。</p>
                   <p v-if="loading.structure" class="muted-copy" role="status">正在读取源码结构…</p>
@@ -277,6 +296,15 @@ function sourceName(source: SourceListItem | ApiSource) {
                         <span aria-hidden="true">→</span>
                         <strong>{{ calleeName(call) }}</strong>
                         <small>第 {{ call.line }} 行<span v-if="call.resolution === 'ambiguous'"> · {{ call.callee_ids.length }} 个同名候选</span></small>
+                      </p>
+                    </div>
+                    <div v-if="codeStructure.type_relationships.length" class="code-call-list code-type-relations">
+                      <h4>跨文件类型关系</h4>
+                      <p v-for="relationship in codeStructure.type_relationships" :key="relationship.id">
+                        <strong>{{ codeSymbolsById.get(relationship.source_symbol_id)?.qualified_name ?? '未知类型' }}</strong>
+                        <span>{{ typeRelationshipLabel(relationship.kind) }}</span>
+                        <strong>{{ relatedTypeName(relationship) }}</strong>
+                        <small>声明第 {{ relationship.line }} 行 · {{ relatedTypeLocations(relationship) }}<span v-if="relationship.resolution === 'ambiguous'"> · {{ relationship.target_ids.length }} 个同名候选</span></small>
                       </p>
                     </div>
                   </template>

@@ -28,6 +28,8 @@ def test_upload_markdown_creates_source_and_queued_task(client: TestClient) -> N
     assert source_response.status_code == 200
     source = source_response.json()
     assert source["original_name"] == "decision.md"
+    assert source["repository_id"] is None
+    assert source["repository_name"] is None
     assert source["relative_path"] is None
     assert source["line_count"] == 3
     assert source["content_preview"] == content
@@ -90,6 +92,75 @@ def test_folder_relative_path_is_normalized_exposed_and_kept_on_reuse(
     assert reused.json()["source_id"] == first.json()["source_id"]
     source = client.get(f"/api/v1/sources/{first.json()['source_id']}").json()
     assert source["relative_path"] == "sample/src/Decision.java"
+
+
+def test_repository_scopes_paths_and_duplicate_reuse(client: TestClient) -> None:
+    project_id = create_project(client)
+    first_repository = client.post(
+        f"/api/v1/projects/{project_id}/repositories/resolve",
+        json={"name": "first"},
+    ).json()
+    second_repository = client.post(
+        f"/api/v1/projects/{project_id}/repositories/resolve",
+        json={"name": "second"},
+    ).json()
+    content = b"package example;\nclass Shared {}\n"
+
+    def upload_to(repository_id: str, path: str):
+        return client.post(
+            f"/api/v1/projects/{project_id}/sources",
+            data={
+                "source_type": "java",
+                "repository_id": repository_id,
+                "relative_path": path,
+            },
+            files={"file": ("Shared.java", content, "text/x-java-source")},
+        )
+
+    first = upload_to(first_repository["id"], "src/Shared.java")
+    reused = upload_to(first_repository["id"], "renamed/Shared.java")
+    second = upload_to(second_repository["id"], "src/Shared.java")
+
+    assert first.status_code == reused.status_code == second.status_code == 202
+    assert reused.json()["source_id"] == first.json()["source_id"]
+    assert second.json()["source_id"] != first.json()["source_id"]
+    detail = client.get(
+        f"/api/v1/sources/{first.json()['source_id']}"
+    ).json()
+    assert detail["repository_id"] == first_repository["id"]
+    assert detail["repository_name"] == "first"
+    assert detail["relative_path"] == "src/Shared.java"
+    listed = client.get(f"/api/v1/projects/{project_id}/sources").json()["items"]
+    assert {item["repository_name"] for item in listed} == {"first", "second"}
+
+
+def test_repository_upload_requires_path_and_matching_project(
+    client: TestClient,
+) -> None:
+    first_project = create_project(client)
+    second_project = create_project(client)
+    repository = client.post(
+        f"/api/v1/projects/{first_project}/repositories/resolve",
+        json={"name": "first"},
+    ).json()
+    missing_path = client.post(
+        f"/api/v1/projects/{first_project}/sources",
+        data={"repository_id": repository["id"]},
+        files={"file": ("App.java", b"class App {}", "text/x-java-source")},
+    )
+    assert missing_path.status_code == 422
+    assert missing_path.json()["error"]["code"] == "SOURCE_REPOSITORY_PATH_REQUIRED"
+
+    wrong_project = client.post(
+        f"/api/v1/projects/{second_project}/sources",
+        data={
+            "repository_id": repository["id"],
+            "relative_path": "src/App.java",
+        },
+        files={"file": ("App.java", b"class App {}", "text/x-java-source")},
+    )
+    assert wrong_project.status_code == 404
+    assert wrong_project.json()["error"]["code"] == "SOURCE_REPOSITORY_NOT_FOUND"
 
 
 @pytest.mark.parametrize(

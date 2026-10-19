@@ -9,7 +9,13 @@ from sqlalchemy import create_engine, inspect, select, text
 from sqlalchemy.orm import Session
 
 from app.core import config as app_config
-from app.models.domain import ProcessingTask, Project, SourceDocument, TaskStatus
+from app.models.domain import (
+    ProcessingTask,
+    Project,
+    SourceDocument,
+    SourceRepository,
+    TaskStatus,
+)
 
 
 def migration_config() -> Config:
@@ -97,6 +103,60 @@ def test_postgresql_migrations_compile_without_a_live_server(monkeypatch) -> Non
     assert "CREATE TABLE knowledge_embeddings" in sql
     assert "VECTOR(1024)" in sql
     assert "ADD COLUMN relative_path VARCHAR(1024)" in sql
+    assert "CREATE TABLE source_repositories" in sql
+    assert "ck_source_repositories_kind" in sql
+    assert "uq_source_repositories_scope_name" in sql
+    assert "ix_sources_repository_dedupe" in sql
+    assert "repository_id UUID" in sql
+
+
+def test_source_repository_migration_preserves_legacy_sources_and_is_reversible(
+    tmp_path, monkeypatch
+) -> None:
+    url = f"sqlite+pysqlite:///{(tmp_path / 'repositories.db').as_posix()}"
+    monkeypatch.setattr(
+        app_config, "get_settings", lambda: SimpleNamespace(database_url=url)
+    )
+    config = migration_config()
+    command.upgrade(config, "20261019_0007")
+    engine = create_engine(url)
+    with Session(engine) as db:
+        project = Project(user_id=uuid.uuid4(), name="Repository migration")
+        db.add(project)
+        db.flush()
+        source_id = insert_legacy_source(
+            db, user_id=project.user_id, project_id=project.id
+        )
+        db.commit()
+
+    command.upgrade(config, "head")
+    assert "source_repositories" in inspect(engine).get_table_names()
+    assert "repository_id" in {
+        column["name"] for column in inspect(engine).get_columns("source_documents")
+    }
+    assert "ix_sources_repository_dedupe" in {
+        index["name"] for index in inspect(engine).get_indexes("source_documents")
+    }
+    with Session(engine) as db:
+        source = db.get(SourceDocument, source_id)
+        assert source is not None and source.repository_id is None
+        repository = SourceRepository(
+            user_id=source.user_id,
+            project_id=source.project_id,
+            name="legacy-root",
+        )
+        db.add(repository)
+        db.flush()
+        source.repository_id = repository.id
+        db.commit()
+
+    command.downgrade(config, "20261019_0007")
+    assert "source_repositories" not in inspect(engine).get_table_names()
+    assert "repository_id" not in {
+        column["name"] for column in inspect(engine).get_columns("source_documents")
+    }
+    command.upgrade(config, "head")
+    engine.dispose()
 
 
 def test_source_relative_path_migration_preserves_legacy_sources_and_is_reversible(

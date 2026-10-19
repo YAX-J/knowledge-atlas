@@ -15,6 +15,8 @@ class SourceUploadResponse(BaseModel):
 class SourceRead(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
+    repository_id: uuid.UUID | None
+    repository_name: str | None
     original_name: str
     relative_path: str | None
     media_type: str
@@ -73,10 +75,36 @@ class JavaCallRead(BaseModel):
     resolution: str
 
 
+class JavaRelatedTypeRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    source_id: uuid.UUID
+    source_path: str
+    name: str
+    qualified_name: str
+    start_line: int
+    end_line: int
+
+
+class JavaTypeRelationshipRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    source_symbol_id: uuid.UUID
+    target_ids: list[uuid.UUID]
+    target_name: str
+    kind: str
+    line: int
+    resolution: str
+
+
 class JavaStructureRead(BaseModel):
     source_id: uuid.UUID
     symbols: list[JavaSymbolRead]
     calls: list[JavaCallRead]
+    related_types: list[JavaRelatedTypeRead]
+    type_relationships: list[JavaTypeRelationshipRead]
     truncated: bool
 
 
@@ -85,6 +113,8 @@ class SourceListItem(BaseModel):
 
     id: uuid.UUID
     project_id: uuid.UUID
+    repository_id: uuid.UUID | None
+    repository_name: str | None = None
     original_name: str
     relative_path: str | None
     source_type: str

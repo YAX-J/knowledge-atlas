@@ -9,14 +9,14 @@
 - 存活检查，以及 PostgreSQL 依赖就绪检查。
 - 请求 ID、CORS、请求日志和稳定的错误结构。
 - 在开发用户边界内创建、列出和查询项目。
-- 在同一用户/项目边界内分页查询资料元数据及最新任务。
-- 校验并保存 UTF-8 Markdown 与 Java 源码，记录 SHA-256 内容哈希和可选的规范化文件夹相对路径。
+- 解析并查询项目范围的本地文件夹仓库身份，并在同一用户/项目边界内分页查询资料元数据及最新任务。
+- 校验并保存 UTF-8 Markdown 与 Java 源码，记录 SHA-256 内容哈希、可空仓库身份和规范化仓库内相对路径。
 - 创建/查询解析任务，并通过 API 显式执行。
 - 可选独立 Worker 自动消费排队任务，提供租约认领、中断恢复和结果写入保护。
 - 持久化 Markdown 标题/段落/列表/围栏代码和 Java 代码/注释/类型/方法分块，保留精确原文、结构路径、哈希和从 1 开始且包含两端的行号范围。顶层类型注解随类型保存，方法外的纯注释行单独成块。
-- 同一用户项目和来源类型内，相同字节的上传复用原来源/任务，即使文件名不同。
+- 同一用户项目、可空仓库和来源类型内，相同字节的上传复用原来源/任务，即使文件名不同。
 - 分页查询分块，安全地重复执行已完成任务或重试失败任务。
-- 派生有界只读 Java 大纲，提供稳定的类型/字段/方法符号及未限定名或 `this.` 同文件调用提示；派生结构不会提升到正式图谱。
+- 派生有界只读 Java 大纲，提供稳定的类型/字段/方法符号、未限定名或 `this.` 同文件调用提示，以及依据包与导入解析的仓库内跨文件 `extends`/`implements` 目标；派生结构不会提升到正式图谱。
 - 持久化项目、来源、任务和候选知识记录。
 - 确认候选时在审核事务内写入受限的 PostgreSQL 实体、关系和证据，支持稳定 UUID、端点提升、幂等重复和旧确认重放。
 - 提供只读项目图谱、实体详情和关系详情接口，按用户/项目/时间过滤，限制节点与边数量，并返回后端计算的行号。
@@ -49,16 +49,16 @@ OpenAPI 文档地址为 `http://localhost:8000/docs`。
 在交互式 API 文档中依次调用：
 
 1. `POST /api/v1/projects`：创建项目。
-2. `POST /api/v1/projects/{project_id}/sources`：上传 UTF-8 `.md`、`.markdown` 或 `.java` 文件。文件夹客户端还可提交 `relative_path`；该值必须是以上传文件名结尾的规范化相对路径。
+2. 文件夹导入先用根目录名调用 `POST /api/v1/projects/{project_id}/repositories/resolve`，再通过 `POST /api/v1/projects/{project_id}/sources` 逐份上传 UTF-8 `.md`、`.markdown` 或 `.java` 文件，同时提交 `repository_id` 和规范化的仓库内 `relative_path`。单文件上传同时省略两者。
 3. `POST /api/v1/tasks/{task_id}/run`：同步执行解析。
 4. `GET /api/v1/tasks/{task_id}`：查看状态和错误信息。
 5. `GET /api/v1/sources/{source_id}/chunks?page=1&page_size=20`：查看证据原文和行号位置。
 
-`GET /api/v1/projects/{project_id}/sources` 用于前端刷新后恢复资料列表及每份资料的最新任务。列表包含可空的 `relative_path` 元数据但不包含原文，预览内容通过来源详情接口读取。相同字节复用时保留首次来源的文件名和相对路径。
+`GET /api/v1/projects/{project_id}/sources` 用于前端刷新后恢复资料列表及每份资料的最新任务。列表包含可空的仓库 ID/名称和 `relative_path` 元数据但不包含原文，预览内容通过来源详情接口读取。同一可空仓库内相同字节复用时保留首次来源的文件名和相对路径。
 
 Markdown 任务使用 `markdown_parsing`，Java 任务使用 `code_parsing`；旧版排队的 `knowledge_extraction` 上传任务也只执行 Markdown 解析。成功后任务为 `succeeded`/`parsed`/100，来源变为 `ready`，这不代表已经执行知识抽取。执行失败时返回 HTTP 200，任务状态为 `failed`，错误内容经过脱敏；可调用同一接口重试。重复执行成功任务会返回已有结果；运行中或已取消任务返回 HTTP 409。重复上传响应中返回的是复用任务的当前状态，不一定为 `queued`。
 
-Markdown 解析器支持 ATX/Setext 标题、段落、列表和围栏代码。Java 有界解析器识别顶层类型和常规直接成员方法，同时保留全部源码。同一来源与分块边界下，分块 ID 保持稳定。文件字节变化时创建独立来源，不修改既有来源。PostgreSQL 项目行锁串行化重复上传创建；SQLite 不验证这类锁保证。手动接口在 API 进程中解析，自动执行使用下文的 Worker。尚未实现完整 CommonMark/Java AST、跨文件 Java 调用图、GitHub 导入或仓库增量同步。
+Markdown 解析器支持 ATX/Setext 标题、段落、列表和围栏代码。Java 有界解析器识别顶层类型和常规直接成员方法，同时保留全部源码。来源结构视图还会在最多 100 份已解析 Java 来源内，按显式导入、同包和通配导入解析仓库内顶层类型的 `extends`/`implements` 目标；旧的未归属资料只与其他未归属资料互相解析。同一来源与分块边界下，分块 ID 保持稳定。文件字节变化时创建独立来源，不修改既有来源。PostgreSQL 项目行锁串行化仓库解析与重复上传创建；SQLite 不验证这类锁保证。手动接口在 API 进程中解析，自动执行使用下文的 Worker。尚未实现完整 CommonMark/Java AST、跨文件 Java 方法调用、Git remote 身份、GitHub 导入或仓库增量同步。
 
 ## 自动解析 Worker
 
@@ -92,7 +92,7 @@ Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose 
 
 ## DeepSeek 候选提取与审核
 
-审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261019_0007`。只在后端 `.env` 中配置：
+审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261019_0008`。只在后端 `.env` 中配置：
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key

@@ -4,12 +4,19 @@ from pathlib import Path
 
 from fastapi import UploadFile
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import Settings
 from app.core.errors import AppError
-from app.models.domain import ProcessingTask, Project, SourceDocument, TaskStatus
+from app.models.domain import (
+    ProcessingTask,
+    Project,
+    SourceDocument,
+    SourceStatus,
+    TaskStatus,
+)
 from app.services.projects import get_project
+from app.services.repositories import get_repository
 
 
 SOURCE_TYPE_BY_SUFFIX = {".md": "markdown", ".markdown": "markdown", ".java": "java"}
@@ -17,6 +24,7 @@ TASK_TYPE_BY_SOURCE = {"markdown": "markdown_parsing", "java": "code_parsing"}
 MEDIA_TYPE_BY_SOURCE = {"markdown": "text/markdown", "java": "text/x-java-source"}
 PARSING_TASK_TYPES = ("markdown_parsing", "knowledge_extraction", "code_parsing")
 MAX_RELATIVE_PATH_LENGTH = 1024
+MAX_RELATED_JAVA_BYTES = 20 * 1024 * 1024
 
 
 def normalize_relative_path(relative_path: str | None, *, original_name: str) -> str | None:
@@ -51,8 +59,18 @@ async def create_source_and_task(
     upload: UploadFile,
     source_type: str | None,
     relative_path: str | None,
+    repository_id: uuid.UUID | None,
 ) -> tuple[SourceDocument, ProcessingTask]:
     get_project(db, user_id=user_id, project_id=project_id)
+    repository = (
+        get_repository(
+            db,
+            user_id=user_id,
+            project_id=project_id,
+            repository_id=repository_id,
+        )
+        if repository_id is not None else None
+    )
 
     original_name = Path((upload.filename or "").replace("\\", "/")).name
     suffix = Path(original_name).suffix.lower()
@@ -68,6 +86,12 @@ async def create_source_and_task(
     normalized_relative_path = normalize_relative_path(
         relative_path, original_name=original_name
     )
+    if repository is not None and normalized_relative_path is None:
+        raise AppError(
+            status_code=422,
+            code="SOURCE_REPOSITORY_PATH_REQUIRED",
+            message="仓库资料必须提供仓库内相对路径",
+        )
 
     normalized_source_type = (source_type or inferred_source_type).strip().lower()
     if normalized_source_type != inferred_source_type:
@@ -110,6 +134,11 @@ async def create_source_and_task(
         .where(Project.id == project_id, Project.user_id == user_id)
         .with_for_update()
     )
+    repository_filter = (
+        SourceDocument.repository_id == repository.id
+        if repository is not None
+        else SourceDocument.repository_id.is_(None)
+    )
     existing = db.execute(
         select(SourceDocument, ProcessingTask)
         .join(ProcessingTask, ProcessingTask.source_id == SourceDocument.id)
@@ -118,6 +147,7 @@ async def create_source_and_task(
             SourceDocument.project_id == project_id,
             SourceDocument.source_type == normalized_source_type,
             SourceDocument.content_sha256 == content_sha256,
+            repository_filter,
             ProcessingTask.user_id == user_id,
             ProcessingTask.project_id == project_id,
             ProcessingTask.type.in_(PARSING_TASK_TYPES),
@@ -135,6 +165,7 @@ async def create_source_and_task(
     source = SourceDocument(
         user_id=user_id,
         project_id=project_id,
+        repository_id=repository.id if repository is not None else None,
         original_name=original_name,
         relative_path=normalized_relative_path,
         media_type=MEDIA_TYPE_BY_SOURCE[normalized_source_type],
@@ -190,6 +221,7 @@ def list_sources(
     total = db.scalar(select(func.count()).select_from(SourceDocument).where(*filters)) or 0
     sources = list(db.scalars(
         select(SourceDocument).where(*filters)
+        .options(selectinload(SourceDocument.repository))
         .order_by(SourceDocument.created_at.desc(), SourceDocument.id)
         .offset((page - 1) * page_size).limit(page_size)
     ))
@@ -206,6 +238,51 @@ def list_sources(
         for task in tasks:
             latest_tasks.setdefault(task.source_id, task)
     return [(source, latest_tasks.get(source.id)) for source in sources], total
+
+
+def list_ready_java_sources(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    repository_id: uuid.UUID | None,
+    exclude_source_id: uuid.UUID,
+    limit: int,
+) -> tuple[list[SourceDocument], bool]:
+    repository_filter = (
+        SourceDocument.repository_id == repository_id
+        if repository_id is not None
+        else SourceDocument.repository_id.is_(None)
+    )
+    metadata = list(db.execute(
+        select(SourceDocument.id, SourceDocument.size_bytes).where(
+            SourceDocument.user_id == user_id,
+            SourceDocument.project_id == project_id,
+            SourceDocument.source_type == "java",
+            SourceDocument.status == SourceStatus.READY,
+            SourceDocument.id != exclude_source_id,
+            repository_filter,
+        )
+        .order_by(SourceDocument.created_at, SourceDocument.id)
+        .limit(limit + 1)
+    ))
+    selected_ids: list[uuid.UUID] = []
+    selected_bytes = 0
+    truncated = len(metadata) > limit
+    for source_id, size_bytes in metadata[:limit]:
+        if selected_bytes + size_bytes > MAX_RELATED_JAVA_BYTES:
+            truncated = True
+            break
+        selected_ids.append(source_id)
+        selected_bytes += size_bytes
+    if not selected_ids:
+        return [], truncated
+    records_by_id = {
+        item.id: item for item in db.scalars(
+            select(SourceDocument).where(SourceDocument.id.in_(selected_ids))
+        )
+    }
+    return [records_by_id[source_id] for source_id in selected_ids], truncated
 
 
 def get_task(

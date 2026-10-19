@@ -20,16 +20,16 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 - `source_type` 省略时由后缀推断；填写时必须与 `markdown` / `java` 推断值一致，否则 422 `SOURCE_TYPE_INVALID`。
 - 默认最大 10 MiB（`MAX_UPLOAD_BYTES`），超出 413 `SOURCE_TOO_LARGE`。
 - 必须 UTF-8，否则 422 `SOURCE_ENCODING_INVALID`；空内容 422 `SOURCE_EMPTY`。
-- 保存原文、字节数、SHA-256、媒体类型和规范化的 `original_name`（去掉路径）；文件夹上传还可保存最长 1024 字符的规范化 `relative_path`。
+- 保存原文、字节数、SHA-256、媒体类型和规范化的 `original_name`（去掉路径）；文件夹上传还保存本地来源仓库 UUID 与最长 1024 字符的规范化仓库内 `relative_path`。
 - 上传成功始终返回 HTTP 202，响应里的 `status` 可能是 `queued`、`running`、`succeeded`、`failed`、`cancelled`。
-- 桌面端文件夹最多提取 50 份支持文件并顺序调用单文件接口，同时提交浏览器提供的相对路径；单份失败不回滚其他成功请求。
+- 桌面端文件夹最多提取 50 份支持文件，先按项目、`local_folder` 与根目录名幂等解析仓库，再顺序调用单文件接口并提交仓库 UUID 和剥离根目录名后的相对路径；单份失败不回滚其他成功请求。
 
 ## 去重语义
 
-- 作用域：同一用户、同一项目、同一来源类型。
+- 作用域：同一用户、同一项目、同一可空仓库、同一来源类型。
 - 键：文件字节的 SHA-256（与文件名、相对路径无关）。
 - 先对项目行加锁，再查已有来源 + 解析任务；命中则复用原 `source_id` 和 `task_id`，保留首次上传的文件名与相对路径。
-- 内容变化或换项目 → 新来源，不自动建立版本/`SUPERSEDES` 关系。
+- 内容变化、换仓库或换项目 → 新来源，不自动建立版本/`SUPERSEDES` 关系。
 - 复用返回的是任务**当前**状态，不要假设一定是 `queued`。
 
 ## 解析规则
@@ -56,7 +56,8 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 
 - 仅用于已解析 Java 来源，按需从不可变原文派生，不持久化。
 - 返回稳定的类型/常规字段/方法符号（最多 200）及未限定名或 `this.` 的同文件调用（最多 500）。
-- 唯一方法名为 `resolved`，同名/重载为 `ambiguous`；不解析接收者类型、跨文件或动态调用。
+- 在同仓库最多 100 份 `ready` Java 来源内，按显式导入、同包和通配导入解析顶层类型的跨文件 `extends`/`implements`；未归属仓库的旧来源只在未归属集合内解析。相关来源原文累计读取上限 20 MiB，返回目标来源路径、行号及 `resolved`/`ambiguous`。
+- 唯一方法名为 `resolved`，同名/重载为 `ambiguous`；不解析接收者类型、跨文件方法调用、继承分派或动态调用。
 - 派生关系不是正式知识，不能绕过候选提取与审核写入图谱。
 
 ## 任务状态
@@ -112,7 +113,7 @@ python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_source_l
 重点覆盖：
 
 - 扩展名、大小、编码、空文件、`source_type` 校验。
-- 相同字节重复上传复用；不同项目/不同内容新建。
+- 同一可空仓库中的相同字节重复上传复用；不同仓库、不同项目或不同内容新建。
 - 分块数量、类型、标题路径、行号、哈希、ID 稳定性。
 - 手动执行幂等、失败重试、运行中 409。
 - Worker 租约接手、旧执行写入被拒、次数上限、`--once` 子进程退出码。
@@ -121,7 +122,7 @@ python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_source_l
 ## 完成检查
 
 - [ ] 上传边界与错误码未变松。
-- [ ] 去重仍限定在用户 + 项目 + SHA-256。
+- [ ] 去重仍限定在用户 + 项目 + 可空仓库 + 来源类型 + SHA-256。
 - [ ] 分块仍是原文精确切片，行号仍从 1 开始。
 - [ ] 租约 fencing 没有被绕过。
 - [ ] 文档（`API_CONTRACT.md`、后端 README、ADR 0003/0004）已同步。

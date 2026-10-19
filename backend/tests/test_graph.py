@@ -9,7 +9,15 @@ from sqlalchemy.exc import IntegrityError
 from app.api.dependencies import get_current_user_id
 from app.core.errors import AppError
 from app.main import app
-from app.models.domain import CandidateKnowledge, Project, ReviewEvent, ReviewStatus, SourceDocument, utc_now
+from app.models.domain import (
+    CandidateKnowledge,
+    Project,
+    ReviewEvent,
+    ReviewStatus,
+    SourceDocument,
+    SourceRepository,
+    utc_now,
+)
 from app.models.graph import KnowledgeEntity, KnowledgeEvidence, KnowledgeRelationship
 from app.schemas.knowledge import ExtractionDraft
 from app.services import deepseek, graph
@@ -39,7 +47,15 @@ def count(db, model):
 def test_confirmation_persists_graph_and_locatable_evidence(client, db_session, configured, monkeypatch):
     project_id, source, items = extracted(client, monkeypatch)
     stored_source = db_session.get(SourceDocument, uuid.UUID(source["source_id"]))
-    stored_source.relative_path = "repository/docs/note.md"
+    repository = SourceRepository(
+        user_id=stored_source.user_id,
+        project_id=stored_source.project_id,
+        name="repository",
+    )
+    db_session.add(repository)
+    db_session.flush()
+    stored_source.repository_id = repository.id
+    stored_source.relative_path = "docs/note.md"
     db_session.commit()
     url = f"/api/v1/projects/{project_id}/graph"
     assert client.get(url).json() == {"nodes": [], "edges": [], "truncated": False}

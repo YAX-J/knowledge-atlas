@@ -4,11 +4,20 @@ from datetime import datetime
 from typing import get_args
 
 from pydantic import ValidationError
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from app.core.errors import AppError
-from app.models.domain import CandidateKnowledge, ProcessingTask, ReviewStatus, SourceChunk, SourceDocument, TaskStatus, utc_now
+from app.models.domain import (
+    CandidateKnowledge,
+    ProcessingTask,
+    ReviewStatus,
+    SourceChunk,
+    SourceDocument,
+    SourceRepository,
+    TaskStatus,
+    utc_now,
+)
 from app.models.graph import KnowledgeEntity, KnowledgeEvidence, KnowledgeRelationship
 from app.schemas.graph import EntityDetail, FormalEvidenceRead, GraphRead, KnowledgeEdgeRead, KnowledgeNodeRead, RelationshipDetail
 from app.schemas.knowledge import EntityType, EvidenceDraft, RelationType
@@ -196,9 +205,19 @@ def get_graph(
 def _evidence_read(db: Session, record):
     owner = KnowledgeEvidence.entity_id if isinstance(record, KnowledgeEntity) else KnowledgeEvidence.relationship_id
     rows = db.execute(select(
-        KnowledgeEvidence, SourceDocument.original_name, SourceDocument.relative_path,
+        KnowledgeEvidence,
+        SourceDocument.original_name,
+        SourceDocument.relative_path,
+        SourceRepository.name,
     ).join(
         SourceDocument, SourceDocument.id == KnowledgeEvidence.source_id,
+    ).outerjoin(
+        SourceRepository,
+        and_(
+            SourceRepository.id == SourceDocument.repository_id,
+            SourceRepository.user_id == record.user_id,
+            SourceRepository.project_id == record.project_id,
+        ),
     ).join(SourceChunk, SourceChunk.id == KnowledgeEvidence.chunk_id).where(
         owner == record.id, KnowledgeEvidence.user_id == record.user_id, KnowledgeEvidence.project_id == record.project_id,
         SourceDocument.user_id == record.user_id, SourceDocument.project_id == record.project_id,
@@ -206,10 +225,14 @@ def _evidence_read(db: Session, record):
         SourceChunk.user_id == record.user_id, SourceChunk.project_id == record.project_id,
     ).order_by(KnowledgeEvidence.start_line, KnowledgeEvidence.id))
     return [FormalEvidenceRead(
-        id=item.id, source_id=item.source_id, chunk_id=item.chunk_id, title=relative_path or title,
+        id=item.id, source_id=item.source_id, chunk_id=item.chunk_id,
+        title=(
+            f"{repository_name}/{relative_path}"
+            if repository_name and relative_path else relative_path or title
+        ),
         uri=f"project://{record.project_id}/sources/{item.source_id}", quote=item.quote,
         start_line=item.start_line, end_line=item.end_line, heading_path=item.heading_path,
-    ) for item, title, relative_path in rows]
+    ) for item, title, relative_path, repository_name in rows]
 
 
 def entity_detail(db: Session, *, user_id: uuid.UUID, entity_id: uuid.UUID, valid_at: datetime | None) -> EntityDetail:

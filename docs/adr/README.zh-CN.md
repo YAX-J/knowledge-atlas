@@ -76,3 +76,5 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0011：使用同步问答与受校验引用实现证据回答](0011-synchronous-evidence-grounded-questions.zh-CN.md)
 - [ADR 0012：使用保留行号的有界 Java 源码导入](0012-bounded-java-source-ingestion.zh-CN.md)
 - [ADR 0013：在正式图谱之外派生有界 Java 源码结构](0013-derived-java-source-structure.zh-CN.md)
+- [ADR 0014：按需解析有界的跨文件 Java 类型关系](0014-bounded-cross-file-java-types.zh-CN.md)
+- [ADR 0015：在项目内标识本地文件夹来源仓库](0015-local-folder-repository-identity.zh-CN.md)

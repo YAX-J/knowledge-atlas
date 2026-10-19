@@ -76,3 +76,5 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0011: Synchronous evidence-grounded questions with validated citations](0011-synchronous-evidence-grounded-questions.md)
 - [ADR 0012: Bounded Java source ingestion with line-preserving chunks](0012-bounded-java-source-ingestion.md)
 - [ADR 0013: Derive bounded Java source structure outside the formal graph](0013-derived-java-source-structure.md)
+- [ADR 0014: Resolve bounded cross-file Java type relationships on demand](0014-bounded-cross-file-java-types.md)
+- [ADR 0015: Identify local-folder source repositories within a project](0015-local-folder-repository-identity.md)

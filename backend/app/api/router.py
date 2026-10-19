@@ -1,11 +1,22 @@
 from fastapi import APIRouter
 
-from app.api.routes import graph, health, knowledge, projects, questions, search, sources, tasks
+from app.api.routes import (
+    graph,
+    health,
+    knowledge,
+    projects,
+    questions,
+    repositories,
+    search,
+    sources,
+    tasks,
+)
 
 
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(projects.router)
+api_router.include_router(repositories.router)
 api_router.include_router(sources.router)
 api_router.include_router(tasks.router)
 api_router.include_router(knowledge.router)

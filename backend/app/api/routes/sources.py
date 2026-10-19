@@ -8,8 +8,10 @@ from app.core.errors import AppError
 from app.models.domain import SourceStatus
 from app.schemas.sources import (
     JavaCallRead,
+    JavaRelatedTypeRead,
     JavaStructureRead,
     JavaSymbolRead,
+    JavaTypeRelationshipRead,
     SourceChunkList,
     SourceChunkRead,
     SourceRead,
@@ -18,7 +20,7 @@ from app.schemas.sources import (
     SourceUploadResponse,
 )
 from app.services import ingestion, parsing
-from app.services.java_source import analyze_java
+from app.services.java_source import JavaSourceInput, analyze_java
 
 
 router = APIRouter(tags=["sources"])
@@ -38,6 +40,7 @@ def list_sources(
     items = []
     for source, task in records:
         item = SourceListItem.model_validate(source)
+        item.repository_name = source.repository.name if source.repository else None
         item.task_id = task.id if task else None
         item.task_status = task.status if task else None
         items.append(item)
@@ -56,6 +59,7 @@ async def upload_source(
     file: UploadFile = File(...),
     source_type: str | None = Form(default=None),
     relative_path: str | None = Form(default=None),
+    repository_id: uuid.UUID | None = Form(default=None),
 ) -> SourceUploadResponse:
     source, task = await ingestion.create_source_and_task(
         db,
@@ -65,6 +69,7 @@ async def upload_source(
         upload=file,
         source_type=source_type,
         relative_path=relative_path,
+        repository_id=repository_id,
     )
     return SourceUploadResponse(
         source_id=source.id,
@@ -83,6 +88,8 @@ def get_source(
     return SourceRead(
         id=source.id,
         project_id=source.project_id,
+        repository_id=source.repository_id,
+        repository_name=source.repository.name if source.repository else None,
         original_name=source.original_name,
         relative_path=source.relative_path,
         media_type=source.media_type,
@@ -131,11 +138,39 @@ def get_code_structure(
             status_code=409, code="SOURCE_NOT_PARSED",
             message="请先完成 Java 资料解析",
         )
-    structure = analyze_java(source.content, source_id=source.id)
+    related_sources, related_sources_truncated = ingestion.list_ready_java_sources(
+        db,
+        user_id=user_id,
+        project_id=source.project_id,
+        repository_id=source.repository_id,
+        exclude_source_id=source.id,
+        limit=99,
+    )
+    structure = analyze_java(
+        source.content,
+        source_id=source.id,
+        source_path=source.relative_path or source.original_name,
+        related_sources=[
+            JavaSourceInput(
+                source_id=item.id,
+                source_path=item.relative_path or item.original_name,
+                content=item.content,
+            )
+            for item in related_sources
+        ],
+        related_sources_truncated=related_sources_truncated,
+    )
     return JavaStructureRead(
         source_id=source.id,
         symbols=[JavaSymbolRead.model_validate(item) for item in structure.symbols],
         calls=[JavaCallRead.model_validate(item) for item in structure.calls],
+        related_types=[
+            JavaRelatedTypeRead.model_validate(item) for item in structure.related_types
+        ],
+        type_relationships=[
+            JavaTypeRelationshipRead.model_validate(item)
+            for item in structure.type_relationships
+        ],
         truncated=structure.truncated,
     )
 
