@@ -32,10 +32,11 @@
 - 实现桌面端独立的单文件与文件夹上传入口；文件夹最多提取 50 份支持的 Markdown/Java 文件，逐份上传、持久化相对路径，并保留部分成功结果与原有单文件去重语义。
 - 在同仓库已解析来源间，按包与导入规则有界解析 Java `extends`/`implements`，在正式图谱之外展示目标路径和行号。
 - 增加项目范围的本地文件夹仓库身份、仓库内相对路径、仓库感知的重复复用及仓库边界内 Java 类型解析。
+- 增加项目范围的 GitHub HTTPS/SSH remote 规范化身份、可选的既有本地文件夹仓库关联、仅远程身份登记及仓库列表界面；登记过程不请求 GitHub，也不克隆仓库。
 
 ## 当前阶段
 
-当前阶段为阶段四代码导入。本地文件有界切片可接收 Java 文件，使用 `code_parsing`，把精确源码行保存为结构分块，持久化本地文件夹仓库身份与仓库内相对路径，并复用现有 Worker 与证据流程。它能解析一小部分仓库内跨文件类型关系，但不代表已经具备 Git 支撑的身份、完整 Java AST、符号图、跨文件方法调用图、GitHub 导入或增量同步。见 [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.zh-CN.md)、[ADR 0014](docs/adr/0014-bounded-cross-file-java-types.zh-CN.md) 与 [ADR 0015](docs/adr/0015-local-folder-repository-identity.zh-CN.md)。
+当前阶段为阶段四代码导入。本地文件有界切片可接收 Java 文件，使用 `code_parsing`，把精确源码行保存为结构分块，持久化本地文件夹仓库身份与仓库内相对路径，并复用现有 Worker 与证据流程。它能解析一小部分仓库内跨文件类型关系，也能登记规范化的 GitHub 所有者/仓库坐标并可选关联本地文件夹身份，但不代表已经具备基于 provider ID 的重命名跟踪、完整 Java AST、符号图、跨文件方法调用图、GitHub 内容/Commit 导入或增量同步。见 [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.zh-CN.md)、[ADR 0014](docs/adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0015](docs/adr/0015-local-folder-repository-identity.zh-CN.md) 与 [ADR 0016](docs/adr/0016-normalized-github-remote-identity.zh-CN.md)。
 
 本次功能切片已实现：
 
@@ -48,6 +49,7 @@
 - 桌面端提供单文件与文件夹上传；文件夹忽略不支持类型和空文件，最多导入 50 份 Markdown/Java 来源并保存规范化相对路径。单份失败会独立提示，不回滚已成功资料。
 - 在最多 100 份同仓库已解析 Java 来源内，通过显式导入、同包和通配导入解析顶层类型 `extends`/`implements`，并在来源大纲展示歧义与截断状态；未归属仓库的旧来源只在同项目未归属集合内解析。
 - 以项目、类型和文件夹根目录名幂等解析稳定的本地仓库 UUID；文件夹资料保存仓库内相对路径，在仓库内去重，且 Java 类型解析不会越过仓库边界。
+- 将 GitHub HTTPS、SCP 风格 SSH 与 `ssh://` remote 规范化为项目范围的所有者/仓库身份及标准 URL；既可登记仅远程仓库，也可关联已有本地文件夹仓库，且不会请求 GitHub。
 
 仍需验收：
 
@@ -63,7 +65,7 @@
 ## 后续阶段
 
 1. 代表性真实回答验收与检索/提示质量评估。
-2. 用 Git remote 身份扩展本地标识并增加更完整的跨文件 Java 方法解析，再接入 GitHub 与增量同步。
+2. 增加更完整的跨文件 Java 方法解析，并接入带 provider ID、重命名处理和增量同步的 GitHub 内容/Commit 导入。
 3. 时序演进、治理、实验和部署。
 
 Markdown 解析、受 Schema 约束的审核和确认候选入图已作为边界清晰的切片完成。

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Query
 
 from app.api.dependencies import CurrentUserId, DatabaseSession
 from app.schemas.repositories import (
+    GithubRepositoryResolve,
     RepositoryList,
     RepositoryRead,
     RepositoryResolve,
@@ -25,6 +26,24 @@ def resolve_repository(
     user_id: CurrentUserId,
 ) -> RepositoryRead:
     return repository_service.resolve_repository(
+        db,
+        user_id=user_id,
+        project_id=project_id,
+        repository_in=repository_in,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/repositories/resolve-github",
+    response_model=RepositoryRead,
+)
+def resolve_github_repository(
+    project_id: uuid.UUID,
+    repository_in: GithubRepositoryResolve,
+    db: DatabaseSession,
+    user_id: CurrentUserId,
+) -> RepositoryRead:
+    return repository_service.resolve_github_repository(
         db,
         user_id=user_id,
         project_id=project_id,

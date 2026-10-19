@@ -127,7 +127,11 @@ export interface SourceRepository {
   id: string
   project_id: string
   name: string
-  kind: 'local_folder'
+  kind: 'local_folder' | 'git_remote'
+  provider: 'github' | null
+  remote_owner: string | null
+  remote_name: string | null
+  remote_url: string | null
   created_at: string
   updated_at: string
 }
@@ -209,6 +213,20 @@ export function listRepositories(
 ): Promise<SourceRepositoryList> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
   return apiRequest<SourceRepositoryList>(`/projects/${projectId}/repositories?${query}`)
+}
+
+export function resolveGithubRepository(
+  projectId: string,
+  remoteUrl: string,
+  localRepositoryId?: string,
+): Promise<SourceRepository> {
+  return apiRequest<SourceRepository>(`/projects/${projectId}/repositories/resolve-github`, {
+    method: 'POST',
+    body: JSON.stringify({
+      remote_url: remoteUrl,
+      local_repository_id: localRepositoryId || null,
+    }),
+  })
 }
 
 export function getTask(taskId: string): Promise<ProcessingTask> {

@@ -108,6 +108,80 @@ def test_postgresql_migrations_compile_without_a_live_server(monkeypatch) -> Non
     assert "uq_source_repositories_scope_name" in sql
     assert "ix_sources_repository_dedupe" in sql
     assert "repository_id UUID" in sql
+    assert "remote_url VARCHAR(1024)" in sql
+    assert "ck_source_repositories_remote_identity" in sql
+    assert "uq_source_repositories_remote_scope" in sql
+
+
+def test_github_repository_migration_preserves_local_repositories_and_is_reversible(
+    tmp_path, monkeypatch
+) -> None:
+    url = f"sqlite+pysqlite:///{(tmp_path / 'github-repositories.db').as_posix()}"
+    monkeypatch.setattr(
+        app_config, "get_settings", lambda: SimpleNamespace(database_url=url)
+    )
+    config = migration_config()
+    command.upgrade(config, "20261019_0008")
+    engine = create_engine(url)
+    repository_id = uuid.uuid4()
+    with Session(engine) as db:
+        project = Project(user_id=uuid.uuid4(), name="GitHub migration")
+        db.add(project)
+        db.flush()
+        db.execute(SourceRepository.__table__.insert().values(
+            id=repository_id,
+            user_id=project.user_id,
+            project_id=project.id,
+            name="local-root",
+            kind="local_folder",
+        ))
+        db.commit()
+
+    command.upgrade(config, "head")
+    repository_columns = {
+        column["name"]
+        for column in inspect(engine).get_columns("source_repositories")
+    }
+    assert {"provider", "remote_owner", "remote_name", "remote_url"} <= (
+        repository_columns
+    )
+    with Session(engine) as db:
+        repository = db.get(SourceRepository, repository_id)
+        assert repository is not None and repository.remote_url is None
+        repository.provider = "github"
+        repository.remote_owner = "example"
+        repository.remote_name = "local-root"
+        repository.remote_url = "https://github.com/example/local-root"
+        db.add(SourceRepository(
+            user_id=repository.user_id,
+            project_id=repository.project_id,
+            name="example/remote-only",
+            kind="git_remote",
+            provider="github",
+            remote_owner="example",
+            remote_name="remote-only",
+            remote_url="https://github.com/example/remote-only",
+        ))
+        db.commit()
+
+    command.downgrade(config, "20261019_0008")
+    repository_columns = {
+        column["name"]
+        for column in inspect(engine).get_columns("source_repositories")
+    }
+    assert not {
+        "provider", "remote_owner", "remote_name", "remote_url"
+    } & repository_columns
+    with engine.connect() as connection:
+        assert connection.execute(
+            text("SELECT name FROM source_repositories WHERE id = :id"),
+            {"id": repository_id.hex},
+        ).scalar_one() == "local-root"
+        assert connection.execute(
+            text("SELECT COUNT(*) FROM source_repositories WHERE kind = 'git_remote'")
+        ).scalar_one() == 0
+    command.upgrade(config, "head")
+    engine.dispose()
 
 
 def test_source_repository_migration_preserves_legacy_sources_and_is_reversible(

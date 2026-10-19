@@ -9,7 +9,7 @@
 - 存活检查，以及 PostgreSQL 依赖就绪检查。
 - 请求 ID、CORS、请求日志和稳定的错误结构。
 - 在开发用户边界内创建、列出和查询项目。
-- 解析并查询项目范围的本地文件夹仓库身份，并在同一用户/项目边界内分页查询资料元数据及最新任务。
+- 解析/查询项目范围的本地文件夹身份，规范化 GitHub HTTPS/SSH remote，可选关联本地仓库，并在同一用户/项目边界内分页查询资料元数据及最新任务。
 - 校验并保存 UTF-8 Markdown 与 Java 源码，记录 SHA-256 内容哈希、可空仓库身份和规范化仓库内相对路径。
 - 创建/查询解析任务，并通过 API 显式执行。
 - 可选独立 Worker 自动消费排队任务，提供租约认领、中断恢复和结果写入保护。
@@ -49,7 +49,7 @@ OpenAPI 文档地址为 `http://localhost:8000/docs`。
 在交互式 API 文档中依次调用：
 
 1. `POST /api/v1/projects`：创建项目。
-2. 文件夹导入先用根目录名调用 `POST /api/v1/projects/{project_id}/repositories/resolve`，再通过 `POST /api/v1/projects/{project_id}/sources` 逐份上传 UTF-8 `.md`、`.markdown` 或 `.java` 文件，同时提交 `repository_id` 和规范化的仓库内 `relative_path`。单文件上传同时省略两者。
+2. 文件夹导入先用根目录名调用 `POST /api/v1/projects/{project_id}/repositories/resolve`，再通过 `POST /api/v1/projects/{project_id}/sources` 逐份上传 UTF-8 `.md`、`.markdown` 或 `.java` 文件，同时提交 `repository_id` 和规范化的仓库内 `relative_path`。单文件上传同时省略两者。还可通过 `POST /api/v1/projects/{project_id}/repositories/resolve-github` 登记 GitHub HTTPS/SSH remote；该操作只保存规范身份，不发起网络请求或克隆。
 3. `POST /api/v1/tasks/{task_id}/run`：同步执行解析。
 4. `GET /api/v1/tasks/{task_id}`：查看状态和错误信息。
 5. `GET /api/v1/sources/{source_id}/chunks?page=1&page_size=20`：查看证据原文和行号位置。
@@ -58,7 +58,7 @@ OpenAPI 文档地址为 `http://localhost:8000/docs`。
 
 Markdown 任务使用 `markdown_parsing`，Java 任务使用 `code_parsing`；旧版排队的 `knowledge_extraction` 上传任务也只执行 Markdown 解析。成功后任务为 `succeeded`/`parsed`/100，来源变为 `ready`，这不代表已经执行知识抽取。执行失败时返回 HTTP 200，任务状态为 `failed`，错误内容经过脱敏；可调用同一接口重试。重复执行成功任务会返回已有结果；运行中或已取消任务返回 HTTP 409。重复上传响应中返回的是复用任务的当前状态，不一定为 `queued`。
 
-Markdown 解析器支持 ATX/Setext 标题、段落、列表和围栏代码。Java 有界解析器识别顶层类型和常规直接成员方法，同时保留全部源码。来源结构视图还会在最多 100 份已解析 Java 来源内，按显式导入、同包和通配导入解析仓库内顶层类型的 `extends`/`implements` 目标；旧的未归属资料只与其他未归属资料互相解析。同一来源与分块边界下，分块 ID 保持稳定。文件字节变化时创建独立来源，不修改既有来源。PostgreSQL 项目行锁串行化仓库解析与重复上传创建；SQLite 不验证这类锁保证。手动接口在 API 进程中解析，自动执行使用下文的 Worker。尚未实现完整 CommonMark/Java AST、跨文件 Java 方法调用、Git remote 身份、GitHub 导入或仓库增量同步。
+Markdown 解析器支持 ATX/Setext 标题、段落、列表和围栏代码。Java 有界解析器识别顶层类型和常规直接成员方法，同时保留全部源码。来源结构视图还会在最多 100 份已解析 Java 来源内，按显式导入、同包和通配导入解析仓库内顶层类型的 `extends`/`implements` 目标；旧的未归属资料只与其他未归属资料互相解析。同一来源与分块边界下，分块 ID 保持稳定。文件字节变化时创建独立来源，不修改既有来源。PostgreSQL 项目行锁串行化仓库解析与重复上传创建；SQLite 不验证这类锁保证。手动接口在 API 进程中解析，自动执行使用下文的 Worker。已支持不访问 GitHub 的规范化 remote 身份登记；尚未实现完整 CommonMark/Java AST、跨文件 Java 方法调用、GitHub 内容导入、基于 provider ID 的重命名跟踪或仓库增量同步。
 
 ## 自动解析 Worker
 
@@ -92,7 +92,7 @@ Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose 
 
 ## DeepSeek 候选提取与审核
 
-审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261019_0008`。只在后端 `.env` 中配置：
+审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261019_0009`。只在后端 `.env` 中配置：
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key

@@ -4,7 +4,7 @@
 
 Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成带有来源、时间和上下文的知识网络，帮助开发者重新找到历史方案、理解技术决策，并基于真实证据回答问题。
 
-> 当前进度：Markdown 与本地 Java 源文件桌面端单文件/仓库范围文件夹导入（含仓库内相对路径持久化）、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、关键词/语义向量/一跳图关系融合检索，以及同步证据问答已经实现。Java 当前提供有界结构分块、同文件调用提示及仓库内跨文件继承/实现关系，不代表完整 AST、跨文件方法调用图或 GitHub 同步已完成。
+> 当前进度：Markdown 与本地 Java 源文件桌面端单文件/仓库范围文件夹导入（含仓库内相对路径持久化）、规范化 GitHub remote 身份登记、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、关键词/语义向量/一跳图关系融合检索，以及同步证据问答已经实现。GitHub remote 当前只登记身份，不读取远程内容；Java 也不代表完整 AST 或跨文件方法调用图已经完成。
 
 ![Knowledge Atlas 知识图谱工作台](docs/images/knowledge-atlas-overview.png)
 
@@ -20,7 +20,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 
 | 能力 | 说明 | 当前状态 |
 | --- | --- | --- |
-| 资料导入 | 导入 Markdown、文本、代码及 GitHub 数据 | Markdown 与本地 Java 桌面端单文件/本地仓库文件夹上传、解析、符号/同文件调用及仓库内类型关系视图已完成；GitHub 待开发 |
+| 资料导入 | 导入 Markdown、文本、代码及 GitHub 数据 | Markdown 与本地 Java 单文件/本地仓库文件夹上传、解析及仓库内类型关系已完成；GitHub remote 身份可登记，远程文件/Commit/Issue/PR 导入待开发 |
 | 知识抽取与审核 | 提取带原文证据的实体、关系候选，并逐项确认或拒绝 | DeepSeek 接口、审核页面及确认后写入正式图谱已实现，真实调用待验收 |
 | 实体消歧 | 合并别名和重复实体，保留人工确认流程 | 规划中 |
 | 知识图谱 | 浏览节点、关系、项目归属和来源证据 | 项目图谱已接入真实数据；演示图谱仍为 Mock |
@@ -47,6 +47,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - 基于当前节点生成模拟证据回答。
 - 桌面端与移动端响应式布局。
 - 真实项目列表与创建、项目资料列表，以及 Markdown/Java 的桌面端单文件上传或本地仓库文件夹导入（最多 50 份支持文件，保存仓库身份和仓库内相对路径）。
+- 来源仓库清单、GitHub HTTPS/SSH remote 规范化登记，以及把 remote 显式关联到已有本地仓库；当前不联网或克隆。
 - 显式开始/重试解析、原文预览、标题或代码结构与行号分块查询。
 - Java 类型、字段、方法、有界同文件调用及按包/导入解析的跨文件继承/实现关系展示，明确与已审核正式图谱分离。
 - 候选知识确认/拒绝、名称摘要修正和旧确认补写入图谱。
@@ -60,7 +61,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 
 - FastAPI 应用、CORS、请求 ID 和统一错误结构。
 - 项目创建、分页查询和详情接口。
-- UTF-8 Markdown/Java 上传、大小与类型校验、内容哈希、原文及可空本地仓库身份保存。
+- UTF-8 Markdown/Java 上传、大小与类型校验、内容哈希、原文及可空仓库身份保存；支持项目范围内规范化 GitHub remote 身份。
 - 上传后创建 `queued` 处理任务，支持显式执行解析和资料、任务、分块查询。
 - 独立 Worker 自动消费排队任务，通过执行租约恢复中断任务，并阻止旧进程覆盖新结果。
 - Markdown 解析标题、段落、列表和围栏代码块；Java 解析顶层类型与常规直接成员方法。两者保存精确原文、结构路径及行号，并按项目、可空仓库、来源类型和内容哈希复用来源与任务。
@@ -122,7 +123,7 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-候选提取和语义索引需要先应用最新迁移（`20261019_0008`）。候选提取在后端 `.env` 设置 `DEEPSEEK_API_KEY`；语义检索需另外配置 `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL` 和 `EMBEDDING_MODEL`，当前固定 1024 维。两类外部调用都由用户显式触发。详细设置见 [后端说明](backend/README.zh-CN.md)。
+候选提取和语义索引需要先应用最新迁移（`20261019_0009`）。候选提取在后端 `.env` 设置 `DEEPSEEK_API_KEY`；语义检索需另外配置 `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL` 和 `EMBEDDING_MODEL`，当前固定 1024 维。两类外部调用都由用户显式触发。GitHub remote 身份登记不需要令牌，也不会访问 GitHub。详细设置见 [后端说明](backend/README.zh-CN.md)。
 
 接口文档地址为 `http://localhost:8000/docs`，存活检查地址为 `http://localhost:8000/api/v1/health/live`。
 

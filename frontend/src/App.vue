@@ -16,11 +16,11 @@ import {
   runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
   getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
   getJavaCodeStructure,
-  resolveLocalRepository,
+  listRepositories, resolveGithubRepository, resolveLocalRepository,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
-  CandidateList, ExtractionResult, JavaCodeStructure, SourceUploadResult,
+  CandidateList, ExtractionResult, JavaCodeStructure, SourceRepositoryList, SourceUploadResult,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
 import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchMode, KnowledgeSearchResult, QuestionAnswer } from './types'
@@ -34,6 +34,7 @@ const allTypes = Object.keys(nodeTypeLabels) as NodeType[]
 const visibleTypes = ref<NodeType[]>([...allTypes])
 const projects = ref<ApiProjectList | null>(null)
 const project = ref<ApiProject | null>(null)
+const repositories = ref<SourceRepositoryList | null>(null)
 const sources = ref<SourceList | null>(null)
 const selectedSourceId = ref('')
 const selectedTaskId = ref<string | null>(null)
@@ -42,9 +43,10 @@ const task = ref<ProcessingTask | null>(null)
 const chunks = ref<SourceChunkList | null>(null)
 const codeStructure = ref<JavaCodeStructure | null>(null)
 const notice = ref('')
-const loading = reactive<IngestionLoading>({ projects: false, create: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false })
-const errors = reactive<IngestionErrors>({ projects: '', create: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '' })
+const loading = reactive<IngestionLoading>({ projects: false, create: false, repositories: false, remote: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false })
+const errors = reactive<IngestionErrors>({ projects: '', create: '', repositories: '', remote: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '' })
 let projectsRequest = 0
+let repositoriesRequest = 0
 let sourcesRequest = 0
 let detailRequest = 0
 let chunksRequest = 0
@@ -232,7 +234,7 @@ async function loadProjects(page = 1) {
 }
 
 function selectProject(value: ApiProject) {
-  if (loading.upload || loading.task) return
+  if (loading.upload || loading.task || loading.remote) return
   clearQuestion()
   project.value = value
   clearSearch()
@@ -242,16 +244,18 @@ function selectProject(value: ApiProject) {
   realEntityDetail.value = realRelationshipDetail.value = null
   graphSelectedId.value = graphCenter.value = graphType.value = ''
   graphLoading.value = graphDetailLoading.value = false
+  repositories.value = null
+  repositoriesRequest++
   sources.value = null
   sourcesRequest++
   clearSourceSelection()
-  errors.sources = errors.upload = ''
+  errors.repositories = errors.remote = errors.sources = errors.upload = ''
   notice.value = ''
-  void loadSources(1)
+  void Promise.all([loadRepositories(1), loadSources(1)])
 }
 
 async function addProject(input: { name: string; description: string }) {
-  if (loading.create || loading.upload || loading.task) return
+  if (loading.create || loading.upload || loading.task || loading.remote) return
   loading.create = true
   errors.create = ''
   try {
@@ -285,6 +289,48 @@ async function loadSources(page = 1) {
     if (request === sourcesRequest) errors.sources = errorMessage(error)
   } finally {
     if (request === sourcesRequest) loading.sources = false
+  }
+}
+
+async function loadRepositories(page = 1) {
+  const projectId = project.value?.id
+  if (!projectId) return
+  const request = ++repositoriesRequest
+  loading.repositories = true
+  errors.repositories = ''
+  try {
+    const result = await listRepositories(projectId, page)
+    if (request !== repositoriesRequest || project.value?.id !== projectId) return
+    repositories.value = result
+  } catch (error) {
+    if (request === repositoriesRequest) errors.repositories = errorMessage(error)
+  } finally {
+    if (request === repositoriesRequest) loading.repositories = false
+  }
+}
+
+async function registerGithubRepository(input: {
+  remoteUrl: string
+  localRepositoryId?: string
+}) {
+  const projectId = project.value?.id
+  if (!projectId || loading.remote || loading.upload || loading.task) return
+  loading.remote = true
+  errors.remote = ''
+  notice.value = ''
+  try {
+    const repository = await resolveGithubRepository(
+      projectId, input.remoteUrl, input.localRepositoryId,
+    )
+    if (project.value?.id !== projectId) return
+    notice.value = repository.kind === 'local_folder'
+      ? `已把本地仓库“${repository.name}”关联到 ${repository.remote_url}。`
+      : `已登记 GitHub 仓库“${repository.name}”，尚未导入远程文件。`
+    await loadRepositories(1)
+  } catch (error) {
+    if (project.value?.id === projectId) errors.remote = errorMessage(error)
+  } finally {
+    loading.remote = false
   }
 }
 
@@ -363,7 +409,7 @@ async function loadCodeStructure() {
 
 async function uploadFiles(files: File[]) {
   const projectId = project.value?.id
-  if (!projectId || !files.length || loading.create || loading.upload || loading.task) return
+  if (!projectId || !files.length || loading.create || loading.upload || loading.task || loading.remote) return
   loading.upload = true
   errors.upload = ''
   notice.value = ''
@@ -404,6 +450,7 @@ async function uploadFiles(files: File[]) {
     }
   }
   const succeeded = files.length - failures.length
+  if (repositoryId) await loadRepositories(1)
   if (lastResult) {
     selectedSourceId.value = lastResult.source_id
     selectedTaskId.value = lastResult.task_id
@@ -653,11 +700,12 @@ function setTimeline(value: number) {
 
     <SourceWorkspace
       v-if="activeNav === 'projects' || activeNav === 'sources'"
-      :view="activeNav" :projects="projects" :project="project" :sources="sources"
+      :view="activeNav" :projects="projects" :project="project" :repositories="repositories" :sources="sources"
       :selected-source-id="selectedSourceId" :source="source" :task="task" :chunks="chunks"
       :code-structure="codeStructure"
       :loading="loading" :errors="errors" :notice="notice"
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
+      @repositories-page="loadRepositories" @resolve-github="registerGithubRepository"
       @sources-page="loadSources" @select-source="selectSource" @upload="uploadFiles"
       @run="parseSource" @refresh="refreshSource" @chunks-page="loadChunks"
       @graph="openProjectGraph"

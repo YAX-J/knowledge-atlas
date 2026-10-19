@@ -32,8 +32,22 @@ class RepositoryRead(BaseModel):
     project_id: uuid.UUID
     name: str
     kind: str
+    provider: str | None
+    remote_owner: str | None
+    remote_name: str | None
+    remote_url: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class GithubRepositoryResolve(BaseModel):
+    remote_url: str = Field(min_length=1, max_length=1024)
+    local_repository_id: uuid.UUID | None = None
+
+    @field_validator("remote_url", mode="before")
+    @classmethod
+    def normalize_remote_url(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
 
 
 class RepositoryList(BaseModel):

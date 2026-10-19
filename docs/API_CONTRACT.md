@@ -11,6 +11,7 @@
 | `GET/POST /api/v1/projects` | 已实现 |
 | `GET /api/v1/projects/{project_id}` | 已实现 |
 | `POST /api/v1/projects/{project_id}/repositories/resolve` | 已实现，幂等解析本地文件夹仓库身份 |
+| `POST /api/v1/projects/{project_id}/repositories/resolve-github` | 已实现，规范化并登记 GitHub remote 身份 |
 | `GET /api/v1/projects/{project_id}/repositories` | 已实现，分页查询来源仓库 |
 | `POST /api/v1/projects/{project_id}/sources` | 已实现，Markdown 与 Java 源文件 |
 | `GET /api/v1/projects/{project_id}/sources` | 已实现，分页查询项目资料及最新任务 |
@@ -110,7 +111,20 @@
 
 `name` 为浏览器文件夹选择提供的单个根目录名，去除首尾空白后长度为 1–255，不得为 `.` / `..`，也不得包含路径分隔符、NUL 或换行。当前 `kind` 只允许 `local_folder`。接口按当前用户、项目、类型和名称幂等返回稳定仓库 UUID；相同输入不会重复创建。
 
-`GET /api/v1/projects/{project_id}/repositories?page=1&page_size=20` 分页返回 `id`、`project_id`、`name`、`kind`、`created_at` 与 `updated_at`。项目不可访问时返回 HTTP 404。
+`POST /api/v1/projects/{project_id}/repositories/resolve-github`
+
+```json
+{
+  "remote_url": "git@github.com:example/commerce-core.git",
+  "local_repository_id": null
+}
+```
+
+接受 `https://github.com/owner/repository`、`git@github.com:owner/repository.git` 与 `ssh://git@github.com/owner/repository.git`，把 owner/name 转为小写并返回规范化 `https://github.com/owner/repository`。`local_repository_id` 可选；提供时必须是当前用户/项目中尚未关联 remote，或已关联同一身份的 `local_folder`，否则创建或复用 `kind=git_remote` 的仅远程记录。接口只登记身份，不访问 GitHub、不验证仓库存在性，也不克隆文件。
+
+非 GitHub、包含查询参数/片段、HTTPS 凭据或格式不合法的地址返回 HTTP 422 `GITHUB_REMOTE_INVALID`。本地仓库已关联其他 remote 返回 HTTP 409 `SOURCE_REPOSITORY_REMOTE_CONFLICT`；remote 已登记到另一条仓库记录返回 HTTP 409 `GITHUB_REPOSITORY_ALREADY_REGISTERED`；把 remote 关联到非本地仓库返回 HTTP 409 `SOURCE_REPOSITORY_NOT_LOCAL`。越过用户/项目边界仍返回 HTTP 404。
+
+`GET /api/v1/projects/{project_id}/repositories?page=1&page_size=20` 分页返回 `id`、`project_id`、`name`、`kind`、可空的 `provider` / `remote_owner` / `remote_name` / `remote_url`、`created_at` 与 `updated_at`。项目不可访问时返回 HTTP 404。
 
 ### 查询项目资料
 

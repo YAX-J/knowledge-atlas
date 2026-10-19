@@ -86,12 +86,24 @@ class SourceRepository(TimestampMixin, Base):
     __tablename__ = "source_repositories"
     __table_args__ = (
         CheckConstraint(
-            "kind IN ('local_folder')",
+            "kind IN ('local_folder', 'git_remote')",
             name="ck_source_repositories_kind",
+        ),
+        CheckConstraint(
+            "(kind = 'local_folder' AND provider IS NULL "
+            "AND remote_owner IS NULL AND remote_name IS NULL "
+            "AND remote_url IS NULL) OR "
+            "(provider = 'github' AND remote_owner IS NOT NULL "
+            "AND remote_name IS NOT NULL AND remote_url IS NOT NULL)",
+            name="ck_source_repositories_remote_identity",
         ),
         UniqueConstraint(
             "user_id", "project_id", "kind", "name",
             name="uq_source_repositories_scope_name",
+        ),
+        UniqueConstraint(
+            "user_id", "project_id", "provider", "remote_owner", "remote_name",
+            name="uq_source_repositories_remote_scope",
         ),
         Index(
             "ix_source_repositories_project_created", "project_id", "created_at"
@@ -107,6 +119,10 @@ class SourceRepository(TimestampMixin, Base):
     kind: Mapped[str] = mapped_column(
         String(30), default="local_folder", nullable=False
     )
+    provider: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    remote_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    remote_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    remote_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     project: Mapped[Project] = relationship(back_populates="repositories")
     sources: Mapped[list["SourceDocument"]] = relationship(

@@ -23,6 +23,7 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 - 保存原文、字节数、SHA-256、媒体类型和规范化的 `original_name`（去掉路径）；文件夹上传还保存本地来源仓库 UUID 与最长 1024 字符的规范化仓库内 `relative_path`。
 - 上传成功始终返回 HTTP 202，响应里的 `status` 可能是 `queued`、`running`、`succeeded`、`failed`、`cancelled`。
 - 桌面端文件夹最多提取 50 份支持文件，先按项目、`local_folder` 与根目录名幂等解析仓库，再顺序调用单文件接口并提交仓库 UUID 和剥离根目录名后的相对路径；单份失败不回滚其他成功请求。
+- 仓库可登记规范化 GitHub HTTPS/SSH remote，或把 remote 关联到本地文件夹仓库；登记本身不联网、不克隆，也不创建来源或解析任务。
 
 ## 去重语义
 

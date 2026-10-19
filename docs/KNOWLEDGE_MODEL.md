@@ -2,7 +2,7 @@
 
 知识模型用于约束大模型抽取结果、数据库结构和图谱查询。第一版应保持类型数量有限，只有真实查询需要时才增加新类型。
 
-当前使用 PostgreSQL 保存节点、关系、证据、语义向量与时序状态，不要求独立图数据库，见 ADR 0005。正式图谱和语义索引已实现（当前迁移 head `20261019_0008`；图谱与向量分别见 ADR 0007、0009）；下文的关系箭头表示领域方向，与具体数据库查询语言无关。
+当前使用 PostgreSQL 保存节点、关系、证据、语义向量与时序状态，不要求独立图数据库，见 ADR 0005。正式图谱和语义索引已实现（当前迁移 head `20261019_0009`；图谱与向量分别见 ADR 0007、0009）；下文的关系箭头表示领域方向，与具体数据库查询语言无关。
 
 ## 建模原则
 
@@ -110,6 +110,8 @@
 后端已保存 `SourceChunk` 作为原文证据的基础记录；确认候选时会生成 `KnowledgeEvidence` 并引用分块。每个分块带有稳定 UUID、`user_id`、`project_id`、`source_id`、从 0 开始的顺序、块类型、结构路径、原文、SHA-256 及从 1 开始且包含两端的行号。Markdown 使用标题/段落/列表/代码类型与标题路径；Java 使用代码/注释/类型/方法类型，路径为 `[类型]` 或 `[类型, 方法]`。类型前连续注解归类型，方法外的纯注释行单独成块。分块保留来源换行符。相同来源、位置边界、块类型和内容产生相同 UUID；不同来源的分块不会共享 UUID。
 
 来源在当前阶段保持不可变：同一项目、同一可空仓库、来源类型中的相同文件字节复用来源，修改字节或切换仓库则创建独立来源。本地文件夹仓库以稳定 UUID 标识，来源可保存 `repository_id` 和规范化的仓库内 `relative_path`；重复内容仍复用该仓库中的首次来源并保留首次路径。旧来源的 `repository_id` 为 `null`，继续在未归属集合中保持原有去重语义。这不表示新旧来源之间已经建立版本或 `SUPERSEDES` 关系。Java 类型和方法分块也不是自动创建的正式 `CodeEntity`；`ready` 仅表示来源解析完成，不表示知识已抽取或确认。决策见 [ADR 0003](adr/0003-markdown-parsing-execution.md)、[ADR 0012](adr/0012-bounded-java-source-ingestion.md) 与 [ADR 0015](adr/0015-local-folder-repository-identity.zh-CN.md)。
+
+仓库可额外保存规范化 GitHub 身份：`provider=github`、小写 `remote_owner` / `remote_name` 和不含凭据的规范 `remote_url`。身份既可关联已有 `local_folder`，也可先作为 `git_remote` 独立登记；登记不会访问 GitHub，也不代表已导入分支、Commit 或文件。当前 owner/name 坐标无法自动追踪仓库改名或转移，边界见 [ADR 0016](adr/0016-normalized-github-remote-identity.zh-CN.md)。
 
 Java 来源结构接口按需派生类型、常规字段、方法、同文件调用及有界的同仓库跨文件 `extends`/`implements` 目标，使用稳定的来源内 UUID 与原文行号，但这些对象不是 `KnowledgeEntity` / `KnowledgeRelationship`，也不参与正式图谱检索。未归属仓库的旧来源只与其他未归属来源互相解析。只有经过候选提取与人工确认的记录才能进入正式知识。见 [ADR 0013](adr/0013-derived-java-source-structure.zh-CN.md)、[ADR 0014](adr/0014-bounded-cross-file-java-types.zh-CN.md) 与 [ADR 0015](adr/0015-local-folder-repository-identity.zh-CN.md)。
 

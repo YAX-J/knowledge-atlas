@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type {
-  ApiProject, ApiProjectList, ApiSource, JavaCodeStructure, ProcessingTask, SourceChunkList, SourceList, SourceListItem,
+  ApiProject, ApiProjectList, ApiSource, JavaCodeStructure, ProcessingTask, SourceChunkList, SourceList, SourceListItem, SourceRepositoryList,
 } from '../api/knowledgeAtlas'
 import type { IngestionErrors, IngestionLoading } from '../types'
 
@@ -9,6 +9,7 @@ const props = defineProps<{
   view: 'projects' | 'sources'
   projects: ApiProjectList | null
   project: ApiProject | null
+  repositories: SourceRepositoryList | null
   sources: SourceList | null
   selectedSourceId: string
   source: ApiSource | null
@@ -23,6 +24,8 @@ const emit = defineEmits<{
   create: [input: { name: string; description: string }]
   selectProject: [project: ApiProject]
   projectsPage: [page: number]
+  repositoriesPage: [page: number]
+  resolveGithub: [input: { remoteUrl: string; localRepositoryId?: string }]
   sourcesPage: [page: number]
   selectSource: [sourceId: string, taskId: string | null]
   upload: [files: File[]]
@@ -33,17 +36,23 @@ const emit = defineEmits<{
 }>()
 const name = ref('')
 const description = ref('')
+const remoteUrl = ref('')
+const localRepositoryId = ref('')
 const singleFileInput = ref<HTMLInputElement | null>(null)
 const folderInput = ref<HTMLInputElement | null>(null)
 const fileError = ref('')
 const selectionNote = ref('')
 const uploadKind = ref<'file' | 'folder' | ''>('')
 const projectPages = computed(() => Math.max(1, Math.ceil((props.projects?.total ?? 0) / (props.projects?.page_size ?? 20))))
+const repositoryPages = computed(() => Math.max(1, Math.ceil((props.repositories?.total ?? 0) / (props.repositories?.page_size ?? 20))))
 const sourcePages = computed(() => Math.max(1, Math.ceil((props.sources?.total ?? 0) / (props.sources?.page_size ?? 20))))
 const chunkPages = computed(() => Math.max(1, Math.ceil((props.chunks?.total ?? 0) / (props.chunks?.page_size ?? 20))))
 const codeSymbolsById = computed(() => new Map((props.codeStructure?.symbols ?? []).map(item => [item.id, item])))
 const relatedTypesById = computed(() => new Map((props.codeStructure?.related_types ?? []).map(item => [item.id, item])))
-const locked = computed(() => props.loading.create || props.loading.upload || props.loading.task)
+const linkableLocalRepositories = computed(() => (
+  props.repositories?.items.filter(item => item.kind === 'local_folder' && !item.remote_url) ?? []
+))
+const locked = computed(() => props.loading.create || props.loading.upload || props.loading.task || props.loading.remote)
 const statusLabels: Record<string, string> = {
   uploaded: '待解析', processing: '解析中', ready: '已解析', failed: '解析失败',
   queued: '待解析', running: '解析中', succeeded: '已解析', cancelled: '已取消',
@@ -55,6 +64,8 @@ watch(() => props.project?.id, () => {
   fileError.value = ''
   selectionNote.value = ''
   uploadKind.value = ''
+  remoteUrl.value = ''
+  localRepositoryId.value = ''
 })
 watch(() => props.loading.upload, (busy, wasBusy) => {
   if (wasBusy && !busy) uploadKind.value = ''
@@ -65,10 +76,25 @@ watch(() => props.loading.create, (busy, wasBusy) => {
     description.value = ''
   }
 })
+watch(() => props.loading.remote, (busy, wasBusy) => {
+  if (wasBusy && !busy && !props.errors.remote) {
+    remoteUrl.value = ''
+    localRepositoryId.value = ''
+  }
+})
 
 function submitProject() {
   if (name.value.trim() && !props.loading.create) {
     emit('create', { name: name.value.trim(), description: description.value.trim() })
+  }
+}
+
+function submitGithubRepository() {
+  if (remoteUrl.value.trim() && !props.loading.remote) {
+    emit('resolveGithub', {
+      remoteUrl: remoteUrl.value.trim(),
+      localRepositoryId: localRepositoryId.value || undefined,
+    })
   }
 }
 
@@ -226,6 +252,44 @@ function sourceMeta(source: SourceListItem | ApiSource) {
           <p v-if="selectionNote" class="muted-copy" role="status">{{ selectionNote }}</p>
           <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
           <p v-if="fileError || errors.upload" class="inline-error" role="alert">{{ fileError || errors.upload }}</p>
+
+          <section class="repository-panel" aria-labelledby="repository-panel-title">
+            <div class="source-section-heading">
+              <h3 id="repository-panel-title">来源仓库 <span v-if="repositories">{{ repositories.total }}</span></h3>
+              <button class="text-button" type="button" :disabled="loading.repositories || locked" @click="emit('repositoriesPage', repositories?.page ?? 1)">刷新仓库</button>
+            </div>
+            <p v-if="loading.repositories" class="muted-copy" role="status">正在读取仓库身份…</p>
+            <div v-if="errors.repositories" class="inline-error" role="alert"><p>{{ errors.repositories }}</p><button class="text-button" type="button" @click="emit('repositoriesPage', repositories?.page ?? 1)">重试加载仓库</button></div>
+            <p v-if="!loading.repositories && !errors.repositories && repositories?.total === 0" class="empty-copy">尚未登记仓库；上传文件夹或登记 GitHub 地址后会显示在这里。</p>
+            <div v-if="repositories?.items.length" class="repository-list">
+              <article v-for="repository in repositories.items" :key="repository.id" class="repository-card">
+                <span>{{ repository.kind === 'local_folder' ? '本地文件夹' : 'GitHub 远程仓库' }}</span>
+                <strong>{{ repository.name }}</strong>
+                <a v-if="repository.remote_url" :href="repository.remote_url" target="_blank" rel="noopener noreferrer">{{ repository.remote_url }}</a>
+                <small v-else>尚未关联 GitHub remote</small>
+              </article>
+            </div>
+            <nav v-if="repositoryPages > 1" class="source-pagination" aria-label="仓库分页">
+              <button type="button" :disabled="loading.repositories || locked || (repositories?.page ?? 1) <= 1" @click="emit('repositoriesPage', (repositories?.page ?? 1) - 1)">上一页</button>
+              <span>{{ repositories?.page }} / {{ repositoryPages }}</span>
+              <button type="button" :disabled="loading.repositories || locked || (repositories?.page ?? 1) >= repositoryPages" @click="emit('repositoriesPage', (repositories?.page ?? 1) + 1)">下一页</button>
+            </nav>
+            <details class="repository-register">
+              <summary>登记 GitHub remote</summary>
+              <form class="repository-form" @submit.prevent="submitGithubRepository">
+                <label for="github-remote-url">GitHub 仓库地址</label>
+                <input id="github-remote-url" v-model="remoteUrl" type="text" maxlength="1024" required placeholder="https://github.com/owner/repository" :disabled="locked" />
+                <label for="local-repository-link">关联本地仓库 <span>选填</span></label>
+                <select id="local-repository-link" v-model="localRepositoryId" :disabled="locked || !linkableLocalRepositories.length">
+                  <option value="">不关联，登记为远程仓库</option>
+                  <option v-for="repository in linkableLocalRepositories" :key="repository.id" :value="repository.id">{{ repository.name }}</option>
+                </select>
+                <p class="source-upload-hint">接受 GitHub HTTPS 或 SSH remote；这里只登记规范化身份，不会联网、克隆或读取仓库内容。</p>
+                <p v-if="errors.remote" class="inline-error" role="alert">{{ errors.remote }}</p>
+                <button class="primary-button" type="submit" :disabled="locked || !remoteUrl.trim()">{{ loading.remote ? '正在登记…' : '登记 remote' }}</button>
+              </form>
+            </details>
+          </section>
 
           <div class="source-section-heading">
             <h3>项目资料 <span v-if="sources">{{ sources.total }}</span></h3>

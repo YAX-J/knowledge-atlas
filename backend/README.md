@@ -9,7 +9,7 @@ FastAPI service for Knowledge Atlas persistence, Markdown/Java ingestion, eviden
 - Liveness and PostgreSQL readiness endpoints.
 - Request IDs, CORS, request logging, and a stable error envelope.
 - Create, list, and retrieve projects within a development-user boundary.
-- Resolve and list project-scoped local-folder repository identities, and paginate source metadata/latest tasks within the same user/project boundary.
+- Resolve/list project-scoped local-folder identities, normalize GitHub HTTPS/SSH remotes, optionally link them to local repositories, and paginate source metadata/latest tasks within the same user/project boundary.
 - Validate and store UTF-8 Markdown and Java source with a SHA-256 content hash, optional repository identity, and normalized repository-relative path.
 - Create/query parsing tasks and explicitly run them through the API.
 - Automatically consume queued parsing tasks in an optional independent worker process, with leased claims, interrupted-task recovery, and fenced result writes.
@@ -49,7 +49,7 @@ OpenAPI documentation is available at `http://localhost:8000/docs`.
 Use the interactive API documentation in this order:
 
 1. `POST /api/v1/projects` to create a project.
-2. For a folder, call `POST /api/v1/projects/{project_id}/repositories/resolve` with its root name, then upload each UTF-8 `.md`, `.markdown`, or `.java` file through `POST /api/v1/projects/{project_id}/sources` with `repository_id` and a normalized repository-relative `relative_path`. Single-file uploads omit both fields.
+2. For a folder, call `POST /api/v1/projects/{project_id}/repositories/resolve` with its root name, then upload each UTF-8 `.md`, `.markdown`, or `.java` file through `POST /api/v1/projects/{project_id}/sources` with `repository_id` and a normalized repository-relative `relative_path`. Single-file uploads omit both fields. Optionally register a GitHub HTTPS/SSH remote through `POST /api/v1/projects/{project_id}/repositories/resolve-github`; this records canonical identity only and performs no network request or clone.
 3. `POST /api/v1/tasks/{task_id}/run` to synchronously execute parsing.
 4. `GET /api/v1/tasks/{task_id}` to inspect status and error information.
 5. `GET /api/v1/sources/{source_id}/chunks?page=1&page_size=20` to inspect evidence text and line locations.
@@ -58,7 +58,7 @@ Use the interactive API documentation in this order:
 
 Markdown tasks use `markdown_parsing`, Java tasks use `code_parsing`, and legacy queued `knowledge_extraction` uploads can run Markdown parsing only. Successful tasks end at `succeeded`/`parsed`/100 and sources become `ready`. This does not mean knowledge extraction has run. Execution failures return HTTP 200 with a `failed` task and a sanitized error; the same endpoint retries failed tasks. Repeating a succeeded task returns the existing result, while running/cancelled tasks return HTTP 409. Re-upload responses contain the reused task's current status, which need not be `queued`.
 
-The Markdown parser supports ATX/Setext headings, paragraphs, lists, and fenced code. The bounded Java parser identifies top-level types and conventional direct-member methods, while retaining all source text. The source-structure view also resolves repository-local top-level `extends`/`implements` targets through explicit imports, same-package lookup, and wildcard imports across at most 100 ready Java sources; legacy unassigned sources resolve only against other unassigned sources. Chunk IDs remain stable for the same source and boundaries. Changed bytes create a separate source rather than updating an existing source. PostgreSQL project locks serialize repository resolution and duplicate upload creation; SQLite does not validate those locking guarantees. The manual endpoint runs parsing in the API process; automatic execution uses the worker described below. Complete CommonMark/Java ASTs, cross-file Java method calls, Git remote identity, GitHub import, and incremental repository sync are not implemented.
+The Markdown parser supports ATX/Setext headings, paragraphs, lists, and fenced code. The bounded Java parser identifies top-level types and conventional direct-member methods, while retaining all source text. The source-structure view also resolves repository-local top-level `extends`/`implements` targets through explicit imports, same-package lookup, and wildcard imports across at most 100 ready Java sources; legacy unassigned sources resolve only against other unassigned sources. Chunk IDs remain stable for the same source and boundaries. Changed bytes create a separate source rather than updating an existing source. PostgreSQL project locks serialize repository resolution and duplicate upload creation; SQLite does not validate those locking guarantees. The manual endpoint runs parsing in the API process; automatic execution uses the worker described below. Normalized GitHub remote identity registration is available without contacting GitHub. Complete CommonMark/Java ASTs, cross-file Java method calls, GitHub content import, provider-ID rename tracking, and incremental repository sync are not implemented.
 
 ## Automatic parsing worker
 
@@ -92,7 +92,7 @@ Docker Compose is an optional alternative: from the repository root, `docker com
 
 ## DeepSeek candidate extraction and review
 
-Apply `alembic upgrade head` (expected `20261019_0008`) before review or semantic-index operations. Configure only the backend `.env`:
+Apply `alembic upgrade head` (expected `20261019_0009`) before review or semantic-index operations. Configure only the backend `.env`:
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key
