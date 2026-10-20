@@ -79,3 +79,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0014：按需解析有界的跨文件 Java 类型关系](0014-bounded-cross-file-java-types.zh-CN.md)
 - [ADR 0015：在项目内标识本地文件夹来源仓库](0015-local-folder-repository-identity.zh-CN.md)
 - [ADR 0016：在仓库导入前规范化 GitHub remote 身份](0016-normalized-github-remote-identity.zh-CN.md)
+- [ADR 0017：按需解析有界的跨文件 Java 方法调用](0017-bounded-cross-file-java-method-calls.zh-CN.md)

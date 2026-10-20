@@ -79,3 +79,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0014: Resolve bounded cross-file Java type relationships on demand](0014-bounded-cross-file-java-types.md)
 - [ADR 0015: Identify local-folder source repositories within a project](0015-local-folder-repository-identity.md)
 - [ADR 0016: Normalize GitHub remote identity before repository import](0016-normalized-github-remote-identity.md)
+- [ADR 0017: Resolve bounded cross-file Java method calls on demand](0017-bounded-cross-file-java-method-calls.md)

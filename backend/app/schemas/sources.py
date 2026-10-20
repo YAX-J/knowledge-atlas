@@ -99,12 +99,39 @@ class JavaTypeRelationshipRead(BaseModel):
     resolution: str
 
 
+class JavaRelatedMethodRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    source_id: uuid.UUID
+    source_path: str
+    owner_qualified_name: str
+    name: str
+    qualified_name: str
+    start_line: int
+    end_line: int
+
+
+class JavaCrossFileCallRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    caller_id: uuid.UUID
+    target_ids: list[uuid.UUID]
+    receiver: str
+    callee_name: str
+    line: int
+    resolution: str
+
+
 class JavaStructureRead(BaseModel):
     source_id: uuid.UUID
     symbols: list[JavaSymbolRead]
     calls: list[JavaCallRead]
     related_types: list[JavaRelatedTypeRead]
     type_relationships: list[JavaTypeRelationshipRead]
+    related_methods: list[JavaRelatedMethodRead]
+    cross_file_calls: list[JavaCrossFileCallRead]
     truncated: bool
 
 

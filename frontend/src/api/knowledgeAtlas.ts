@@ -97,6 +97,25 @@ export interface JavaCodeStructure {
     line: number
     resolution: 'resolved' | 'ambiguous'
   }[]
+  related_methods: {
+    id: string
+    source_id: string
+    source_path: string
+    owner_qualified_name: string
+    name: string
+    qualified_name: string
+    start_line: number
+    end_line: number
+  }[]
+  cross_file_calls: {
+    id: string
+    caller_id: string
+    target_ids: string[]
+    receiver: string
+    callee_name: string
+    line: number
+    resolution: 'resolved' | 'ambiguous'
+  }[]
   truncated: boolean
 }
 

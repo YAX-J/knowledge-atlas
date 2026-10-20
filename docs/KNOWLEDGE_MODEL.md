@@ -113,7 +113,7 @@
 
 仓库可额外保存规范化 GitHub 身份：`provider=github`、小写 `remote_owner` / `remote_name` 和不含凭据的规范 `remote_url`。身份既可关联已有 `local_folder`，也可先作为 `git_remote` 独立登记；登记不会访问 GitHub，也不代表已导入分支、Commit 或文件。当前 owner/name 坐标无法自动追踪仓库改名或转移，边界见 [ADR 0016](adr/0016-normalized-github-remote-identity.zh-CN.md)。
 
-Java 来源结构接口按需派生类型、常规字段、方法、同文件调用及有界的同仓库跨文件 `extends`/`implements` 目标，使用稳定的来源内 UUID 与原文行号，但这些对象不是 `KnowledgeEntity` / `KnowledgeRelationship`，也不参与正式图谱检索。未归属仓库的旧来源只与其他未归属来源互相解析。只有经过候选提取与人工确认的记录才能进入正式知识。见 [ADR 0013](adr/0013-derived-java-source-structure.zh-CN.md)、[ADR 0014](adr/0014-bounded-cross-file-java-types.zh-CN.md) 与 [ADR 0015](adr/0015-local-folder-repository-identity.zh-CN.md)。
+Java 来源结构接口按需派生类型、常规字段、方法、同文件调用、有界的同仓库跨文件 `extends`/`implements` 目标，以及直接类型/字段接收者的跨文件方法调用，使用稳定的来源内 UUID 与原文行号，但这些对象不是 `KnowledgeEntity` / `KnowledgeRelationship`，也不参与正式图谱检索。未归属仓库的旧来源只与其他未归属来源互相解析。只有经过候选提取与人工确认的记录才能进入正式知识。见 [ADR 0013](adr/0013-derived-java-source-structure.zh-CN.md)、[ADR 0014](adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0015](adr/0015-local-folder-repository-identity.zh-CN.md) 与 [ADR 0017](adr/0017-bounded-cross-file-java-method-calls.zh-CN.md)。
 
 ## 当前候选与审核
 

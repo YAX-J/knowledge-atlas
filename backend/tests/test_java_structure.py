@@ -145,6 +145,172 @@ def test_code_structure_marks_duplicate_project_type_as_ambiguous(
     } == {first["source_id"], second["source_id"]}
 
 
+def test_code_structure_resolves_imported_field_and_type_qualified_calls(
+    client: TestClient,
+) -> None:
+    project_id = create_project(client)
+    validator = upload_java(
+        client,
+        project_id,
+        name="OrderValidator.java",
+        relative_path="src/main/java/example/validation/OrderValidator.java",
+        content=(
+            "package example.validation;\n"
+            "public class OrderValidator {\n"
+            "    public void validate() {}\n"
+            "    public static void normalize() {}\n"
+            "}\n"
+        ),
+    )
+    service = upload_java(
+        client,
+        project_id,
+        name="OrderService.java",
+        relative_path="src/main/java/example/service/OrderService.java",
+        content=(
+            "package example.service;\n"
+            "import example.validation.OrderValidator;\n"
+            "class OrderService {\n"
+            "    private final OrderValidator validator;\n"
+            "    OrderService(OrderValidator validator) { this.validator = validator; }\n"
+            "    void create() {\n"
+            "        validator.validate();\n"
+            "        this.validator.validate();\n"
+            "        OrderValidator.normalize();\n"
+            "    }\n"
+            "}\n"
+        ),
+    )
+
+    structure = client.get(
+        f"/api/v1/sources/{service['source_id']}/code-structure"
+    ).json()
+
+    assert [
+        (item["receiver"], item["callee_name"], item["resolution"])
+        for item in structure["cross_file_calls"]
+    ] == [
+        ("validator", "validate", "resolved"),
+        ("this.validator", "validate", "resolved"),
+        ("OrderValidator", "normalize", "resolved"),
+    ]
+    assert [
+        item["line"] for item in structure["cross_file_calls"]
+    ] == [7, 8, 9]
+    assert {
+        item["qualified_name"] for item in structure["related_methods"]
+    } == {
+        "example.validation.OrderValidator.validate",
+        "example.validation.OrderValidator.normalize",
+    }
+    assert {
+        (item["name"], item["start_line"], item["end_line"])
+        for item in structure["related_methods"]
+    } == {("validate", 3, 3), ("normalize", 4, 4)}
+    assert {
+        item["source_id"] for item in structure["related_methods"]
+    } == {validator["source_id"]}
+    target_structure = client.get(
+        f"/api/v1/sources/{validator['source_id']}/code-structure"
+    ).json()
+    assert {
+        item["id"] for item in structure["related_methods"]
+    } <= {
+        item["id"]
+        for item in target_structure["symbols"]
+        if item["kind"] == "method"
+    }
+    assert all(
+        len(item["target_ids"]) == 1
+        for item in structure["cross_file_calls"]
+    )
+
+
+def test_code_structure_marks_cross_file_overloads_as_ambiguous(
+    client: TestClient,
+) -> None:
+    project_id = create_project(client)
+    upload_java(
+        client,
+        project_id,
+        name="Validator.java",
+        relative_path="src/example/Validator.java",
+        content=(
+            "package example;\n"
+            "class Validator {\n"
+            "    void validate() {}\n"
+            "    void validate(String value) {}\n"
+            "}\n"
+        ),
+    )
+    consumer = upload_java(
+        client,
+        project_id,
+        name="Consumer.java",
+        relative_path="src/example/Consumer.java",
+        content=(
+            "package example;\n"
+            "class Consumer {\n"
+            "    Validator validator;\n"
+            "    void run() { validator.validate(); }\n"
+            "}\n"
+        ),
+    )
+
+    structure = client.get(
+        f"/api/v1/sources/{consumer['source_id']}/code-structure"
+    ).json()
+
+    assert len(structure["cross_file_calls"]) == 1
+    call = structure["cross_file_calls"][0]
+    assert call["resolution"] == "ambiguous"
+    assert len(call["target_ids"]) == 2
+    assert len(structure["related_methods"]) == 2
+
+
+def test_code_structure_does_not_guess_parameter_receiver_types(
+    client: TestClient,
+) -> None:
+    project_id = create_project(client)
+    upload_java(
+        client,
+        project_id,
+        name="Validator.java",
+        relative_path="src/example/Validator.java",
+        content=(
+            "package example;\n"
+            "class Validator {\n"
+            "    void validate() {}\n"
+            "}\n"
+        ),
+    )
+    consumer = upload_java(
+        client,
+        project_id,
+        name="Consumer.java",
+        relative_path="src/example/Consumer.java",
+        content=(
+            "package example;\n"
+            "class Consumer {\n"
+            "    Validator validator;\n"
+            "    void run(Validator validator) {\n"
+            "        validator.validate();\n"
+            "        this.validator.validate();\n"
+            "    }\n"
+            "}\n"
+        ),
+    )
+
+    structure = client.get(
+        f"/api/v1/sources/{consumer['source_id']}/code-structure"
+    ).json()
+
+    assert len(structure["related_methods"]) == 1
+    assert [
+        item["receiver"] for item in structure["cross_file_calls"]
+    ] == ["this.validator"]
+
+
 def test_code_structure_ignores_unready_and_other_project_types(
     client: TestClient,
     db_session: Session,
@@ -155,7 +321,7 @@ def test_code_structure_ignores_unready_and_other_project_types(
         project_id,
         name="HiddenPort.java",
         relative_path="src/HiddenPort.java",
-        content="package example;\ninterface HiddenPort {}\n",
+        content="package example;\ninterface HiddenPort { void ping(); }\n",
         parse=False,
     )
     other_project_id = create_project(client)
@@ -164,7 +330,7 @@ def test_code_structure_ignores_unready_and_other_project_types(
         other_project_id,
         name="ForeignPort.java",
         relative_path="src/ForeignPort.java",
-        content="package example;\ninterface ForeignPort {}\n",
+        content="package example;\ninterface ForeignPort { void ping(); }\n",
     )
     consumer = upload_java(
         client,
@@ -173,7 +339,11 @@ def test_code_structure_ignores_unready_and_other_project_types(
         relative_path="src/Consumer.java",
         content=(
             "package example;\n"
-            "class Consumer implements HiddenPort, ForeignPort {}\n"
+            "class Consumer implements HiddenPort, ForeignPort {\n"
+            "    HiddenPort hidden;\n"
+            "    ForeignPort foreign;\n"
+            "    void run() { hidden.ping(); foreign.ping(); }\n"
+            "}\n"
         ),
     )
 
@@ -183,6 +353,8 @@ def test_code_structure_ignores_unready_and_other_project_types(
 
     assert structure["type_relationships"] == []
     assert structure["related_types"] == []
+    assert structure["related_methods"] == []
+    assert structure["cross_file_calls"] == []
     source = db_session.get(SourceDocument, uuid.UUID(unready["source_id"]))
     assert source is not None
     assert source.status == SourceStatus.UPLOADED
@@ -232,6 +404,8 @@ def test_code_structure_reports_related_source_byte_limit(
 
     assert structure["related_types"] == []
     assert structure["type_relationships"] == []
+    assert structure["related_methods"] == []
+    assert structure["cross_file_calls"] == []
     assert structure["truncated"] is True
 
 
@@ -252,7 +426,7 @@ def test_code_structure_does_not_cross_repository_boundary(
         project_id,
         name="Port.java",
         relative_path="src/Port.java",
-        content="package example;\ninterface Port {}\n",
+        content="package example;\ninterface Port { void ping(); }\n",
         repository_id=first_repository["id"],
     )
     consumer = upload_java(
@@ -260,7 +434,14 @@ def test_code_structure_does_not_cross_repository_boundary(
         project_id,
         name="Consumer.java",
         relative_path="src/Consumer.java",
-        content="package example;\nclass Consumer implements Port {}\n",
+        content=(
+            "package example;\n"
+            "class Consumer implements Port {\n"
+            "    Port port;\n"
+            "    public void ping() {}\n"
+            "    void run() { port.ping(); }\n"
+            "}\n"
+        ),
         repository_id=second_repository["id"],
     )
 
@@ -270,6 +451,8 @@ def test_code_structure_does_not_cross_repository_boundary(
 
     assert structure["related_types"] == []
     assert structure["type_relationships"] == []
+    assert structure["related_methods"] == []
+    assert structure["cross_file_calls"] == []
 
 
 def test_code_structure_does_not_reference_truncated_source_symbols() -> None:
@@ -296,4 +479,6 @@ def test_code_structure_does_not_reference_truncated_source_symbols() -> None:
     assert len(structure.symbols) == 200
     assert structure.related_types == []
     assert structure.type_relationships == []
+    assert structure.related_methods == []
+    assert structure.cross_file_calls == []
     assert structure.truncated is True

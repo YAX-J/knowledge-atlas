@@ -49,6 +49,7 @@ const sourcePages = computed(() => Math.max(1, Math.ceil((props.sources?.total ?
 const chunkPages = computed(() => Math.max(1, Math.ceil((props.chunks?.total ?? 0) / (props.chunks?.page_size ?? 20))))
 const codeSymbolsById = computed(() => new Map((props.codeStructure?.symbols ?? []).map(item => [item.id, item])))
 const relatedTypesById = computed(() => new Map((props.codeStructure?.related_types ?? []).map(item => [item.id, item])))
+const relatedMethodsById = computed(() => new Map((props.codeStructure?.related_methods ?? []).map(item => [item.id, item])))
 const linkableLocalRepositories = computed(() => (
   props.repositories?.items.filter(item => item.kind === 'local_folder' && !item.remote_url) ?? []
 ))
@@ -169,6 +170,17 @@ function relatedTypeLocations(relationship: JavaCodeStructure['type_relationship
   return relationship.target_ids
     .map(id => relatedTypesById.value.get(id))
     .filter((item): item is JavaCodeStructure['related_types'][number] => Boolean(item))
+    .map(item => `${item.source_path} · 第 ${item.start_line}–${item.end_line} 行`)
+    .join('；')
+}
+function relatedMethodName(call: JavaCodeStructure['cross_file_calls'][number]) {
+  const targetId = call.target_ids.length === 1 ? call.target_ids[0] : undefined
+  return targetId ? relatedMethodsById.value.get(targetId)?.qualified_name ?? call.callee_name : call.callee_name
+}
+function relatedMethodLocations(call: JavaCodeStructure['cross_file_calls'][number]) {
+  return call.target_ids
+    .map(id => relatedMethodsById.value.get(id))
+    .filter((item): item is JavaCodeStructure['related_methods'][number] => Boolean(item))
     .map(item => `${item.source_path} · 第 ${item.start_line}–${item.end_line} 行`)
     .join('；')
 }
@@ -338,7 +350,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                 <section v-if="source.source_type === 'java'" class="code-structure" aria-labelledby="code-structure-title">
                   <div class="source-section-heading">
                     <h3 id="code-structure-title">源码结构</h3>
-                    <span v-if="codeStructure" class="muted-copy">{{ codeStructure.symbols.length }} 个符号 · {{ codeStructure.calls.length }} 条同文件调用 · {{ codeStructure.type_relationships.length }} 条跨文件类型关系</span>
+                    <span v-if="codeStructure" class="muted-copy">{{ codeStructure.symbols.length }} 个符号 · {{ codeStructure.calls.length }} 条同文件调用 · {{ codeStructure.cross_file_calls.length }} 条跨文件调用 · {{ codeStructure.type_relationships.length }} 条跨文件类型关系</span>
                   </div>
                   <p class="source-upload-hint">结构关系由本地规则推导，不会自动写入已审核的正式知识图谱。</p>
                   <p v-if="loading.structure" class="muted-copy" role="status">正在读取源码结构…</p>
@@ -369,6 +381,15 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                         <span>{{ typeRelationshipLabel(relationship.kind) }}</span>
                         <strong>{{ relatedTypeName(relationship) }}</strong>
                         <small>声明第 {{ relationship.line }} 行 · {{ relatedTypeLocations(relationship) }}<span v-if="relationship.resolution === 'ambiguous'"> · {{ relationship.target_ids.length }} 个同名候选</span></small>
+                      </p>
+                    </div>
+                    <div v-if="codeStructure.cross_file_calls.length" class="code-call-list code-cross-file-calls">
+                      <h4>跨文件方法调用</h4>
+                      <p v-for="call in codeStructure.cross_file_calls" :key="call.id">
+                        <strong>{{ callerName(call.caller_id) }}</strong>
+                        <span aria-hidden="true">→</span>
+                        <strong>{{ relatedMethodName(call) }}</strong>
+                        <small>调用第 {{ call.line }} 行 · 接收者 {{ call.receiver }} · {{ relatedMethodLocations(call) }}<span v-if="call.resolution === 'ambiguous'"> · {{ call.target_ids.length }} 个同名候选</span></small>
                       </p>
                     </div>
                   </template>

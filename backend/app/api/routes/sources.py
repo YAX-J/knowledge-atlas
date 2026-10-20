@@ -8,6 +8,8 @@ from app.core.errors import AppError
 from app.models.domain import SourceStatus
 from app.schemas.sources import (
     JavaCallRead,
+    JavaCrossFileCallRead,
+    JavaRelatedMethodRead,
     JavaRelatedTypeRead,
     JavaStructureRead,
     JavaSymbolRead,
@@ -170,6 +172,14 @@ def get_code_structure(
         type_relationships=[
             JavaTypeRelationshipRead.model_validate(item)
             for item in structure.type_relationships
+        ],
+        related_methods=[
+            JavaRelatedMethodRead.model_validate(item)
+            for item in structure.related_methods
+        ],
+        cross_file_calls=[
+            JavaCrossFileCallRead.model_validate(item)
+            for item in structure.cross_file_calls
         ],
         truncated=structure.truncated,
     )

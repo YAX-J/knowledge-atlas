@@ -33,11 +33,19 @@ FIELD_DECLARATION = re.compile(
 LOCAL_CALL = re.compile(
     r"(?<![\w$.])(?:(?:this)\s*\.\s*)?(?P<name>[A-Za-z_$][\w$]*)\s*\("
 )
+QUALIFIED_CALL = re.compile(
+    r"(?<![\w$])"
+    r"(?P<receiver>(?:this\s*\.\s*)?[A-Za-z_$][\w$]*"
+    r"(?:\s*\.\s*[A-Za-z_$][\w$]*)*)"
+    r"\s*\.\s*(?P<name>[A-Za-z_$][\w$]*)\s*\("
+)
 CONTROL_WORDS = {"if", "for", "while", "switch", "catch", "try", "do", "new", "return", "throw"}
 MAX_STRUCTURE_SYMBOLS = 200
 MAX_STRUCTURE_CALLS = 500
 MAX_RELATED_TYPES = 400
 MAX_TYPE_RELATIONSHIPS = 500
+MAX_RELATED_METHODS = 500
+MAX_CROSS_FILE_CALLS = 500
 
 
 @dataclass(frozen=True)
@@ -103,11 +111,36 @@ class JavaTypeRelationship:
 
 
 @dataclass(frozen=True)
+class JavaRelatedMethod:
+    id: uuid.UUID
+    source_id: uuid.UUID
+    source_path: str
+    owner_qualified_name: str
+    name: str
+    qualified_name: str
+    start_line: int
+    end_line: int
+
+
+@dataclass(frozen=True)
+class JavaCrossFileCall:
+    id: uuid.UUID
+    caller_id: uuid.UUID
+    target_ids: list[uuid.UUID]
+    receiver: str
+    callee_name: str
+    line: int
+    resolution: str
+
+
+@dataclass(frozen=True)
 class JavaStructure:
     symbols: list[JavaSymbol]
     calls: list[JavaCall]
     related_types: list[JavaRelatedType]
     type_relationships: list[JavaTypeRelationship]
+    related_methods: list[JavaRelatedMethod]
+    cross_file_calls: list[JavaCrossFileCall]
     truncated: bool
 
 
@@ -126,6 +159,7 @@ class _TypeDeclaration:
 class _MethodDeclaration:
     owner: str
     name: str
+    parameters: str
     start: int
     opening: int | None
     end: int
@@ -139,6 +173,7 @@ class _JavaTypeIndex:
     imports: dict[str, str]
     wildcard_imports: tuple[str, ...]
     types: tuple[JavaRelatedType, ...]
+    methods: tuple[JavaRelatedMethod, ...]
     declarations: tuple[_TypeDeclaration, ...]
     sanitized: str
 
@@ -296,6 +331,7 @@ def _declarations(text: str) -> list[tuple[_TypeDeclaration, list[_MethodDeclara
                 end_offset = _closing_brace(text, method_opening)
             methods.append(_MethodDeclaration(
                 owner=type_declaration.name, name=method_name,
+                parameters=method_match.group("params"),
                 start=method_match.start(), opening=method_opening, end=end_offset,
             ))
         result.append((type_declaration, methods))
@@ -306,6 +342,15 @@ def _type_symbol_id(
     source_id: uuid.UUID, *, name: str, start_line: int, end_line: int
 ) -> uuid.UUID:
     return uuid.uuid5(source_id, f"symbol:type:{name}:{start_line}:{end_line}")
+
+
+def _method_symbol_id(
+    source_id: uuid.UUID, *, qualified_name: str, start_line: int, end_line: int
+) -> uuid.UUID:
+    return uuid.uuid5(
+        source_id,
+        f"symbol:method:{qualified_name}:{start_line}:{end_line}",
+    )
 
 
 def _split_type_list(value: str) -> list[tuple[str, int]]:
@@ -378,12 +423,14 @@ def _index_java_source(source: JavaSourceInput) -> _JavaTypeIndex:
         else:
             imports[import_name.rsplit(".", 1)[-1]] = import_name
 
-    declarations = tuple(item[0] for item in _declarations(sanitized))
+    declaration_pairs = _declarations(sanitized)
+    declarations = tuple(item[0] for item in declaration_pairs)
     types: list[JavaRelatedType] = []
-    for declaration in declarations:
+    methods: list[JavaRelatedMethod] = []
+    for declaration, declaration_methods in declaration_pairs:
         start_line = _type_start_line(lines, line_number(declaration.start))
         end_line = line_number(declaration.end)
-        qualified_name = (
+        owner_qualified_name = (
             f"{package_name}.{declaration.name}" if package_name else declaration.name
         )
         types.append(JavaRelatedType(
@@ -396,10 +443,29 @@ def _index_java_source(source: JavaSourceInput) -> _JavaTypeIndex:
             source_id=source.source_id,
             source_path=source.source_path,
             name=declaration.name,
-            qualified_name=qualified_name,
+            qualified_name=owner_qualified_name,
             start_line=start_line,
             end_line=end_line,
         ))
+        for method in declaration_methods:
+            method_start = line_number(method.start)
+            method_end = line_number(method.end)
+            local_qualified_name = f"{declaration.name}.{method.name}"
+            methods.append(JavaRelatedMethod(
+                id=_method_symbol_id(
+                    source.source_id,
+                    qualified_name=local_qualified_name,
+                    start_line=method_start,
+                    end_line=method_end,
+                ),
+                source_id=source.source_id,
+                source_path=source.source_path,
+                owner_qualified_name=owner_qualified_name,
+                name=method.name,
+                qualified_name=f"{owner_qualified_name}.{method.name}",
+                start_line=method_start,
+                end_line=method_end,
+            ))
     return _JavaTypeIndex(
         source_id=source.source_id,
         source_path=source.source_path,
@@ -407,9 +473,43 @@ def _index_java_source(source: JavaSourceInput) -> _JavaTypeIndex:
         imports=imports,
         wildcard_imports=tuple(wildcard_imports),
         types=tuple(types),
+        methods=tuple(methods),
         declarations=declarations,
         sanitized=sanitized,
     )
+
+
+def _types_by_qualified_name(
+    source_indexes: list[_JavaTypeIndex],
+) -> dict[str, list[JavaRelatedType]]:
+    result: dict[str, list[JavaRelatedType]] = {}
+    for index in source_indexes:
+        for type_definition in index.types:
+            result.setdefault(type_definition.qualified_name, []).append(type_definition)
+    return result
+
+
+def _resolve_type_name(
+    current: _JavaTypeIndex,
+    target_name: str,
+    types_by_qualified_name: dict[str, list[JavaRelatedType]],
+) -> list[JavaRelatedType]:
+    if "." in target_name:
+        return types_by_qualified_name.get(target_name, [])
+    if target_name in current.imports:
+        return types_by_qualified_name.get(current.imports[target_name], [])
+    same_package = (
+        f"{current.package_name}.{target_name}"
+        if current.package_name else target_name
+    )
+    targets = types_by_qualified_name.get(same_package, [])
+    if targets:
+        return targets
+    return [
+        match
+        for package in current.wildcard_imports
+        for match in types_by_qualified_name.get(f"{package}.{target_name}", [])
+    ]
 
 
 def _resolve_type_relationships(
@@ -418,12 +518,7 @@ def _resolve_type_relationships(
     *,
     visible_source_symbol_ids: set[uuid.UUID],
 ) -> tuple[list[JavaRelatedType], list[JavaTypeRelationship], bool]:
-    types_by_qualified_name: dict[str, list[JavaRelatedType]] = {}
-    for index in source_indexes:
-        for type_definition in index.types:
-            types_by_qualified_name.setdefault(
-                type_definition.qualified_name, []
-            ).append(type_definition)
+    types_by_qualified_name = _types_by_qualified_name(source_indexes)
 
     related_by_id: dict[uuid.UUID, JavaRelatedType] = {}
     relationships: list[JavaTypeRelationship] = []
@@ -439,26 +534,11 @@ def _resolve_type_relationships(
         for kind, target_name, target_offset in _heritage_references(
             declaration, current.sanitized
         ):
-            if "." in target_name:
-                targets = types_by_qualified_name.get(target_name, [])
-            elif target_name in current.imports:
-                targets = types_by_qualified_name.get(
-                    current.imports[target_name], []
-                )
-            else:
-                same_package = (
-                    f"{current.package_name}.{target_name}"
-                    if current.package_name else target_name
-                )
-                targets = types_by_qualified_name.get(same_package, [])
-                if not targets:
-                    targets = [
-                        match
-                        for package in current.wildcard_imports
-                        for match in types_by_qualified_name.get(
-                            f"{package}.{target_name}", []
-                        )
-                    ]
+            targets = _resolve_type_name(
+                current,
+                target_name,
+                types_by_qualified_name,
+            )
             targets = [
                 target
                 for target in targets
@@ -509,6 +589,177 @@ def _resolve_type_relationships(
         if item.id in referenced_target_ids
     ]
     return visible_related_types, visible_relationships, truncated
+
+
+def _field_types_by_owner(current: _JavaTypeIndex) -> dict[tuple[str, str], str]:
+    depths = _depths(current.sanitized)
+    result: dict[tuple[str, str], str] = {}
+    for declaration, methods in _declarations(current.sanitized):
+        method_ranges = [(method.start, method.end) for method in methods]
+        for field_match in FIELD_DECLARATION.finditer(
+            current.sanitized,
+            declaration.opening + 1,
+            declaration.end,
+        ):
+            if depths[field_match.start()] != declaration.member_depth:
+                continue
+            if any(start <= field_match.start() <= end for start, end in method_ranges):
+                continue
+            before_initializer = field_match.group("tail").split("=", 1)[0]
+            if "(" in before_initializer:
+                continue
+            referenced = _referenced_type_name(field_match.group("type"))
+            if referenced is not None:
+                result[(declaration.name, field_match.group("name"))] = referenced[0]
+    return result
+
+
+def _parameter_names(parameters: str) -> set[str]:
+    result: set[str] = set()
+    for segment, _ in _split_type_list(parameters):
+        match = re.search(
+            r"(?P<name>[A-Za-z_$][\w$]*)\s*(?:\[\s*\])?\s*$",
+            segment,
+        )
+        if match is not None:
+            result.add(match.group("name"))
+    return result
+
+
+def _resolve_cross_file_calls(
+    current: _JavaTypeIndex,
+    source_indexes: list[_JavaTypeIndex],
+    method_records: list[tuple[_MethodDeclaration, JavaSymbol]],
+    *,
+    visible_source_symbol_ids: set[uuid.UUID],
+) -> tuple[list[JavaRelatedMethod], list[JavaCrossFileCall], bool]:
+    types_by_qualified_name = _types_by_qualified_name(source_indexes)
+    methods_by_owner_and_name: dict[tuple[str, str], list[JavaRelatedMethod]] = {}
+    for index in source_indexes:
+        for method in index.methods:
+            methods_by_owner_and_name.setdefault(
+                (method.owner_qualified_name, method.name), []
+            ).append(method)
+    field_types = _field_types_by_owner(current)
+    line_number = _line_resolver(current.sanitized)
+    related_by_id: dict[uuid.UUID, JavaRelatedMethod] = {}
+    calls: list[JavaCrossFileCall] = []
+    seen_calls: set[tuple[uuid.UUID, str, str, int]] = set()
+
+    for method, caller in method_records:
+        if method.opening is None or caller.id not in visible_source_symbol_ids:
+            continue
+        parameter_names = _parameter_names(method.parameters)
+        for call_match in QUALIFIED_CALL.finditer(
+            current.sanitized,
+            method.opening + 1,
+            method.end,
+        ):
+            receiver = re.sub(r"\s+", "", call_match.group("receiver"))
+            callee_name = call_match.group("name")
+            if "." not in receiver and receiver in parameter_names:
+                continue
+            field_name: str | None = None
+            if receiver.startswith("this.") and receiver.count(".") == 1:
+                field_name = receiver.split(".", 1)[1]
+            elif "." not in receiver:
+                field_name = receiver
+            target_type_name = (
+                field_types.get((caller.owner or "", field_name))
+                if field_name is not None else None
+            )
+            if target_type_name is None:
+                receiver_type_name = receiver.rsplit(".", 1)[-1]
+                if (
+                    receiver.startswith("this.")
+                    or not receiver_type_name[:1].isupper()
+                ):
+                    continue
+                target_type_name = receiver
+
+            target_types = [
+                item
+                for item in _resolve_type_name(
+                    current,
+                    target_type_name,
+                    types_by_qualified_name,
+                )
+                if item.source_id != current.source_id
+            ]
+            targets = sorted(
+                [
+                    target_method
+                    for target_type in target_types
+                    for target_method in methods_by_owner_and_name.get(
+                        (target_type.qualified_name, callee_name),
+                        [],
+                    )
+                    if target_method.source_id == target_type.source_id
+                ],
+                key=lambda item: (
+                    item.source_path,
+                    item.start_line,
+                    item.qualified_name,
+                    str(item.id),
+                ),
+            )
+            if not targets:
+                continue
+            call_line = line_number(call_match.start())
+            call_key = (caller.id, receiver, callee_name, call_line)
+            if call_key in seen_calls:
+                continue
+            seen_calls.add(call_key)
+            for target in targets:
+                related_by_id[target.id] = target
+            calls.append(JavaCrossFileCall(
+                id=uuid.uuid5(
+                    current.source_id,
+                    f"cross-file-call:{caller.id}:{receiver}:{callee_name}:{call_line}",
+                ),
+                caller_id=caller.id,
+                target_ids=[target.id for target in targets],
+                receiver=receiver,
+                callee_name=callee_name,
+                line=call_line,
+                resolution="resolved" if len(targets) == 1 else "ambiguous",
+            ))
+
+    related_methods = sorted(
+        related_by_id.values(),
+        key=lambda item: (
+            item.source_path,
+            item.start_line,
+            item.qualified_name,
+            str(item.id),
+        ),
+    )
+    calls.sort(key=lambda item: (
+        item.line,
+        item.receiver,
+        item.callee_name,
+        str(item.id),
+    ))
+    truncated = (
+        len(related_methods) > MAX_RELATED_METHODS
+        or len(calls) > MAX_CROSS_FILE_CALLS
+    )
+    visible_related_methods = related_methods[:MAX_RELATED_METHODS]
+    visible_target_ids = {item.id for item in visible_related_methods}
+    visible_calls = [
+        item for item in calls
+        if all(target_id in visible_target_ids for target_id in item.target_ids)
+    ][:MAX_CROSS_FILE_CALLS]
+    referenced_target_ids = {
+        target_id
+        for call in visible_calls
+        for target_id in call.target_ids
+    }
+    visible_related_methods = [
+        item for item in visible_related_methods
+        if item.id in referenced_target_ids
+    ]
+    return visible_related_methods, visible_calls, truncated
 
 
 def _line_resolver(content: str):
@@ -599,7 +850,13 @@ def analyze_java(
     """Return a bounded symbol view using only caller-supplied related sources."""
     if not content:
         return JavaStructure(
-            symbols=[], calls=[], related_types=[], type_relationships=[], truncated=False
+            symbols=[],
+            calls=[],
+            related_types=[],
+            type_relationships=[],
+            related_methods=[],
+            cross_file_calls=[],
+            truncated=False,
         )
     sanitized, _ = _lex_java(content)
     depths = _depths(sanitized)
@@ -649,7 +906,12 @@ def analyze_java(
             method_start, method_end = line_number(method.start), line_number(method.end)
             qualified_name = f"{type_declaration.name}.{method.name}"
             method_symbol = JavaSymbol(
-                id=uuid.uuid5(source_id, f"symbol:method:{qualified_name}:{method_start}:{method_end}"),
+                id=_method_symbol_id(
+                    source_id,
+                    qualified_name=qualified_name,
+                    start_line=method_start,
+                    end_line=method_end,
+                ),
                 kind="method", name=method.name, qualified_name=qualified_name,
                 owner=type_declaration.name, start_line=method_start, end_line=method_end,
             )
@@ -714,10 +976,19 @@ def analyze_java(
             visible_source_symbol_ids=visible_symbol_ids,
         )
     )
+    related_methods, cross_file_calls, related_calls_truncated = (
+        _resolve_cross_file_calls(
+            indexes[0],
+            indexes,
+            method_records,
+            visible_source_symbol_ids=visible_symbol_ids,
+        )
+    )
     truncated = (
         len(symbols) > MAX_STRUCTURE_SYMBOLS
         or len(visible_calls) > MAX_STRUCTURE_CALLS
         or related_structure_truncated
+        or related_calls_truncated
         or related_sources_truncated
     )
     return JavaStructure(
@@ -725,5 +996,7 @@ def analyze_java(
         calls=visible_calls[:MAX_STRUCTURE_CALLS],
         related_types=related_types,
         type_relationships=type_relationships,
+        related_methods=related_methods,
+        cross_file_calls=cross_file_calls,
         truncated=truncated,
     )
