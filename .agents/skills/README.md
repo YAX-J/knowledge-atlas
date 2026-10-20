@@ -14,7 +14,7 @@
 | [ka-extraction](ka-extraction/SKILL.md) | 改抽取 Schema/提示词、排查抽取失败、真实验收 DeepSeek | `services/deepseek.py`、`services/knowledge.py`、抽取 Schema |
 | [ka-review-promotion](ka-review-promotion/SKILL.md) | 确认/拒绝候选、写正式图谱、改图谱查询 | `services/graph.py`、`services/knowledge.py`、图谱 Schema |
 | [ka-migrations](ka-migrations/SKILL.md) | 改模型、加表/列、写 Alembic 迁移 | `models/`、`migrations/`、`test_migrations.py` |
-| [ka-verify](ka-verify/SKILL.md) | 收尾、跑测试、准备声明“完成” | 全仓库验证清单与报告模板 |
+| [ka-verify](ka-verify/SKILL.md) | 收尾、跑测试、准备声明“完成” | 避开本机环境陷阱的快速验证流程与仅桌面端浏览器验收 |
 | [ka-ingestion](ka-ingestion/SKILL.md) | 改上传、解析、分块、Worker | `services/ingestion.py`、`services/markdown.py`、`services/parsing.py` |
 | [ka-frontend-workspace](ka-frontend-workspace/SKILL.md) | 改 Vue 组件、图谱页、交互状态 | `frontend/src/` |
 | [ka-docs-sync](ka-docs-sync/SKILL.md) | 改行为、写 ADR、发版、翻译 | `README`、`docs/`、`CHANGELOG`、ADR |

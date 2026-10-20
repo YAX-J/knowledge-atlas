@@ -1,13 +1,15 @@
 ---
 name: ka-verify
-description: Knowledge Atlas 的验证方案、执行方确认与“完成”判定。准备测试步骤、确认由用户或 Agent 执行、提交前、修改后端/前端/文档后使用。触发词：verify, test, build, check, done, 验证, 测试, 构建, 收尾.
+description: Knowledge Atlas 的快速可靠验证、执行方确认与“完成”判定。修改后端、前端或文档后，用最小充分检查避开本机 Python、Windows 沙箱、浏览器安装、端口与 CORS 等已知耗时陷阱；可见界面只验收桌面端。
 ---
 
 # 验证方案与执行方确认
 
-本技能只做一件事：在说“实现完成”之前，按改动范围准备足够、可复现的验证步骤，由用户选择执行方，并如实报告结果。仓库目前没有 CI，这一步不能省。
+本技能只做一件事：在说“实现完成”之前，按改动范围准备足够、可复现且不过度的验证步骤，由用户选择执行方，并如实报告结果。仓库目前没有 CI，这一步不能省。
 
 仓库级规则：执行验证前先提供步骤、命令、前置条件和预期结果，再询问由用户还是 Agent 执行。用户选择 Agent 前不得自行运行；当前请求已经明确选择时无需再次询问。Agent 实际执行通过或用户反馈通过后，才可将对应项目标为已验证。
+
+浏览器验收只做桌面端，不设置手机视口、不截取手机截图，也不把手机端走查列入测试计划。响应式样式仍可在实现时维护，但不属于默认验收范围。
 
 ## 何时使用
 
@@ -23,33 +25,56 @@ description: Knowledge Atlas 的验证方案、执行方确认与“完成”判
 - `npm run build` 通过 ≠ 浏览器交互正确。
 - 不把 Mock 响应说成真实模型质量。
 - 不把“文档已写”说成“功能已实现”。
+- 先跑与改动直接相关的聚焦测试，再跑一次完整后端测试；代码未变化时不重复跑同一套完整测试。
+- 只有可见 UI 发生变化时才启动真实浏览器；纯后端、测试或文档改动不启动前端服务。
+
+## 省时执行顺序
+
+1. 根据改动列出聚焦测试、完整测试、构建和桌面浏览器步骤，先让用户选择执行方。
+2. 后端先跑相关测试文件，快速暴露局部错误；通过后只跑一次完整 `pytest`。
+3. 前端只跑一次 `npm run build`。仅当可见 UI 改动时，再启动真实 API/前端做桌面浏览器走查。
+4. 浏览器只覆盖本轮变更路径及直接相邻状态，不为未改动页面重复做全站回归。
+5. 最后运行 `git diff --check`、检查跟踪文件和暂存补丁；代码在这些步骤之间未变化时不重跑前面的测试。
+
+## 已知耗时与易错点
+
+- **错误的 Python**：不要先尝试 PATH 中的 `python`。进入 `backend/` 后直接使用 `.\.venv\Scripts\python.exe -m pytest`，避免因全局环境缺少 FastAPI 等依赖而产生无效失败。
+- **Windows 沙箱内 TestClient 卡住**：若测试长时间无输出，堆栈停在 Starlette/httpx `TestClient`、`asyncio` socket pair 一带，这是已知运行环境限制。停止该进程，说明原因，并在取得所需执行权限后用同一个项目虚拟环境命令重跑；不要因此修改业务代码或重装依赖。
+- **重复下载浏览器**：桌面浏览器优先使用已安装的系统 Chrome，并给自动化工具传入其可执行路径。系统 Chrome 可用时，不下载 Playwright/agent-browser 自带 Chromium。
+- **端口误伤**：先查看既有服务。不要停止用户已运行的 `8000`/`5173` 服务；确需隔离时使用专用端口（例如 API `8001`、Vite `5174`）和有名称的会话，结束后只清理自己启动的进程。
+- **CORS 配置不一致**：隔离启动前就把后端允许源设为实际 Vite origin，并把前端 API 地址指向对应 API 端口；不要启动后再靠反复重启猜配置。
+- **浏览器请求拦截不稳定**：不要为了补一个页面状态反复搭建缺少 CORS 头的 route mock。优先使用现有测试数据；没有安全前置条件时，以聚焦 API 测试和生产构建覆盖，并把未做的真实交互明确列为限制。
+- **昂贵或有副作用的外部调用**：除非本轮明确要求真实验收，否则不调用 DeepSeek、不重新同步 GitHub、不点击会改变外部状态的控件。Mock、模拟响应和真实服务结果必须分开报告。
+- **服务清理**：记录自己启动的会话与端口。浏览器完成后关闭命名会话和专用服务，再确认端口已释放；不得按进程名批量结束用户进程。
 
 ## 建议的快速命令
 
-```bash
+```powershell
 # 仓库根目录
 git diff --check
 git status --short
 
 # 后端
-cd backend && python -m pytest
+Set-Location backend
+.\.venv\Scripts\python.exe -m pytest
 
 # 前端
-cd ../frontend && npm run build
+Set-Location ..\frontend
+npm run build
 ```
 
 按改动追加：
 
 | 改动 | 追加检查 |
 | --- | --- |
-| 抽取/审核/图谱 | `python -m pytest tests/test_knowledge.py tests/test_graph.py` |
-| 关键词检索 | `python -m pytest tests/test_search.py`；原生 PostgreSQL 验证排序、证据、多词、通配符；浏览器检查清空、重试、类型、详情和迟到响应 |
-| 语义检索 | `python -m pytest tests/test_search.py tests/test_migrations.py`；原生 PostgreSQL 验证 1024 维写入和余弦排序；真实嵌入服务验收必须单独注明 |
-| 混合检索 | `python -m pytest tests/test_search.py tests/test_graph.py`；验证归一化组成得分、关系归档/时间过滤、稳定排序；真实 PostgreSQL 与嵌入服务验收单独注明 |
-| 证据问答 | `python -m pytest tests/test_questions.py tests/test_search.py`；验证无证据不调用模型、严格引用归属、错误映射、切换项目迟到响应；真实 DeepSeek 质量单独注明 |
-| 导入/解析/Worker | `python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_worker.py` |
-| 迁移/模型 | `python -m pytest tests/test_migrations.py` + `alembic upgrade head` |
-| 前端可见界面 | 浏览器桌面 + 手机宽度走查 |
+| 抽取/审核/图谱 | `.\.venv\Scripts\python.exe -m pytest tests/test_knowledge.py tests/test_graph.py` |
+| 关键词检索 | `.\.venv\Scripts\python.exe -m pytest tests/test_search.py`；原生 PostgreSQL 验证排序、证据、多词、通配符；浏览器检查清空、重试、类型、详情和迟到响应 |
+| 语义检索 | `.\.venv\Scripts\python.exe -m pytest tests/test_search.py tests/test_migrations.py`；原生 PostgreSQL 验证 1024 维写入和余弦排序；真实嵌入服务验收必须单独注明 |
+| 混合检索 | `.\.venv\Scripts\python.exe -m pytest tests/test_search.py tests/test_graph.py`；验证归一化组成得分、关系归档/时间过滤、稳定排序；真实 PostgreSQL 与嵌入服务验收单独注明 |
+| 证据问答 | `.\.venv\Scripts\python.exe -m pytest tests/test_questions.py tests/test_search.py`；验证无证据不调用模型、严格引用归属、错误映射、切换项目迟到响应；真实 DeepSeek 质量单独注明 |
+| 导入/解析/Worker | `.\.venv\Scripts\python.exe -m pytest tests/test_sources.py tests/test_parsing.py tests/test_worker.py` |
+| 迁移/模型 | `.\.venv\Scripts\python.exe -m pytest tests/test_migrations.py` + `.\.venv\Scripts\alembic.exe upgrade head` |
+| 前端可见界面 | 只做真实浏览器桌面端走查；不做手机端测试 |
 | 文档 | 双语链接、命令、状态标注 |
 
 ## 后端清单
@@ -65,19 +90,19 @@ cd ../frontend && npm run build
 ## 前端清单
 
 - [ ] `npm run build` 通过（含 `vue-tsc`）。
-- [ ] 桌面与手机宽度下：无横向溢出、面板可滚动、长文件名/长知识名不撑破布局。
+- [ ] 桌面宽度下：无横向溢出、面板可滚动、长文件名/长知识名不撑破布局。
 - [ ] 加载、空数据、错误、重试四种状态都能到达且有反馈。
 - [ ] 键盘可完成主要操作，焦点可见；`prefers-reduced-motion` 下动效收敛。
 - [ ] 原文只做文本插值，没有 `v-html`。
 - [ ] 真实接口失败时展示错误，不回退成假数据。
 - [ ] 图谱页：节点/关系可选，详情证据可读，筛选/深度/返回总览可用。
-- [ ] 问答页：支持/不足/错误状态可达，引用可跳实体，切换项目不保留旧回答，手机宽度可滚动。
+- [ ] 问答页：支持/不足/错误状态可达，引用可跳实体，切换项目不保留旧回答。
 
 ## 真实服务验收（涉及导入/抽取/图谱时）
 
 1. 启动本机 PostgreSQL（含 pgvector），确认 `backend/.env` 的 `DATABASE_URL`。
-2. `alembic upgrade head`，启动 `uvicorn app.main:app --reload`。
-3. 另开终端 `python -m app.worker`（或按需 `--once`）。
+2. 在 `backend/` 运行 `.\.venv\Scripts\alembic.exe upgrade head`，再用 `.\.venv\Scripts\uvicorn.exe app.main:app --reload` 启动 API。
+3. 另开终端运行 `.\.venv\Scripts\python.exe -m app.worker`（或按需 `--once`）。
 4. 创建项目 → 上传 Markdown → 解析 → 查看分块行号。
 5. 重复上传相同字节，确认复用来源/任务。
 6. 抽取候选（真实 key 或模拟响应，注明是哪种）→ 确认实体 → 确认关系 → 查看项目图谱与证据。
@@ -106,7 +131,7 @@ cd ../frontend && npm run build
 
 ```text
 验证计划：
-- cd backend && .venv\Scripts\python.exe -m pytest
+- cd backend; .\.venv\Scripts\python.exe -m pytest
   预期：全部用例通过。
 - cd ../frontend && npm run build
   预期：类型检查与生产构建成功。

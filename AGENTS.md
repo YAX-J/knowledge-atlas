@@ -94,11 +94,11 @@ npm run build
 
 For backend changes, propose running from `backend/`:
 
-```bash
-python -m pytest
+```powershell
+.\.venv\Scripts\python.exe -m pytest
 ```
 
-For visible UI changes, include a real-browser walkthrough for desktop and mobile widths, covering keyboard focus, empty states, clipping, and panel scrolling.
+For visible UI changes, include a real-browser desktop walkthrough covering keyboard focus, empty states, clipping, and panel scrolling. Mobile-width browser testing and mobile screenshots are not required.
 
 For every change:
 
