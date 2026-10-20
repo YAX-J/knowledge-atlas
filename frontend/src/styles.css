@@ -254,6 +254,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .source-reader { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--line); min-width: 0; }
 .reader-heading { align-items: start; }
 .reader-heading h3 { font-size: 18px; overflow-wrap: anywhere; }
+.source-git-link { display: inline-block; margin-top: 6px; color: var(--teal); font-size: 12px; }
 .task-strip { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; padding: 12px; border: 1px solid var(--line); border-radius: 5px; font-size: 12px; line-height: 1.8; }
 .task-strip > span:nth-child(2) { flex: 1; min-width: 100px; color: var(--muted); }
 .raw-preview { margin-top: 20px; font-size: 13px; }

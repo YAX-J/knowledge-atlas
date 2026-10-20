@@ -35,6 +35,7 @@ def test_source_list_pagination_and_latest_task(client: TestClient, db_session: 
     assert item["project_id"] == project_id
     assert item["repository_id"] is None
     assert item["repository_name"] is None
+    assert item["git_url"] is None
     assert item["relative_path"] is None
     assert item["status"] == "ready"
     assert item["task_id"] == second["task_id"]

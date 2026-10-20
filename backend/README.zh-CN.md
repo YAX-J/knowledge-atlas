@@ -20,6 +20,7 @@
 - 持久化项目、来源、任务和候选知识记录。
 - 确认候选时在审核事务内写入受限的 PostgreSQL 实体、关系和证据，支持稳定 UUID、端点提升、幂等重复和旧确认重放。
 - 提供只读项目图谱、实体详情和关系详情接口，按用户/项目/时间过滤，限制节点与边数量，并返回后端计算的行号。
+- 为 GitHub 导入来源派生固定 Commit 的文件 URL，并为正式图谱/搜索/问答证据派生精确行号 URL，同时保留与供应商无关的 `project://` 定位符。
 
 已实现显式 DeepSeek 候选提取、审核与正式图谱提升、项目关键词/语义向量/一跳图关系混合检索，以及同步证据问答。语义索引使用显式重建操作和可配置的 OpenAI-compatible Embeddings 服务；真实服务/原生 pgvector 搜索冒烟已通过，包含关系的代表性召回和真实回答质量仍待验收。实体消歧、问答历史和多轮 Agent 尚未实现。
 
@@ -54,11 +55,11 @@ OpenAPI 文档地址为 `http://localhost:8000/docs`。
 4. `GET /api/v1/tasks/{task_id}`：查看状态和错误信息。
 5. `GET /api/v1/sources/{source_id}/chunks?page=1&page_size=20`：查看证据原文和行号位置。
 
-`GET /api/v1/projects/{project_id}/sources` 用于前端刷新后恢复资料列表及每份资料的最新任务。列表包含可空的仓库 ID/名称和 `relative_path` 元数据但不包含原文，预览内容通过来源详情接口读取。同一可空仓库内相同字节复用时保留首次来源的文件名和相对路径。
+`GET /api/v1/projects/{project_id}/sources` 用于前端刷新后恢复资料列表及每份资料的最新任务。列表包含可空的仓库 ID/名称、`relative_path` 和固定 Commit 的 `git_url` 元数据但不包含原文，预览内容通过来源详情接口读取。本地来源的 Git URL 为 `null`。同一可空仓库内相同字节复用时保留首次来源的文件名和相对路径。
 
 Markdown 任务使用 `markdown_parsing`，Java 任务使用 `code_parsing`；旧版排队的 `knowledge_extraction` 上传任务也只执行 Markdown 解析。成功后任务为 `succeeded`/`parsed`/100，来源变为 `ready`，这不代表已经执行知识抽取。执行失败时返回 HTTP 200，任务状态为 `failed`，错误内容经过脱敏；可调用同一接口重试。重复执行成功任务会返回已有结果；运行中或已取消任务返回 HTTP 409。重复上传响应中返回的是复用任务的当前状态，不一定为 `queued`。
 
-Markdown 解析器支持 ATX/Setext 标题、段落、列表和围栏代码。Java 有界解析器识别顶层类型和常规直接成员方法，同时保留全部源码。来源结构视图还会在最多 100 份同仓库已解析 Java 来源内，按显式导入、同包和通配导入解析顶层类型的 `extends`/`implements` 目标，以及直接类型限定和当前类型字段接收者的方法调用；旧的未归属资料只与其他未归属资料互相解析。同一来源与分块边界下，分块 ID 保持稳定。文件字节变化时创建独立来源，不修改既有来源。PostgreSQL 项目行锁串行化仓库解析与重复上传创建；SQLite 不验证这类锁保证。手动接口在 API 进程中解析，自动执行使用下文的 Worker。一次 GitHub 同步读取一个显式快照，最多导入 50 份支持文件，累计预算 20 MiB，保存 Commit/文件来源信息，并从上一快照复用未变化 blob。完整 tree 会报告重命名与删除；远端删除的文件仍保留为不可变历史来源。Webhook、轮询、来源/知识失效、不可变 Git 行链接、Issue 和 Pull Request 尚未实现。
+Markdown 解析器支持 ATX/Setext 标题、段落、列表和围栏代码。Java 有界解析器识别顶层类型和常规直接成员方法，同时保留全部源码。来源结构视图还会在最多 100 份同仓库已解析 Java 来源内，按显式导入、同包和通配导入解析顶层类型的 `extends`/`implements` 目标，以及直接类型限定和当前类型字段接收者的方法调用；旧的未归属资料只与其他未归属资料互相解析。同一来源与分块边界下，分块 ID 保持稳定。文件字节变化时创建独立来源，不修改既有来源。PostgreSQL 项目行锁串行化仓库解析与重复上传创建；SQLite 不验证这类锁保证。手动接口在 API 进程中解析，自动执行使用下文的 Worker。一次 GitHub 同步读取一个显式快照，最多导入 50 份支持文件，累计预算 20 MiB，保存 Commit/文件来源信息，并从上一快照复用未变化 blob。完整 tree 会报告重命名与删除；远端删除的文件仍保留为不可变历史来源，并解析到最后一次非删除快照的 Commit 链接。Webhook、轮询、来源/知识失效、Issue 和 Pull Request 尚未实现。
 
 ## 自动解析 Worker
 
@@ -124,7 +125,7 @@ GITHUB_TIMEOUT_SECONDS=30
 
 `GET /api/v1/projects/{project_id}/graph` 返回当前用户有效项目的 `nodes`、`edges` 和 `truncated`。可选参数为 `center_id`、`depth`（1 或 2）、`types`（逗号分隔的实体类型）、`valid_at` 和 `limit`（1–200，默认 100）；边上限为 500。可见条件为 `status != archived`、`valid_from <= at`，且 `valid_to` 为空或晚于 `at`。
 
-`GET /api/v1/knowledge/entities/{entity_id}` 返回实体、最多 100 条直接关系，以及带原始文件名、`project://` URI、引用、标题路径和后端计算行号的证据。`GET /api/v1/knowledge/relationships/{relationship_id}` 返回关系及其证据。画布坐标不属于接口，布局由前端负责。
+`GET /api/v1/knowledge/entities/{entity_id}` 返回实体、最多 100 条直接关系，以及带原始文件名、`project://` URI、可空的固定 Commit GitHub 行号 URL、引用、标题路径和后端计算行号的证据。`GET /api/v1/knowledge/relationships/{relationship_id}` 返回关系及其证据。画布坐标不属于接口，布局由前端负责。
 
 2026-10-17 验证：后端 100 项测试通过；前端构建及桌面/手机浏览器流程通过，使用隔离 SQLite 和模拟抽取。本机 PostgreSQL 17.10 + pgvector 在临时 schema 中通过迁移升级/回退/再升级、图谱和证据读取，以及每个候选四个独立会话的并发重复确认。临时 schema 已删除。之后已将业务 schema 升级至 `20261017_0005` 修复缺失图谱表，真实图谱/候选/资料/搜索读取均返回 200。真实 DeepSeek 质量、原生数据库的浏览器验收及 Worker/API 竞争和恢复仍需单独检查。
 

@@ -30,6 +30,7 @@ def test_upload_markdown_creates_source_and_queued_task(client: TestClient) -> N
     assert source["original_name"] == "decision.md"
     assert source["repository_id"] is None
     assert source["repository_name"] is None
+    assert source["git_url"] is None
     assert source["relative_path"] is None
     assert source["line_count"] == 3
     assert source["content_preview"] == content

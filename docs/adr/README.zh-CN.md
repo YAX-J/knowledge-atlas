@@ -82,3 +82,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0017：按需解析有界的跨文件 Java 方法调用](0017-bounded-cross-file-java-method-calls.zh-CN.md)
 - [ADR 0018：显式导入有界的 GitHub 仓库快照](0018-bounded-github-snapshot-import.zh-CN.md)
 - [ADR 0019：持久化增量 GitHub Commit 快照](0019-incremental-github-commit-snapshots.zh-CN.md)
+- [ADR 0020：从快照派生不可变 GitHub 证据链接](0020-derived-immutable-github-evidence-links.zh-CN.md)

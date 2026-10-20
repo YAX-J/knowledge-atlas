@@ -12,6 +12,8 @@ from app.main import app
 from app.models.domain import (
     CandidateKnowledge,
     Project,
+    RepositorySnapshot,
+    RepositorySnapshotFile,
     ReviewEvent,
     ReviewStatus,
     SourceDocument,
@@ -51,11 +53,35 @@ def test_confirmation_persists_graph_and_locatable_evidence(client, db_session, 
         user_id=stored_source.user_id,
         project_id=stored_source.project_id,
         name="repository",
+        kind="git_remote",
+        provider="github",
+        remote_owner="example",
+        remote_name="repository",
+        remote_url="https://github.com/example/repository",
     )
     db_session.add(repository)
     db_session.flush()
     stored_source.repository_id = repository.id
     stored_source.relative_path = "docs/note.md"
+    snapshot = RepositorySnapshot(
+        user_id=stored_source.user_id,
+        project_id=stored_source.project_id,
+        repository_id=repository.id,
+        provider="github",
+        ref="main",
+        commit_sha="d" * 40,
+        tree_sha="e" * 40,
+    )
+    db_session.add(snapshot)
+    db_session.flush()
+    db_session.add(RepositorySnapshotFile(
+        snapshot_id=snapshot.id,
+        source_id=stored_source.id,
+        path="docs/note.md",
+        blob_sha="f" * 40,
+        size_bytes=stored_source.size_bytes,
+        status="imported",
+    ))
     db_session.commit()
     url = f"/api/v1/projects/{project_id}/graph"
     assert client.get(url).json() == {"nodes": [], "edges": [], "truncated": False}
@@ -78,6 +104,9 @@ def test_confirmation_persists_graph_and_locatable_evidence(client, db_session, 
         assert evidence["title"] == "repository/docs/note.md" and evidence["start_line"] == 3
         assert evidence["quote"] == "Use PostgreSQL for storage."
         assert evidence["uri"].startswith("project://") and "file://" not in str(detail)
+        assert evidence["git_url"] == (
+            f"https://github.com/example/repository/blob/{'d' * 40}/docs/note.md#L3"
+        )
     edge_detail = client.get(f"/api/v1/knowledge/relationships/{data['edges'][0]['id']}")
     assert edge_detail.status_code == 200 and len(edge_detail.json()["evidence"]) == 1
     for item in items:

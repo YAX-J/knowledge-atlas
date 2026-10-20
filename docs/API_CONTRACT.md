@@ -184,7 +184,7 @@
 
 `GET /api/v1/projects/{project_id}/sources?page=1&page_size=20`
 
-返回 `items`、`page`、`page_size`、`total`，按上传时间降序、ID 稳定排序。每条资料包含 `id`、`project_id`、可空的 `repository_id` / `repository_name`、`original_name`、可空的 `relative_path`、`source_type`、`size_bytes`、来源 `status`、`created_at`、`updated_at`，以及当前用户/项目下最新任务的 `task_id` 和 `task_status`（无任务时为 `null`）。列表不返回原文或预览内容，详情从来源接口读取。
+返回 `items`、`page`、`page_size`、`total`，按上传时间降序、ID 稳定排序。每条资料包含 `id`、`project_id`、可空的 `repository_id` / `repository_name`、`original_name`、可空的 `relative_path` / `git_url`、`source_type`、`size_bytes`、来源 `status`、`created_at`、`updated_at`，以及当前用户/项目下最新任务的 `task_id` 和 `task_status`（无任务时为 `null`）。列表不返回原文或预览内容，详情从来源接口读取。
 
 `page >= 1`，`1 <= page_size <= 100`。空项目或越过最后一页返回空列表；项目不存在、已归档或不属于当前用户时返回 HTTP 404。
 
@@ -258,7 +258,7 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 `GET /api/v1/sources/{source_id}`
 
-返回资料元数据（包括可空的 `repository_id`、`repository_name` 与 `relative_path`）、SHA-256、解析状态、行数和最多 4000 字符的可预览内容，不返回服务器绝对路径。
+返回资料元数据（包括可空的 `repository_id`、`repository_name`、`relative_path` 与 `git_url`）、SHA-256、解析状态、行数和最多 4000 字符的可预览内容，不返回服务器绝对路径。项目资料列表中的每项也返回相同语义的可空 `git_url`。GitHub 来源从最近一次非删除快照派生固定到 Commit 的文件 URL；本地来源返回 `null`，远端文件后来删除时保留指向最后一次存在快照的链接。
 
 ### 查询资料分块
 
@@ -340,7 +340,7 @@ Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，�
 
 `GET /api/v1/knowledge/entities/{entity_id}`
 
-状态：已实现，只读。返回 `entity`、`evidence`、`relationships` 和 `truncated`。证据包含 `id`、`source_id`、`chunk_id`、`title`、`uri`、`quote`、`start_line`、`end_line`、`heading_path`；直接关系最多返回 100 条。
+状态：已实现，只读。返回 `entity`、`evidence`、`relationships` 和 `truncated`。证据包含 `id`、`source_id`、`chunk_id`、`title`、`uri`、可空 `git_url`、`quote`、`start_line`、`end_line`、`heading_path`；直接关系最多返回 100 条。`uri` 始终保留应用内 `project://` 定位，GitHub 来源的 `git_url` 额外固定到 Commit 与 `#Lx-Ly` 行号。
 
 ### 查询关系详情
 

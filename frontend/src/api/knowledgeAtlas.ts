@@ -27,6 +27,7 @@ export interface ApiSource {
   project_id: string
   repository_id: string | null
   repository_name: string | null
+  git_url: string | null
   original_name: string
   relative_path: string | null
   media_type: string
@@ -124,6 +125,7 @@ export interface SourceListItem {
   project_id: string
   repository_id: string | null
   repository_name: string | null
+  git_url: string | null
   original_name: string
   relative_path: string | null
   source_type: string

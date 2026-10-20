@@ -22,6 +22,7 @@ from app.models.graph import KnowledgeEntity, KnowledgeEvidence, KnowledgeRelati
 from app.schemas.graph import EntityDetail, FormalEvidenceRead, GraphRead, KnowledgeEdgeRead, KnowledgeNodeRead, RelationshipDetail
 from app.schemas.knowledge import EntityType, EvidenceDraft, RelationType
 from app.services.projects import get_project
+from app.services.source_links import github_file_urls, github_line_url
 
 
 MAX_EDGES = 500
@@ -204,7 +205,7 @@ def get_graph(
 
 def _evidence_read(db: Session, record):
     owner = KnowledgeEvidence.entity_id if isinstance(record, KnowledgeEntity) else KnowledgeEvidence.relationship_id
-    rows = db.execute(select(
+    rows = list(db.execute(select(
         KnowledgeEvidence,
         SourceDocument.original_name,
         SourceDocument.relative_path,
@@ -223,7 +224,13 @@ def _evidence_read(db: Session, record):
         SourceDocument.user_id == record.user_id, SourceDocument.project_id == record.project_id,
         SourceChunk.source_id == KnowledgeEvidence.source_id,
         SourceChunk.user_id == record.user_id, SourceChunk.project_id == record.project_id,
-    ).order_by(KnowledgeEvidence.start_line, KnowledgeEvidence.id))
+    ).order_by(KnowledgeEvidence.start_line, KnowledgeEvidence.id)))
+    git_urls = github_file_urls(
+        db,
+        user_id=record.user_id,
+        project_id=record.project_id,
+        source_ids=list({item.source_id for item, *_ in rows}),
+    )
     return [FormalEvidenceRead(
         id=item.id, source_id=item.source_id, chunk_id=item.chunk_id,
         title=(
@@ -231,6 +238,11 @@ def _evidence_read(db: Session, record):
             if repository_name and relative_path else relative_path or title
         ),
         uri=f"project://{record.project_id}/sources/{item.source_id}", quote=item.quote,
+        git_url=github_line_url(
+            git_urls.get(item.source_id),
+            start_line=item.start_line,
+            end_line=item.end_line,
+        ),
         start_line=item.start_line, end_line=item.end_line, heading_path=item.heading_path,
     ) for item, title, relative_path, repository_name in rows]
 

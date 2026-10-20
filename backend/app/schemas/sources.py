@@ -17,6 +17,7 @@ class SourceRead(BaseModel):
     project_id: uuid.UUID
     repository_id: uuid.UUID | None
     repository_name: str | None
+    git_url: str | None = None
     original_name: str
     relative_path: str | None
     media_type: str
@@ -142,6 +143,7 @@ class SourceListItem(BaseModel):
     project_id: uuid.UUID
     repository_id: uuid.UUID | None
     repository_name: str | None = None
+    git_url: str | None = None
     original_name: str
     relative_path: str | None
     source_type: str

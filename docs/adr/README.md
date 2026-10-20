@@ -82,3 +82,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0017: Resolve bounded cross-file Java method calls on demand](0017-bounded-cross-file-java-method-calls.md)
 - [ADR 0018: Import bounded GitHub repository snapshots explicitly](0018-bounded-github-snapshot-import.md)
 - [ADR 0019: Persist incremental GitHub commit snapshots](0019-incremental-github-commit-snapshots.md)
+- [ADR 0020: Derive immutable GitHub evidence links from snapshots](0020-derived-immutable-github-evidence-links.md)

@@ -113,6 +113,7 @@ export interface FormalEvidence extends CandidateEvidence {
   source_id: string
   title: string
   uri: string
+  git_url: string | null
 }
 
 export interface EntityDetail {

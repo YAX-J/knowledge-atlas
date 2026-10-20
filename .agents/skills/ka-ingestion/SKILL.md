@@ -41,7 +41,8 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 - 单份跳过码包括 `SOURCE_EMPTY`、`SOURCE_ENCODING_INVALID`、`SOURCE_PATH_INVALID`、`SOURCE_TOO_LARGE` 和 `GITHUB_IMPORT_TOTAL_SIZE_EXCEEDED`。
 - 后续 Commit 优先按“路径 + blob SHA”复用未变化文件；已知 blob 可复用既有来源/任务而不重新下载。旧路径消失且相同 blob 只出现在一个新路径时记录 `renamed`；完整 tree 中消失的旧路径记录 `deleted`。截断快照禁止推断删除。
 - GitHub repository `id` 持久化为 provider ID；远端 owner/name 变化时在同一仓库记录上更新规范坐标。重命名/删除只记录同步事实，不破坏性删除历史来源、分块或正式证据。
-- 不实现不可变 Git URL 证据、Issue/PR、Webhook、定时同步或自动失效传播。
+- 资料列表/详情从来源最近一次非 `deleted` 的快照记录派生固定 Commit 的 `git_url`；正式图谱、搜索和问答证据在同一文件 URL 上追加 `#Lx-Ly`。本地来源返回 `null`，远端删除后回退到最后一次存在的快照，`project://` 应用内 URI 保持不变。链接不持久化，见 ADR 0020。
+- 不实现 Issue/PR、Webhook、定时同步、强制推送可达性分析或自动失效传播。
 
 ## 解析规则
 
@@ -129,7 +130,7 @@ python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_source_l
 - 分块数量、类型、标题路径、行号、哈希、ID 稳定性。
 - 手动执行幂等、失败重试、运行中 409。
 - Worker 租约接手、旧执行写入被拒、次数上限、`--once` 子进程退出码。
-- GitHub 默认/指定 ref、同 Commit 短路、路径/blob 复用、重命名/删除、provider ID 仓库改名、快照历史、tree/文件/字节截断、raw blob 流式大小限制和供应商错误脱敏。
+- GitHub 默认/指定 ref、同 Commit 短路、路径/blob 复用、重命名/删除、provider ID 仓库改名、快照历史、不可变文件/行号 URL、远端删除回退、tree/文件/字节截断、raw blob 流式大小限制和供应商错误脱敏。
 - 正式证据存在时重解析失败（如已实现相应测试）。
 
 ## 完成检查

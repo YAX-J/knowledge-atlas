@@ -36,6 +36,7 @@ class FormalEvidenceRead(BaseModel):
     chunk_id: uuid.UUID
     title: str
     uri: str
+    git_url: str | None = None
     quote: str
     start_line: int
     end_line: int

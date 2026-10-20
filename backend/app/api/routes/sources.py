@@ -23,6 +23,7 @@ from app.schemas.sources import (
 )
 from app.services import ingestion, parsing
 from app.services.java_source import JavaSourceInput, analyze_java
+from app.services.source_links import github_file_urls
 
 
 router = APIRouter(tags=["sources"])
@@ -39,10 +40,17 @@ def list_sources(
     records, total = ingestion.list_sources(
         db, user_id=user_id, project_id=project_id, page=page, page_size=page_size
     )
+    git_urls = github_file_urls(
+        db,
+        user_id=user_id,
+        project_id=project_id,
+        source_ids=[source.id for source, _ in records],
+    )
     items = []
     for source, task in records:
         item = SourceListItem.model_validate(source)
         item.repository_name = source.repository.name if source.repository else None
+        item.git_url = git_urls.get(source.id)
         item.task_id = task.id if task else None
         item.task_status = task.status if task else None
         items.append(item)
@@ -87,11 +95,18 @@ def get_source(
     user_id: CurrentUserId,
 ) -> SourceRead:
     source = ingestion.get_source(db, user_id=user_id, source_id=source_id)
+    git_url = github_file_urls(
+        db,
+        user_id=user_id,
+        project_id=source.project_id,
+        source_ids=[source.id],
+    ).get(source.id)
     return SourceRead(
         id=source.id,
         project_id=source.project_id,
         repository_id=source.repository_id,
         repository_name=source.repository.name if source.repository else None,
+        git_url=git_url,
         original_name=source.original_name,
         relative_path=source.relative_path,
         media_type=source.media_type,

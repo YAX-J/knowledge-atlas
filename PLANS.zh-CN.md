@@ -35,11 +35,12 @@
 - 增加项目范围的 GitHub HTTPS/SSH remote 规范化身份、可选的既有本地文件夹仓库关联、仅远程身份登记及仓库列表界面；登记过程不请求 GitHub，也不克隆仓库。
 - 增加默认分支或指定 ref 的显式有界 GitHub 快照同步，通过既有仓库范围去重和解析任务链路导入最多 50 份 Markdown/Java blob，累计预算 20 MiB。
 - 持久化 GitHub Commit/tree 与逐文件 blob 来源，支持同 Commit 短路、未变化/已知 blob 复用、保守的重命名/删除记录，以及基于 provider ID 的仓库改名跟踪。
+- 从持久化快照派生不可变 GitHub 来源/证据 URL，固定到 Commit 文件和精确行号；本地来源返回空值，远端删除后链接到最后一次存在的快照。
 - 增加仓库范围内直接类型限定和当前类型字段接收者的 Java 方法调用目标，在正式图谱之外展示目标路径、精确行号和歧义。
 
 ## 当前阶段
 
-当前阶段为阶段四代码导入。本地文件有界切片可接收 Java 文件，使用 `code_parsing`，把精确源码行保存为结构分块，持久化本地文件夹仓库身份与仓库内相对路径，并复用现有 Worker 与证据流程。它能解析一小部分仓库内跨文件类型关系及直接类型/字段接收者方法关系，登记规范化的 GitHub 所有者/仓库坐标，并显式导入有界的默认分支或指定 ref 快照。GitHub 同步现已持久化 Commit/tree 与逐文件 blob 来源，复用未变化或已知 blob，保守记录重命名/删除，并通过 provider ID 跟踪远端坐标变化；仍不代表已经具备完整 Java AST 或符号/调用图、局部变量/参数/继承分派解析、不可变 Git URL 证据、GitHub Issue/PR 导入、Webhook、轮询或破坏性来源失效传播。见 [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.zh-CN.md)、[ADR 0014](docs/adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0015](docs/adr/0015-local-folder-repository-identity.zh-CN.md)、[ADR 0016](docs/adr/0016-normalized-github-remote-identity.zh-CN.md)、[ADR 0017](docs/adr/0017-bounded-cross-file-java-method-calls.zh-CN.md)、[ADR 0018](docs/adr/0018-bounded-github-snapshot-import.zh-CN.md) 与 [ADR 0019](docs/adr/0019-incremental-github-commit-snapshots.zh-CN.md)。
+当前阶段为阶段四代码导入。本地文件有界切片可接收 Java 文件，使用 `code_parsing`，把精确源码行保存为结构分块，持久化本地文件夹仓库身份与仓库内相对路径，并复用现有 Worker 与证据流程。它能解析一小部分仓库内跨文件类型关系及直接类型/字段接收者方法关系，登记规范化的 GitHub 所有者/仓库坐标，并显式导入有界的默认分支或指定 ref 快照。GitHub 同步已持久化 Commit/tree 与逐文件 blob 来源，复用未变化或已知 blob，保守记录重命名/删除，通过 provider ID 跟踪远端坐标变化，并从该历史派生不可变来源/证据链接；仍不代表已经具备完整 Java AST 或符号/调用图、局部变量/参数/继承分派解析、GitHub Issue/PR 导入、Webhook、轮询、强制推送可达性分析或破坏性来源失效传播。见 [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.zh-CN.md)、[ADR 0014](docs/adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0015](docs/adr/0015-local-folder-repository-identity.zh-CN.md)、[ADR 0016](docs/adr/0016-normalized-github-remote-identity.zh-CN.md)、[ADR 0017](docs/adr/0017-bounded-cross-file-java-method-calls.zh-CN.md)、[ADR 0018](docs/adr/0018-bounded-github-snapshot-import.zh-CN.md)、[ADR 0019](docs/adr/0019-incremental-github-commit-snapshots.zh-CN.md) 与 [ADR 0020](docs/adr/0020-derived-immutable-github-evidence-links.zh-CN.md)。
 
 本次功能切片已实现：
 
@@ -71,7 +72,7 @@
 ## 后续阶段
 
 1. 代表性真实回答验收与检索/提示质量评估。
-2. 增加不可变 Git URL 证据与 GitHub Issue/PR 导入，并将 Java 解析扩展到直接类型/字段接收者之外。
+2. 增加 GitHub Issue/PR 导入，并将 Java 解析扩展到直接类型/字段接收者之外。
 3. 时序演进、治理、实验和部署。
 
 Markdown 解析、受 Schema 约束的审核和确认候选入图已作为边界清晰的切片完成。

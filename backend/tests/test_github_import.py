@@ -124,6 +124,17 @@ def test_sync_github_imports_reuses_and_skips_supported_files(
     assert {item["repository_id"] for item in sources["items"]} == {
         repository["id"]
     }
+    assert {item["git_url"] for item in sources["items"]} == {
+        f"https://github.com/example/demo/blob/{'a' * 40}/README.md",
+        f"https://github.com/example/demo/blob/{'a' * 40}/src/App.java",
+    }
+    readme = next(
+        item for item in sources["items"] if item["relative_path"] == "README.md"
+    )
+    detail = client.get(f"/api/v1/sources/{readme['id']}").json()
+    assert detail["git_url"] == (
+        f"https://github.com/example/demo/blob/{'a' * 40}/README.md"
+    )
     snapshots = client.get(
         f"/api/v1/projects/{project_id}/repositories/{repository['id']}/snapshots"
     )
@@ -263,6 +274,16 @@ def test_sync_github_incrementally_tracks_rename_delete_and_provider_identity(
     assert snapshots["total"] == 3
     assert snapshots["items"][1]["renamed_count"] == 1
     assert snapshots["items"][1]["deleted_count"] == 1
+    sources = client.get(
+        f"/api/v1/projects/{project_id}/sources?page=1&page_size=20"
+    ).json()["items"]
+    by_path = {item["relative_path"]: item for item in sources}
+    assert by_path["B.md"]["git_url"] == (
+        f"https://github.com/example/renamed/blob/{'3' * 40}/B.md"
+    )
+    assert by_path["new.md"]["git_url"] == (
+        f"https://github.com/example/renamed/blob/{'2' * 40}/new.md"
+    )
 
 
 def test_sync_github_supports_ref_and_reports_truncation(

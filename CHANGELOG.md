@@ -10,6 +10,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Immutable GitHub source and evidence links derived from persisted snapshots: source views open commit-pinned files, formal graph/search/question citations open exact line fragments, local sources return null, and remotely deleted files retain their last-existing snapshot link without a migration.
 - Persistent GitHub commit/tree snapshots and per-file blob provenance, with same-commit short-circuiting, incremental unchanged/known-blob reuse, conservative rename/deletion records, provider-ID-backed repository coordinate updates, a scoped snapshot-history API, and expanded desktop synchronization summaries. Remote deletions remain non-destructive.
 - Explicit bounded GitHub snapshot synchronization from a repository default branch or requested ref, with optional backend-only token authentication, deterministic selection of up to 50 Markdown/Java blobs, a 20 MiB aggregate budget, per-file import/reuse/skip results, existing parsing-task reuse, and desktop controls.
 - Bounded repository-scoped Java cross-file method-call hints for direct type-qualified and current-type field receivers, with package/import resolution, stable target IDs, exact source paths and lines, overload ambiguity, truncation, and desktop outline presentation outside the formal graph.

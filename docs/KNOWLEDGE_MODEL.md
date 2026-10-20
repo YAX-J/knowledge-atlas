@@ -103,7 +103,7 @@
 }
 ```
 
-不同数据源可以使用不同定位字段，但 API 应统一返回 `title`、`uri`、`locator` 和 `excerpt`。
+不同数据源可以使用不同定位字段，但 API 应统一返回 `title`、`uri`、`locator` 和 `excerpt`。当前正式证据 API 始终保留应用内 `project://` URI；GitHub 快照来源还从最近一次非删除的逐文件快照派生可空 `git_url`，固定到 Commit 和精确行号。该外部链接不持久化，本地来源返回 `null`；远端删除后回退到文件最后一次存在的快照。见 [ADR 0020](adr/0020-derived-immutable-github-evidence-links.zh-CN.md)。
 
 ## 当前原文分块
 
@@ -111,7 +111,7 @@
 
 来源在当前阶段保持不可变：同一项目、同一可空仓库、来源类型中的相同文件字节复用来源，修改字节或切换仓库则创建独立来源。本地文件夹仓库以稳定 UUID 标识，来源可保存 `repository_id` 和规范化的仓库内 `relative_path`；重复内容仍复用该仓库中的首次来源并保留首次路径。旧来源的 `repository_id` 为 `null`，继续在未归属集合中保持原有去重语义。这不表示新旧来源之间已经建立版本或 `SUPERSEDES` 关系。Java 类型和方法分块也不是自动创建的正式 `CodeEntity`；`ready` 仅表示来源解析完成，不表示知识已抽取或确认。决策见 [ADR 0003](adr/0003-markdown-parsing-execution.md)、[ADR 0012](adr/0012-bounded-java-source-ingestion.md) 与 [ADR 0015](adr/0015-local-folder-repository-identity.zh-CN.md)。
 
-仓库可额外保存规范化 GitHub 身份：`provider=github`、小写 `remote_owner` / `remote_name` 和不含凭据的规范 `remote_url`。身份既可关联已有 `local_folder`，也可先作为 `git_remote` 独立登记；登记不会访问 GitHub，也不代表已导入分支、Commit 或文件。当前 owner/name 坐标无法自动追踪仓库改名或转移，边界见 [ADR 0016](adr/0016-normalized-github-remote-identity.zh-CN.md)。
+仓库可额外保存规范化 GitHub 身份：`provider=github`、小写 `remote_owner` / `remote_name` 和不含凭据的规范 `remote_url`。身份既可关联已有 `local_folder`，也可先作为 `git_remote` 独立登记；登记不会访问 GitHub，也不代表已导入分支、Commit 或文件。首次成功同步保存稳定 provider ID，后续可在 GitHub 返回 owner/name 变化时更新规范坐标；边界见 [ADR 0016](adr/0016-normalized-github-remote-identity.zh-CN.md) 与 [ADR 0019](adr/0019-incremental-github-commit-snapshots.zh-CN.md)。
 
 Java 来源结构接口按需派生类型、常规字段、方法、同文件调用、有界的同仓库跨文件 `extends`/`implements` 目标，以及直接类型/字段接收者的跨文件方法调用，使用稳定的来源内 UUID 与原文行号，但这些对象不是 `KnowledgeEntity` / `KnowledgeRelationship`，也不参与正式图谱检索。未归属仓库的旧来源只与其他未归属来源互相解析。只有经过候选提取与人工确认的记录才能进入正式知识。见 [ADR 0013](adr/0013-derived-java-source-structure.zh-CN.md)、[ADR 0014](adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0015](adr/0015-local-folder-repository-identity.zh-CN.md) 与 [ADR 0017](adr/0017-bounded-cross-file-java-method-calls.zh-CN.md)。
 
