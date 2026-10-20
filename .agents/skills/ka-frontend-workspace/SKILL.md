@@ -54,7 +54,7 @@ npm run preview
 - 用请求序号（`projectsRequest`、`repositoriesRequest`、`sourcesRequest`、`detailRequest`、`chunksRequest`、`reviewsRequest`、`reviewAction`、`graphRequest`、`graphDetailRequest`、`searchRequest`、`questionRequest`）丢弃迟到响应。
 - 切换项目/资料时先清空旧详情并递增对应序号；上传、执行、审核期间禁止切上下文。
 - 文件夹上传由 `App.vue` 先用 `webkitRelativePath` 根段解析本地仓库 UUID，再顺序调用单文件 API，提交仓库 UUID 与剥离根段后的相对路径；逐份捕获错误，保留成功项，最终选择最后一份成功资料。列表与详情展示仓库名称，资料标题优先展示仓库内路径，正式证据标题使用“仓库名/仓库内路径”。
-- GitHub remote 表单只登记规范身份，可选关联当前页尚未关联的本地仓库；仓库卡片上的同步操作才会联网读取默认分支或指定 ref，最多导入 50 份支持文件。同步使用独立 `sync` 加载/错误状态和 120 秒前端超时，完成后展示 commit 短 SHA、新增/复用/跳过/截断统计。仓库列表请求使用独立序号丢弃切换项目后的迟到响应。
+- GitHub remote 表单只登记规范身份，可选关联当前页尚未关联的本地仓库；仓库卡片上的同步操作才会联网读取默认分支或指定 ref，最多导入 50 份支持文件。同步使用独立 `sync` 加载/错误状态和 120 秒前端超时，完成后展示 commit 短 SHA、新增/复用/未变化/重命名/删除/跳过/截断统计并刷新仓库坐标；仓库卡片展示已知 provider ID，API 客户端可读取持久化快照历史。仓库列表请求使用独立序号丢弃切换项目后的迟到响应。
 - 默认 HTTP 超时 30 秒；候选抽取和证据问答 240 秒；都不自动重试。
 - 后端失败时展示错误和重试入口，不回退成演示数据。
 - 分页参数：`page` 从 1 开始，`page_size` 1–100，默认 20。

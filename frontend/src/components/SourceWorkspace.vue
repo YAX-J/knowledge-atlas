@@ -282,6 +282,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                 <strong>{{ repository.name }}</strong>
                 <a v-if="repository.remote_url" :href="repository.remote_url" target="_blank" rel="noopener noreferrer">{{ repository.remote_url }}</a>
                 <small v-else>尚未关联 GitHub remote</small>
+                <small v-if="repository.provider_repository_id">GitHub ID · {{ repository.provider_repository_id }}</small>
                 <div v-if="repository.provider === 'github'" class="repository-sync">
                   <label :for="`github-ref-${repository.id}`">同步 ref <span>选填</span></label>
                   <input :id="`github-ref-${repository.id}`" v-model="githubRefs[repository.id]" type="text" maxlength="255" placeholder="默认分支" :disabled="locked" />

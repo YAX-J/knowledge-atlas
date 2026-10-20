@@ -36,10 +36,12 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 ## GitHub 快照同步
 
 - `POST /projects/{project_id}/repositories/{repository_id}/sync-github` 只接受已登记 `provider=github` 的仓库。
-- `ref` 省略时读取默认分支，也可指定 branch、tag 或 commit SHA；响应返回实际 commit SHA，但当前不把 commit 元数据写入每份来源。
+- `ref` 省略时读取默认分支，也可指定 branch、tag 或 commit SHA；每次有效同步保存 Commit/tree 元数据与逐文件 blob/status 快照。同一 ref 连续解析到相同 Commit 时直接返回已有快照，不再请求 tree/blob。
 - 使用 GitHub repository、commit、recursive tree 和 blob REST 端点。公开仓库无需令牌；私有仓库令牌只放后端 `GITHUB_TOKEN`，建议仅授予 Contents read。
 - 单份跳过码包括 `SOURCE_EMPTY`、`SOURCE_ENCODING_INVALID`、`SOURCE_PATH_INVALID`、`SOURCE_TOO_LARGE` 和 `GITHUB_IMPORT_TOTAL_SIZE_EXCEEDED`。
-- 不实现 Commit 历史、远端删除对账、重命名检测、Issue/PR、Webhook 或定时/增量同步。
+- 后续 Commit 优先按“路径 + blob SHA”复用未变化文件；已知 blob 可复用既有来源/任务而不重新下载。旧路径消失且相同 blob 只出现在一个新路径时记录 `renamed`；完整 tree 中消失的旧路径记录 `deleted`。截断快照禁止推断删除。
+- GitHub repository `id` 持久化为 provider ID；远端 owner/name 变化时在同一仓库记录上更新规范坐标。重命名/删除只记录同步事实，不破坏性删除历史来源、分块或正式证据。
+- 不实现不可变 Git URL 证据、Issue/PR、Webhook、定时同步或自动失效传播。
 
 ## 解析规则
 
@@ -127,7 +129,7 @@ python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_source_l
 - 分块数量、类型、标题路径、行号、哈希、ID 稳定性。
 - 手动执行幂等、失败重试、运行中 409。
 - Worker 租约接手、旧执行写入被拒、次数上限、`--once` 子进程退出码。
-- GitHub 默认/指定 ref、路径稳定排序、导入/复用/跳过统计、tree/文件/字节截断、raw blob 流式大小限制和供应商错误脱敏。
+- GitHub 默认/指定 ref、同 Commit 短路、路径/blob 复用、重命名/删除、provider ID 仓库改名、快照历史、tree/文件/字节截断、raw blob 流式大小限制和供应商错误脱敏。
 - 正式证据存在时重解析失败（如已实现相应测试）。
 
 ## 完成检查

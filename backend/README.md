@@ -9,7 +9,7 @@ FastAPI service for Knowledge Atlas persistence, Markdown/Java ingestion, eviden
 - Liveness and PostgreSQL readiness endpoints.
 - Request IDs, CORS, request logging, and a stable error envelope.
 - Create, list, and retrieve projects within a development-user boundary.
-- Resolve/list project-scoped local-folder identities, normalize GitHub HTTPS/SSH remotes, optionally link them to local repositories, and explicitly import bounded GitHub Markdown/Java snapshots within the same user/project boundary.
+- Resolve/list project-scoped local-folder identities, normalize GitHub HTTPS/SSH remotes, persist provider IDs and commit snapshots, optionally link remotes to local repositories, and explicitly import bounded incremental GitHub Markdown/Java snapshots within the same user/project boundary.
 - Validate and store UTF-8 Markdown and Java source with a SHA-256 content hash, optional repository identity, and normalized repository-relative path.
 - Create/query parsing tasks and explicitly run them through the API.
 - Automatically consume queued parsing tasks in an optional independent worker process, with leased claims, interrupted-task recovery, and fenced result writes.
@@ -58,7 +58,7 @@ Use the interactive API documentation in this order:
 
 Markdown tasks use `markdown_parsing`, Java tasks use `code_parsing`, and legacy queued `knowledge_extraction` uploads can run Markdown parsing only. Successful tasks end at `succeeded`/`parsed`/100 and sources become `ready`. This does not mean knowledge extraction has run. Execution failures return HTTP 200 with a `failed` task and a sanitized error; the same endpoint retries failed tasks. Repeating a succeeded task returns the existing result, while running/cancelled tasks return HTTP 409. Re-upload responses contain the reused task's current status, which need not be `queued`.
 
-The Markdown parser supports ATX/Setext headings, paragraphs, lists, and fenced code. The bounded Java parser identifies top-level types and conventional direct-member methods, while retaining all source text. Across at most 100 ready Java sources in the same repository, the source-structure view resolves top-level `extends`/`implements` targets plus direct type-qualified and current-type field-receiver method calls through explicit imports, same-package lookup, and wildcard imports; legacy unassigned sources resolve only against other unassigned sources. Chunk IDs remain stable for the same source and boundaries. Changed bytes create a separate source rather than updating an existing source. PostgreSQL project locks serialize repository resolution and duplicate upload creation; SQLite does not validate those locking guarantees. The manual endpoint runs parsing in the API process; automatic execution uses the worker described below. A GitHub sync reads one explicit snapshot, imports at most 50 supported files with a 20 MiB aggregate budget, and reuses this ingestion path. Commit-history persistence, provider-ID rename tracking, deleted-file reconciliation, Issues/PRs, and incremental or scheduled synchronization are not implemented.
+The Markdown parser supports ATX/Setext headings, paragraphs, lists, and fenced code. The bounded Java parser identifies top-level types and conventional direct-member methods, while retaining all source text. Across at most 100 ready Java sources in the same repository, the source-structure view resolves top-level `extends`/`implements` targets plus direct type-qualified and current-type field-receiver method calls through explicit imports, same-package lookup, and wildcard imports; legacy unassigned sources resolve only against other unassigned sources. Chunk IDs remain stable for the same source and boundaries. Changed bytes create a separate source rather than updating an existing source. PostgreSQL project locks serialize repository resolution and duplicate upload creation; SQLite does not validate those locking guarantees. The manual endpoint runs parsing in the API process; automatic execution uses the worker described below. A GitHub sync reads one explicit snapshot, imports at most 50 supported files with a 20 MiB aggregate budget, persists commit/file provenance, and reuses unchanged blobs from the preceding snapshot. Complete trees report renames and deletions; deleted remote files remain immutable historical sources. Webhooks, polling, source/knowledge invalidation, immutable Git line URLs, Issues, and Pull Requests are not implemented.
 
 ## Automatic parsing worker
 
@@ -92,7 +92,7 @@ Docker Compose is an optional alternative: from the repository root, `docker com
 
 ## DeepSeek candidate extraction and review
 
-Apply `alembic upgrade head` (expected `20261019_0009`) before review or semantic-index operations. Configure only the backend `.env`:
+Apply `alembic upgrade head` (expected `20261020_0010`) before review or semantic-index operations. Configure only the backend `.env`:
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key

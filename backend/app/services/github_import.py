@@ -1,19 +1,27 @@
 import uuid
+from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
 import httpx
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import Settings
 from app.core.errors import AppError
+from app.models.domain import (
+    RepositorySnapshot,
+    RepositorySnapshotFile,
+    SourceRepository,
+)
 from app.schemas.repositories import (
     GithubRepositorySyncItem,
     GithubRepositorySyncResult,
 )
 from app.services import ingestion
-from app.services.repositories import get_repository
+from app.services.repositories import get_repository, normalize_github_remote
 
 
 MAX_GITHUB_IMPORT_FILES = 50
@@ -124,6 +132,169 @@ def _get_blob(client: httpx.Client, url: str, *, max_bytes: int) -> bytes:
         ) from exc
 
 
+def _parse_github_datetime(value: object) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _update_provider_identity(
+    db: Session,
+    *,
+    repository: SourceRepository,
+    payload: dict[str, Any],
+) -> None:
+    provider_id_value = payload.get("id")
+    provider_id = (
+        str(provider_id_value)
+        if isinstance(provider_id_value, (int, str)) and str(provider_id_value)
+        else None
+    )
+    if (
+        provider_id is not None
+        and repository.provider_repository_id is not None
+        and repository.provider_repository_id != provider_id
+    ):
+        raise AppError(
+            status_code=409,
+            code="GITHUB_REPOSITORY_IDENTITY_CHANGED",
+            message="GitHub 仓库身份与已保存的 provider ID 不一致",
+        )
+
+    full_name = payload.get("full_name")
+    normalized_identity: tuple[str, str, str] | None = None
+    if isinstance(full_name, str) and "/" in full_name:
+        try:
+            normalized_identity = normalize_github_remote(
+                f"https://github.com/{full_name}"
+            )
+        except AppError:
+            normalized_identity = None
+
+    owner = normalized_identity[0] if normalized_identity else repository.remote_owner
+    name = normalized_identity[1] if normalized_identity else repository.remote_name
+    conflict = db.scalar(
+        select(SourceRepository).where(
+            SourceRepository.user_id == repository.user_id,
+            SourceRepository.project_id == repository.project_id,
+            SourceRepository.id != repository.id,
+            SourceRepository.provider == "github",
+            or_(
+                (
+                    SourceRepository.remote_owner == owner
+                ) & (
+                    SourceRepository.remote_name == name
+                ),
+                SourceRepository.provider_repository_id == provider_id
+                if provider_id is not None else False,
+            ),
+        )
+    )
+    if conflict is not None:
+        raise AppError(
+            status_code=409,
+            code="GITHUB_REPOSITORY_IDENTITY_CONFLICT",
+            message="GitHub 返回的新仓库身份已被当前项目中的其他仓库占用",
+        )
+
+    if provider_id is not None:
+        repository.provider_repository_id = provider_id
+    if normalized_identity is not None:
+        repository.remote_owner, repository.remote_name, repository.remote_url = (
+            normalized_identity
+        )
+        if repository.kind == "git_remote":
+            repository.name = f"{normalized_identity[0]}/{normalized_identity[1]}"
+
+
+def _snapshot(
+    db: Session,
+    *,
+    repository_id: uuid.UUID,
+    ref: str,
+) -> RepositorySnapshot | None:
+    query = (
+        select(RepositorySnapshot)
+        .where(
+            RepositorySnapshot.repository_id == repository_id,
+            RepositorySnapshot.ref == ref,
+        )
+        .options(selectinload(RepositorySnapshot.files))
+    )
+    query = query.order_by(
+        RepositorySnapshot.created_at.desc(), RepositorySnapshot.id.desc()
+    )
+    return db.scalar(query.limit(1))
+
+
+def _repeat_snapshot_result(
+    snapshot: RepositorySnapshot,
+) -> GithubRepositorySyncResult:
+    items = [
+        GithubRepositorySyncItem(
+            path=item.path,
+            source_id=item.source_id,
+            task_id=item.task_id,
+            status="unchanged" if item.source_id is not None else "skipped",
+            error_code=item.error_code,
+        )
+        for item in sorted(snapshot.files, key=lambda item: item.path)
+        if item.status != "deleted"
+    ]
+    return GithubRepositorySyncResult(
+        repository_id=snapshot.repository_id,
+        snapshot_id=snapshot.id,
+        ref=snapshot.ref,
+        commit_sha=snapshot.commit_sha,
+        commit_url=snapshot.commit_url,
+        imported_count=0,
+        reused_count=0,
+        unchanged_count=sum(item.status == "unchanged" for item in items),
+        renamed_count=0,
+        deleted_count=0,
+        skipped_count=sum(item.status == "skipped" for item in items),
+        truncated=snapshot.truncated,
+        deletion_detection_complete=snapshot.deletion_detection_complete,
+        items=items,
+    )
+
+
+def list_repository_snapshots(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    repository_id: uuid.UUID,
+    page: int,
+    page_size: int,
+) -> tuple[list[RepositorySnapshot], int]:
+    get_repository(
+        db,
+        user_id=user_id,
+        project_id=project_id,
+        repository_id=repository_id,
+    )
+    filters = (
+        RepositorySnapshot.user_id == user_id,
+        RepositorySnapshot.project_id == project_id,
+        RepositorySnapshot.repository_id == repository_id,
+    )
+    total = db.scalar(
+        select(func.count()).select_from(RepositorySnapshot).where(*filters)
+    ) or 0
+    items = list(db.scalars(
+        select(RepositorySnapshot)
+        .where(*filters)
+        .order_by(RepositorySnapshot.created_at.desc(), RepositorySnapshot.id.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ))
+    return items, total
+
+
 def sync_github_repository(
     db: Session,
     *,
@@ -170,6 +341,10 @@ def sync_github_repository(
         repository_payload = _get_json(
             client, f"{base_url}/repos/{owner}/{name}"
         )
+        _update_provider_identity(db, repository=repository, payload=repository_payload)
+        # Continue against GitHub's canonical coordinates after a transfer or rename.
+        owner = quote(repository.remote_owner or "", safe="")
+        name = quote(repository.remote_name or "", safe="")
         selected_ref = requested_ref or repository_payload.get("default_branch")
         if not isinstance(selected_ref, str) or not selected_ref:
             raise AppError(
@@ -188,6 +363,18 @@ def sync_github_repository(
                 code="GITHUB_PROVIDER_FAILED",
                 message="GitHub commit 响应缺少 SHA",
             )
+
+        previous_snapshot = _snapshot(
+            db, repository_id=repository.id, ref=selected_ref
+        )
+        if (
+            previous_snapshot is not None
+            and previous_snapshot.commit_sha == commit_sha
+        ):
+            db.add(repository)
+            db.commit()
+            return _repeat_snapshot_result(previous_snapshot)
+
         commit_details = commit_payload.get("commit")
         tree_details = (
             commit_details.get("tree")
@@ -210,53 +397,171 @@ def sync_github_repository(
         truncated = bool(tree_payload.get("truncated")) or len(entries) > len(
             selected_entries
         )
+        deletion_detection_complete = not truncated
+
+        previous_files = (
+            [item for item in previous_snapshot.files if item.status != "deleted"]
+            if previous_snapshot is not None else []
+        )
+        previous_by_path = {item.path: item for item in previous_files}
+        previous_by_blob: defaultdict[
+            str, list[RepositorySnapshotFile]
+        ] = defaultdict(list)
+        for item in previous_files:
+            if item.source_id is not None:
+                previous_by_blob[item.blob_sha].append(item)
+
+        selected_blob_shas = {entry["sha"] for entry in selected_entries}
+        known_by_blob: dict[str, RepositorySnapshotFile] = {}
+        if selected_blob_shas:
+            known_files = db.scalars(
+                select(RepositorySnapshotFile)
+                .join(
+                    RepositorySnapshot,
+                    RepositorySnapshot.id == RepositorySnapshotFile.snapshot_id,
+                )
+                .where(
+                    RepositorySnapshot.repository_id == repository.id,
+                    RepositorySnapshotFile.blob_sha.in_(selected_blob_shas),
+                    RepositorySnapshotFile.source_id.is_not(None),
+                )
+                .order_by(
+                    RepositorySnapshot.created_at.desc(),
+                    RepositorySnapshotFile.created_at.desc(),
+                )
+            )
+            for known_file in known_files:
+                known_by_blob.setdefault(known_file.blob_sha, known_file)
+
+        current_paths = {entry["path"] for entry in selected_entries}
+        current_paths_by_blob: defaultdict[str, list[str]] = defaultdict(list)
+        for entry in selected_entries:
+            current_paths_by_blob[entry["sha"]].append(entry["path"])
+        renamed_from_paths: set[str] = set()
         downloaded_bytes = 0
         items: list[GithubRepositorySyncItem] = []
+        file_records: list[tuple[str, str, int, GithubRepositorySyncItem]] = []
+        source_path_updates: list[tuple[uuid.UUID, str]] = []
+
         for entry in selected_entries:
             path = entry["path"]
+            blob_sha = entry["sha"]
             size = entry["size"]
+            previous_at_path = previous_by_path.get(path)
+            if (
+                previous_at_path is not None
+                and previous_at_path.blob_sha == blob_sha
+                and previous_at_path.source_id is not None
+            ):
+                item = GithubRepositorySyncItem(
+                    path=path,
+                    source_id=previous_at_path.source_id,
+                    task_id=previous_at_path.task_id,
+                    status="unchanged",
+                )
+                items.append(item)
+                file_records.append((path, blob_sha, size, item))
+                continue
+
             if size <= 0:
-                items.append(GithubRepositorySyncItem(
+                item = GithubRepositorySyncItem(
                     path=path, status="skipped", error_code="SOURCE_EMPTY"
-                ))
+                )
+                items.append(item)
+                file_records.append((path, blob_sha, size, item))
                 continue
             if size > settings.max_upload_bytes:
-                items.append(GithubRepositorySyncItem(
+                item = GithubRepositorySyncItem(
                     path=path, status="skipped", error_code="SOURCE_TOO_LARGE"
-                ))
+                )
+                items.append(item)
+                file_records.append((path, blob_sha, size, item))
                 continue
+
+            blob_candidates = previous_by_blob.get(blob_sha, [])
+            rename_candidates = [
+                candidate
+                for candidate in blob_candidates
+                if candidate.path not in current_paths
+                and candidate.path not in renamed_from_paths
+            ]
+            if (
+                previous_at_path is None
+                and len(rename_candidates) == 1
+                and len(current_paths_by_blob[blob_sha]) == 1
+            ):
+                candidate = rename_candidates[0]
+                renamed_from_paths.add(candidate.path)
+                item = GithubRepositorySyncItem(
+                    path=path,
+                    previous_path=candidate.path,
+                    source_id=candidate.source_id,
+                    task_id=candidate.task_id,
+                    status="renamed",
+                )
+                items.append(item)
+                file_records.append((path, blob_sha, size, item))
+                if candidate.source_id is not None and not any(
+                    other.source_id == candidate.source_id
+                    and other.path in current_paths
+                    and other.path != candidate.path
+                    for other in previous_files
+                ):
+                    source_path_updates.append((candidate.source_id, path))
+                continue
+
+            known_file = known_by_blob.get(blob_sha)
+            if known_file is not None:
+                item = GithubRepositorySyncItem(
+                    path=path,
+                    source_id=known_file.source_id,
+                    task_id=known_file.task_id,
+                    status="reused",
+                )
+                items.append(item)
+                file_records.append((path, blob_sha, size, item))
+                continue
+
             if downloaded_bytes + size > MAX_GITHUB_IMPORT_BYTES:
                 truncated = True
-                items.append(GithubRepositorySyncItem(
+                deletion_detection_complete = False
+                item = GithubRepositorySyncItem(
                     path=path,
                     status="skipped",
                     error_code="GITHUB_IMPORT_TOTAL_SIZE_EXCEEDED",
-                ))
+                )
+                items.append(item)
+                file_records.append((path, blob_sha, size, item))
                 continue
             try:
                 raw_content = _get_blob(
                     client,
                     f"{base_url}/repos/{owner}/{name}/git/blobs/"
-                    f"{quote(entry['sha'], safe='')}",
+                    f"{quote(blob_sha, safe='')}",
                     max_bytes=settings.max_upload_bytes,
                 )
             except AppError as exc:
                 if exc.code == "SOURCE_TOO_LARGE":
-                    items.append(GithubRepositorySyncItem(
+                    item = GithubRepositorySyncItem(
                         path=path, status="skipped", error_code=exc.code
-                    ))
+                    )
+                    items.append(item)
+                    file_records.append((path, blob_sha, size, item))
                     continue
                 raise
+            if downloaded_bytes + len(raw_content) > MAX_GITHUB_IMPORT_BYTES:
+                truncated = True
+                deletion_detection_complete = False
+                item = GithubRepositorySyncItem(
+                    path=path,
+                    status="skipped",
+                    error_code="GITHUB_IMPORT_TOTAL_SIZE_EXCEEDED",
+                )
+                items.append(item)
+                file_records.append((path, blob_sha, size, item))
+                continue
+            downloaded_bytes += len(raw_content)
             try:
-                if downloaded_bytes + len(raw_content) > MAX_GITHUB_IMPORT_BYTES:
-                    truncated = True
-                    items.append(GithubRepositorySyncItem(
-                        path=path,
-                        status="skipped",
-                        error_code="GITHUB_IMPORT_TOTAL_SIZE_EXCEEDED",
-                    ))
-                    continue
-                downloaded_bytes += len(raw_content)
                 source, task, reused = ingestion.create_source_and_task_from_bytes(
                     db,
                     settings=settings,
@@ -275,26 +580,105 @@ def sync_github_repository(
                     "SOURCE_PATH_INVALID",
                     "SOURCE_TOO_LARGE",
                 }:
-                    db.rollback()
-                    items.append(GithubRepositorySyncItem(
+                    item = GithubRepositorySyncItem(
                         path=path, status="skipped", error_code=exc.code
-                    ))
+                    )
+                    items.append(item)
+                    file_records.append((path, blob_sha, size, item))
                     continue
                 raise
-            items.append(GithubRepositorySyncItem(
+            item = GithubRepositorySyncItem(
                 path=path,
                 source_id=source.id,
                 task_id=task.id,
                 status="reused" if reused else "imported",
+            )
+            items.append(item)
+            file_records.append((path, blob_sha, size, item))
+
+        if deletion_detection_complete:
+            for previous in sorted(previous_files, key=lambda item: item.path):
+                if (
+                    previous.path not in current_paths
+                    and previous.path not in renamed_from_paths
+                ):
+                    item = GithubRepositorySyncItem(
+                        path=previous.path,
+                        source_id=previous.source_id,
+                        task_id=previous.task_id,
+                        status="deleted",
+                    )
+                    items.append(item)
+                    file_records.append(
+                        (previous.path, previous.blob_sha, previous.size_bytes, item)
+                    )
+
+        commit_info = commit_details if isinstance(commit_details, dict) else {}
+        commit_author = commit_info.get("committer") or commit_info.get("author")
+        commit_url = commit_payload.get("html_url")
+        if not isinstance(commit_url, str) or not commit_url:
+            commit_url = f"{repository.remote_url}/commit/{commit_sha}"
+        snapshot = RepositorySnapshot(
+            user_id=user_id,
+            project_id=project_id,
+            repository_id=repository.id,
+            provider="github",
+            ref=selected_ref,
+            commit_sha=commit_sha,
+            tree_sha=tree_sha,
+            commit_url=commit_url,
+            commit_message=(
+                commit_info.get("message")
+                if isinstance(commit_info.get("message"), str) else ""
+            ),
+            committed_at=_parse_github_datetime(
+                commit_author.get("date") if isinstance(commit_author, dict) else None
+            ),
+            truncated=truncated,
+            deletion_detection_complete=deletion_detection_complete,
+            file_count=len(selected_entries),
+            imported_count=sum(item.status == "imported" for item in items),
+            reused_count=sum(item.status == "reused" for item in items),
+            unchanged_count=sum(item.status == "unchanged" for item in items),
+            renamed_count=sum(item.status == "renamed" for item in items),
+            deleted_count=sum(item.status == "deleted" for item in items),
+            skipped_count=sum(item.status == "skipped" for item in items),
+            downloaded_bytes=downloaded_bytes,
+        )
+        db.add(snapshot)
+        db.flush()
+        for path, blob_sha, size, item in file_records:
+            db.add(RepositorySnapshotFile(
+                snapshot_id=snapshot.id,
+                source_id=item.source_id,
+                task_id=item.task_id,
+                path=path,
+                previous_path=item.previous_path,
+                blob_sha=blob_sha,
+                size_bytes=size,
+                status=item.status,
+                error_code=item.error_code,
             ))
+        for source_id, path in source_path_updates:
+            source = ingestion.get_source(db, user_id=user_id, source_id=source_id)
+            source.relative_path = path
+            source.original_name = Path(path).name
+        db.add(repository)
+        db.commit()
 
     return GithubRepositorySyncResult(
         repository_id=repository.id,
+        snapshot_id=snapshot.id,
         ref=selected_ref,
         commit_sha=commit_sha,
-        imported_count=sum(item.status == "imported" for item in items),
-        reused_count=sum(item.status == "reused" for item in items),
-        skipped_count=sum(item.status == "skipped" for item in items),
+        commit_url=commit_url,
+        imported_count=snapshot.imported_count,
+        reused_count=snapshot.reused_count,
+        unchanged_count=snapshot.unchanged_count,
+        renamed_count=snapshot.renamed_count,
+        deleted_count=snapshot.deleted_count,
+        skipped_count=snapshot.skipped_count,
         truncated=truncated,
+        deletion_detection_complete=deletion_detection_complete,
         items=items,
     )

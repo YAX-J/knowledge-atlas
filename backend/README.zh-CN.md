@@ -9,7 +9,7 @@
 - 存活检查，以及 PostgreSQL 依赖就绪检查。
 - 请求 ID、CORS、请求日志和稳定的错误结构。
 - 在开发用户边界内创建、列出和查询项目。
-- 解析/查询项目范围的本地文件夹身份，规范化 GitHub HTTPS/SSH remote，可选关联本地仓库，并在同一用户/项目边界内显式导入有界的 GitHub Markdown/Java 快照。
+- 解析/查询项目范围的本地文件夹身份，规范化 GitHub HTTPS/SSH remote，保存 provider ID 与 Commit 快照，可选关联本地仓库，并在同一用户/项目边界内显式增量导入有界的 GitHub Markdown/Java 快照。
 - 校验并保存 UTF-8 Markdown 与 Java 源码，记录 SHA-256 内容哈希、可空仓库身份和规范化仓库内相对路径。
 - 创建/查询解析任务，并通过 API 显式执行。
 - 可选独立 Worker 自动消费排队任务，提供租约认领、中断恢复和结果写入保护。
@@ -58,7 +58,7 @@ OpenAPI 文档地址为 `http://localhost:8000/docs`。
 
 Markdown 任务使用 `markdown_parsing`，Java 任务使用 `code_parsing`；旧版排队的 `knowledge_extraction` 上传任务也只执行 Markdown 解析。成功后任务为 `succeeded`/`parsed`/100，来源变为 `ready`，这不代表已经执行知识抽取。执行失败时返回 HTTP 200，任务状态为 `failed`，错误内容经过脱敏；可调用同一接口重试。重复执行成功任务会返回已有结果；运行中或已取消任务返回 HTTP 409。重复上传响应中返回的是复用任务的当前状态，不一定为 `queued`。
 
-Markdown 解析器支持 ATX/Setext 标题、段落、列表和围栏代码。Java 有界解析器识别顶层类型和常规直接成员方法，同时保留全部源码。来源结构视图还会在最多 100 份同仓库已解析 Java 来源内，按显式导入、同包和通配导入解析顶层类型的 `extends`/`implements` 目标，以及直接类型限定和当前类型字段接收者的方法调用；旧的未归属资料只与其他未归属资料互相解析。同一来源与分块边界下，分块 ID 保持稳定。文件字节变化时创建独立来源，不修改既有来源。PostgreSQL 项目行锁串行化仓库解析与重复上传创建；SQLite 不验证这类锁保证。手动接口在 API 进程中解析，自动执行使用下文的 Worker。一次 GitHub 同步读取一个显式快照，最多导入 50 份支持文件，累计预算 20 MiB，并复用这条导入链路。Commit 历史持久化、基于 provider ID 的重命名跟踪、远端删除对账、Issue/PR，以及增量或定时同步尚未实现。
+Markdown 解析器支持 ATX/Setext 标题、段落、列表和围栏代码。Java 有界解析器识别顶层类型和常规直接成员方法，同时保留全部源码。来源结构视图还会在最多 100 份同仓库已解析 Java 来源内，按显式导入、同包和通配导入解析顶层类型的 `extends`/`implements` 目标，以及直接类型限定和当前类型字段接收者的方法调用；旧的未归属资料只与其他未归属资料互相解析。同一来源与分块边界下，分块 ID 保持稳定。文件字节变化时创建独立来源，不修改既有来源。PostgreSQL 项目行锁串行化仓库解析与重复上传创建；SQLite 不验证这类锁保证。手动接口在 API 进程中解析，自动执行使用下文的 Worker。一次 GitHub 同步读取一个显式快照，最多导入 50 份支持文件，累计预算 20 MiB，保存 Commit/文件来源信息，并从上一快照复用未变化 blob。完整 tree 会报告重命名与删除；远端删除的文件仍保留为不可变历史来源。Webhook、轮询、来源/知识失效、不可变 Git 行链接、Issue 和 Pull Request 尚未实现。
 
 ## 自动解析 Worker
 
@@ -92,7 +92,7 @@ Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose 
 
 ## DeepSeek 候选提取与审核
 
-审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261019_0009`。只在后端 `.env` 中配置：
+审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261020_0010`。只在后端 `.env` 中配置：
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key

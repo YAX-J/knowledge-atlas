@@ -12,6 +12,8 @@ from app.core import config as app_config
 from app.models.domain import (
     ProcessingTask,
     Project,
+    RepositorySnapshot,
+    RepositorySnapshotFile,
     SourceDocument,
     SourceRepository,
     TaskStatus,
@@ -111,6 +113,92 @@ def test_postgresql_migrations_compile_without_a_live_server(monkeypatch) -> Non
     assert "remote_url VARCHAR(1024)" in sql
     assert "ck_source_repositories_remote_identity" in sql
     assert "uq_source_repositories_remote_scope" in sql
+    assert "provider_repository_id VARCHAR(255)" in sql
+    assert "CREATE TABLE repository_snapshots" in sql
+    assert "CREATE TABLE repository_snapshot_files" in sql
+
+
+def test_repository_snapshot_migration_is_reversible(tmp_path, monkeypatch) -> None:
+    url = f"sqlite+pysqlite:///{(tmp_path / 'repository-snapshots.db').as_posix()}"
+    monkeypatch.setattr(
+        app_config, "get_settings", lambda: SimpleNamespace(database_url=url)
+    )
+    config = migration_config()
+    command.upgrade(config, "20261019_0009")
+    engine = create_engine(url)
+    command.upgrade(config, "head")
+    assert {
+        "repository_snapshots", "repository_snapshot_files"
+    } <= set(inspect(engine).get_table_names())
+    assert "provider_repository_id" in {
+        column["name"] for column in inspect(engine).get_columns("source_repositories")
+    }
+
+    with Session(engine) as db:
+        project = Project(user_id=uuid.uuid4(), name="Snapshot migration")
+        db.add(project)
+        db.flush()
+        repository = SourceRepository(
+            user_id=project.user_id,
+            project_id=project.id,
+            name="example/demo",
+            kind="git_remote",
+            provider="github",
+            provider_repository_id="42",
+            remote_owner="example",
+            remote_name="demo",
+            remote_url="https://github.com/example/demo",
+        )
+        db.add(repository)
+        db.flush()
+        source_id = insert_legacy_source(
+            db,
+            user_id=project.user_id,
+            project_id=project.id,
+            original_name="README.md",
+        )
+        task = ProcessingTask(
+            user_id=project.user_id,
+            project_id=project.id,
+            source_id=source_id,
+            type="markdown_parsing",
+        )
+        db.add(task)
+        db.flush()
+        snapshot = RepositorySnapshot(
+            user_id=project.user_id,
+            project_id=project.id,
+            repository_id=repository.id,
+            provider="github",
+            ref="main",
+            commit_sha="a" * 40,
+            tree_sha="b" * 40,
+            commit_message="Initial",
+        )
+        db.add(snapshot)
+        db.flush()
+        db.add(RepositorySnapshotFile(
+            snapshot_id=snapshot.id,
+            source_id=source_id,
+            task_id=task.id,
+            path="README.md",
+            blob_sha="c" * 40,
+            size_bytes=4,
+            status="imported",
+        ))
+        db.commit()
+        snapshot_id = snapshot.id
+
+    with Session(engine) as db:
+        assert db.get(RepositorySnapshot, snapshot_id).commit_message == "Initial"
+    command.downgrade(config, "20261019_0009")
+    assert "repository_snapshots" not in inspect(engine).get_table_names()
+    assert "repository_snapshot_files" not in inspect(engine).get_table_names()
+    assert "provider_repository_id" not in {
+        column["name"] for column in inspect(engine).get_columns("source_repositories")
+    }
+    command.upgrade(config, "head")
+    engine.dispose()
 
 
 def test_github_repository_migration_preserves_local_repositories_and_is_reversible(

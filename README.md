@@ -4,7 +4,7 @@
 
 Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成带有来源、时间和上下文的知识网络，帮助开发者重新找到历史方案、理解技术决策，并基于真实证据回答问题。
 
-> 当前进度：Markdown 与 Java 的本地单文件/仓库文件夹导入（含仓库内相对路径持久化）、规范化 GitHub remote 身份及显式有界快照同步、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、关键词/语义向量/一跳图关系融合检索，以及同步证据问答已经实现。GitHub 当前只同步单个 ref 中最多 50 份支持文件，不保存 Commit 历史或执行增量同步；Java 支持有界跨文件类型和直接类型/字段接收者方法关系，但不代表完整 AST 或调用图已经完成。
+> 当前进度：Markdown 与 Java 的本地单文件/仓库文件夹导入（含仓库内相对路径持久化）、规范化 GitHub remote 身份、显式有界快照及 Commit 元数据持久化/增量同步、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、关键词/语义向量/一跳图关系融合检索，以及同步证据问答已经实现。GitHub 当前只处理单个 ref 中最多 50 份支持文件；删除保留为历史快照，不自动失效既有知识。Java 支持有界跨文件类型和直接类型/字段接收者方法关系，但不代表完整 AST 或调用图已经完成。
 
 ![Knowledge Atlas 知识图谱工作台](docs/images/knowledge-atlas-overview.png)
 
@@ -20,7 +20,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 
 | 能力 | 说明 | 当前状态 |
 | --- | --- | --- |
-| 资料导入 | 导入 Markdown、文本、代码及 GitHub 数据 | Markdown/Java 本地上传与有界 GitHub ref 快照导入已完成；Commit 历史、Issue/PR 与增量同步待开发 |
+| 资料导入 | 导入 Markdown、文本、代码及 GitHub 数据 | Markdown/Java 本地上传、有界 GitHub ref 快照、Commit 元数据与增量 blob 复用已完成；Issue/PR 与自动同步待开发 |
 | 知识抽取与审核 | 提取带原文证据的实体、关系候选，并逐项确认或拒绝 | DeepSeek 接口、审核页面及确认后写入正式图谱已实现，真实调用待验收 |
 | 实体消歧 | 合并别名和重复实体，保留人工确认流程 | 规划中 |
 | 知识图谱 | 浏览节点、关系、项目归属和来源证据 | 项目图谱已接入真实数据；演示图谱仍为 Mock |
@@ -47,7 +47,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - 基于当前节点生成模拟证据回答。
 - 桌面端与移动端响应式布局。
 - 真实项目列表与创建、项目资料列表，以及 Markdown/Java 的桌面端单文件上传或本地仓库文件夹导入（最多 50 份支持文件，保存仓库身份和仓库内相对路径）。
-- 来源仓库清单、GitHub HTTPS/SSH remote 规范化登记、关联已有本地仓库，以及从默认分支或指定 ref 显式同步最多 50 份 Markdown/Java 文件。
+- 来源仓库清单、GitHub HTTPS/SSH remote 规范化登记、稳定 provider ID、关联已有本地仓库，以及从默认分支或指定 ref 显式增量同步最多 50 份 Markdown/Java 文件并保存 Commit 快照。
 - 显式开始/重试解析、原文预览、标题或代码结构与行号分块查询。
 - Java 类型、字段、方法、有界同文件调用，以及按包/导入解析的跨文件继承/实现和直接类型/字段接收者方法调用展示，明确与已审核正式图谱分离。
 - 候选知识确认/拒绝、名称摘要修正和旧确认补写入图谱。
@@ -123,7 +123,7 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-候选提取和语义索引需要先应用最新迁移（`20261019_0009`）。候选提取在后端 `.env` 设置 `DEEPSEEK_API_KEY`；语义检索需另外配置 `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL` 和 `EMBEDDING_MODEL`，当前固定 1024 维。外部调用都由用户显式触发。GitHub 公开仓库同步无需令牌；私有仓库可在后端设置只读 `GITHUB_TOKEN`。详细设置见 [后端说明](backend/README.zh-CN.md)。
+候选提取、语义索引和 GitHub Commit 快照需要先应用最新迁移（`20261020_0010`）。候选提取在后端 `.env` 设置 `DEEPSEEK_API_KEY`；语义检索需另外配置 `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL` 和 `EMBEDDING_MODEL`，当前固定 1024 维。外部调用都由用户显式触发。GitHub 公开仓库同步无需令牌；私有仓库可在后端设置只读 `GITHUB_TOKEN`。详细设置见 [后端说明](backend/README.zh-CN.md)。
 
 接口文档地址为 `http://localhost:8000/docs`，存活检查地址为 `http://localhost:8000/api/v1/health/live`。
 
@@ -223,7 +223,7 @@ knowledge-atlas/
 7. 回答必须返回原文证据；证据不足时明确说明缺失信息。
 8. 至少支持一组新旧结论的替代关系和历史查询。
 
-该闭环的当前实现已继续扩展到本地 Java 与有界 GitHub 快照；Commit 历史、增量同步、多跳查询和知识治理仍按路线逐步推进。
+该闭环的当前实现已继续扩展到本地 Java、有界 GitHub Commit 快照与增量 blob 同步；不可变 Git 行链接、Issue/PR、多跳查询和知识治理仍按路线逐步推进。
 
 ## 设计原则
 

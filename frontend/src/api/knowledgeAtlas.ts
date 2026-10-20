@@ -151,6 +151,7 @@ export interface SourceRepository {
   remote_owner: string | null
   remote_name: string | null
   remote_url: string | null
+  provider_repository_id: string | null
   created_at: string
   updated_at: string
 }
@@ -164,19 +165,53 @@ export interface SourceRepositoryList {
 
 export interface GithubRepositorySyncResult {
   repository_id: string
+  snapshot_id: string
   ref: string
   commit_sha: string
+  commit_url: string | null
   imported_count: number
   reused_count: number
+  unchanged_count: number
+  renamed_count: number
+  deleted_count: number
   skipped_count: number
   truncated: boolean
+  deletion_detection_complete: boolean
   items: {
     path: string
+    previous_path: string | null
     source_id: string | null
     task_id: string | null
-    status: 'imported' | 'reused' | 'skipped'
+    status: 'imported' | 'reused' | 'unchanged' | 'renamed' | 'deleted' | 'skipped'
     error_code: string | null
   }[]
+}
+
+export interface RepositorySnapshotList {
+  items: {
+    id: string
+    repository_id: string
+    ref: string
+    commit_sha: string
+    tree_sha: string
+    commit_url: string | null
+    commit_message: string
+    committed_at: string | null
+    truncated: boolean
+    deletion_detection_complete: boolean
+    file_count: number
+    imported_count: number
+    reused_count: number
+    unchanged_count: number
+    renamed_count: number
+    deleted_count: number
+    skipped_count: number
+    downloaded_bytes: number
+    created_at: string
+  }[]
+  page: number
+  page_size: number
+  total: number
 }
 
 export interface ProcessingTask {
@@ -277,6 +312,18 @@ export function syncGithubRepository(
       body: JSON.stringify({ ref: ref?.trim() || null }),
       signal: AbortSignal.timeout(120000),
     },
+  )
+}
+
+export function listRepositorySnapshots(
+  projectId: string,
+  repositoryId: string,
+  page = 1,
+  pageSize = 20,
+): Promise<RepositorySnapshotList> {
+  const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  return apiRequest<RepositorySnapshotList>(
+    `/projects/${projectId}/repositories/${repositoryId}/snapshots?${query}`,
   )
 }
 

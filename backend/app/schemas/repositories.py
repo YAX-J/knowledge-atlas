@@ -36,6 +36,7 @@ class RepositoryRead(BaseModel):
     remote_owner: str | None
     remote_name: str | None
     remote_url: str | None
+    provider_repository_id: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -71,21 +72,61 @@ class GithubRepositorySync(BaseModel):
 
 class GithubRepositorySyncItem(BaseModel):
     path: str
+    previous_path: str | None = None
     source_id: uuid.UUID | None = None
     task_id: uuid.UUID | None = None
-    status: Literal["imported", "reused", "skipped"]
+    status: Literal[
+        "imported", "reused", "unchanged", "renamed", "deleted", "skipped"
+    ]
     error_code: str | None = None
 
 
 class GithubRepositorySyncResult(BaseModel):
     repository_id: uuid.UUID
+    snapshot_id: uuid.UUID
     ref: str
     commit_sha: str
+    commit_url: str | None
     imported_count: int
     reused_count: int
+    unchanged_count: int
+    renamed_count: int
+    deleted_count: int
     skipped_count: int
     truncated: bool
+    deletion_detection_complete: bool
     items: list[GithubRepositorySyncItem]
+
+
+class RepositorySnapshotRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    repository_id: uuid.UUID
+    ref: str
+    commit_sha: str
+    tree_sha: str
+    commit_url: str | None
+    commit_message: str
+    committed_at: datetime | None
+    truncated: bool
+    deletion_detection_complete: bool
+    file_count: int
+    imported_count: int
+    reused_count: int
+    unchanged_count: int
+    renamed_count: int
+    deleted_count: int
+    skipped_count: int
+    downloaded_bytes: int
+    created_at: datetime
+
+
+class RepositorySnapshotList(BaseModel):
+    items: list[RepositorySnapshotRead]
+    page: int
+    page_size: int
+    total: int
 
 
 class RepositoryList(BaseModel):

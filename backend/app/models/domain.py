@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum as SAEnum,
@@ -105,6 +106,10 @@ class SourceRepository(TimestampMixin, Base):
             "user_id", "project_id", "provider", "remote_owner", "remote_name",
             name="uq_source_repositories_remote_scope",
         ),
+        UniqueConstraint(
+            "user_id", "project_id", "provider", "provider_repository_id",
+            name="uq_source_repositories_provider_id_scope",
+        ),
         Index(
             "ix_source_repositories_project_created", "project_id", "created_at"
         ),
@@ -123,11 +128,100 @@ class SourceRepository(TimestampMixin, Base):
     remote_owner: Mapped[str | None] = mapped_column(String(255), nullable=True)
     remote_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     remote_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    provider_repository_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
 
     project: Mapped[Project] = relationship(back_populates="repositories")
     sources: Mapped[list["SourceDocument"]] = relationship(
         back_populates="repository"
     )
+    snapshots: Mapped[list["RepositorySnapshot"]] = relationship(
+        back_populates="repository", cascade="all, delete-orphan"
+    )
+
+
+class RepositorySnapshot(TimestampMixin, Base):
+    __tablename__ = "repository_snapshots"
+    __table_args__ = (
+        CheckConstraint(
+            "provider IN ('github')", name="ck_repository_snapshots_provider"
+        ),
+        Index(
+            "ix_repository_snapshots_repository_ref_created",
+            "repository_id", "ref", "created_at",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    repository_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("source_repositories.id", ondelete="CASCADE"), nullable=False
+    )
+    provider: Mapped[str] = mapped_column(String(30), nullable=False)
+    ref: Mapped[str] = mapped_column(String(255), nullable=False)
+    commit_sha: Mapped[str] = mapped_column(String(64), nullable=False)
+    tree_sha: Mapped[str] = mapped_column(String(64), nullable=False)
+    commit_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    commit_message: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    committed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    truncated: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    deletion_detection_complete: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
+    file_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    imported_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    reused_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    unchanged_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    renamed_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    deleted_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    skipped_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    downloaded_bytes: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
+
+    repository: Mapped[SourceRepository] = relationship(back_populates="snapshots")
+    files: Mapped[list["RepositorySnapshotFile"]] = relationship(
+        back_populates="snapshot", cascade="all, delete-orphan"
+    )
+
+
+class RepositorySnapshotFile(TimestampMixin, Base):
+    __tablename__ = "repository_snapshot_files"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('imported', 'reused', 'unchanged', 'renamed', "
+            "'deleted', 'skipped')",
+            name="ck_repository_snapshot_files_status",
+        ),
+        UniqueConstraint(
+            "snapshot_id", "path", name="uq_repository_snapshot_files_path"
+        ),
+        Index(
+            "ix_repository_snapshot_files_snapshot_blob",
+            "snapshot_id", "blob_sha",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("repository_snapshots.id", ondelete="CASCADE"), nullable=False
+    )
+    source_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("source_documents.id", ondelete="SET NULL"), nullable=True
+    )
+    task_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("processing_tasks.id", ondelete="SET NULL"), nullable=True
+    )
+    path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    previous_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    blob_sha: Mapped[str] = mapped_column(String(64), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+    snapshot: Mapped[RepositorySnapshot] = relationship(back_populates="files")
 
 
 class SourceDocument(TimestampMixin, Base):

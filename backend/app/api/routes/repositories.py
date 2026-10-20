@@ -11,6 +11,8 @@ from app.schemas.repositories import (
     RepositoryList,
     RepositoryRead,
     RepositoryResolve,
+    RepositorySnapshotList,
+    RepositorySnapshotRead,
 )
 from app.services import github_import, repositories as repository_service
 
@@ -72,6 +74,34 @@ def sync_github_repository(
         project_id=project_id,
         repository_id=repository_id,
         requested_ref=sync_in.ref,
+    )
+
+
+@router.get(
+    "/projects/{project_id}/repositories/{repository_id}/snapshots",
+    response_model=RepositorySnapshotList,
+)
+def list_repository_snapshots(
+    project_id: uuid.UUID,
+    repository_id: uuid.UUID,
+    db: DatabaseSession,
+    user_id: CurrentUserId,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+) -> RepositorySnapshotList:
+    items, total = github_import.list_repository_snapshots(
+        db,
+        user_id=user_id,
+        project_id=project_id,
+        repository_id=repository_id,
+        page=page,
+        page_size=page_size,
+    )
+    return RepositorySnapshotList(
+        items=[RepositorySnapshotRead.model_validate(item) for item in items],
+        page=page,
+        page_size=page_size,
+        total=total,
     )
 
 

@@ -88,7 +88,7 @@ uvicorn app.main:app --reload
 
 在 OpenAPI 界面验证导入时，依次创建项目、上传 UTF-8 Markdown 或 Java 源文件、调用 `POST /api/v1/tasks/{task_id}/run`，并查询 `GET /api/v1/sources/{source_id}/chunks`。也可以在另一个已激活环境的终端中，从 `backend/` 运行 `python -m app.worker`，自动消费上传任务。先应用包含执行租约与图谱表的最新迁移。`python -m app.worker --once` 最多处理一个符合条件的任务后退出。配置、恢复规则、退出码和解析限制见 [后端说明](../backend/README.zh-CN.md)。
 
-验证本机服务配置时，从 `backend/` 运行 `alembic current`，预期版本为 `20261019_0009`；查询 `/api/v1/health/ready`，PostgreSQL 应为 `up`。随后使用真实本地数据库验证项目创建、上传、自动解析、重复复用、重启持久化，以及 Worker/API 竞争。SQLite 测试不能验证原生服务联通、PostgreSQL 锁或 pgvector 距离运算。
+验证本机服务配置时，从 `backend/` 运行 `alembic current`，预期版本为 `20261020_0010`；查询 `/api/v1/health/ready`，PostgreSQL 应为 `up`。随后使用真实本地数据库验证项目创建、上传、自动解析、重复复用、重启持久化，以及 Worker/API 竞争。SQLite 测试不能验证原生服务联通、PostgreSQL 锁或 pgvector 距离运算。
 
 如果选择容器方案，从仓库根目录运行 `docker compose up -d --build` 可启动完整环境。Worker 等待 API 应用迁移并通过存活检查后启动。Docker 不是验收前提。
 
@@ -102,7 +102,7 @@ uvicorn app.main:app --reload
 
 ## GitHub 快照导入
 
-公开仓库同步无需凭据。私有仓库只在 `backend/.env` 设置 `GITHUB_TOKEN`，并授予最小的 GitHub Contents 读取权限。保留 `GITHUB_API_BASE_URL=https://api.github.com`、`GITHUB_API_VERSION=2026-03-10`，仅在需要时调整 `GITHUB_TIMEOUT_SECONDS`。在资料工作台登记 remote 后，显式同步默认分支或指定 ref。一次请求最多导入 50 份支持文件和 20 MiB；不会 clone、轮询、持久化 Commit 历史或执行增量同步。
+公开仓库同步无需凭据。私有仓库只在 `backend/.env` 设置 `GITHUB_TOKEN`，并授予最小的 GitHub Contents 读取权限。保留 `GITHUB_API_BASE_URL=https://api.github.com`、`GITHUB_API_VERSION=2026-03-10`，仅在需要时调整 `GITHUB_TIMEOUT_SECONDS`。应用迁移 `20261020_0010`，在资料工作台登记 remote 后显式同步默认分支或指定 ref。一次请求最多导入 50 份支持文件和 20 MiB，保存 Commit/文件来源，并通过上一快照跳过未变化 blob；不会 clone、轮询、自动失效历史证据或自动同步。
 
 ## 前端验证
 

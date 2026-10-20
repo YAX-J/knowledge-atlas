@@ -346,15 +346,17 @@ async function syncRegisteredGithubRepository(input: {
   try {
     const result = await syncGithubRepository(projectId, input.repositoryId, input.ref)
     if (project.value?.id !== projectId) return
-    const selected = [...result.items].reverse().find(item => item.source_id && item.task_id)
+    const selected = [...result.items].reverse().find(
+      item => item.status !== 'deleted' && item.source_id && item.task_id,
+    )
     if (selected?.source_id && selected.task_id) {
       sourcesRequest++
       clearSourceSelection()
       selectedSourceId.value = selected.source_id
       selectedTaskId.value = selected.task_id
     }
-    notice.value = `GitHub ${result.ref}@${result.commit_sha.slice(0, 7)} 同步完成：新增 ${result.imported_count}、复用 ${result.reused_count}、跳过 ${result.skipped_count}${result.truncated ? '；结果达到导入上限' : ''}。`
-    await loadSources(1)
+    notice.value = `GitHub ${result.ref}@${result.commit_sha.slice(0, 7)} 同步完成：新增 ${result.imported_count}、复用 ${result.reused_count}、未变 ${result.unchanged_count}、重命名 ${result.renamed_count}、删除 ${result.deleted_count}、跳过 ${result.skipped_count}${result.truncated ? '；结果达到导入上限' : ''}${result.deletion_detection_complete ? '' : '；本次无法完整判断删除'}。`
+    await Promise.all([loadSources(1), loadRepositories(repositories.value?.page ?? 1)])
     if (selectedSourceId.value) await refreshSource()
   } catch (error) {
     if (project.value?.id === projectId) {

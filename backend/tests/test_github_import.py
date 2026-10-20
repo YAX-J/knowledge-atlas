@@ -111,7 +111,9 @@ def test_sync_github_imports_reuses_and_skips_supported_files(
     second = client.post(endpoint, json={})
     assert second.status_code == 200
     assert second.json()["imported_count"] == 0
-    assert second.json()["reused_count"] == 2
+    assert second.json()["reused_count"] == 0
+    assert second.json()["unchanged_count"] == 2
+    assert second.json()["snapshot_id"] == first.json()["snapshot_id"]
     sources = client.get(
         f"/api/v1/projects/{project_id}/sources?page=1&page_size=20"
     ).json()
@@ -122,6 +124,145 @@ def test_sync_github_imports_reuses_and_skips_supported_files(
     assert {item["repository_id"] for item in sources["items"]} == {
         repository["id"]
     }
+    snapshots = client.get(
+        f"/api/v1/projects/{project_id}/repositories/{repository['id']}/snapshots"
+    )
+    assert snapshots.status_code == 200
+    assert snapshots.json()["total"] == 1
+    assert snapshots.json()["items"][0]["commit_sha"] == "a" * 40
+    assert snapshots.json()["items"][0]["tree_sha"] == "t" * 40
+
+
+def test_sync_github_incrementally_tracks_rename_delete_and_provider_identity(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    phase = 1
+    blob_requests: list[str] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path in {"/repos/example/demo", "/repos/example/renamed"}:
+            return httpx.Response(200, json={
+                "id": 42,
+                "full_name": "Example/Renamed",
+                "default_branch": "main",
+            })
+        if path.endswith("/commits/main"):
+            sha = {1: "1", 2: "2", 3: "3"}[phase] * 40
+            tree_sha = {1: "x", 2: "y", 3: "z"}[phase] * 40
+            return httpx.Response(200, json={
+                "sha": sha,
+                "html_url": f"https://github.com/example/renamed/commit/{sha}",
+                "commit": {
+                    "message": f"phase {phase}",
+                    "committer": {"date": "2026-10-20T08:00:00Z"},
+                    "tree": {"sha": tree_sha},
+                },
+            })
+        if path.endswith(f"/git/trees/{'x' * 40}"):
+            return httpx.Response(200, json={
+                "truncated": False,
+                "tree": [
+                    {"path": "A.md", "type": "blob", "sha": "same", "size": 4},
+                    {"path": "gone.md", "type": "blob", "sha": "gone", "size": 7},
+                    {"path": "keep.md", "type": "blob", "sha": "keep", "size": 7},
+                ],
+            })
+        if path.endswith(f"/git/trees/{'y' * 40}"):
+            return httpx.Response(200, json={
+                "truncated": False,
+                "tree": [
+                    {"path": "B.md", "type": "blob", "sha": "same", "size": 4},
+                    {"path": "keep.md", "type": "blob", "sha": "keep", "size": 7},
+                    {"path": "new.md", "type": "blob", "sha": "new", "size": 6},
+                ],
+            })
+        if path.endswith(f"/git/trees/{'z' * 40}"):
+            return httpx.Response(200, json={
+                "truncated": False,
+                "tree": [
+                    {"path": "B.md", "type": "blob", "sha": "same", "size": 4},
+                    {"path": "gone.md", "type": "blob", "sha": "gone", "size": 7},
+                    {"path": "keep.md", "type": "blob", "sha": "keep", "size": 7},
+                ],
+            })
+        if "/git/blobs/" in path:
+            blob_sha = path.rsplit("/", 1)[-1]
+            blob_requests.append(blob_sha)
+            content = {
+                "same": b"# A\n",
+                "gone": b"# Gone\n",
+                "keep": b"# Keep\n",
+                "new": b"# New\n",
+            }[blob_sha]
+            return httpx.Response(200, content=content)
+        raise AssertionError(path)
+
+    install_github_mock(monkeypatch, respond)
+    project_id = create_project(client)
+    repository = register_github(client, project_id)
+    endpoint = (
+        f"/api/v1/projects/{project_id}/repositories/"
+        f"{repository['id']}/sync-github"
+    )
+    first = client.post(endpoint, json={})
+    assert first.status_code == 200
+    assert first.json()["imported_count"] == 3
+
+    phase = 2
+    second = client.post(endpoint, json={})
+    assert second.status_code == 200
+    payload = second.json()
+    assert payload["commit_sha"] == "2" * 40
+    assert payload["commit_url"].endswith("/commit/" + "2" * 40)
+    assert (
+        payload["imported_count"],
+        payload["reused_count"],
+        payload["unchanged_count"],
+        payload["renamed_count"],
+        payload["deleted_count"],
+    ) == (1, 0, 1, 1, 1)
+    assert payload["deletion_detection_complete"] is True
+    assert {item["path"]: item["status"] for item in payload["items"]} == {
+        "B.md": "renamed",
+        "gone.md": "deleted",
+        "keep.md": "unchanged",
+        "new.md": "imported",
+    }
+    renamed = next(item for item in payload["items"] if item["status"] == "renamed")
+    assert renamed["previous_path"] == "A.md"
+    assert blob_requests == ["same", "gone", "keep", "new"]
+
+    repositories = client.get(
+        f"/api/v1/projects/{project_id}/repositories?page=1&page_size=20"
+    ).json()
+    stored_repository = repositories["items"][0]
+    assert stored_repository["provider_repository_id"] == "42"
+    assert stored_repository["remote_url"] == "https://github.com/example/renamed"
+    assert stored_repository["name"] == "example/renamed"
+
+    phase = 3
+    third = client.post(endpoint, json={})
+    assert third.status_code == 200
+    assert third.json()["commit_sha"] == "3" * 40
+    assert (
+        third.json()["imported_count"],
+        third.json()["reused_count"],
+        third.json()["unchanged_count"],
+        third.json()["deleted_count"],
+    ) == (0, 1, 2, 1)
+    assert next(
+        item for item in third.json()["items"] if item["path"] == "gone.md"
+    )["status"] == "reused"
+    assert blob_requests == ["same", "gone", "keep", "new"]
+
+    snapshots = client.get(
+        f"/api/v1/projects/{project_id}/repositories/{repository['id']}/snapshots"
+    ).json()
+    assert snapshots["total"] == 3
+    assert snapshots["items"][1]["renamed_count"] == 1
+    assert snapshots["items"][1]["deleted_count"] == 1
 
 
 def test_sync_github_supports_ref_and_reports_truncation(
@@ -161,6 +302,7 @@ def test_sync_github_supports_ref_and_reports_truncation(
     assert response.status_code == 200
     assert response.json()["ref"] == "release/1.0"
     assert response.json()["truncated"] is True
+    assert response.json()["deletion_detection_complete"] is False
     assert [item["path"] for item in response.json()["items"]] == ["A.md"]
 
 
