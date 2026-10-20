@@ -80,3 +80,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0015: Identify local-folder source repositories within a project](0015-local-folder-repository-identity.md)
 - [ADR 0016: Normalize GitHub remote identity before repository import](0016-normalized-github-remote-identity.md)
 - [ADR 0017: Resolve bounded cross-file Java method calls on demand](0017-bounded-cross-file-java-method-calls.md)
+- [ADR 0018: Import bounded GitHub repository snapshots explicitly](0018-bounded-github-snapshot-import.md)

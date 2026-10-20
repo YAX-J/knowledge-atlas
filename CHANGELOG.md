@@ -10,6 +10,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Explicit bounded GitHub snapshot synchronization from a repository default branch or requested ref, with optional backend-only token authentication, deterministic selection of up to 50 Markdown/Java blobs, a 20 MiB aggregate budget, per-file import/reuse/skip results, existing parsing-task reuse, and desktop controls.
 - Bounded repository-scoped Java cross-file method-call hints for direct type-qualified and current-type field receivers, with package/import resolution, stable target IDs, exact source paths and lines, overload ambiguity, truncation, and desktop outline presentation outside the formal graph.
 - Normalized project-scoped GitHub remote registration for HTTPS, SCP-style SSH, and `ssh://` forms, with optional linking to local-folder repositories, remote-only identities, conflict isolation, a repository list UI, and a reversible migration. Registration does not contact GitHub or import repository content.
 - Project-scoped local-folder repository identities with idempotent resolve/list APIs, nullable source membership, repository-relative paths, repository-aware duplicate reuse, repository labels in source views, and repository-bounded Java type resolution. Existing sources remain unassigned without backfill.

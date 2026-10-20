@@ -16,7 +16,7 @@ import {
   runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
   getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
   getJavaCodeStructure,
-  listRepositories, resolveGithubRepository, resolveLocalRepository,
+  listRepositories, resolveGithubRepository, resolveLocalRepository, syncGithubRepository,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
@@ -43,8 +43,8 @@ const task = ref<ProcessingTask | null>(null)
 const chunks = ref<SourceChunkList | null>(null)
 const codeStructure = ref<JavaCodeStructure | null>(null)
 const notice = ref('')
-const loading = reactive<IngestionLoading>({ projects: false, create: false, repositories: false, remote: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false })
-const errors = reactive<IngestionErrors>({ projects: '', create: '', repositories: '', remote: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '' })
+const loading = reactive<IngestionLoading>({ projects: false, create: false, repositories: false, remote: false, sync: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false })
+const errors = reactive<IngestionErrors>({ projects: '', create: '', repositories: '', remote: '', sync: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '' })
 let projectsRequest = 0
 let repositoriesRequest = 0
 let sourcesRequest = 0
@@ -234,7 +234,7 @@ async function loadProjects(page = 1) {
 }
 
 function selectProject(value: ApiProject) {
-  if (loading.upload || loading.task || loading.remote) return
+  if (loading.upload || loading.task || loading.remote || loading.sync) return
   clearQuestion()
   project.value = value
   clearSearch()
@@ -249,13 +249,13 @@ function selectProject(value: ApiProject) {
   sources.value = null
   sourcesRequest++
   clearSourceSelection()
-  errors.repositories = errors.remote = errors.sources = errors.upload = ''
+  errors.repositories = errors.remote = errors.sync = errors.sources = errors.upload = ''
   notice.value = ''
   void Promise.all([loadRepositories(1), loadSources(1)])
 }
 
 async function addProject(input: { name: string; description: string }) {
-  if (loading.create || loading.upload || loading.task || loading.remote) return
+  if (loading.create || loading.upload || loading.task || loading.remote || loading.sync) return
   loading.create = true
   errors.create = ''
   try {
@@ -314,7 +314,7 @@ async function registerGithubRepository(input: {
   localRepositoryId?: string
 }) {
   const projectId = project.value?.id
-  if (!projectId || loading.remote || loading.upload || loading.task) return
+  if (!projectId || loading.remote || loading.sync || loading.upload || loading.task) return
   loading.remote = true
   errors.remote = ''
   notice.value = ''
@@ -334,8 +334,40 @@ async function registerGithubRepository(input: {
   }
 }
 
+async function syncRegisteredGithubRepository(input: {
+  repositoryId: string
+  ref?: string
+}) {
+  const projectId = project.value?.id
+  if (!projectId || loading.sync || loading.remote || loading.upload || loading.task) return
+  loading.sync = true
+  errors.sync = ''
+  notice.value = '正在从 GitHub 读取仓库快照…'
+  try {
+    const result = await syncGithubRepository(projectId, input.repositoryId, input.ref)
+    if (project.value?.id !== projectId) return
+    const selected = [...result.items].reverse().find(item => item.source_id && item.task_id)
+    if (selected?.source_id && selected.task_id) {
+      sourcesRequest++
+      clearSourceSelection()
+      selectedSourceId.value = selected.source_id
+      selectedTaskId.value = selected.task_id
+    }
+    notice.value = `GitHub ${result.ref}@${result.commit_sha.slice(0, 7)} 同步完成：新增 ${result.imported_count}、复用 ${result.reused_count}、跳过 ${result.skipped_count}${result.truncated ? '；结果达到导入上限' : ''}。`
+    await loadSources(1)
+    if (selectedSourceId.value) await refreshSource()
+  } catch (error) {
+    if (project.value?.id === projectId) {
+      notice.value = ''
+      errors.sync = errorMessage(error)
+    }
+  } finally {
+    loading.sync = false
+  }
+}
+
 async function selectSource(sourceId: string, taskId: string | null) {
-  if (loading.create || loading.upload || loading.task) return
+  if (loading.create || loading.upload || loading.task || loading.sync) return
   clearSourceSelection()
   selectedSourceId.value = sourceId
   selectedTaskId.value = taskId
@@ -409,7 +441,7 @@ async function loadCodeStructure() {
 
 async function uploadFiles(files: File[]) {
   const projectId = project.value?.id
-  if (!projectId || !files.length || loading.create || loading.upload || loading.task || loading.remote) return
+  if (!projectId || !files.length || loading.create || loading.upload || loading.task || loading.remote || loading.sync) return
   loading.upload = true
   errors.upload = ''
   notice.value = ''
@@ -469,7 +501,7 @@ async function uploadFiles(files: File[]) {
 
 async function parseSource() {
   const taskId = selectedTaskId.value
-  if (!taskId || loading.create || loading.task || loading.upload) return
+  if (!taskId || loading.create || loading.task || loading.upload || loading.sync) return
   loading.task = true
   errors.task = ''
   try {
@@ -705,7 +737,7 @@ function setTimeline(value: number) {
       :code-structure="codeStructure"
       :loading="loading" :errors="errors" :notice="notice"
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
-      @repositories-page="loadRepositories" @resolve-github="registerGithubRepository"
+      @repositories-page="loadRepositories" @resolve-github="registerGithubRepository" @sync-github="syncRegisteredGithubRepository"
       @sources-page="loadSources" @select-source="selectSource" @upload="uploadFiles"
       @run="parseSource" @refresh="refreshSource" @chunks-page="loadChunks"
       @graph="openProjectGraph"

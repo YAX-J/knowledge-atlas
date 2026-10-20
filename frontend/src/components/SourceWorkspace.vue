@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import type {
   ApiProject, ApiProjectList, ApiSource, JavaCodeStructure, ProcessingTask, SourceChunkList, SourceList, SourceListItem, SourceRepositoryList,
 } from '../api/knowledgeAtlas'
@@ -26,6 +26,7 @@ const emit = defineEmits<{
   projectsPage: [page: number]
   repositoriesPage: [page: number]
   resolveGithub: [input: { remoteUrl: string; localRepositoryId?: string }]
+  syncGithub: [input: { repositoryId: string; ref?: string }]
   sourcesPage: [page: number]
   selectSource: [sourceId: string, taskId: string | null]
   upload: [files: File[]]
@@ -38,6 +39,7 @@ const name = ref('')
 const description = ref('')
 const remoteUrl = ref('')
 const localRepositoryId = ref('')
+const githubRefs = reactive<Record<string, string>>({})
 const singleFileInput = ref<HTMLInputElement | null>(null)
 const folderInput = ref<HTMLInputElement | null>(null)
 const fileError = ref('')
@@ -53,7 +55,7 @@ const relatedMethodsById = computed(() => new Map((props.codeStructure?.related_
 const linkableLocalRepositories = computed(() => (
   props.repositories?.items.filter(item => item.kind === 'local_folder' && !item.remote_url) ?? []
 ))
-const locked = computed(() => props.loading.create || props.loading.upload || props.loading.task || props.loading.remote)
+const locked = computed(() => props.loading.create || props.loading.upload || props.loading.task || props.loading.remote || props.loading.sync)
 const statusLabels: Record<string, string> = {
   uploaded: '待解析', processing: '解析中', ready: '已解析', failed: '解析失败',
   queued: '待解析', running: '解析中', succeeded: '已解析', cancelled: '已取消',
@@ -272,6 +274,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
             </div>
             <p v-if="loading.repositories" class="muted-copy" role="status">正在读取仓库身份…</p>
             <div v-if="errors.repositories" class="inline-error" role="alert"><p>{{ errors.repositories }}</p><button class="text-button" type="button" @click="emit('repositoriesPage', repositories?.page ?? 1)">重试加载仓库</button></div>
+            <p v-if="errors.sync" class="inline-error" role="alert">{{ errors.sync }}</p>
             <p v-if="!loading.repositories && !errors.repositories && repositories?.total === 0" class="empty-copy">尚未登记仓库；上传文件夹或登记 GitHub 地址后会显示在这里。</p>
             <div v-if="repositories?.items.length" class="repository-list">
               <article v-for="repository in repositories.items" :key="repository.id" class="repository-card">
@@ -279,6 +282,11 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                 <strong>{{ repository.name }}</strong>
                 <a v-if="repository.remote_url" :href="repository.remote_url" target="_blank" rel="noopener noreferrer">{{ repository.remote_url }}</a>
                 <small v-else>尚未关联 GitHub remote</small>
+                <div v-if="repository.provider === 'github'" class="repository-sync">
+                  <label :for="`github-ref-${repository.id}`">同步 ref <span>选填</span></label>
+                  <input :id="`github-ref-${repository.id}`" v-model="githubRefs[repository.id]" type="text" maxlength="255" placeholder="默认分支" :disabled="locked" />
+                  <button class="text-button" type="button" :disabled="locked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubRefs[repository.id]?.trim() || undefined })">{{ loading.sync ? '正在同步…' : '同步 GitHub 内容' }}</button>
+                </div>
               </article>
             </div>
             <nav v-if="repositoryPages > 1" class="source-pagination" aria-label="仓库分页">
@@ -296,7 +304,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                   <option value="">不关联，登记为远程仓库</option>
                   <option v-for="repository in linkableLocalRepositories" :key="repository.id" :value="repository.id">{{ repository.name }}</option>
                 </select>
-                <p class="source-upload-hint">接受 GitHub HTTPS 或 SSH remote；这里只登记规范化身份，不会联网、克隆或读取仓库内容。</p>
+                <p class="source-upload-hint">接受 GitHub HTTPS 或 SSH remote；登记后可显式同步默认分支或指定 ref 中最多 50 份 Markdown/Java 文件。</p>
                 <p v-if="errors.remote" class="inline-error" role="alert">{{ errors.remote }}</p>
                 <button class="primary-button" type="submit" :disabled="locked || !remoteUrl.trim()">{{ loading.remote ? '正在登记…' : '登记 remote' }}</button>
               </form>

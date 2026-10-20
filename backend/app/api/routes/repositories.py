@@ -3,13 +3,16 @@ import uuid
 from fastapi import APIRouter, Query
 
 from app.api.dependencies import CurrentUserId, DatabaseSession
+from app.core.config import get_settings
 from app.schemas.repositories import (
     GithubRepositoryResolve,
+    GithubRepositorySync,
+    GithubRepositorySyncResult,
     RepositoryList,
     RepositoryRead,
     RepositoryResolve,
 )
-from app.services import repositories as repository_service
+from app.services import github_import, repositories as repository_service
 
 
 router = APIRouter(tags=["repositories"])
@@ -48,6 +51,27 @@ def resolve_github_repository(
         user_id=user_id,
         project_id=project_id,
         repository_in=repository_in,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/repositories/{repository_id}/sync-github",
+    response_model=GithubRepositorySyncResult,
+)
+def sync_github_repository(
+    project_id: uuid.UUID,
+    repository_id: uuid.UUID,
+    sync_in: GithubRepositorySync,
+    db: DatabaseSession,
+    user_id: CurrentUserId,
+) -> GithubRepositorySyncResult:
+    return github_import.sync_github_repository(
+        db,
+        settings=get_settings(),
+        user_id=user_id,
+        project_id=project_id,
+        repository_id=repository_id,
+        requested_ref=sync_in.ref,
     )
 
 

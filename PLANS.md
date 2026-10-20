@@ -33,11 +33,12 @@ Completed:
 - Bounded repository-scoped Java `extends`/`implements` resolution across ready sources using package and import rules, shown with target paths and lines outside the formal graph.
 - Project-scoped local-folder repository identities, repository-relative paths, repository-aware duplicate reuse, and repository-bounded Java type resolution.
 - Normalized project-scoped GitHub HTTPS/SSH remote identities, optional linking to an existing local-folder repository, remote-only registration, and a repository list UI. Registration performs no GitHub request or clone.
+- Explicit bounded GitHub snapshot synchronization for the default branch or a requested ref, importing at most 50 Markdown/Java blobs with a 20 MiB aggregate budget through existing repository-scoped deduplication and parsing tasks.
 - Bounded repository-scoped Java method-call targets for direct type-qualified and current-type field receivers, with target paths, exact lines, and ambiguity surfaced outside the formal graph.
 
 ## Active phase
 
-The active phase is Stage 4 code ingestion. Its bounded local-file slice accepts Java files, uses `code_parsing`, preserves exact source lines in structural chunks, persists local-folder repository identities and repository-relative paths, and reuses the existing worker and evidence workflow. It resolves a small repository-local subset of cross-file type and direct type/field-receiver method relationships and can register normalized GitHub owner/repository coordinates, optionally attaching them to a local-folder identity. It does not claim provider-ID-backed rename tracking, a complete Java AST or symbol/call graph, local-variable/parameter/inherited dispatch resolution, GitHub content/commit import, or incremental synchronization. See [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.md), [ADR 0014](docs/adr/0014-bounded-cross-file-java-types.md), [ADR 0015](docs/adr/0015-local-folder-repository-identity.md), [ADR 0016](docs/adr/0016-normalized-github-remote-identity.md), and [ADR 0017](docs/adr/0017-bounded-cross-file-java-method-calls.md).
+The active phase is Stage 4 code ingestion. Its bounded local-file slice accepts Java files, uses `code_parsing`, preserves exact source lines in structural chunks, persists local-folder repository identities and repository-relative paths, and reuses the existing worker and evidence workflow. It resolves a small repository-local subset of cross-file type and direct type/field-receiver method relationships, registers normalized GitHub owner/repository coordinates, and explicitly imports a bounded default-branch or requested-ref snapshot. It does not claim provider-ID-backed rename tracking, a complete Java AST or symbol/call graph, local-variable/parameter/inherited dispatch resolution, persisted commit history, GitHub Issue/PR import, or incremental synchronization. See [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.md), [ADR 0014](docs/adr/0014-bounded-cross-file-java-types.md), [ADR 0015](docs/adr/0015-local-folder-repository-identity.md), [ADR 0016](docs/adr/0016-normalized-github-remote-identity.md), [ADR 0017](docs/adr/0017-bounded-cross-file-java-method-calls.md), and [ADR 0018](docs/adr/0018-bounded-github-snapshot-import.md).
 
 Implemented in this slice:
 
@@ -51,6 +52,7 @@ Implemented in this slice:
 - Project-scoped top-level `extends`/`implements` resolution across at most 100 ready Java sources using explicit imports, same-package lookup, and wildcard imports, with ambiguity and truncation surfaced in the source outline.
 - A stable local-folder repository UUID resolved from project, kind, and folder-root name; folder sources store repository-relative paths, deduplicate within that repository, and do not resolve Java types across repository boundaries.
 - GitHub HTTPS, SCP-style SSH, and `ssh://` remotes normalize to a project-scoped owner/repository identity and canonical URL; users can register remote-only repositories or link an existing local-folder repository without contacting GitHub.
+- A registered GitHub repository can be synchronized explicitly at its default branch or a requested ref; up to 50 supported blobs and 20 MiB enter the same immutable source/task workflow, with partial skips and truncation reported.
 - Direct type-qualified and current-type field-receiver calls resolve by imports/package to methods declared in other ready sources in the same repository, with name-only overload ambiguity and bounded target metadata.
 
 Acceptance still needed:
@@ -67,7 +69,7 @@ Project keyword, semantic-vector, explainable one-hop graph hybrid retrieval, an
 ## Later phases
 
 1. Representative real-answer acceptance and retrieval/prompt quality evaluation.
-2. Extend Java resolution beyond direct type/field receivers and add GitHub content/commit ingestion with provider IDs, rename handling, and incremental synchronization.
+2. Persist GitHub commit provenance and add provider-aware rename/deletion handling and incremental synchronization; extend Java resolution beyond direct type/field receivers.
 3. Temporal evolution, governance, experiments, and deployment.
 
 Markdown parsing, schema-constrained review, and confirmed-candidate graph persistence are complete as bounded slices.

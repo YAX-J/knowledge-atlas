@@ -100,6 +100,10 @@ uvicorn app.main:app --reload
 
 在后端 `.env` 配置 `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL`、`EMBEDDING_MODEL`；当前 `EMBEDDING_DIMENSIONS` 必须为 `1024`。在项目图谱点击“更新语义索引”后再选择语义模式搜索。实体文本和查询会发送到所配置的服务；知识确认不调用嵌入服务。真实服务与原生 pgvector 路径需单独验收。
 
+## GitHub 快照导入
+
+公开仓库同步无需凭据。私有仓库只在 `backend/.env` 设置 `GITHUB_TOKEN`，并授予最小的 GitHub Contents 读取权限。保留 `GITHUB_API_BASE_URL=https://api.github.com`、`GITHUB_API_VERSION=2026-03-10`，仅在需要时调整 `GITHUB_TIMEOUT_SECONDS`。在资料工作台登记 remote 后，显式同步默认分支或指定 ref。一次请求最多导入 50 份支持文件和 20 MiB；不会 clone、轮询、持久化 Commit 历史或执行增量同步。
+
 ## 前端验证
 
 ```bash

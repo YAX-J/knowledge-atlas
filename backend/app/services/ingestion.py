@@ -61,6 +61,33 @@ async def create_source_and_task(
     relative_path: str | None,
     repository_id: uuid.UUID | None,
 ) -> tuple[SourceDocument, ProcessingTask]:
+    raw_content = await upload.read(settings.max_upload_bytes + 1)
+    source, task, _ = create_source_and_task_from_bytes(
+        db,
+        settings=settings,
+        user_id=user_id,
+        project_id=project_id,
+        filename=upload.filename or "",
+        raw_content=raw_content,
+        source_type=source_type,
+        relative_path=relative_path,
+        repository_id=repository_id,
+    )
+    return source, task
+
+
+def create_source_and_task_from_bytes(
+    db: Session,
+    *,
+    settings: Settings,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    filename: str,
+    raw_content: bytes,
+    source_type: str | None,
+    relative_path: str | None,
+    repository_id: uuid.UUID | None,
+) -> tuple[SourceDocument, ProcessingTask, bool]:
     get_project(db, user_id=user_id, project_id=project_id)
     repository = (
         get_repository(
@@ -72,7 +99,7 @@ async def create_source_and_task(
         if repository_id is not None else None
     )
 
-    original_name = Path((upload.filename or "").replace("\\", "/")).name
+    original_name = Path(filename.replace("\\", "/")).name
     suffix = Path(original_name).suffix.lower()
     inferred_source_type = SOURCE_TYPE_BY_SUFFIX.get(suffix)
     if not original_name or inferred_source_type is None:
@@ -102,7 +129,6 @@ async def create_source_and_task(
             details={"source_type": normalized_source_type},
         )
 
-    raw_content = await upload.read(settings.max_upload_bytes + 1)
     if len(raw_content) > settings.max_upload_bytes:
         raise AppError(
             status_code=413,
@@ -160,7 +186,7 @@ async def create_source_and_task(
     ).first()
     if existing is not None:
         db.commit()
-        return existing[0], existing[1]
+        return existing[0], existing[1], True
 
     source = SourceDocument(
         user_id=user_id,
@@ -187,7 +213,7 @@ async def create_source_and_task(
     db.commit()
     db.refresh(source)
     db.refresh(task)
-    return source, task
+    return source, task, False
 
 
 def get_source(

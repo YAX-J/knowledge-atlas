@@ -162,6 +162,23 @@ export interface SourceRepositoryList {
   total: number
 }
 
+export interface GithubRepositorySyncResult {
+  repository_id: string
+  ref: string
+  commit_sha: string
+  imported_count: number
+  reused_count: number
+  skipped_count: number
+  truncated: boolean
+  items: {
+    path: string
+    source_id: string | null
+    task_id: string | null
+    status: 'imported' | 'reused' | 'skipped'
+    error_code: string | null
+  }[]
+}
+
 export interface ProcessingTask {
   id: string
   project_id: string
@@ -246,6 +263,21 @@ export function resolveGithubRepository(
       local_repository_id: localRepositoryId || null,
     }),
   })
+}
+
+export function syncGithubRepository(
+  projectId: string,
+  repositoryId: string,
+  ref?: string,
+): Promise<GithubRepositorySyncResult> {
+  return apiRequest<GithubRepositorySyncResult>(
+    `/projects/${projectId}/repositories/${repositoryId}/sync-github`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ ref: ref?.trim() || null }),
+      signal: AbortSignal.timeout(120000),
+    },
+  )
 }
 
 export function getTask(taskId: string): Promise<ProcessingTask> {

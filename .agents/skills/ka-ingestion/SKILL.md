@@ -23,7 +23,7 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 - 保存原文、字节数、SHA-256、媒体类型和规范化的 `original_name`（去掉路径）；文件夹上传还保存本地来源仓库 UUID 与最长 1024 字符的规范化仓库内 `relative_path`。
 - 上传成功始终返回 HTTP 202，响应里的 `status` 可能是 `queued`、`running`、`succeeded`、`failed`、`cancelled`。
 - 桌面端文件夹最多提取 50 份支持文件，先按项目、`local_folder` 与根目录名幂等解析仓库，再顺序调用单文件接口并提交仓库 UUID 和剥离根目录名后的相对路径；单份失败不回滚其他成功请求。
-- 仓库可登记规范化 GitHub HTTPS/SSH remote，或把 remote 关联到本地文件夹仓库；登记本身不联网、不克隆，也不创建来源或解析任务。
+- 仓库可登记规范化 GitHub HTTPS/SSH remote，或把 remote 关联到本地文件夹仓库；登记本身不联网、不克隆。随后可显式同步默认分支或指定 ref：按稳定路径顺序导入最多 50 份非空 UTF-8 Markdown/Java blob，单份沿用 `MAX_UPLOAD_BYTES`，累计最多 20 MiB，并逐份复用本节的去重与解析任务链路。部分文件无效时跳过，不回滚已成功项；tree/数量/总字节触顶时返回截断。
 
 ## 去重语义
 
@@ -32,6 +32,14 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 - 先对项目行加锁，再查已有来源 + 解析任务；命中则复用原 `source_id` 和 `task_id`，保留首次上传的文件名与相对路径。
 - 内容变化、换仓库或换项目 → 新来源，不自动建立版本/`SUPERSEDES` 关系。
 - 复用返回的是任务**当前**状态，不要假设一定是 `queued`。
+
+## GitHub 快照同步
+
+- `POST /projects/{project_id}/repositories/{repository_id}/sync-github` 只接受已登记 `provider=github` 的仓库。
+- `ref` 省略时读取默认分支，也可指定 branch、tag 或 commit SHA；响应返回实际 commit SHA，但当前不把 commit 元数据写入每份来源。
+- 使用 GitHub repository、commit、recursive tree 和 blob REST 端点。公开仓库无需令牌；私有仓库令牌只放后端 `GITHUB_TOKEN`，建议仅授予 Contents read。
+- 单份跳过码包括 `SOURCE_EMPTY`、`SOURCE_ENCODING_INVALID`、`SOURCE_PATH_INVALID`、`SOURCE_TOO_LARGE` 和 `GITHUB_IMPORT_TOTAL_SIZE_EXCEEDED`。
+- 不实现 Commit 历史、远端删除对账、重命名检测、Issue/PR、Webhook 或定时/增量同步。
 
 ## 解析规则
 
@@ -109,7 +117,7 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 
 ```bash
 cd backend
-python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_source_list.py tests/test_worker.py
+python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_source_list.py tests/test_worker.py tests/test_github_import.py
 ```
 
 重点覆盖：
@@ -119,6 +127,7 @@ python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_source_l
 - 分块数量、类型、标题路径、行号、哈希、ID 稳定性。
 - 手动执行幂等、失败重试、运行中 409。
 - Worker 租约接手、旧执行写入被拒、次数上限、`--once` 子进程退出码。
+- GitHub 默认/指定 ref、路径稳定排序、导入/复用/跳过统计、tree/文件/字节截断、raw blob 流式大小限制和供应商错误脱敏。
 - 正式证据存在时重解析失败（如已实现相应测试）。
 
 ## 完成检查

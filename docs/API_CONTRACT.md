@@ -12,6 +12,7 @@
 | `GET /api/v1/projects/{project_id}` | 已实现 |
 | `POST /api/v1/projects/{project_id}/repositories/resolve` | 已实现，幂等解析本地文件夹仓库身份 |
 | `POST /api/v1/projects/{project_id}/repositories/resolve-github` | 已实现，规范化并登记 GitHub remote 身份 |
+| `POST /api/v1/projects/{project_id}/repositories/{repository_id}/sync-github` | 已实现，显式导入有界 GitHub 快照 |
 | `GET /api/v1/projects/{project_id}/repositories` | 已实现，分页查询来源仓库 |
 | `POST /api/v1/projects/{project_id}/sources` | 已实现，Markdown 与 Java 源文件 |
 | `GET /api/v1/projects/{project_id}/sources` | 已实现，分页查询项目资料及最新任务 |
@@ -125,6 +126,43 @@
 非 GitHub、包含查询参数/片段、HTTPS 凭据或格式不合法的地址返回 HTTP 422 `GITHUB_REMOTE_INVALID`。本地仓库已关联其他 remote 返回 HTTP 409 `SOURCE_REPOSITORY_REMOTE_CONFLICT`；remote 已登记到另一条仓库记录返回 HTTP 409 `GITHUB_REPOSITORY_ALREADY_REGISTERED`；把 remote 关联到非本地仓库返回 HTTP 409 `SOURCE_REPOSITORY_NOT_LOCAL`。越过用户/项目边界仍返回 HTTP 404。
 
 `GET /api/v1/projects/{project_id}/repositories?page=1&page_size=20` 分页返回 `id`、`project_id`、`name`、`kind`、可空的 `provider` / `remote_owner` / `remote_name` / `remote_url`、`created_at` 与 `updated_at`。项目不可访问时返回 HTTP 404。
+
+### 同步 GitHub 仓库快照
+
+`POST /api/v1/projects/{project_id}/repositories/{repository_id}/sync-github`
+
+```json
+{
+  "ref": "main"
+}
+```
+
+`ref` 可省略；省略时读取仓库默认分支，也可填写 branch、tag 或 commit SHA。仓库必须已登记或关联 `provider=github`。后端通过 GitHub REST 解析 commit 与递归 tree，按路径顺序选择最多 50 份 `.md`、`.markdown`、`.java` 文件，单份仍受 `MAX_UPLOAD_BYTES` 限制，一次同步累计下载最多 20 MiB。公开仓库无需令牌；私有仓库可在后端配置只读 `GITHUB_TOKEN`。
+
+```json
+{
+  "repository_id": "...",
+  "ref": "main",
+  "commit_sha": "0123456789abcdef...",
+  "imported_count": 2,
+  "reused_count": 1,
+  "skipped_count": 1,
+  "truncated": false,
+  "items": [
+    {
+      "path": "src/main/java/example/App.java",
+      "source_id": "...",
+      "task_id": "...",
+      "status": "imported",
+      "error_code": null
+    }
+  ]
+}
+```
+
+有效文件复用现有仓库范围内容哈希去重与解析任务语义；`status` 为 `imported`、`reused` 或 `skipped`。空文件、非 UTF-8、非法路径或超限文件会按项跳过，已成功项不会回滚。`truncated=true` 表示 GitHub tree 自身截断、支持文件超过 50 份，或达到累计字节预算。该接口返回解析后的 commit SHA，但当前不持久化每份来源的 commit 元数据、不删除远端已移除文件、不检测重命名，也不执行定时/增量同步。
+
+未关联 GitHub 的仓库返回 HTTP 409 `GITHUB_REPOSITORY_REQUIRED`；远端仓库/ref 不存在或无权读取返回 HTTP 404 `GITHUB_REPOSITORY_UNAVAILABLE`；GitHub 限流/拒绝返回 HTTP 503 `GITHUB_RATE_LIMITED`；网络、响应结构或其他供应商错误返回 HTTP 502 `GITHUB_PROVIDER_FAILED`。Blob 使用 GitHub raw 媒体类型流式读取，并在接收过程中执行单份大小限制。所有错误均不会暴露令牌或原始远端响应。
 
 ### 查询项目资料
 

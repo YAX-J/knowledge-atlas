@@ -98,6 +98,10 @@ Apply the latest migration first, including `review_events` and the formal graph
 
 Configure `EMBEDDING_API_KEY`, `EMBEDDING_BASE_URL`, and `EMBEDDING_MODEL` in the backend `.env`; `EMBEDDING_DIMENSIONS` must currently be `1024`. Use “Update semantic index” on the project graph before vector search. Entity text and queries are sent to the configured service; confirmation does not invoke embeddings. Validate the real provider and native pgvector path separately.
 
+## GitHub snapshot import
+
+Public repository synchronization needs no credential. For a private repository, set `GITHUB_TOKEN` only in `backend/.env` and grant the minimum GitHub Contents read permission. Keep `GITHUB_API_BASE_URL=https://api.github.com`, `GITHUB_API_VERSION=2026-03-10`, and adjust `GITHUB_TIMEOUT_SECONDS` only when needed. Register a remote in the source workspace, then explicitly synchronize its default branch or a requested ref. One request imports at most 50 supported files and 20 MiB; it does not clone, poll, persist commit history, or perform incremental synchronization.
+
 ## Frontend verification
 
 ```bash
