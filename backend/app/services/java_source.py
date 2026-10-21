@@ -30,6 +30,13 @@ FIELD_DECLARATION = re.compile(
     r"(?P<type>[A-Za-z_$][\w$\.<>?,\[\]& \t]*)\s+"
     r"(?P<name>[A-Za-z_$][\w$]*)(?P<tail>[^;{}]*);"
 )
+VAR_LOCAL_DECLARATION = re.compile(
+    r"(?m)^[ \t]*(?:final\s+)?var\s+(?P<name>[A-Za-z_$][\w$]*)\s*="
+)
+CONSTRUCTOR_INITIALIZER = re.compile(
+    r"\s*new\s+(?P<type>[A-Za-z_$][\w$]*"
+    r"(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*"
+)
 LOCAL_CALL = re.compile(
     r"(?<![\w$.])(?:(?:this)\s*\.\s*)?(?P<name>[A-Za-z_$][\w$]*)\s*\("
 )
@@ -641,15 +648,53 @@ def _parameter_types(parameters: str) -> dict[str, str]:
     return result
 
 
+def _constructor_initialized_type(initializer: str) -> str | None:
+    """Recognize a complete `new Type<T>(...)` expression, without data flow."""
+    match = CONSTRUCTOR_INITIALIZER.match(initializer)
+    if match is None or any(char in initializer for char in "{};"):
+        return None
+    cursor = match.end()
+    if cursor < len(initializer) and initializer[cursor] == "<":
+        depth = 0
+        for cursor in range(cursor, len(initializer)):
+            char = initializer[cursor]
+            if char == "<":
+                depth += 1
+            elif char == ">":
+                depth -= 1
+                if depth == 0:
+                    cursor += 1
+                    break
+            elif not (char.isalnum() or char in "_$.,?[]&@ \t\r\n"):
+                return None
+        else:
+            return None
+        while cursor < len(initializer) and initializer[cursor].isspace():
+            cursor += 1
+    if cursor >= len(initializer) or initializer[cursor] != "(":
+        return None
+    depth = 0
+    for position in range(cursor, len(initializer)):
+        if initializer[position] == "(":
+            depth += 1
+        elif initializer[position] == ")":
+            depth -= 1
+            if depth == 0:
+                if initializer[position + 1:].strip():
+                    return None
+                return re.sub(r"\s+", "", match.group("type"))
+    return None
+
+
 def _direct_local_variable_types(
     current: _JavaTypeIndex,
     method: _MethodDeclaration,
     depths: list[int],
-) -> dict[str, list[tuple[int, str]]]:
+) -> dict[str, list[tuple[int, str | None]]]:
     if method.opening is None:
         return {}
     body_depth = depths[method.opening] + 1
-    result: dict[str, list[tuple[int, str]]] = {}
+    result: dict[str, list[tuple[int, str | None]]] = {}
     for match in FIELD_DECLARATION.finditer(
         current.sanitized,
         method.opening + 1,
@@ -669,6 +714,30 @@ def _direct_local_variable_types(
         result.setdefault(match.group("name"), []).append(
             (match.start(), referenced[0])
         )
+    round_depth = 0
+    scanned_until = method.opening + 1
+    for match in VAR_LOCAL_DECLARATION.finditer(
+        current.sanitized, method.opening + 1, method.end
+    ):
+        prefix = current.sanitized[scanned_until:match.start()]
+        round_depth += prefix.count("(") - prefix.count(")")
+        scanned_until = match.start()
+        # A multiline for/try header has body brace depth but narrower scope.
+        if depths[match.start()] != body_depth or round_depth != 0:
+            continue
+        declarations = result.setdefault(match.group("name"), [])
+        # Even an unsupported initializer shadows a field or a type name.
+        declarations.append((match.start(), None))
+        terminator = current.sanitized.find(";", match.end(), method.end)
+        if terminator < 0:
+            continue
+        inferred_type = _constructor_initialized_type(
+            current.sanitized[match.end():terminator]
+        )
+        if inferred_type is not None:
+            declarations.append((terminator, inferred_type))
+    for declarations in result.values():
+        declarations.sort(key=lambda item: item[0])
     return result
 
 
@@ -712,15 +781,19 @@ def _resolve_cross_file_calls(
                 )
             elif "." not in receiver:
                 declarations = local_types.get(receiver, [])
-                target_type_name = next(
+                declaration = next(
                     (
-                        type_name
+                        (offset, type_name)
                         for offset, type_name in reversed(declarations)
                         if offset < call_match.start()
                     ),
                     None,
                 )
-                if target_type_name is None:
+                if declaration is not None:
+                    target_type_name = declaration[1]
+                    if target_type_name is None:
+                        continue
+                else:
                     target_type_name = parameter_types.get(receiver)
                 if target_type_name is None:
                     target_type_name = field_types.get(

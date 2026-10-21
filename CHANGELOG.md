@@ -10,6 +10,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Repository-local Java method links through direct `var` locals initialized by a complete constructor expression, including qualified/generic types, exact lines, stable IDs, and conservative shadowing for unsupported initializers.
 - Bounded GraphQL Pull Request Review thread-state enrichment with current resolved state, resolver, location, outdated state, bounded comment membership, token-aware REST fallback, immutable digest versioning, a reversible migration, and desktop counts.
 - Explicit bounded Pull Request review-activity snapshots with up to 20 reviews and 20 inline review comments per PR, reply links, independent content-digest versioning, canonical PR links, truncation reporting, a reversible migration, and desktop summaries.
 - Bounded Java cross-file call resolution for explicitly typed method parameters and direct method-body local variables, with conservative local/parameter/field shadowing, declaration-order checks, existing package/import resolution, and unchanged formal-graph boundaries.

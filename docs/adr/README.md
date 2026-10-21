@@ -87,3 +87,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0022: Resolve bounded Java calls through declared method receivers](0022-bounded-java-declared-receiver-calls.md)
 - [ADR 0023: Version bounded GitHub Pull Request review activity independently](0023-versioned-github-pull-reviews.md)
 - [ADR 0024: Snapshot bounded GitHub review thread state through GraphQL](0024-bounded-github-review-thread-state.md)
+- [ADR 0025: Infer bounded Java var receivers from constructor initializers](0025-constructor-initialized-java-var-receivers.md)
