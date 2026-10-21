@@ -53,6 +53,7 @@ MAX_RELATED_TYPES = 400
 MAX_TYPE_RELATIONSHIPS = 500
 MAX_RELATED_METHODS = 500
 MAX_CROSS_FILE_CALLS = 500
+MAX_INHERITANCE_VISITS = 256
 
 
 @dataclass(frozen=True)
@@ -170,6 +171,7 @@ class _MethodDeclaration:
     start: int
     opening: int | None
     end: int
+    modifiers: frozenset[str] = frozenset()
 
 
 @dataclass
@@ -179,7 +181,7 @@ class _BlockScope:
     parent: int | None
     supported: bool
     header_start: int
-    header_variable: tuple[str, str | None] | None = None
+    header_bindings: tuple[tuple[str, str | None], ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -221,9 +223,10 @@ class _JavaTypeIndex:
     methods: tuple[JavaRelatedMethod, ...]
     declarations: tuple[_TypeDeclaration, ...]
     sanitized: str
+    method_declarations: dict[uuid.UUID, _MethodDeclaration]
 
 
-def _lex_java(content: str) -> tuple[str, set[int]]:
+def _lex_java(content: str, *, literal_markers: bool = False) -> tuple[str, set[int]]:
     """Blank comments/literals and identify comment-only lines without moving offsets."""
     chars = list(content)
     line_has_comment = [False] * (content.count("\n") + 1)
@@ -238,6 +241,8 @@ def _lex_java(content: str) -> tuple[str, set[int]]:
             if content.startswith('"""', index):
                 line_has_code[line_index] = True
                 chars[index:index + 3] = [" ", " ", " "]
+                if literal_markers:
+                    chars[index] = "0"
                 index += 3
                 state = "text_block"
                 continue
@@ -257,6 +262,8 @@ def _lex_java(content: str) -> tuple[str, set[int]]:
                 line_has_code[line_index] = True
                 quote = current
                 chars[index] = " "
+                if literal_markers:
+                    chars[index] = "0"
                 index += 1
                 state = "string" if quote == '"' else "char"
                 continue
@@ -378,6 +385,7 @@ def _declarations(text: str) -> list[tuple[_TypeDeclaration, list[_MethodDeclara
                 owner=type_declaration.name, name=method_name,
                 parameters=method_match.group("params"),
                 start=method_match.start(), opening=method_opening, end=end_offset,
+                modifiers=frozenset(method_match.group("prefix").split()),
             ))
         result.append((type_declaration, methods))
     return result
@@ -454,7 +462,7 @@ def _heritage_references(
 
 
 def _index_java_source(source: JavaSourceInput) -> _JavaTypeIndex:
-    sanitized, _ = _lex_java(source.content)
+    sanitized, _ = _lex_java(source.content, literal_markers=True)
     line_number = _line_resolver(source.content)
     lines = source.content.splitlines(keepends=True)
     package_match = PACKAGE_DECLARATION.search(sanitized)
@@ -472,6 +480,7 @@ def _index_java_source(source: JavaSourceInput) -> _JavaTypeIndex:
     declarations = tuple(item[0] for item in declaration_pairs)
     types: list[JavaRelatedType] = []
     methods: list[JavaRelatedMethod] = []
+    method_declarations: dict[uuid.UUID, _MethodDeclaration] = {}
     for declaration, declaration_methods in declaration_pairs:
         start_line = _type_start_line(lines, line_number(declaration.start))
         end_line = line_number(declaration.end)
@@ -511,6 +520,7 @@ def _index_java_source(source: JavaSourceInput) -> _JavaTypeIndex:
                 start_line=method_start,
                 end_line=method_end,
             ))
+            method_declarations[methods[-1].id] = method
     return _JavaTypeIndex(
         source_id=source.source_id,
         source_path=source.source_path,
@@ -521,6 +531,7 @@ def _index_java_source(source: JavaSourceInput) -> _JavaTypeIndex:
         methods=tuple(methods),
         declarations=declarations,
         sanitized=sanitized,
+        method_declarations=method_declarations,
     )
 
 
@@ -788,6 +799,85 @@ def _catch_variable(header: str) -> tuple[str, str | None] | None:
     return match.group("name"), type_name
 
 
+def _split_expressions(value: str, separator: str) -> list[str] | None:
+    """Split header statements without splitting nested calls or array access."""
+    stack: list[str] = []
+    pairs = {")": "(", "]": "[", "}": "{"}
+    parts: list[str] = []
+    start = 0
+    for offset, char in enumerate(value):
+        if char in "([{":
+            stack.append(char)
+        elif char in pairs:
+            if not stack or stack.pop() != pairs[char]:
+                return None
+        elif char == separator and not stack:
+            parts.append(value[start:offset])
+            start = offset + 1
+    return None if stack else parts + [value[start:]]
+
+
+def _header_local(value: str) -> tuple[str, str | None] | None:
+    match = re.fullmatch(
+        r"\s*(?:final\s+)?"
+        r"(?P<type>[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*"
+        r"(?:\s*<[\w$.,?<>\[\]&\s]+>)?(?:\s*\[\s*\])*)\s+"
+        r"(?P<name>[A-Za-z_$][\w$]*)(?P<array>(?:\s*\[\s*\])*)\s*="
+        r"(?P<initializer>[\s\S]+)", value,
+    )
+    if match is None:
+        return None
+    # Multi-declarators are not a single binding, even when the first is typed.
+    parts = _split_expressions(match.group("initializer"), ",")
+    if parts is None or (len(parts) != 1 and _constructor_initialized_type(match.group("initializer")) is None):
+        return None
+    declared_type = match.group("type")
+    referenced = _referenced_type_name(declared_type)
+    type_name = referenced[0] if referenced else None
+    if type_name == "var":
+        type_name = _constructor_initialized_type(match.group("initializer"))
+    if re.search(r"\]\s*$", declared_type) or match.group("array"):
+        type_name = None
+    return match.group("name"), type_name
+
+
+def _header_bindings(header: str) -> tuple[tuple[str, str | None], ...] | None:
+    single = _enhanced_for_variable(header) or _catch_variable(header)
+    if single is not None:
+        return (single,)
+    match = re.fullmatch(r"\s*(?P<kind>for|try)\s*\((?P<body>[\s\S]*)\)\s*", header)
+    if match is None or re.search(r"\binstanceof\b", header):
+        return None
+    parts = _split_expressions(match.group("body"), ";")
+    if parts is None:
+        return None
+    if match.group("kind") == "for":
+        if len(parts) != 3:
+            return None
+        if not parts[0].strip():
+            return ()
+        binding = _header_local(parts[0])
+        if binding is not None:
+            return (binding,)
+        # Expression initializers declare no variables. Do not accept a failed
+        # declaration (annotations/multiple declarators) as an expression.
+        if re.match(r"\s*[A-Za-z_$][\w$]*(?:\s*\.[\w$]+)*\s*(?:=(?!=)|\+\+|--|\()", parts[0]):
+            return ()
+        return None
+    if not parts[-1].strip():
+        parts.pop()  # Optional trailing resource separator.
+    if not parts:
+        return None
+    bindings: list[tuple[str, str | None]] = []
+    for part in parts:
+        binding = _header_local(part)
+        if binding is not None:
+            bindings.append(binding)
+        elif not re.fullmatch(r"\s*(?:this\s*\.\s*)?[A-Za-z_$][\w$]*(?:\s*\.\s*[\w$]+)*\s*", part):
+            return None
+    return tuple(bindings)
+
+
 def _method_scopes(text: str, *, opening: int, end: int) -> _MethodScopes:
     """Index supported lexical blocks and exclude bodies with unknown bindings."""
     blocks = [_BlockScope(opening, end, None, True, opening)]
@@ -803,14 +893,14 @@ def _method_scopes(text: str, *, opening: int, end: int) -> _MethodScopes:
         elif char == "{":
             parent = stack[-1]
             header = text[statement_start:position]
-            header_variable = _enhanced_for_variable(header) or _catch_variable(header)
+            header_bindings = _header_bindings(header)
             supported = (
                 blocks[parent].supported
                 and round_depth == 0
-                and (_supported_block_header(header) or header_variable is not None)
+                and (_supported_block_header(header) or header_bindings is not None)
             )
             blocks.append(_BlockScope(
-                position, end, parent, supported, statement_start, header_variable,
+                position, end, parent, supported, statement_start, header_bindings,
             ))
             stack.append(len(blocks) - 1)
             statement_start = position + 1
@@ -823,7 +913,7 @@ def _method_scopes(text: str, *, opening: int, end: int) -> _MethodScopes:
 
     blocked: list[tuple[int, int]] = []
     for block in sorted(blocks[1:], key=lambda item: item.header_start):
-        if block.supported and block.header_variable is None:
+        if block.supported and block.header_bindings is None:
             continue
         # Header variables are only visible in their bodies. Skip header calls
         # rather than guess complex expression bindings.
@@ -849,11 +939,11 @@ def _local_variable_types(
         return {}
     result: dict[str, list[_LocalBinding]] = {}
     for scope in scopes.blocks:
-        if scope.supported and scope.header_variable is not None:
-            name, type_name = scope.header_variable
-            result.setdefault(name, []).append(_LocalBinding(
-                scope.opening, scope.end, type_name,
-            ))
+        if scope.supported and scope.header_bindings is not None:
+            for name, type_name in scope.header_bindings:
+                result.setdefault(name, []).append(_LocalBinding(
+                    scope.opening, scope.end, type_name,
+                ))
     matches = [
         (match, inferred)
         for pattern, inferred in (
@@ -902,6 +992,154 @@ def _local_variable_types(
     return result
 
 
+def _call_arity(text: str, opening: int, end: int) -> int | None:
+    stack: list[str] = []
+    pairs = {")": "(", "]": "[", "}": "{"}
+    count = 0
+    has_argument = False
+    for char in text[opening + 1:end]:
+        if char == ")" and not stack:
+            return count + int(has_argument)
+        if char in "([{":
+            stack.append(char)
+        elif char in pairs:
+            if not stack or stack.pop() != pairs[char]:
+                return None
+        elif char in "<>" and not stack:
+            # Generic argument commas and comparisons need a real expression
+            # parser. Preserve candidates instead of narrowing incorrectly.
+            return None
+        elif char == "," and not stack:
+            count += 1
+            has_argument = False
+            continue
+        if not char.isspace():
+            has_argument = True
+    return None
+
+
+def _accepts_arity(parameters: str, arity: int | None) -> bool:
+    if arity is None:
+        return True
+    parts = _split_type_list(parameters) if parameters.strip() else []
+    if parts and "..." in parts[-1][0]:
+        return arity >= len(parts) - 1
+    return arity == len(parts)
+
+
+def _parameter_signature(
+    index: _JavaTypeIndex, parameters: str,
+    types_by_name: dict[str, list[JavaRelatedType]],
+) -> tuple[str, ...]:
+    signature: list[str] = []
+    for part, _ in _split_type_list(parameters) if parameters.strip() else []:
+        part = re.sub(r"@[\w$.]+(?:\s*\([^()]*\))?\s*", "", part)
+        part = re.sub(r"\bfinal\b", "", part)
+        erased = ""
+        depth = 0
+        for char in part:
+            if char == "<":
+                depth += 1
+            elif char == ">":
+                depth = max(0, depth - 1)
+            elif depth == 0:
+                erased += char
+        referenced = _referenced_type_name(erased)
+        if referenced is None:
+            signature.append(f"unknown:{index.source_id}:{part}")
+            continue
+        raw = referenced[0]
+        resolved_names = {item.qualified_name for item in _resolve_type_name(index, raw, types_by_name)}
+        if len(resolved_names) == 1:
+            raw = next(iter(resolved_names))
+        elif raw in index.imports:
+            raw = index.imports[raw]
+        elif "." not in raw and raw not in {"boolean", "byte", "char", "short", "int", "long", "float", "double"}:
+            # Keep unresolved wildcard contexts distinct, avoiding guessed
+            # overrides between unrelated external types with the same name.
+            raw = f"{index.package_name}:{index.wildcard_imports}:{raw}"
+        dimensions = len(re.findall(r"\[\s*\]", erased)) + int("..." in erased)
+        signature.append(raw + "[]" * dimensions)
+    return tuple(signature)
+
+
+class _MethodLookup:
+    """Bounded repository-local candidate lookup, not runtime dispatch."""
+
+    def __init__(self, indexes: list[_JavaTypeIndex]) -> None:
+        self.indexes = {index.source_id: index for index in indexes}
+        self.types_by_name = _types_by_qualified_name(indexes)
+        self.types = {item.id: item for index in indexes for item in index.types}
+        self.parents: dict[uuid.UUID, list[JavaRelatedType]] = {}
+        self.superclasses: dict[uuid.UUID, list[JavaRelatedType]] = {}
+        self.interfaces: set[uuid.UUID] = set()
+        self.methods: dict[tuple[uuid.UUID, str, str], list[JavaRelatedMethod]] = {}
+        self.signatures: dict[uuid.UUID, tuple[str, ...]] = {}
+        self.cache: dict[tuple, list[JavaRelatedMethod]] = {}
+        self.truncated = False
+        for index in indexes:
+            by_name = {item.name: item for item in index.types}
+            for declaration in index.declarations:
+                owner = by_name[declaration.name]
+                if declaration.kind in {"interface", "@interface"}:
+                    self.interfaces.add(owner.id)
+                for kind, name, _ in _heritage_references(declaration, index.sanitized):
+                    parents = _resolve_type_name(index, name, self.types_by_name)
+                    self.parents.setdefault(owner.id, []).extend(parents)
+                    if kind == "extends" and declaration.kind != "interface":
+                        self.superclasses.setdefault(owner.id, []).extend(parents)
+            for method in index.methods:
+                declaration = index.method_declarations[method.id]
+                if declaration.name == declaration.owner:
+                    continue  # Constructors are not inherited methods.
+                self.methods.setdefault((index.source_id, method.owner_qualified_name, method.name), []).append(method)
+                self.signatures[method.id] = _parameter_signature(index, declaration.parameters, self.types_by_name)
+
+    def candidates(
+        self, owner: JavaRelatedType, name: str, arity: int | None,
+        *, inherited_from: JavaRelatedType | None = None,
+    ) -> list[JavaRelatedMethod]:
+        cache_key = (owner.id, name, arity, inherited_from.id if inherited_from else None)
+        if cache_key in self.cache:
+            return self.cache[cache_key]
+        pending = [(owner, frozenset(), (inherited_from.id,) if inherited_from else ())]
+        seen: set[tuple] = set()
+        targets: dict[uuid.UUID, JavaRelatedMethod] = {}
+        visits = 0
+        while pending:
+            current, hidden, path = pending.pop()
+            if current.id in path:
+                self.truncated = True
+                continue
+            context = (current.id, hidden, frozenset(self.indexes[self.types[parent].source_id].package_name for parent in path))
+            if context in seen:
+                continue
+            seen.add(context)
+            visits += 1
+            if visits > MAX_INHERITANCE_VISITS:
+                self.truncated = True
+                break
+            index = self.indexes[current.source_id]
+            visible = []
+            for method in self.methods.get((current.source_id, current.qualified_name, name), []):
+                declaration = index.method_declarations[method.id]
+                modifiers = declaration.modifiers
+                if path:
+                    if "private" in modifiers or (current.id in self.interfaces and "static" in modifiers):
+                        continue
+                    if not modifiers.intersection({"public", "protected"}) and current.id not in self.interfaces:
+                        if any(self.indexes[self.types[parent].source_id].package_name != index.package_name for parent in path):
+                            continue
+                visible.append(method)
+                if self.signatures[method.id] not in hidden and _accepts_arity(declaration.parameters, arity):
+                    targets[method.id] = method
+            next_hidden = hidden | frozenset(self.signatures[method.id] for method in visible)
+            pending.extend((parent, next_hidden, path + (current.id,)) for parent in self.parents.get(current.id, []))
+        result = list(targets.values())
+        self.cache[cache_key] = result
+        return result
+
+
 def _resolve_cross_file_calls(
     current: _JavaTypeIndex,
     source_indexes: list[_JavaTypeIndex],
@@ -909,13 +1147,8 @@ def _resolve_cross_file_calls(
     *,
     visible_source_symbol_ids: set[uuid.UUID],
 ) -> tuple[list[JavaRelatedMethod], list[JavaCrossFileCall], bool]:
-    types_by_qualified_name = _types_by_qualified_name(source_indexes)
-    methods_by_owner_and_name: dict[tuple[str, str], list[JavaRelatedMethod]] = {}
-    for index in source_indexes:
-        for method in index.methods:
-            methods_by_owner_and_name.setdefault(
-                (method.owner_qualified_name, method.name), []
-            ).append(method)
+    lookup = _MethodLookup(source_indexes)
+    types_by_qualified_name = lookup.types_by_name
     field_types = _field_types_by_owner(current)
     line_number = _line_resolver(current.sanitized)
     related_by_id: dict[uuid.UUID, JavaRelatedMethod] = {}
@@ -930,16 +1163,24 @@ def _resolve_cross_file_calls(
             current.sanitized, opening=method.opening, end=method.end,
         )
         local_types = _local_variable_types(current, method, scopes)
-        for call_match in QUALIFIED_CALL.finditer(
-            current.sanitized,
-            method.opening + 1,
-            method.end,
-        ):
+        owner = next(item for item in current.types if item.name == method.owner)
+        call_matches = [(match, re.sub(r"\s+", "", match.group("receiver")))
+                        for match in QUALIFIED_CALL.finditer(current.sanitized, method.opening + 1, method.end)]
+        for match in LOCAL_CALL.finditer(current.sanitized, method.opening + 1, method.end):
+            if re.match(r"this\s*\.", match.group(0)):
+                continue
+            prefix = current.sanitized[max(method.opening + 1, match.start() - 12):match.start()]
+            if match.group("name") in CONTROL_WORDS or re.search(r"\bnew\s*$", prefix):
+                continue
+            call_matches.append((match, "this"))
+        call_matches.sort(key=lambda item: item[0].start())
+        for call_match, receiver in call_matches:
             if not scopes.allows(call_match.start()):
                 continue
-            receiver = re.sub(r"\s+", "", call_match.group("receiver"))
             callee_name = call_match.group("name")
-            if receiver.startswith("this.") and receiver.count(".") == 1:
+            if receiver in {"this", "super"}:
+                target_type_name = owner.qualified_name
+            elif receiver.startswith("this.") and receiver.count(".") == 1:
                 field_name = receiver.split(".", 1)[1]
                 target_type_name = field_types.get(
                     (caller.owner or "", field_name)
@@ -975,25 +1216,24 @@ def _resolve_cross_file_calls(
                     continue
                 target_type_name = receiver
 
-            target_types = [
-                item
-                for item in _resolve_type_name(
-                    current,
-                    target_type_name,
-                    types_by_qualified_name,
+            if receiver == "this":
+                target_types = [owner]  # The current source identity is known.
+            elif receiver == "super":
+                target_types = lookup.superclasses.get(owner.id, [])
+            else:
+                target_types = _resolve_type_name(
+                    current, target_type_name, types_by_qualified_name,
                 )
-                if item.source_id != current.source_id
-            ]
+            arity = _call_arity(current.sanitized, call_match.end() - 1, method.end)
             targets = sorted(
-                [
-                    target_method
+                {target_method.id: target_method
                     for target_type in target_types
-                    for target_method in methods_by_owner_and_name.get(
-                        (target_type.qualified_name, callee_name),
-                        [],
+                    for target_method in lookup.candidates(
+                        target_type, callee_name, arity,
+                        inherited_from=owner if receiver == "super" else None,
                     )
-                    if target_method.source_id == target_type.source_id
-                ],
+                    if target_method.source_id != current.source_id
+                }.values(),
                 key=lambda item: (
                     item.source_path,
                     item.start_line,
@@ -1041,6 +1281,7 @@ def _resolve_cross_file_calls(
     truncated = (
         len(related_methods) > MAX_RELATED_METHODS
         or len(calls) > MAX_CROSS_FILE_CALLS
+        or lookup.truncated
     )
     visible_related_methods = related_methods[:MAX_RELATED_METHODS]
     visible_target_ids = {item.id for item in visible_related_methods}
@@ -1156,7 +1397,7 @@ def analyze_java(
             cross_file_calls=[],
             truncated=False,
         )
-    sanitized, _ = _lex_java(content)
+    sanitized, _ = _lex_java(content, literal_markers=True)
     depths = _depths(sanitized)
     lines = content.splitlines(keepends=True)
     line_number = _line_resolver(content)
@@ -1217,6 +1458,7 @@ def analyze_java(
             method_records.append((method, method_symbol))
 
     methods_by_owner_name: dict[tuple[str, str], list[JavaSymbol]] = {}
+    declarations_by_id = {symbol.id: declaration for declaration, symbol in method_records}
     for _, method_symbol in method_records:
         methods_by_owner_name.setdefault(
             (method_symbol.owner or "", method_symbol.name), []
@@ -1232,9 +1474,14 @@ def analyze_java(
     for method, caller in method_records:
         if method.opening is None:
             continue
+        scopes = _method_scopes(sanitized, opening=method.opening, end=method.end)
         for call_match in LOCAL_CALL.finditer(sanitized, method.opening + 1, method.end):
+            if not scopes.allows(call_match.start()):
+                continue
             callee_name = call_match.group("name")
-            targets = methods_by_owner_name.get((caller.owner or "", callee_name), [])
+            arity = _call_arity(sanitized, call_match.end() - 1, method.end)
+            targets = [target for target in methods_by_owner_name.get((caller.owner or "", callee_name), [])
+                       if _accepts_arity(declarations_by_id[target.id].parameters, arity)]
             if not targets or callee_name in CONTROL_WORDS:
                 continue
             prefix = sanitized[max(method.opening + 1, call_match.start() - 12):call_match.start()]

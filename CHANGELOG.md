@@ -10,6 +10,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Integrated repository-local Java analysis V1 with braced classic-for/resource scopes, inherited method candidates and original symbols, override/diamond/cycle handling, conservative arity/varargs filtering, and combined acceptance coverage.
 - Java cross-file calls within plain try/finally and explicitly typed catch bodies, with catch-parameter lifetimes, sibling isolation, unknown multi-catch shadowing, and outer-binding restoration.
 - Java cross-file method links through explicitly typed enhanced-for elements in braced bodies, with nested/sibling scope isolation, outer-binding restoration, and conservative unknown `var`/array shadowing.
 - Scoped Java local receiver links in ordinary/if/else/while brace blocks, with declaration lifetimes, sibling isolation, outer-binding restoration, and conservative exclusion of unsupported execution scopes.

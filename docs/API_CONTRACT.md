@@ -336,11 +336,11 @@ Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，�
 
 `related_types` 返回关系目标的稳定类型 ID、来源 ID、相对路径优先的 `source_path`、包限定名和行号；`type_relationships` 返回当前类型符号 ID、目标 ID 列表、源码中的目标名、`extends` / `implements`、声明行及 `resolved` / `ambiguous`。`related_methods` 返回跨文件目标方法的稳定 ID、来源、路径、所属包限定类型、方法限定名和行号；`cross_file_calls` 返回当前调用方 ID、目标方法 ID 列表、接收者、方法名、调用行及解析状态。解析遵循显式导入、同包和通配导入优先级，只返回能匹配同仓库已解析来源的目标；外部库、其他仓库和未解析文件不会伪造关系。同一路径的多个不可变版本若声明相同包限定类型，也会作为多个候选显示为 `ambiguous`。`truncated=true` 表示符号、调用、相关类型/方法、类型关系、跨文件调用或仓库来源至少一类达到上限。
 
-同文件调用识别未限定名或 `this.` 方法；跨文件调用解析遵循常规大写类型命名的直接类型限定调用、当前顶层类型字段，以及具有显式声明类型的方法参数和方法体及受支持嵌套块内的单变量局部声明。未限定接收者按“当前作用域内最近可用的局部变量 → 参数 → 字段”处理遮蔽，`this.field` 始终选择字段；局部变量只在声明之后且所属块结束之前生效，退出块后恢复外层绑定。目标方法仍只按名称返回唯一或歧义候选。支持局部变量 `var x = new Type(...)` 的有界构造器类型推断，包括限定类型名、泛型/diamond 和可选 `final`，在完整初始化结束后生效；无法推断的 `var` 仍遮蔽同名字段/类型，避免错误回退。不解析工厂/链式/数组/匿名类初始化的 `var`、多变量声明、传统 for/资源头部绑定、不支持块中的局部变量、重新赋值/数据流、链式接收者、重载选择、继承方法分派、依赖注入或动态分派。结果按需从不可变原文派生，不写入正式图谱。非 Java 来源或未完成解析分别返回 HTTP 409。边界见 [ADR 0013](adr/0013-derived-java-source-structure.zh-CN.md)、[ADR 0014](adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0017](adr/0017-bounded-cross-file-java-method-calls.zh-CN.md)、[ADR 0022](adr/0022-bounded-java-declared-receiver-calls.zh-CN.md)、[ADR 0025](adr/0025-constructor-initialized-java-var-receivers.zh-CN.md) 与 [ADR 0026](adr/0026-scoped-java-local-receivers.zh-CN.md)。
+Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同文件调用和跨文件候选共用作用域与实参数量筛选：支持普通块/if/else/while/try/catch/finally、带花括号的增强/传统 for 与资源 try。显式类型、构造器初始化 `var`、参数/字段及头部变量按词法范围解析；未知绑定阻止字段/类型回退。头部调用省略，循环/资源变量不会泄漏到块外或 catch/finally。
 
-块级解析支持普通花括号块及 if/else/while，以及带花括号的增强 for 体。增强 for 的单个显式类型元素支持可选 `final`、限定/泛型类型，只在循环体及受支持子块内可用，退出循环后恢复外层绑定；`var` 和数组元素保留未知绑定以阻止字段/类型回退，不从集合推断元素类型。增强 for 头部调用不生成提示，带注解元素声明和无花括号循环不在支持范围内。带花括号的传统 for/资源 try/带注解 catch/switch、lambda、匿名类、局部类型和含 `instanceof` 的分支区域仍保守跳过跨文件调用；该切片不支持完整 Java 作用域或控制流，见 [ADR 0027](adr/0027-enhanced-for-java-receivers.zh-CN.md)。
+仓库内继承候选按原声明来源查找，支持未限定/`this`/`super` 继承调用，按已知参数签名抑制覆盖、去重菱形路径；不继承私有方法、构造器或接口静态方法。单次查找最多遍历 256 个继承状态；继承环/预算触顶也使 `truncated=true`。实参数量筛选支持可变参数，不判断实参类型；同数量类型重载和重复不可变版本仍为 `ambiguous`，不确定表达式保留候选。`resolved` 仅表示该有界分析内唯一候选，不代表编译器验证或运行时目标。
 
-普通 try/finally 块及无注解 catch 体也支持同样的块级声明生命周期；单异常 catch 参数支持简单/限定类型名与可选 `final`，仅在所属 catch 体及受支持子块内生效。多异常 `catch (A | B e)` 保留未知绑定，不任选一种类型，也不回退到同名字段/类型；其他接收者仍可解析。资源 try 的头部和主体中的调用继续保守跳过，其后的受支持 catch/finally 可独立解析；资源变量不会泄漏到这些块中。不做异常控制流、共同父类型求解或继承方法分派，见 [ADR 0028](adr/0028-java-exception-scope-receivers.zh-CN.md)。
+不支持区域仍保守处理；完整 AST、外部依赖、动态分派、泛型替换、工厂/链式推断和完整控制流不在 V1 范围。能力矩阵、精确限制及综合验收步骤见 [Java 分析 V1](JAVA_ANALYSIS_V1.zh-CN.md) 与 [ADR 0029](adr/0029-java-analysis-v1.zh-CN.md)。
 
 ## 知识图谱
 

@@ -239,7 +239,7 @@ def test_code_structure_marks_cross_file_overloads_as_ambiguous(
         content=(
             "package example;\n"
             "class Validator {\n"
-            "    void validate() {}\n"
+            "    void validate(int value) {}\n"
             "    void validate(String value) {}\n"
             "}\n"
         ),
@@ -253,7 +253,7 @@ def test_code_structure_marks_cross_file_overloads_as_ambiguous(
             "package example;\n"
             "class Consumer {\n"
             "    Validator validator;\n"
-            "    void run() { validator.validate(); }\n"
+            "    void run() { validator.validate(value); }\n"
             "}\n"
         ),
     )
@@ -645,7 +645,9 @@ def test_locals_do_not_leak_loop_or_resource_bindings(declaration_type: str) -> 
             content="package example;\nclass Validator {\n    void validate() {}\n}\n",
         )],
     )
-    assert structure.cross_file_calls == []
+    assert [(call.receiver, call.line) for call in structure.cross_file_calls] == [
+        ("loop", 6), ("resource", 11),
+    ]
 
 
 @pytest.mark.parametrize("alternative", ["else", "else if (ready())"])
@@ -934,7 +936,7 @@ def test_enhanced_for_bindings_are_isolated_between_nested_and_sibling_loops() -
 
 
 @pytest.mark.parametrize("header", [
-    "for (Validator item = create(); active; step())",
+    "for (@Marker Validator item = create(); active; step())",
     "for (@Marker Validator item : items)",
 ])
 def test_unsupported_for_headers_keep_body_calls_excluded(header: str) -> None:
@@ -1097,7 +1099,7 @@ def test_catch_inside_enhanced_for_retains_loop_binding_without_leaking_paramete
     ]
 
 
-def test_resource_try_stays_excluded_but_catch_and_finally_restore_outer_bindings() -> None:
+def test_resource_try_bindings_end_before_catch_and_finally() -> None:
     result = analyze_java(
         "package example;\nclass Consumer {\n"
         "    Handler resource;\n    void run() {\n"
@@ -1128,6 +1130,8 @@ def test_resource_try_stays_excluded_but_catch_and_finally_restore_outer_binding
         (call.line, call.receiver, methods[call.target_ids[0]].owner_qualified_name)
         for call in result.cross_file_calls
     ] == [
+        (9, "resource", "example.Resource"),
+        (10, "this.resource", "example.Handler"),
         (12, "failure", "example.Failure"),
         (13, "resource", "example.Handler"),
         (16, "resource", "example.Handler"),

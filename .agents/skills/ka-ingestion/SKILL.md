@@ -69,17 +69,12 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 
 `GET /sources/{source_id}/code-structure`：
 
-- 仅用于已解析 Java 来源，按需从不可变原文派生，不持久化。
-- 返回稳定的类型/常规字段/方法符号（最多 200）及未限定名或 `this.` 的同文件调用（最多 500）。
-- 在同仓库最多 100 份 `ready` Java 来源内，按显式导入、同包和通配导入解析顶层类型的跨文件 `extends`/`implements`；未归属仓库的旧来源只在未归属集合内解析。相关来源原文累计读取上限 20 MiB，返回目标来源路径、行号及 `resolved`/`ambiguous`。
-- 同一范围内还解析直接类型限定调用、当前顶层类型直接字段，以及显式类型的方法参数和方法体及普通块/if/else/while 内单变量局部声明上的调用；未限定接收者按当前词法范围内局部变量、参数、字段处理遮蔽，`this.field` 始终选择字段，局部变量只在声明后且所属块结束前生效，退出块后恢复外层绑定。
-- 最多返回 500 个相关方法和 500 条跨文件调用，并包含目标路径和行号。唯一方法名为 `resolved`，同名/重载为 `ambiguous`。
-- 支持局部变量 `var x = new Type(...)` 的完整构造器初始化（限定类型名、泛型/diamond、可选 `final`）；只取原始类型名，初始化结束后才可用。不支持的 `var` 初始化仍遮蔽同名字段/类型，不能回退伪造调用，见 ADR 0025。
-- 不解析工厂/链式/数组/匿名类初始化的 `var`、多变量声明、传统 for/资源头部绑定、不支持块中的局部变量、重新赋值/数据流、链式接收者、重载选择、继承分派、依赖注入或动态调用。
-- 块级切片支持普通块/if/else/while/普通 try/finally、无注解 catch 和带花括号的增强 for 体；带花括号的传统 for/资源 try/带注解 catch/switch、lambda、匿名类/局部类型和含 `instanceof` 的分支区域会保守跳过跨文件调用，见 ADR 0026。
-- 增强 for 的单个显式类型元素支持可选 `final`、限定/泛型类型，只在循环体内生效；`var`/数组元素保留未知绑定，阻止字段/类型回退。头部调用省略，不推断集合元素类型；带注解绑定与无花括号循环不支持，见 ADR 0027。
-- 单异常 catch 参数支持简单/限定类型名与可选 `final`，仅在所属 catch 体及受支持子块内生效；多异常 catch 保留未知绑定，不回退字段/类型。资源 try 主体排除，但后续受支持 catch/finally 可独立解析；不求解异常控制流、共同父类型或继承方法，见 ADR 0028。
-- 派生关系不是正式知识，不能绕过候选提取与审核写入图谱。
+- Java 分析 V1 为按需派生、只读、不持久化，不进入正式图谱；统一能力/限制见 `docs/JAVA_ANALYSIS_V1.zh-CN.md` 和 ADR 0029。
+- 保留 200 符号、500 同文件调用、同仓库 100 份 ready 来源、相关原文 20 MiB、400 相关类型，以及各 500 条类型关系/相关方法/跨文件调用上限。未归属来源只与同项目未归属集合解析。
+- 普通块/if/else/while/try/catch/finally、带花括号的增强/传统 for 与资源 try 共用词法绑定。头部调用省略，头部绑定仅在主体生效；未知 var/数组元素/多异常 catch 遮蔽，不回退伪造字段/类型目标。
+- 继承方法候选定位到原声明，支持未限定/this/super；覆盖签名抑制、菱形去重，私有/构造器/接口静态方法不继承。单次查找最多 256 状态，环/触顶标记 truncated。
+- 实参数量/可变参数用于筛选，同数量类型重载、重复来源版本仍 ambiguous；不确定表达式不缩窄。resolved 不等于完整编译/运行时目标。
+- 不承诺完整 AST/classpath/访问与类型检查、泛型替换、动态分派、工厂/链式推断、完整数据流。无花括号控制语句、switch/模式/lambda/匿名/局部类型及不支持的复杂声明不在 V1 支持范围，不能把派生关系直接提升为正式知识。
 
 ## 任务状态
 
@@ -128,7 +123,7 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 
 ```bash
 cd backend
-python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_source_list.py tests/test_worker.py tests/test_github_import.py tests/test_github_activity.py
+python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_source_list.py tests/test_worker.py tests/test_github_import.py tests/test_github_activity.py tests/test_java_structure.py tests/test_java_v1.py
 ```
 
 重点覆盖：

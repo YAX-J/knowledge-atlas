@@ -113,7 +113,7 @@
 
 仓库可额外保存规范化 GitHub 身份：`provider=github`、小写 `remote_owner` / `remote_name` 和不含凭据的规范 `remote_url`。身份既可关联已有 `local_folder`，也可先作为 `git_remote` 独立登记；登记不会访问 GitHub，也不代表已导入分支、Commit 或文件。首次成功同步保存稳定 provider ID，后续可在 GitHub 返回 owner/name 变化时更新规范坐标；边界见 [ADR 0016](adr/0016-normalized-github-remote-identity.zh-CN.md) 与 [ADR 0019](adr/0019-incremental-github-commit-snapshots.zh-CN.md)。
 
-Java 来源结构接口按需派生类型、常规字段、方法、同文件调用、有界的同仓库跨文件 `extends`/`implements` 目标，以及显式声明类型的直接类型、字段、方法参数和受支持块级局部变量接收者的跨文件方法调用（含直接构造器初始化的 `var`、增强 for 显式类型元素与单类型 catch 参数），使用稳定的来源内 UUID 与原文行号，但这些对象不是 `KnowledgeEntity` / `KnowledgeRelationship`，也不参与正式图谱检索。未归属仓库的旧来源只与其他未归属来源互相解析。只有经过候选提取与人工确认的记录才能进入正式知识。见 [ADR 0013](adr/0013-derived-java-source-structure.zh-CN.md)、[ADR 0014](adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0015](adr/0015-local-folder-repository-identity.zh-CN.md)、[ADR 0017](adr/0017-bounded-cross-file-java-method-calls.zh-CN.md)、[ADR 0022](adr/0022-bounded-java-declared-receiver-calls.zh-CN.md)、[ADR 0025](adr/0025-constructor-initialized-java-var-receivers.zh-CN.md) 与 [ADR 0026](adr/0026-scoped-java-local-receivers.zh-CN.md)。
+Java 来源结构接口按需派生 V1 类型/字段/方法、词法/头部作用域调用、仓库内继承目标/方法候选及参数数量筛选结果，使用稳定来源内 UUID 和精确原文行号。这些不是 `KnowledgeEntity` / `KnowledgeRelationship`，不参与正式图谱检索，也不能绕过候选提取和人工确认；重复不可变版本保留歧义，仓库隔离保持不变。`resolved` 只是有界静态分析内唯一候选，完整边界见 [Java 分析 V1](JAVA_ANALYSIS_V1.zh-CN.md) 与 [ADR 0029](adr/0029-java-analysis-v1.zh-CN.md)。
 
 ## 当前候选与审核
 

@@ -91,3 +91,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0026：在有界词法块内解析 Java 局部接收者](0026-scoped-java-local-receivers.zh-CN.md)
 - [ADR 0027：通过有界增强 for 元素解析 Java 接收者](0027-enhanced-for-java-receivers.zh-CN.md)
 - [ADR 0028：在有界异常作用域内解析 Java 调用](0028-java-exception-scope-receivers.zh-CN.md)
+- [ADR 0029：打包有界仓库内 Java 分析 V1](0029-java-analysis-v1.zh-CN.md)
