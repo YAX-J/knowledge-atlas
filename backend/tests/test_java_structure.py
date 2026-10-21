@@ -423,7 +423,7 @@ def test_code_structure_ignores_unsupported_local_receiver_forms() -> None:
             "        Validator first, second;\n"
             "        second.validate();\n"
             "        if (true) {\n"
-            "            Validator nested = new Validator();\n"
+            "            var nested = Validator.create();\n"
             "            nested.validate();\n"
             "        }\n"
             "    }\n"
@@ -594,7 +594,7 @@ def test_unsupported_var_initializers_do_not_fall_back_to_fields_or_type_names(
     assert [call.receiver for call in structure.cross_file_calls] == ["this.Validator"]
 
 
-def test_constructor_var_ignores_nested_and_other_method_declarations() -> None:
+def test_constructor_var_is_scoped_to_its_block_and_method() -> None:
     structure = analyze_java(
         "package example;\n"
         "class Consumer {\n"
@@ -616,21 +616,24 @@ def test_constructor_var_ignores_nested_and_other_method_declarations() -> None:
             content="package example;\nclass Validator {\n    void validate() {}\n}\n",
         )],
     )
-    assert structure.cross_file_calls == []
+    assert [
+        (call.receiver, call.line) for call in structure.cross_file_calls
+    ] == [("nested", 8)]
 
 
-def test_constructor_var_does_not_leak_loop_or_resource_bindings() -> None:
+@pytest.mark.parametrize("declaration_type", ["var", "Validator"])
+def test_locals_do_not_leak_loop_or_resource_bindings(declaration_type: str) -> None:
     structure = analyze_java(
         "package example;\n"
         "class Consumer {\n"
         "    void run() {\n"
         "        for (\n"
-        "            var loop = new Validator();\n"
+        f"            {declaration_type} loop = new Validator();\n"
         "            active; step()) { loop.validate(); }\n"
         "        loop.validate();\n"
         "        try (\n"
-        "            var first = new Validator();\n"
-        "            var resource = new Validator()\n"
+        f"            {declaration_type} first = new Validator();\n"
+        f"            {declaration_type} resource = new Validator()\n"
         "        ) { resource.validate(); }\n"
         "        resource.validate();\n"
         "    }\n"
@@ -643,6 +646,159 @@ def test_constructor_var_does_not_leak_loop_or_resource_bindings() -> None:
         )],
     )
     assert structure.cross_file_calls == []
+
+
+@pytest.mark.parametrize("alternative", ["else", "else if (ready())"])
+def test_code_structure_resolves_block_locals_and_restores_outer_fields(
+    client: TestClient,
+    alternative: str,
+) -> None:
+    project_id = create_project(client)
+    targets = {
+        name: upload_java(
+            client, project_id,
+            name=f"{name}.java",
+            relative_path=f"src/example/{name}.java",
+            content=(
+                f"package example;\nclass {name} {{\n"
+                "    void validate() {}\n}\n"
+            ),
+        )
+        for name in ("FieldValidator", "LeftValidator", "RightValidator")
+    }
+    consumer = upload_java(
+        client, project_id,
+        name="Consumer.java",
+        relative_path="src/example/Consumer.java",
+        content=(
+            "package example;\n"
+            "class Consumer {\n"
+            "    FieldValidator validator;\n"
+            "    void run(FieldValidator parameter) {\n"
+            "        validator.validate();\n"
+            "        if (ready()) {\n"
+            "            LeftValidator validator = new LeftValidator();\n"
+            "            validator.validate();\n"
+            "            parameter.validate();\n"
+            "            this.validator.validate();\n"
+            f"        }} {alternative} {{\n"
+            "            final var validator = new RightValidator();\n"
+            "            validator.validate();\n"
+            "        }\n"
+            "        validator.validate();\n"
+            "    }\n"
+            "}\n"
+        ),
+    )
+    endpoint = f"/api/v1/sources/{consumer['source_id']}/code-structure"
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    result = response.json()
+    methods = {method["id"]: method for method in result["related_methods"]}
+    assert [
+        (
+            call["line"], call["receiver"], call["resolution"],
+            methods[call["target_ids"][0]]["source_id"],
+        )
+        for call in result["cross_file_calls"]
+    ] == [
+        (5, "validator", "resolved", targets["FieldValidator"]["source_id"]),
+        (8, "validator", "resolved", targets["LeftValidator"]["source_id"]),
+        (9, "parameter", "resolved", targets["FieldValidator"]["source_id"]),
+        (10, "this.validator", "resolved", targets["FieldValidator"]["source_id"]),
+        (13, "validator", "resolved", targets["RightValidator"]["source_id"]),
+        (15, "validator", "resolved", targets["FieldValidator"]["source_id"]),
+    ]
+    assert client.get(endpoint).json() == result
+
+
+@pytest.mark.parametrize("header", ["{", "if (ready()) {", "while (active) {"])
+def test_unknown_nested_var_shadows_only_inside_its_own_block(header: str) -> None:
+    result = analyze_java(
+        "package example;\n"
+        "class Consumer {\n"
+        "    Validator validator;\n"
+        "    void run() {\n"
+        "        validator.validate();\n"
+        f"        {header}\n"
+        "            var validator = Factory.create();\n"
+        "            validator.validate();\n"
+        "            this.validator.validate();\n"
+        "        }\n"
+        "        validator.validate();\n"
+        "    }\n"
+        "}\n",
+        source_id=uuid.uuid4(),
+        related_sources=[JavaSourceInput(
+            source_id=uuid.uuid4(), source_path="src/example/Validator.java",
+            content="package example;\nclass Validator {\n    void validate() {}\n}\n",
+        )],
+    )
+    assert [
+        (call.line, call.receiver) for call in result.cross_file_calls
+    ] == [(5, "validator"), (9, "this.validator"), (11, "validator")]
+
+
+def test_nested_calls_keep_ancestor_bindings_after_sibling_blocks_close() -> None:
+    result = analyze_java(
+        "package example;\n"
+        "class Consumer {\n"
+        "    void run() {\n"
+        "        {\n"
+        "            Validator shared = new Validator();\n"
+        "            while (ready()) {\n"
+        "                {\n"
+        "                    var leaf = new Validator();\n"
+        "                    leaf.validate();\n"
+        "                }\n"
+        "                shared.validate();\n"
+        "            }\n"
+        "            shared.validate();\n"
+        "        }\n"
+        "        shared.validate();\n"
+        "    }\n"
+        "}\n",
+        source_id=uuid.uuid4(),
+        related_sources=[JavaSourceInput(
+            source_id=uuid.uuid4(), source_path="src/example/Validator.java",
+            content="package example;\nclass Validator {\n    void validate() {}\n}\n",
+        )],
+    )
+    assert [
+        (call.line, call.receiver) for call in result.cross_file_calls
+    ] == [(9, "leaf"), (11, "shared"), (13, "shared")]
+
+
+@pytest.mark.parametrize("excluded_body", [
+    "for (var validator = create(); active; step()) {\n"
+    "    validator.validate();\n}",
+    "try (var validator = create()) {\n    validator.validate();\n}",
+    "try {} catch (Exception validator) {\n    validator.validate();\n}",
+    "Runnable action = () -> {\n    validator.validate();\n};",
+    "Object action = new Object() {\n"
+    "    void run() {\n        this.validator.validate();\n    }\n};",
+    "class Local {\n    void run() {\n        validator.validate();\n    }\n}",
+    "switch (value) {\n    case 1: validator.validate(); break;\n}",
+    "if (value instanceof Validator validator) {\n    validator.validate();\n}",
+    "for (Item validator : items) {\n    {\n        validator.validate();\n    }\n}",
+])
+def test_excluded_scopes_do_not_guess_outer_receivers(excluded_body: str) -> None:
+    result = analyze_java(
+        "package example;\n"
+        "class Consumer {\n"
+        "    Validator validator;\n"
+        "    void run() {\n"
+        f"        {excluded_body}\n"
+        "        this.validator.validate();\n"
+        "    }\n"
+        "}\n",
+        source_id=uuid.uuid4(),
+        related_sources=[JavaSourceInput(
+            source_id=uuid.uuid4(), source_path="src/example/Validator.java",
+            content="package example;\nclass Validator {\n    void validate() {}\n}\n",
+        )],
+    )
+    assert [call.receiver for call in result.cross_file_calls] == ["this.validator"]
 
 
 def test_code_structure_ignores_unready_and_other_project_types(

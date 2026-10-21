@@ -172,6 +172,43 @@ class _MethodDeclaration:
     end: int
 
 
+@dataclass
+class _BlockScope:
+    opening: int
+    end: int
+    parent: int | None
+    supported: bool
+    header_start: int
+
+
+@dataclass(frozen=True)
+class _MethodScopes:
+    blocks: list[_BlockScope]
+    openings: list[int]
+    blocked_starts: list[int]
+    blocked_ends: list[int]
+
+    def block_at(self, offset: int) -> _BlockScope:
+        index = bisect_right(self.openings, offset) - 1
+        while self.blocks[index].end < offset:
+            parent = self.blocks[index].parent
+            if parent is None:
+                break
+            index = parent
+        return self.blocks[index]
+
+    def allows(self, offset: int) -> bool:
+        index = bisect_right(self.blocked_starts, offset) - 1
+        return index < 0 or offset >= self.blocked_ends[index]
+
+
+@dataclass(frozen=True)
+class _LocalBinding:
+    start: int
+    end: int
+    type_name: str | None
+
+
 @dataclass(frozen=True)
 class _JavaTypeIndex:
     source_id: uuid.UUID
@@ -686,58 +723,124 @@ def _constructor_initialized_type(initializer: str) -> str | None:
     return None
 
 
-def _direct_local_variable_types(
+def _supported_block_header(header: str) -> bool:
+    header = header.strip()
+    if header in {"", "else"}:
+        return True
+    match = re.match(r"(?:else\s+)?(?:if|while)\s*\(", header)
+    if match is None or re.search(r"\binstanceof\b", header):
+        return False
+    depth = 1
+    for position in range(match.end(), len(header)):
+        if header[position] == "(":
+            depth += 1
+        elif header[position] == ")":
+            depth -= 1
+            if depth == 0:
+                return not header[position + 1:].strip()
+    return False
+
+
+def _method_scopes(text: str, *, opening: int, end: int) -> _MethodScopes:
+    """Index supported lexical blocks and exclude bodies with unknown bindings."""
+    blocks = [_BlockScope(opening, end, None, True, opening)]
+    stack = [0]
+    statement_start = opening + 1
+    round_depth = 0
+    for position in range(opening + 1, end):
+        char = text[position]
+        if char == "(":
+            round_depth += 1
+        elif char == ")":
+            round_depth -= 1
+        elif char == "{":
+            parent = stack[-1]
+            supported = (
+                blocks[parent].supported
+                and round_depth == 0
+                and _supported_block_header(text[statement_start:position])
+            )
+            blocks.append(_BlockScope(
+                position, end, parent, supported, statement_start,
+            ))
+            stack.append(len(blocks) - 1)
+            statement_start = position + 1
+        elif char == "}":
+            if len(stack) > 1:
+                blocks[stack.pop()].end = position
+            statement_start = position + 1
+        elif char == ";" and round_depth == 0:
+            statement_start = position + 1
+
+    blocked: list[tuple[int, int]] = []
+    for block in sorted(blocks[1:], key=lambda item: item.header_start):
+        if block.supported:
+            continue
+        if blocked and block.header_start <= blocked[-1][1]:
+            blocked[-1] = (blocked[-1][0], max(blocked[-1][1], block.end))
+        else:
+            blocked.append((block.header_start, block.end))
+    return _MethodScopes(
+        blocks=blocks,
+        openings=[block.opening for block in blocks],
+        blocked_starts=[start for start, _ in blocked],
+        blocked_ends=[end for _, end in blocked],
+    )
+
+
+def _local_variable_types(
     current: _JavaTypeIndex,
     method: _MethodDeclaration,
-    depths: list[int],
-) -> dict[str, list[tuple[int, str | None]]]:
+    scopes: _MethodScopes,
+) -> dict[str, list[_LocalBinding]]:
     if method.opening is None:
         return {}
-    body_depth = depths[method.opening] + 1
-    result: dict[str, list[tuple[int, str | None]]] = {}
-    for match in FIELD_DECLARATION.finditer(
-        current.sanitized,
-        method.opening + 1,
-        method.end,
-    ):
-        if depths[match.start()] != body_depth:
-            continue
-        before_initializer = match.group("tail").split("=", 1)[0]
-        if "(" in before_initializer or "," in before_initializer:
-            continue
-        declared_type = match.group("type")
-        if len(_split_type_list(declared_type)) != 1:
-            continue
-        referenced = _referenced_type_name(declared_type)
-        if referenced is None or referenced[0] == "var":
-            continue
-        result.setdefault(match.group("name"), []).append(
-            (match.start(), referenced[0])
+    result: dict[str, list[_LocalBinding]] = {}
+    matches = [
+        (match, inferred)
+        for pattern, inferred in (
+            (FIELD_DECLARATION, False), (VAR_LOCAL_DECLARATION, True),
         )
+        for match in pattern.finditer(
+            current.sanitized, method.opening + 1, method.end
+        )
+    ]
+    matches.sort(key=lambda item: item[0].start())
     round_depth = 0
     scanned_until = method.opening + 1
-    for match in VAR_LOCAL_DECLARATION.finditer(
-        current.sanitized, method.opening + 1, method.end
-    ):
+    for match, inferred in matches:
         prefix = current.sanitized[scanned_until:match.start()]
         round_depth += prefix.count("(") - prefix.count(")")
         scanned_until = match.start()
-        # A multiline for/try header has body brace depth but narrower scope.
-        if depths[match.start()] != body_depth or round_depth != 0:
+        scope = scopes.block_at(match.start())
+        if not scope.supported or round_depth != 0:
             continue
         declarations = result.setdefault(match.group("name"), [])
+        if not inferred:
+            before_initializer = match.group("tail").split("=", 1)[0]
+            if "(" in before_initializer or "," in before_initializer:
+                continue
+            declared_type = match.group("type")
+            if len(_split_type_list(declared_type)) != 1:
+                continue
+            referenced = _referenced_type_name(declared_type)
+            if referenced is not None and referenced[0] != "var":
+                declarations.append(_LocalBinding(
+                    match.start(), scope.end, referenced[0],
+                ))
+            continue
         # Even an unsupported initializer shadows a field or a type name.
-        declarations.append((match.start(), None))
-        terminator = current.sanitized.find(";", match.end(), method.end)
+        declarations.append(_LocalBinding(match.start(), scope.end, None))
+        terminator = current.sanitized.find(";", match.end(), scope.end)
         if terminator < 0:
             continue
         inferred_type = _constructor_initialized_type(
             current.sanitized[match.end():terminator]
         )
         if inferred_type is not None:
-            declarations.append((terminator, inferred_type))
+            declarations.append(_LocalBinding(terminator, scope.end, inferred_type))
     for declarations in result.values():
-        declarations.sort(key=lambda item: item[0])
+        declarations.sort(key=lambda item: item.start)
     return result
 
 
@@ -756,7 +859,6 @@ def _resolve_cross_file_calls(
                 (method.owner_qualified_name, method.name), []
             ).append(method)
     field_types = _field_types_by_owner(current)
-    depths = _depths(current.sanitized)
     line_number = _line_resolver(current.sanitized)
     related_by_id: dict[uuid.UUID, JavaRelatedMethod] = {}
     calls: list[JavaCrossFileCall] = []
@@ -766,12 +868,17 @@ def _resolve_cross_file_calls(
         if method.opening is None or caller.id not in visible_source_symbol_ids:
             continue
         parameter_types = _parameter_types(method.parameters)
-        local_types = _direct_local_variable_types(current, method, depths)
+        scopes = _method_scopes(
+            current.sanitized, opening=method.opening, end=method.end,
+        )
+        local_types = _local_variable_types(current, method, scopes)
         for call_match in QUALIFIED_CALL.finditer(
             current.sanitized,
             method.opening + 1,
             method.end,
         ):
+            if not scopes.allows(call_match.start()):
+                continue
             receiver = re.sub(r"\s+", "", call_match.group("receiver"))
             callee_name = call_match.group("name")
             if receiver.startswith("this.") and receiver.count(".") == 1:
@@ -783,14 +890,14 @@ def _resolve_cross_file_calls(
                 declarations = local_types.get(receiver, [])
                 declaration = next(
                     (
-                        (offset, type_name)
-                        for offset, type_name in reversed(declarations)
-                        if offset < call_match.start()
+                        binding
+                        for binding in reversed(declarations)
+                        if binding.start < call_match.start() < binding.end
                     ),
                     None,
                 )
                 if declaration is not None:
-                    target_type_name = declaration[1]
+                    target_type_name = declaration.type_name
                     if target_type_name is None:
                         continue
                 else:
