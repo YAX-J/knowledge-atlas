@@ -41,6 +41,7 @@
 
 - 显式类型及构造器初始化 `var` 局部接收者支持普通块/if/else/while 花括号作用域，保留声明顺序、词法生命周期、兄弟块隔离和未知类型遮蔽，见 [ADR 0025](docs/adr/0025-constructor-initialized-java-var-receivers.zh-CN.md) 与 [ADR 0026](docs/adr/0026-scoped-java-local-receivers.zh-CN.md)。
 - 带花括号的增强 for 体支持显式类型元素接收者；未知 `var`/数组元素仅在循环体范围阻止回退，循环头部调用仍不生成提示，见 [ADR 0027](docs/adr/0027-enhanced-for-java-receivers.zh-CN.md)。
+- 普通 try/finally 块和单异常 catch 接收者支持词法作用域解析；多异常 catch 保留未知绑定，资源 try 体仍排除，见 [ADR 0028](docs/adr/0028-java-exception-scope-receivers.zh-CN.md)。
 
 ## 当前阶段
 

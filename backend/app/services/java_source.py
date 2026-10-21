@@ -179,7 +179,7 @@ class _BlockScope:
     parent: int | None
     supported: bool
     header_start: int
-    loop_variable: tuple[str, str | None] | None = None
+    header_variable: tuple[str, str | None] | None = None
 
 
 @dataclass(frozen=True)
@@ -726,7 +726,7 @@ def _constructor_initialized_type(initializer: str) -> str | None:
 
 def _supported_block_header(header: str) -> bool:
     header = header.strip()
-    if header in {"", "else"}:
+    if header in {"", "else", "try", "finally"}:
         return True
     match = re.match(r"(?:else\s+)?(?:if|while)\s*\(", header)
     if match is None or re.search(r"\binstanceof\b", header):
@@ -772,6 +772,22 @@ def _enhanced_for_variable(header: str) -> tuple[str, str | None] | None:
     return match.group("name"), type_name
 
 
+def _catch_variable(header: str) -> tuple[str, str | None] | None:
+    """Read an unannotated catch parameter; union types remain unknown."""
+    qualified_type = r"[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*"
+    match = re.fullmatch(
+        r"\s*catch\s*\(\s*(?:final\s+)?"
+        rf"(?P<type>{qualified_type}(?:\s*\|\s*{qualified_type})*)\s+"
+        r"(?P<name>[A-Za-z_$][\w$]*)\s*\)\s*",
+        header,
+    )
+    if match is None:
+        return None
+    declared_type = re.sub(r"\s+", "", match.group("type"))
+    type_name = None if "|" in declared_type or declared_type == "var" else declared_type
+    return match.group("name"), type_name
+
+
 def _method_scopes(text: str, *, opening: int, end: int) -> _MethodScopes:
     """Index supported lexical blocks and exclude bodies with unknown bindings."""
     blocks = [_BlockScope(opening, end, None, True, opening)]
@@ -787,14 +803,14 @@ def _method_scopes(text: str, *, opening: int, end: int) -> _MethodScopes:
         elif char == "{":
             parent = stack[-1]
             header = text[statement_start:position]
-            loop_variable = _enhanced_for_variable(header)
+            header_variable = _enhanced_for_variable(header) or _catch_variable(header)
             supported = (
                 blocks[parent].supported
                 and round_depth == 0
-                and (_supported_block_header(header) or loop_variable is not None)
+                and (_supported_block_header(header) or header_variable is not None)
             )
             blocks.append(_BlockScope(
-                position, end, parent, supported, statement_start, loop_variable,
+                position, end, parent, supported, statement_start, header_variable,
             ))
             stack.append(len(blocks) - 1)
             statement_start = position + 1
@@ -807,10 +823,10 @@ def _method_scopes(text: str, *, opening: int, end: int) -> _MethodScopes:
 
     blocked: list[tuple[int, int]] = []
     for block in sorted(blocks[1:], key=lambda item: item.header_start):
-        if block.supported and block.loop_variable is None:
+        if block.supported and block.header_variable is None:
             continue
-        # Iterable expressions are outside the loop variable's body scope.
-        # Skip header calls rather than guess complex expression bindings.
+        # Header variables are only visible in their bodies. Skip header calls
+        # rather than guess complex expression bindings.
         blocked_end = block.opening if block.supported else block.end
         if blocked and block.header_start <= blocked[-1][1]:
             blocked[-1] = (blocked[-1][0], max(blocked[-1][1], blocked_end))
@@ -833,8 +849,8 @@ def _local_variable_types(
         return {}
     result: dict[str, list[_LocalBinding]] = {}
     for scope in scopes.blocks:
-        if scope.supported and scope.loop_variable is not None:
-            name, type_name = scope.loop_variable
+        if scope.supported and scope.header_variable is not None:
+            name, type_name = scope.header_variable
             result.setdefault(name, []).append(_LocalBinding(
                 scope.opening, scope.end, type_name,
             ))

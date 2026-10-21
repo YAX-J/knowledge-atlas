@@ -41,6 +41,7 @@ Completed:
 
 - Explicitly typed and constructor-initialized `var` local receivers resolve within ordinary/if/else/while brace blocks, preserving declaration order, lexical lifetimes, sibling isolation, and conservative unknown shadowing; see [ADR 0025](docs/adr/0025-constructor-initialized-java-var-receivers.md) and [ADR 0026](docs/adr/0026-scoped-java-local-receivers.md).
 - Braced enhanced-for bodies resolve explicitly typed element receivers; unknown `var`/array elements suppress fallback only within the loop body, and header calls remain omitted. See [ADR 0027](docs/adr/0027-enhanced-for-java-receivers.md).
+- Plain try/finally blocks and single-type catch receivers resolve within lexical scopes; multi-catch bindings remain unknown, and resource-try bodies remain excluded. See [ADR 0028](docs/adr/0028-java-exception-scope-receivers.md).
 
 ## Active phase
 

@@ -90,3 +90,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0025: Infer bounded Java var receivers from constructor initializers](0025-constructor-initialized-java-var-receivers.md)
 - [ADR 0026: Resolve Java local receivers within bounded lexical blocks](0026-scoped-java-local-receivers.md)
 - [ADR 0027: Resolve Java receivers through bounded enhanced-for elements](0027-enhanced-for-java-receivers.md)
+- [ADR 0028: Resolve Java calls within bounded exception scopes](0028-java-exception-scope-receivers.md)

@@ -97,6 +97,8 @@ PR Review 活动与基础工作项分开版本化。显式活动导入为每个�
 
 Java 接收者解析还支持方法体及普通块/if/else/while 内局部变量中的 `var x = new Type(...)`，仅从完整构造器表达式确定原始类型名，并复用既有包、导入和仓库边界。无法确认初始化类型时保守阻止同名字段/类型回退；不引入数据流或完整符号求解。局部绑定记录词法范围，离开块后恢复外层绑定；未知绑定与不支持的带花括号执行区域保守处理。增强 for 的显式类型元素也可在循环体和受支持子块中解析；头部调用省略，`var`/数组元素保留未知绑定，不做集合元素类型推断，见 [ADR 0027](adr/0027-enhanced-for-java-receivers.zh-CN.md)。该扩展不改变来源分块、接口形状或数据库，见 [ADR 0025](adr/0025-constructor-initialized-java-var-receivers.zh-CN.md) 与 [ADR 0026](adr/0026-scoped-java-local-receivers.zh-CN.md)。
 
+异常作用域切片支持普通 try/finally 块和无注解 catch 参数绑定。单异常类型复用既有仓库查找，多异常 catch 保留未知绑定；退出 catch 后恢复外层变量。资源 try 主体仍排除，其后的受支持 catch/finally 独立解析，不推断异常路径或共同父类型，见 [ADR 0028](adr/0028-java-exception-scope-receivers.zh-CN.md)。
+
 ### Worker
 
 耗时任务与 API 请求解耦执行。

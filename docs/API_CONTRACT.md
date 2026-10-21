@@ -338,7 +338,9 @@ Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，�
 
 同文件调用识别未限定名或 `this.` 方法；跨文件调用解析遵循常规大写类型命名的直接类型限定调用、当前顶层类型字段，以及具有显式声明类型的方法参数和方法体及受支持嵌套块内的单变量局部声明。未限定接收者按“当前作用域内最近可用的局部变量 → 参数 → 字段”处理遮蔽，`this.field` 始终选择字段；局部变量只在声明之后且所属块结束之前生效，退出块后恢复外层绑定。目标方法仍只按名称返回唯一或歧义候选。支持局部变量 `var x = new Type(...)` 的有界构造器类型推断，包括限定类型名、泛型/diamond 和可选 `final`，在完整初始化结束后生效；无法推断的 `var` 仍遮蔽同名字段/类型，避免错误回退。不解析工厂/链式/数组/匿名类初始化的 `var`、多变量声明、传统 for/资源头部绑定、不支持块中的局部变量、重新赋值/数据流、链式接收者、重载选择、继承方法分派、依赖注入或动态分派。结果按需从不可变原文派生，不写入正式图谱。非 Java 来源或未完成解析分别返回 HTTP 409。边界见 [ADR 0013](adr/0013-derived-java-source-structure.zh-CN.md)、[ADR 0014](adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0017](adr/0017-bounded-cross-file-java-method-calls.zh-CN.md)、[ADR 0022](adr/0022-bounded-java-declared-receiver-calls.zh-CN.md)、[ADR 0025](adr/0025-constructor-initialized-java-var-receivers.zh-CN.md) 与 [ADR 0026](adr/0026-scoped-java-local-receivers.zh-CN.md)。
 
-块级解析支持普通花括号块及 if/else/while，以及带花括号的增强 for 体。增强 for 的单个显式类型元素支持可选 `final`、限定/泛型类型，只在循环体及受支持子块内可用，退出循环后恢复外层绑定；`var` 和数组元素保留未知绑定以阻止字段/类型回退，不从集合推断元素类型。增强 for 头部调用不生成提示，带注解元素声明和无花括号循环不在支持范围内。带花括号的传统 for/try/catch/switch、lambda、匿名类、局部类型和含 `instanceof` 的分支区域仍保守跳过跨文件调用；该切片不支持完整 Java 作用域或控制流，见 [ADR 0027](adr/0027-enhanced-for-java-receivers.zh-CN.md)。
+块级解析支持普通花括号块及 if/else/while，以及带花括号的增强 for 体。增强 for 的单个显式类型元素支持可选 `final`、限定/泛型类型，只在循环体及受支持子块内可用，退出循环后恢复外层绑定；`var` 和数组元素保留未知绑定以阻止字段/类型回退，不从集合推断元素类型。增强 for 头部调用不生成提示，带注解元素声明和无花括号循环不在支持范围内。带花括号的传统 for/资源 try/带注解 catch/switch、lambda、匿名类、局部类型和含 `instanceof` 的分支区域仍保守跳过跨文件调用；该切片不支持完整 Java 作用域或控制流，见 [ADR 0027](adr/0027-enhanced-for-java-receivers.zh-CN.md)。
+
+普通 try/finally 块及无注解 catch 体也支持同样的块级声明生命周期；单异常 catch 参数支持简单/限定类型名与可选 `final`，仅在所属 catch 体及受支持子块内生效。多异常 `catch (A | B e)` 保留未知绑定，不任选一种类型，也不回退到同名字段/类型；其他接收者仍可解析。资源 try 的头部和主体中的调用继续保守跳过，其后的受支持 catch/finally 可独立解析；资源变量不会泄漏到这些块中。不做异常控制流、共同父类型求解或继承方法分派，见 [ADR 0028](adr/0028-java-exception-scope-receivers.zh-CN.md)。
 
 ## 知识图谱
 

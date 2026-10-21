@@ -773,11 +773,15 @@ def test_nested_calls_keep_ancestor_bindings_after_sibling_blocks_close() -> Non
     "for (var validator = create(); active; step()) {\n"
     "    validator.validate();\n}",
     "try (var validator = create()) {\n    validator.validate();\n}",
-    "try {} catch (Exception validator) {\n    validator.validate();\n}",
+    "try {} catch (@Marker Exception validator) {\n    validator.validate();\n}",
     "Runnable action = () -> {\n    validator.validate();\n};",
     "Runnable action = () -> {\n"
     "    for (Validator validator : items) {\n"
     "        validator.validate();\n    }\n};",
+    "Runnable action = () -> {\n"
+    "    try { validator.validate(); }\n"
+    "    catch (Validator validator) { validator.validate(); }\n"
+    "    finally { validator.validate(); }\n};",
     "Object action = new Object() {\n"
     "    void run() {\n        this.validator.validate();\n    }\n};",
     "class Local {\n    void run() {\n        validator.validate();\n    }\n}",
@@ -946,6 +950,189 @@ def test_unsupported_for_headers_keep_body_calls_excluded(header: str) -> None:
         )],
     )
     assert [(call.line, call.receiver) for call in result.cross_file_calls] == [(8, "item")]
+
+
+@pytest.mark.parametrize("declaration", [
+    "Failure failure",
+    "final example.Failure failure",
+    "final\n            example.Failure\n            failure",
+    "/* parameter */ Failure /* name */ failure",
+])
+def test_code_structure_resolves_exception_scopes_with_exact_lines_and_stable_ids(
+    client: TestClient,
+    declaration: str,
+) -> None:
+    project_id = create_project(client)
+    targets = {
+        name: upload_java(
+            client, project_id,
+            name=f"{name}.java", relative_path=f"src/example/{name}.java",
+            content=(
+                f"package example;\nclass {name}"
+                + (" extends Exception" if name != "Handler" else "")
+                + " {\n    void handle() {}\n}\n"
+            ),
+        )
+        for name in ("Handler", "Failure", "OtherFailure")
+    }
+    consumer = upload_java(
+        client, project_id, name="Consumer.java",
+        relative_path="src/example/Consumer.java",
+        content=(
+            "package example;\nclass Consumer {\n"
+            "    Handler failure;\n    void run() {\n"
+            "        try {\n"
+            "            var temporary = new Handler();\n"
+            "            temporary.handle();\n"
+            "            failure.handle();\n"
+            f"        }} catch ({declaration}) {{\n"
+            "            failure.handle();\n"
+            "            this.failure.handle();\n"
+            "            if (ready()) {\n"
+            "                failure.handle();\n"
+            "            }\n"
+            "            temporary.handle();\n"
+            "        } catch (OtherFailure failure) {\n"
+            "            failure.handle();\n"
+            "        } finally {\n"
+            "            var cleanup = new Handler();\n"
+            "            cleanup.handle();\n"
+            "            failure.handle();\n"
+            "            temporary.handle();\n"
+            "        }\n"
+            "        failure.handle();\n"
+            "        cleanup.handle();\n"
+            "    }\n}\n"
+        ),
+    )
+    endpoint = f"/api/v1/sources/{consumer['source_id']}/code-structure"
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    result = response.json()
+    methods = {method["id"]: method for method in result["related_methods"]}
+    extra_lines = declaration.count("\n")
+    expected = [
+        (7, "temporary", "Handler"),
+        (8, "failure", "Handler"),
+        (10 + extra_lines, "failure", "Failure"),
+        (11 + extra_lines, "this.failure", "Handler"),
+        (13 + extra_lines, "failure", "Failure"),
+        (17 + extra_lines, "failure", "OtherFailure"),
+        (20 + extra_lines, "cleanup", "Handler"),
+        (21 + extra_lines, "failure", "Handler"),
+        (24 + extra_lines, "failure", "Handler"),
+    ]
+    assert [
+        (call["line"], call["receiver"], call["resolution"],
+         methods[call["target_ids"][0]]["source_id"])
+        for call in result["cross_file_calls"]
+    ] == [
+        (line, receiver, "resolved", targets[name]["source_id"])
+        for line, receiver, name in expected
+    ]
+    assert client.get(endpoint).json() == result
+
+
+@pytest.mark.parametrize("declaration", [
+    "Failure | OtherFailure Failure",
+    "final example.OtherFailure | example.Failure Failure",
+    "Missing | OtherFailure Failure",
+    "ExternalFailure Failure",
+])
+def test_unknown_catch_receivers_do_not_fall_back_to_fields_or_types(
+    declaration: str,
+) -> None:
+    result = analyze_java(
+        "package example;\nclass Consumer {\n"
+        "    Handler Failure;\n    void run(Handler parameter) {\n"
+        f"        try {{}} catch ({declaration}) {{\n"
+        "            Failure.handle();\n"
+        "            this.Failure.handle();\n"
+        "            parameter.handle();\n"
+        "        } finally {\n"
+        "            Failure.handle();\n"
+        "        }\n"
+        "        Failure.handle();\n    }\n}\n",
+        source_id=uuid.uuid4(),
+        related_sources=[JavaSourceInput(
+            source_id=uuid.uuid4(), source_path=f"src/example/{name}.java",
+            content=f"package example;\nclass {name} {{\n    void handle() {{}}\n}}\n",
+        ) for name in ("Handler", "Failure", "OtherFailure")],
+    )
+    methods = {method.id: method for method in result.related_methods}
+    assert [(call.line, call.receiver) for call in result.cross_file_calls] == [
+        (7, "this.Failure"), (8, "parameter"), (10, "Failure"), (12, "Failure"),
+    ]
+    assert all(
+        methods[target].owner_qualified_name == "example.Handler"
+        for call in result.cross_file_calls for target in call.target_ids
+    )
+
+
+def test_catch_inside_enhanced_for_retains_loop_binding_without_leaking_parameter() -> None:
+    result = analyze_java(
+        "package example;\nclass Consumer {\n    void run() {\n"
+        "        for (Handler item : items) {\n"
+        "            try {} catch (Failure failure) {\n"
+        "                item.handle();\n"
+        "                failure.handle();\n"
+        "            }\n"
+        "            item.handle();\n"
+        "            failure.handle();\n"
+        "        }\n    }\n}\n",
+        source_id=uuid.uuid4(),
+        related_sources=[JavaSourceInput(
+            source_id=uuid.uuid4(), source_path=f"src/example/{name}.java",
+            content=f"package example;\nclass {name} {{\n    void handle() {{}}\n}}\n",
+        ) for name in ("Handler", "Failure")],
+    )
+    methods = {method.id: method for method in result.related_methods}
+    assert [
+        (call.line, call.receiver, methods[call.target_ids[0]].owner_qualified_name)
+        for call in result.cross_file_calls
+    ] == [
+        (6, "item", "example.Handler"),
+        (7, "failure", "example.Failure"),
+        (9, "item", "example.Handler"),
+    ]
+
+
+def test_resource_try_stays_excluded_but_catch_and_finally_restore_outer_bindings() -> None:
+    result = analyze_java(
+        "package example;\nclass Consumer {\n"
+        "    Handler resource;\n    void run() {\n"
+        "        try (\n"
+        "            Resource resource = new Resource();\n"
+        "            var other = new Resource()\n"
+        "        ) {\n"
+        "            resource.handle();\n"
+        "            this.resource.handle();\n"
+        "        } catch (Failure failure) {\n"
+        "            failure.handle();\n"
+        "            resource.handle();\n"
+        "            other.handle();\n"
+        "        } finally {\n"
+        "            resource.handle();\n"
+        "            failure.handle();\n"
+        "            other.handle();\n"
+        "        }\n"
+        "        resource.handle();\n    }\n}\n",
+        source_id=uuid.uuid4(),
+        related_sources=[JavaSourceInput(
+            source_id=uuid.uuid4(), source_path=f"src/example/{name}.java",
+            content=f"package example;\nclass {name} {{\n    void handle() {{}}\n}}\n",
+        ) for name in ("Handler", "Resource", "Failure")],
+    )
+    methods = {method.id: method for method in result.related_methods}
+    assert [
+        (call.line, call.receiver, methods[call.target_ids[0]].owner_qualified_name)
+        for call in result.cross_file_calls
+    ] == [
+        (12, "failure", "example.Failure"),
+        (13, "resource", "example.Handler"),
+        (16, "resource", "example.Handler"),
+        (20, "resource", "example.Handler"),
+    ]
 
 
 def test_code_structure_ignores_unready_and_other_project_types(
