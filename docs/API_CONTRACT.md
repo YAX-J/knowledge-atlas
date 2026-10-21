@@ -185,11 +185,12 @@
   "item_type": "all",
   "include_comments": true,
   "include_reviews": true,
+  "include_review_threads": true,
   "limit": 20
 }
 ```
 
-仓库必须已关联 `provider=github`。`state` 可为 `all`、`open`、`closed`；`item_type` 可为 `all`、`issue`、`pull_request`；`limit` 为 1–20。后端按 GitHub `updated` 倒序读取一个有界候选页，最多导入 20 项；启用普通评论时，每项最多读取 20 条 Issue 评论。Pull Request 额外包含可获得的 head、base 与 merged 元数据。`include_reviews=true` 时，每个入选 PR 还读取最多 20 条 Review 和 20 条行级 Review Comment，并用 GitHub `Link` 响应头报告各自的截断状态。正文、评论与 Review 活动被确定性渲染为 Markdown，随后复用现有仓库范围去重、`markdown_parsing` 任务与人工审核链路。
+仓库必须已关联 `provider=github`。`state` 可为 `all`、`open`、`closed`；`item_type` 可为 `all`、`issue`、`pull_request`；`limit` 为 1–20。后端按 GitHub `updated` 倒序读取一个有界候选页，最多导入 20 项；启用普通评论时，每项最多读取 20 条 Issue 评论。Pull Request 额外包含可获得的 head、base 与 merged 元数据。`include_reviews=true` 时，每个入选 PR 还读取最多 20 条 Review 和 20 条行级 Review Comment，并用 GitHub `Link` 响应头报告各自的截断状态。`include_review_threads=true` 时，若后端配置了 `GITHUB_TOKEN`，再通过 GraphQL 读取最多 20 个 Review thread 及每个 thread 最多 20 个评论标识，保存当前解决状态、解决者、位置、过期状态和评论成员关系。正文、评论与 Review 活动被确定性渲染为 Markdown，随后复用现有仓库范围去重、`markdown_parsing` 任务与人工审核链路。
 
 ```json
 {
@@ -218,6 +219,10 @@
       "review_comments_count": 0,
       "reviews_truncated": false,
       "review_comments_truncated": false,
+      "review_threads_status": "not_requested",
+      "review_threads_count": 0,
+      "resolved_review_threads_count": 0,
+      "review_threads_truncated": false,
       "error_code": null,
       "review_error_code": null
     }
@@ -225,7 +230,7 @@
 }
 ```
 
-GitHub provider item ID、`updated_at` 与 `include_comments` 组合标识工作项不可变版本。相同版本与评论配置重复导入返回 `reused`，远端更新或评论配置变化则创建新版本记录，不覆盖旧来源或证据。PR Review 活动保存为独立来源，以 provider PR ID 和渲染内容 SHA-256 标识版本，因此 Review 或行级评论变化时即使 PR `updated_at` 未变也会创建新快照。超过单份资料大小限制等本地导入错误分别在工作项或 Review 状态中返回 `skipped`；`truncated=true` 仅表示工作项候选达到有界读取上限，各 Review 截断字段独立报告。资料、图谱、搜索和问答中的 `git_url` 对两类来源都指向规范 Issue/PR 会话；行号仍定位本地保存的 Markdown 快照，不伪造 GitHub 会话行号片段。行级评论的 `in_reply_to_id` 会保留为回复关系，但完整 Review thread 的解决状态、事件、附件、reaction、完整分页、Webhook、轮询与远端删除传播尚未实现。供应商错误沿用仓库快照接口的 `GITHUB_REPOSITORY_UNAVAILABLE`、`GITHUB_RATE_LIMITED` 与 `GITHUB_PROVIDER_FAILED`。
+GitHub provider item ID、`updated_at` 与 `include_comments` 组合标识工作项不可变版本。相同版本与评论配置重复导入返回 `reused`，远端更新或评论配置变化则创建新版本记录，不覆盖旧来源或证据。PR Review 活动保存为独立来源，以 provider PR ID 和渲染内容 SHA-256 标识版本，因此 Review、行级评论或 thread 当前状态变化时即使 PR `updated_at` 未变也会创建新快照。`review_threads_status` 为 `included`、`token_required` 或 `not_requested`；缺少令牌不会使 REST Review 导入失败，也不会把未读取误报为空线程。超过单份资料大小限制等本地导入错误分别在工作项或 Review 状态中返回 `skipped`；`truncated=true` 仅表示工作项候选达到有界读取上限，各 Review 截断字段独立报告，其中 `review_threads_truncated` 同时表示 thread 或其评论成员关系存在后续页。资料、图谱、搜索和问答中的 `git_url` 对两类来源都指向规范 Issue/PR 会话；行号仍定位本地保存的 Markdown 快照，不伪造 GitHub 会话行号片段。行级评论的 `in_reply_to_id` 与 GraphQL thread 评论标识会保留；连续快照可观察状态变化，但查询 API 不提供权威 resolved/unresolved 事件时间。附件、reaction、完整分页、Webhook、轮询与远端删除传播尚未实现。供应商错误沿用仓库快照接口的 `GITHUB_REPOSITORY_UNAVAILABLE`、`GITHUB_RATE_LIMITED` 与 `GITHUB_PROVIDER_FAILED`。
 
 ### 查询仓库 Commit 快照
 

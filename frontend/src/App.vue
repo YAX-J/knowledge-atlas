@@ -373,7 +373,7 @@ async function importRegisteredGithubActivity(repositoryId: string) {
   if (!projectId || loading.activity || loading.sync || loading.remote || loading.upload || loading.task) return
   loading.activity = true
   errors.activity = errors.sync = ''
-  notice.value = '正在从 GitHub 读取最近更新的 Issue、Pull Request 与 Review…'
+  notice.value = '正在从 GitHub 读取最近更新的 Issue、Pull Request、Review 与 thread 状态…'
   try {
     const result = await importGithubWorkItems(projectId, repositoryId)
     if (project.value?.id !== projectId) return
@@ -390,7 +390,19 @@ async function importRegisteredGithubActivity(repositoryId: string) {
     const truncatedReviews = result.items.filter(
       item => item.reviews_truncated || item.review_comments_truncated,
     ).length
-    notice.value = `GitHub Issue/PR 导入完成：工作项新增 ${result.imported_count}、复用 ${result.reused_count}、跳过 ${result.skipped_count}；Review 快照新增 ${result.review_imported_count}、复用 ${result.review_reused_count}、跳过 ${result.review_skipped_count}${result.truncated ? '；结果达到 20 项上限' : ''}${truncatedComments ? `；${truncatedComments} 项普通评论达到导入上限` : ''}${truncatedReviews ? `；${truncatedReviews} 项 Review 活动达到导入上限` : ''}。`
+    const truncatedThreads = result.items.filter(item => item.review_threads_truncated).length
+    const tokenRequiredThreads = result.items.filter(
+      item => item.review_threads_status === 'token_required',
+    ).length
+    const reviewThreadCount = result.items.reduce(
+      (total, item) => total + item.review_threads_count,
+      0,
+    )
+    const resolvedReviewThreadCount = result.items.reduce(
+      (total, item) => total + item.resolved_review_threads_count,
+      0,
+    )
+    notice.value = `GitHub Issue/PR 导入完成：工作项新增 ${result.imported_count}、复用 ${result.reused_count}、跳过 ${result.skipped_count}；Review 快照新增 ${result.review_imported_count}、复用 ${result.review_reused_count}、跳过 ${result.review_skipped_count}；Review thread ${reviewThreadCount} 个（已解决 ${resolvedReviewThreadCount}）${result.truncated ? '；结果达到 20 项上限' : ''}${truncatedComments ? `；${truncatedComments} 项普通评论达到导入上限` : ''}${truncatedReviews ? `；${truncatedReviews} 项 Review 活动达到导入上限` : ''}${truncatedThreads ? `；${truncatedThreads} 项 thread 状态达到导入上限` : ''}${tokenRequiredThreads ? `；${tokenRequiredThreads} 项 thread 状态需要后端 GITHUB_TOKEN` : ''}。`
     await Promise.all([loadSources(1), loadRepositories(repositories.value?.page ?? 1)])
     if (selectedSourceId.value) await refreshSource()
   } catch (error) {

@@ -1,6 +1,8 @@
+import json
 from collections.abc import Callable
 
 import httpx
+import pytest
 from fastapi.testclient import TestClient
 
 from app.api.routes import repositories as repository_routes
@@ -32,10 +34,13 @@ def install_github_mock(
     responder: Callable[[httpx.Request], httpx.Response],
     *,
     max_upload_bytes: int = 10 * 1024 * 1024,
+    github_token: str | None = None,
 ) -> None:
     settings = Settings(
         _env_file=None,
         github_api_base_url="https://api.github.test",
+        github_graphql_url="https://api.github.test/graphql",
+        github_token=github_token,
         max_upload_bytes=max_upload_bytes,
     )
     monkeypatch.setattr(repository_routes, "get_settings", lambda: settings)
@@ -62,6 +67,7 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
         "updated_at": "2026-10-21T09:30:00Z",
         "body": "Please keep the retry budget bounded.",
     }
+    thread_version = {"resolved": True}
 
     def respond(request: httpx.Request) -> httpx.Response:
         path = request.url.path
@@ -196,9 +202,54 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
                     ),
                 }],
             )
+        if path == "/graphql" and request.method == "POST":
+            graphql_request = json.loads(request.content)
+            assert graphql_request["variables"] == {
+                "owner": "example",
+                "name": "demo",
+                "number": 8,
+                "threadLimit": 20,
+                "commentLimit": 20,
+            }
+            assert request.headers["authorization"] == "Bearer test-token"
+            return httpx.Response(200, json={
+                "data": {
+                    "repository": {
+                        "pullRequest": {
+                            "reviewThreads": {
+                                "totalCount": 1,
+                                "pageInfo": {"hasNextPage": False},
+                                "nodes": [{
+                                    "id": "PRRT_thread_1",
+                                    "isResolved": thread_version["resolved"],
+                                    "isOutdated": False,
+                                    "isCollapsed": thread_version["resolved"],
+                                    "resolvedBy": (
+                                        {"login": "margaret"}
+                                        if thread_version["resolved"] else None
+                                    ),
+                                    "path": "backend/retry.py",
+                                    "line": 17,
+                                    "originalLine": 17,
+                                    "startLine": None,
+                                    "originalStartLine": None,
+                                    "diffSide": "RIGHT",
+                                    "startDiffSide": None,
+                                    "subjectType": "LINE",
+                                    "comments": {
+                                        "totalCount": 2,
+                                        "pageInfo": {"hasNextPage": True},
+                                        "nodes": [{"databaseId": 402}],
+                                    },
+                                }],
+                            }
+                        }
+                    }
+                }
+            })
         raise AssertionError(path)
 
-    install_github_mock(monkeypatch, respond)
+    install_github_mock(monkeypatch, respond, github_token="test-token")
     project_id = create_project(client)
     repository = register_github(client, project_id)
     endpoint = (
@@ -251,6 +302,9 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
     assert "Please keep the retry budget bounded." in review_detail["content_preview"]
     assert "`backend/retry.py:17`" in review_detail["content_preview"]
     assert "Reply to review comment: 399" in review_detail["content_preview"]
+    assert "RESOLVED thread `PRRT_thread_1`" in review_detail["content_preview"]
+    assert "Resolved by: @margaret" in review_detail["content_preview"]
+    assert "Review comment IDs: 402" in review_detail["content_preview"]
     pull_item = next(
         item for item in payload["items"] if item["item_type"] == "pull_request"
     )
@@ -259,6 +313,10 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
     assert pull_item["review_comments_count"] == 1
     assert pull_item["reviews_truncated"] is True
     assert pull_item["review_comments_truncated"] is True
+    assert pull_item["review_threads_status"] == "included"
+    assert pull_item["review_threads_count"] == 1
+    assert pull_item["resolved_review_threads_count"] == 1
+    assert pull_item["review_threads_truncated"] is True
 
     request_count = len(requests)
     second = client.post(endpoint, json={})
@@ -273,6 +331,7 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
         "/repos/example/demo", "/repos/example/demo/issues",
         "/repos/example/demo/pulls/8/reviews",
         "/repos/example/demo/pulls/8/comments",
+        "/graphql",
     ]
     assert client.get(
         f"/api/v1/projects/{project_id}/sources?page=1&page_size=20"
@@ -287,6 +346,7 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
         "/repos/example/demo/issues/8",
         "/repos/example/demo/pulls/8/reviews",
         "/repos/example/demo/pulls/8/comments",
+        "/graphql",
     ]
 
     request_count = len(requests)
@@ -319,6 +379,19 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
         f"/api/v1/projects/{project_id}/sources?page=1&page_size=20"
     ).json()["total"] == 4
 
+    thread_version["resolved"] = False
+    thread_updated = client.post(endpoint, json={"item_type": "pull_request"})
+    assert thread_updated.status_code == 200
+    assert (
+        thread_updated.json()["review_imported_count"],
+        thread_updated.json()["review_reused_count"],
+    ) == (1, 0)
+    updated_pull = thread_updated.json()["items"][0]
+    assert updated_pull["resolved_review_threads_count"] == 0
+    assert client.get(
+        f"/api/v1/projects/{project_id}/sources?page=1&page_size=20"
+    ).json()["total"] == 5
+
     issue_version.update({
         "updated_at": "2026-10-21T10:00:00Z",
         "body": "Retries must preserve durable evidence.",
@@ -332,7 +405,72 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
     assert updated_issue["source_id"] != issue["id"]
     assert client.get(
         f"/api/v1/projects/{project_id}/sources?page=1&page_size=20"
-    ).json()["total"] == 5
+    ).json()["total"] == 6
+
+
+@pytest.mark.parametrize("github_token", [None, "", "   "])
+def test_review_thread_state_without_token_is_reported_without_graphql(
+    client: TestClient,
+    monkeypatch,
+    github_token: str | None,
+) -> None:
+    requests: list[tuple[str, str]] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        requests.append((request.method, request.url.path))
+        assert "authorization" not in request.headers
+        path = request.url.path
+        if path == "/repos/example/demo":
+            return httpx.Response(200, json={"id": 42, "full_name": "example/demo"})
+        if path == "/repos/example/demo/pulls":
+            return httpx.Response(200, json=[{
+                "id": 202,
+                "number": 8,
+                "title": "Bounded review threads",
+                "html_url": "https://github.com/example/demo/pull/8",
+                "state": "open",
+                "user": {"login": "grace"},
+                "created_at": "2026-10-21T09:00:00Z",
+                "updated_at": "2026-10-21T09:00:00Z",
+                "body": "Thread state is optional.",
+            }])
+        if path == "/repos/example/demo/issues/8":
+            return httpx.Response(200, json={
+                "id": 202,
+                "number": 8,
+                "title": "Bounded review threads",
+                "html_url": "https://github.com/example/demo/pull/8",
+                "state": "open",
+                "user": {"login": "grace"},
+                "created_at": "2026-10-21T09:00:00Z",
+                "updated_at": "2026-10-21T09:00:00Z",
+                "body": "Thread state is optional.",
+                "comments": 0,
+                "labels": [],
+            })
+        if path == "/repos/example/demo/pulls/8":
+            return httpx.Response(200, json={"head": {}, "base": {}, "merged": False})
+        if path in {
+            "/repos/example/demo/pulls/8/reviews",
+            "/repos/example/demo/pulls/8/comments",
+        }:
+            return httpx.Response(200, json=[])
+        raise AssertionError(path)
+
+    install_github_mock(monkeypatch, respond, github_token=github_token)
+    project_id = create_project(client)
+    repository = register_github(client, project_id)
+    response = client.post(
+        f"/api/v1/projects/{project_id}/repositories/{repository['id']}"
+        "/import-github-work-items",
+        json={"item_type": "pull_request"},
+    )
+    assert response.status_code == 200
+    item = response.json()["items"][0]
+    assert item["review_status"] == "imported"
+    assert item["review_threads_status"] == "token_required"
+    assert item["review_threads_count"] == 0
+    assert not any(path == "/graphql" for _, path in requests)
 
 
 def test_import_github_work_items_rejects_local_only_repository(

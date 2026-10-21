@@ -214,6 +214,10 @@ export interface GithubWorkItemImportResult {
     review_comments_count: number
     reviews_truncated: boolean
     review_comments_truncated: boolean
+    review_threads_status: 'included' | 'token_required' | 'not_requested'
+    review_threads_count: number
+    resolved_review_threads_count: number
+    review_threads_truncated: boolean
     error_code: string | null
     review_error_code: string | null
   }[]
@@ -360,6 +364,7 @@ export function importGithubWorkItems(
         item_type: 'all',
         include_comments: true,
         include_reviews: true,
+        include_review_threads: true,
         limit: 20,
       }),
       signal: AbortSignal.timeout(120000),

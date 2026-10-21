@@ -102,7 +102,7 @@ frontend/
 
 问答只保留当前内存结果，不写浏览器存储，也没有历史列表。切换项目、清空或新请求会使旧响应失效。后端无证据时会直接拒答；前端不会以 Mock 内容替代失败结果。
 
-GitHub 活动按钮显式请求 Issue、PR 与 PR Review 活动。完成提示分别汇总工作项版本与 Review 快照的新增、复用、跳过数量，并分别提示普通评论或 Review 数据达到上限；Review 快照仍作为普通 Markdown 资料展示，不在组件内建立第二套请求状态。
+GitHub 活动按钮显式请求 Issue、PR、PR Review 活动与 Review thread 当前状态。完成提示分别汇总工作项版本与 Review 快照的新增、复用、跳过数量，显示 thread/已解决数量，并分别提示普通评论、Review/thread 数据达到上限或后端缺少 `GITHUB_TOKEN`；Review 快照仍作为普通 Markdown 资料展示，不在组件内建立第二套请求状态。
 
 ## Mock 数据结构
 

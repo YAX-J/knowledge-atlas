@@ -100,6 +100,7 @@ def import_github_work_items(
         item_type=import_in.item_type,
         include_comments=import_in.include_comments,
         include_reviews=import_in.include_reviews,
+        include_review_threads=import_in.include_review_threads,
         limit=import_in.limit,
     )
 

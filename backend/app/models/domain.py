@@ -306,6 +306,15 @@ class GithubPullReviewVersion(TimestampMixin, Base):
             name="ck_github_pull_review_versions_comments_count",
         ),
         CheckConstraint(
+            "review_threads_count >= 0",
+            name="ck_github_pull_review_versions_threads_count",
+        ),
+        CheckConstraint(
+            "resolved_review_threads_count >= 0 "
+            "AND resolved_review_threads_count <= review_threads_count",
+            name="ck_github_pull_review_versions_resolved_threads_count",
+        ),
+        CheckConstraint(
             "length(activity_digest) = 64",
             name="ck_github_pull_review_versions_digest",
         ),
@@ -345,6 +354,18 @@ class GithubPullReviewVersion(TimestampMixin, Base):
     )
     review_comments_truncated: Mapped[bool] = mapped_column(
         Boolean, default=False, nullable=False
+    )
+    review_threads_count: Mapped[int] = mapped_column(
+        default=0, server_default="0", nullable=False
+    )
+    resolved_review_threads_count: Mapped[int] = mapped_column(
+        default=0, server_default="0", nullable=False
+    )
+    review_threads_included: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
+    review_threads_truncated: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False
     )
 
     repository: Mapped[SourceRepository] = relationship(

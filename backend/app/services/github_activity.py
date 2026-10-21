@@ -24,6 +24,48 @@ MAX_GITHUB_WORK_ITEMS = 20
 MAX_GITHUB_COMMENTS_PER_ITEM = 20
 MAX_GITHUB_REVIEWS_PER_PULL = 20
 MAX_GITHUB_REVIEW_COMMENTS_PER_PULL = 20
+MAX_GITHUB_REVIEW_THREADS_PER_PULL = 20
+MAX_GITHUB_THREAD_COMMENT_REFERENCES = 20
+
+
+REVIEW_THREADS_QUERY = """
+query PullRequestReviewThreads(
+  $owner: String!
+  $name: String!
+  $number: Int!
+  $threadLimit: Int!
+  $commentLimit: Int!
+) {
+  repository(owner: $owner, name: $name) {
+    pullRequest(number: $number) {
+      reviewThreads(first: $threadLimit) {
+        totalCount
+        pageInfo { hasNextPage }
+        nodes {
+          id
+          isResolved
+          isOutdated
+          isCollapsed
+          resolvedBy { login }
+          path
+          line
+          originalLine
+          startLine
+          originalStartLine
+          diffSide
+          startDiffSide
+          subjectType
+          comments(first: $commentLimit) {
+            totalCount
+            pageInfo { hasNextPage }
+            nodes { databaseId }
+          }
+        }
+      }
+    }
+  }
+}
+"""
 
 
 def _json_array(response: httpx.Response) -> list[dict[str, Any]]:
@@ -77,6 +119,124 @@ def _get_bounded_json_array(
             message="无法连接 GitHub，请稍后重试",
         ) from exc
     return payload[:limit], "next" in response.links
+
+
+def _get_review_threads(
+    client: httpx.Client,
+    *,
+    graphql_url: str,
+    owner: str,
+    name: str,
+    number: int,
+) -> tuple[list[dict[str, Any]], bool]:
+    try:
+        response = client.post(
+            graphql_url,
+            json={
+                "query": REVIEW_THREADS_QUERY,
+                "variables": {
+                    "owner": owner,
+                    "name": name,
+                    "number": number,
+                    "threadLimit": MAX_GITHUB_REVIEW_THREADS_PER_PULL,
+                    "commentLimit": MAX_GITHUB_THREAD_COMMENT_REFERENCES,
+                },
+            },
+        )
+    except httpx.HTTPError as exc:
+        raise AppError(
+            status_code=502,
+            code="GITHUB_PROVIDER_FAILED",
+            message="无法连接 GitHub，请稍后重试",
+        ) from exc
+    if not response.is_success:
+        raise github_import._provider_error(response)
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        raise AppError(
+            status_code=502,
+            code="GITHUB_PROVIDER_FAILED",
+            message="GitHub GraphQL 返回了无效 JSON",
+        ) from exc
+    if not isinstance(payload, dict) or payload.get("errors"):
+        raise AppError(
+            status_code=502,
+            code="GITHUB_PROVIDER_FAILED",
+            message="GitHub GraphQL 无法读取 Review thread",
+        )
+    data = payload.get("data")
+    repository = data.get("repository") if isinstance(data, dict) else None
+    pull_request = (
+        repository.get("pullRequest") if isinstance(repository, dict) else None
+    )
+    connection = (
+        pull_request.get("reviewThreads")
+        if isinstance(pull_request, dict)
+        else None
+    )
+    nodes = connection.get("nodes") if isinstance(connection, dict) else None
+    page_info = (
+        connection.get("pageInfo") if isinstance(connection, dict) else None
+    )
+    total_count = (
+        connection.get("totalCount") if isinstance(connection, dict) else None
+    )
+    if (
+        not isinstance(nodes, list)
+        or not all(isinstance(node, dict) for node in nodes)
+        or not isinstance(page_info, dict)
+        or not isinstance(page_info.get("hasNextPage"), bool)
+        or not isinstance(total_count, int)
+    ):
+        raise AppError(
+            status_code=502,
+            code="GITHUB_PROVIDER_FAILED",
+            message="GitHub GraphQL Review thread 响应缺少必要字段",
+        )
+    threads = nodes[:MAX_GITHUB_REVIEW_THREADS_PER_PULL]
+    if not all(
+        isinstance(thread.get("id"), str)
+        and isinstance(thread.get("isResolved"), bool)
+        and isinstance(thread.get("isOutdated"), bool)
+        and isinstance(thread.get("path"), str)
+        for thread in threads
+    ):
+        raise AppError(
+            status_code=502,
+            code="GITHUB_PROVIDER_FAILED",
+            message="GitHub GraphQL Review thread 响应缺少必要字段",
+        )
+    truncated = page_info.get("hasNextPage") is True or total_count > len(threads)
+    for thread in threads:
+        comments = thread.get("comments")
+        if not isinstance(comments, dict):
+            raise AppError(
+                status_code=502,
+                code="GITHUB_PROVIDER_FAILED",
+                message="GitHub GraphQL Review thread 响应缺少必要字段",
+            )
+        comment_nodes = comments.get("nodes")
+        comment_total = comments.get("totalCount")
+        comment_page_info = comments.get("pageInfo")
+        if (
+            not isinstance(comment_nodes, list)
+            or not all(isinstance(node, dict) for node in comment_nodes)
+            or not isinstance(comment_total, int)
+            or not isinstance(comment_page_info, dict)
+            or not isinstance(comment_page_info.get("hasNextPage"), bool)
+        ):
+            raise AppError(
+                status_code=502,
+                code="GITHUB_PROVIDER_FAILED",
+                message="GitHub GraphQL Review thread 响应缺少必要字段",
+            )
+        if (
+            comment_page_info.get("hasNextPage") is True
+            or comment_total > len(comment_nodes)
+        ):
+            truncated = True
+    return threads, truncated
 
 
 def _required_item_fields(
@@ -197,14 +357,30 @@ def _stable_activity_key(payload: dict[str, Any]) -> tuple[str, str]:
     return str(timestamp), str(provider_id) if provider_id is not None else ""
 
 
+def _stable_thread_key(payload: dict[str, Any]) -> tuple[str, int, str]:
+    line = payload.get("line")
+    if not isinstance(line, int):
+        line = payload.get("originalLine")
+    return (
+        str(payload.get("path") or ""),
+        line if isinstance(line, int) else -1,
+        str(payload.get("id") or ""),
+    )
+
+
 def _render_pull_review_markdown(
     *,
     number: int,
     html_url: str,
     reviews: list[dict[str, Any]],
     review_comments: list[dict[str, Any]],
+    review_threads: list[dict[str, Any]],
     reviews_truncated: bool,
     review_comments_truncated: bool,
+    review_threads_status: Literal[
+        "included", "token_required", "not_requested"
+    ],
+    review_threads_truncated: bool,
 ) -> str:
     lines = [
         f"# Pull Request #{number} review activity",
@@ -274,6 +450,81 @@ def _render_pull_review_markdown(
             "_Review comments truncated after "
             f"{MAX_GITHUB_REVIEW_COMMENTS_PER_PULL} entries._"
         )
+
+    lines.extend(["", "## Review threads", ""])
+    if review_threads_status == "not_requested":
+        lines.append("_Review thread state was not requested._")
+    elif review_threads_status == "token_required":
+        lines.append("_Review thread state requires a configured GitHub token._")
+    elif not review_threads:
+        lines.append("_No review threads imported._")
+    for thread in sorted(review_threads, key=_stable_thread_key):
+        thread_id = _single_line(str(thread.get("id") or "unknown"))
+        resolved = thread.get("isResolved") is True
+        lines.extend([
+            f"### {'RESOLVED' if resolved else 'UNRESOLVED'} thread `{thread_id}`",
+            "",
+        ])
+        path = thread.get("path")
+        if isinstance(path, str) and path:
+            lines.append(f"- Path: `{_single_line(path)}`")
+        start_line = thread.get("startLine")
+        line = thread.get("line")
+        if not isinstance(start_line, int):
+            start_line = thread.get("originalStartLine")
+        if not isinstance(line, int):
+            line = thread.get("originalLine")
+        if isinstance(line, int):
+            location = (
+                f"{start_line}-{line}"
+                if isinstance(start_line, int) and start_line != line
+                else str(line)
+            )
+            lines.append(f"- Lines: {location}")
+        subject_type = thread.get("subjectType")
+        if isinstance(subject_type, str):
+            lines.append(f"- Subject: {_single_line(subject_type)}")
+        lines.append(
+            f"- Outdated: {'yes' if thread.get('isOutdated') is True else 'no'}"
+        )
+        resolved_by = thread.get("resolvedBy")
+        if resolved and isinstance(resolved_by, dict):
+            lines.append(f"- Resolved by: @{_actor_login(resolved_by)}")
+        comments = thread.get("comments")
+        comment_ids: list[str] = []
+        comments_truncated = False
+        if isinstance(comments, dict):
+            nodes = comments.get("nodes")
+            if isinstance(nodes, list):
+                comment_ids = [
+                    str(node["databaseId"])
+                    for node in nodes
+                    if isinstance(node, dict)
+                    and isinstance(node.get("databaseId"), (int, str))
+                ]
+            page_info = comments.get("pageInfo")
+            total_count = comments.get("totalCount")
+            comments_truncated = (
+                isinstance(page_info, dict)
+                and page_info.get("hasNextPage") is True
+            ) or (
+                isinstance(total_count, int) and total_count > len(comment_ids)
+            )
+        lines.append(
+            "- Review comment IDs: "
+            + (", ".join(comment_ids) if comment_ids else "none")
+        )
+        if comments_truncated:
+            lines.append(
+                "- Comment membership truncated after "
+                f"{MAX_GITHUB_THREAD_COMMENT_REFERENCES} entries."
+            )
+        lines.append("")
+    if review_threads_truncated:
+        lines.append(
+            "_Review threads or their comment membership were truncated at the "
+            "configured bounds._"
+        )
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -304,10 +555,13 @@ def _import_pull_review_activity(
     base_url: str,
     owner: str,
     name: str,
+    repository_owner: str,
+    repository_name: str,
     provider_pull_id: str,
     number: int,
     html_url: str,
     item: GithubWorkItemImportItem,
+    include_review_threads: bool,
 ) -> None:
     reviews, reviews_truncated = _get_bounded_json_array(
         client,
@@ -319,19 +573,46 @@ def _import_pull_review_activity(
         f"{base_url}/repos/{owner}/{name}/pulls/{number}/comments",
         limit=MAX_GITHUB_REVIEW_COMMENTS_PER_PULL,
     )
+    review_threads: list[dict[str, Any]] = []
+    review_threads_truncated = False
+    if not include_review_threads:
+        review_threads_status: Literal[
+            "included", "token_required", "not_requested"
+        ] = "not_requested"
+    elif settings.github_token is None:
+        review_threads_status = "token_required"
+    else:
+        review_threads, review_threads_truncated = _get_review_threads(
+            client,
+            graphql_url=settings.github_graphql_url,
+            owner=repository_owner,
+            name=repository_name,
+            number=number,
+        )
+        review_threads_status = "included"
+    resolved_review_threads_count = sum(
+        thread.get("isResolved") is True for thread in review_threads
+    )
     markdown = _render_pull_review_markdown(
         number=number,
         html_url=html_url,
         reviews=reviews,
         review_comments=review_comments,
+        review_threads=review_threads,
         reviews_truncated=reviews_truncated,
         review_comments_truncated=review_comments_truncated,
+        review_threads_status=review_threads_status,
+        review_threads_truncated=review_threads_truncated,
     )
     activity_digest = hashlib.sha256(markdown.encode("utf-8")).hexdigest()
     item.reviews_count = len(reviews)
     item.review_comments_count = len(review_comments)
     item.reviews_truncated = reviews_truncated
     item.review_comments_truncated = review_comments_truncated
+    item.review_threads_status = review_threads_status
+    item.review_threads_count = len(review_threads)
+    item.resolved_review_threads_count = resolved_review_threads_count
+    item.review_threads_truncated = review_threads_truncated
 
     existing = _existing_pull_review_version(
         db,
@@ -377,6 +658,10 @@ def _import_pull_review_activity(
         review_comments_count=len(review_comments),
         reviews_truncated=reviews_truncated,
         review_comments_truncated=review_comments_truncated,
+        review_threads_count=len(review_threads),
+        resolved_review_threads_count=resolved_review_threads_count,
+        review_threads_included=review_threads_status == "included",
+        review_threads_truncated=review_threads_truncated,
     )
     db.add(version)
     try:
@@ -429,6 +714,7 @@ def import_github_work_items(
     item_type: Literal["all", "issue", "pull_request"],
     include_comments: bool,
     include_reviews: bool,
+    include_review_threads: bool,
     limit: int,
 ) -> GithubWorkItemImportResult:
     repository = get_repository(
@@ -472,6 +758,8 @@ def import_github_work_items(
         github_import._update_provider_identity(
             db, repository=repository, payload=repository_payload
         )
+        repository_owner = repository.remote_owner or ""
+        repository_name = repository.remote_name or ""
         owner = quote(repository.remote_owner or "", safe="")
         name = quote(repository.remote_name or "", safe="")
 
@@ -494,10 +782,13 @@ def import_github_work_items(
                     base_url=base_url,
                     owner=owner,
                     name=name,
+                    repository_owner=repository_owner,
+                    repository_name=repository_name,
                     provider_pull_id=provider_item_id,
                     number=number,
                     html_url=html_url,
                     item=item,
+                    include_review_threads=include_review_threads,
                 )
             items.append(item)
 

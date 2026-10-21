@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,8 +29,16 @@ class Settings(BaseSettings):
     embedding_batch_size: int = Field(default=32, ge=1, le=100)
     github_token: SecretStr | None = None
     github_api_base_url: str = "https://api.github.com"
+    github_graphql_url: str = "https://api.github.com/graphql"
     github_api_version: str = "2026-03-10"
     github_timeout_seconds: float = Field(default=30, ge=5, le=120)
+
+    @field_validator("github_token", mode="before")
+    @classmethod
+    def normalize_github_token(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip() or None
+        return value
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -10,6 +10,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Bounded GraphQL Pull Request Review thread-state enrichment with current resolved state, resolver, location, outdated state, bounded comment membership, token-aware REST fallback, immutable digest versioning, a reversible migration, and desktop counts.
 - Explicit bounded Pull Request review-activity snapshots with up to 20 reviews and 20 inline review comments per PR, reply links, independent content-digest versioning, canonical PR links, truncation reporting, a reversible migration, and desktop summaries.
 - Bounded Java cross-file call resolution for explicitly typed method parameters and direct method-body local variables, with conservative local/parameter/field shadowing, declaration-order checks, existing package/import resolution, and unchanged formal-graph boundaries.
 - Explicit bounded GitHub Issue/Pull Request import with up to 20 recently updated items and 20 issue comments per item, deterministic Markdown sources, provider-ID/`updated_at` version reuse, immutable local history, canonical conversation links, existing parsing/review reuse, a reversible migration, and desktop controls.

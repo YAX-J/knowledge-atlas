@@ -59,7 +59,7 @@ OpenAPI 文档地址为 `http://localhost:8000/docs`。
 
 Markdown 任务使用 `markdown_parsing`，Java 任务使用 `code_parsing`；旧版排队的 `knowledge_extraction` 上传任务也只执行 Markdown 解析。成功后任务为 `succeeded`/`parsed`/100，来源变为 `ready`，这不代表已经执行知识抽取。执行失败时返回 HTTP 200，任务状态为 `failed`，错误内容经过脱敏；可调用同一接口重试。重复执行成功任务会返回已有结果；运行中或已取消任务返回 HTTP 409。重复上传响应中返回的是复用任务的当前状态，不一定为 `queued`。
 
-Markdown 解析器支持 ATX/Setext 标题、段落、列表和围栏代码。Java 有界解析器识别顶层类型和常规直接成员方法，同时保留全部源码。来源结构视图还会在最多 100 份同仓库已解析 Java 来源内，按显式导入、同包和通配导入解析顶层类型的 `extends`/`implements` 目标，以及直接类型限定、当前类型字段、显式类型参数和方法体直属局部变量接收者的方法调用；旧的未归属资料只与其他未归属资料互相解析。参数/局部变量会保守地遮蔽字段，`this.field` 仍选择字段；`var`、嵌套块局部变量、多变量声明、重新赋值和完整数据流仍不支持。同一来源与分块边界下，分块 ID 保持稳定。文件字节变化时创建独立来源，不修改既有来源。PostgreSQL 项目行锁串行化仓库解析与重复上传创建；SQLite 不验证这类锁保证。手动接口在 API 进程中解析，自动执行使用下文的 Worker。一次 GitHub 同步读取一个显式快照，最多导入 50 份支持文件，累计预算 20 MiB，保存 Commit/文件来源信息，并从上一快照复用未变化 blob。完整 tree 会报告重命名与删除；远端删除的文件仍保留为不可变历史来源，并解析到最后一次非删除快照的 Commit 链接。另一个显式操作会把最近更新的最多 20 个 Issue/Pull Request 及每项最多 20 条普通评论导入为 Markdown，并按 provider ID 与 `updated_at` 保存不可变版本；每个入选 PR 还会生成独立的 Review 活动快照，最多包含 20 条 Review 与 20 条行级 Review Comment，并按内容摘要复用。完整线程解决状态、事件、附件、reaction、Webhook、轮询和来源/知识失效尚未实现。
+Markdown 解析器支持 ATX/Setext 标题、段落、列表和围栏代码。Java 有界解析器识别顶层类型和常规直接成员方法，同时保留全部源码。来源结构视图还会在最多 100 份同仓库已解析 Java 来源内，按显式导入、同包和通配导入解析顶层类型的 `extends`/`implements` 目标，以及直接类型限定、当前类型字段、显式类型参数和方法体直属局部变量接收者的方法调用；旧的未归属资料只与其他未归属资料互相解析。参数/局部变量会保守地遮蔽字段，`this.field` 仍选择字段；`var`、嵌套块局部变量、多变量声明、重新赋值和完整数据流仍不支持。同一来源与分块边界下，分块 ID 保持稳定。文件字节变化时创建独立来源，不修改既有来源。PostgreSQL 项目行锁串行化仓库解析与重复上传创建；SQLite 不验证这类锁保证。手动接口在 API 进程中解析，自动执行使用下文的 Worker。一次 GitHub 同步读取一个显式快照，最多导入 50 份支持文件，累计预算 20 MiB，保存 Commit/文件来源信息，并从上一快照复用未变化 blob。完整 tree 会报告重命名与删除；远端删除的文件仍保留为不可变历史来源，并解析到最后一次非删除快照的 Commit 链接。另一个显式操作会把最近更新的最多 20 个 Issue/Pull Request 及每项最多 20 条普通评论导入为 Markdown，并按 provider ID 与 `updated_at` 保存不可变版本；每个入选 PR 还会生成独立的 Review 活动快照，最多包含 20 条 Review 与 20 条行级 Review Comment，并按内容摘要复用。配置令牌后，快照还会包含最多 20 个 GraphQL Review thread 与每个 thread 20 个评论标识，包括当前解决状态和解决者；无令牌时 REST 导入仍成功并报告缺少该补充。精确解决事件时间、附件、reaction、完整分页、Webhook、轮询和来源/知识失效尚未实现。
 
 ## 自动解析 Worker
 
@@ -93,7 +93,7 @@ Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose 
 
 ## DeepSeek 候选提取与审核
 
-审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261021_0012`。只在后端 `.env` 中配置：
+审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261021_0013`。只在后端 `.env` 中配置：
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key
@@ -107,11 +107,12 @@ EMBEDDING_MODEL=your-1024-dimension-model
 EMBEDDING_DIMENSIONS=1024
 GITHUB_TOKEN=optional_read_only_token
 GITHUB_API_BASE_URL=https://api.github.com
+GITHUB_GRAPHQL_URL=https://api.github.com/graphql
 GITHUB_API_VERSION=2026-03-10
 GITHUB_TIMEOUT_SECONDS=30
 ```
 
-默认模型依据 [DeepSeek 官方接口文档](https://api-docs.deepseek.com/)。适配器使用 JSON 输出和非思考模式，仍由后端自行校验 Schema。公开仓库可不设置 `GITHUB_TOKEN`；私有仓库令牌只放后端，并只授予 Contents 读取权限。修改配置后重启 API。本地环境文件已补齐缺失的空值/默认配置字段，真实密钥不得提交或放进前端配置。
+默认模型依据 [DeepSeek 官方接口文档](https://api-docs.deepseek.com/)。适配器使用 JSON 输出和非思考模式，仍由后端自行校验 Schema。公开 REST 导入可不设置 `GITHUB_TOKEN`；私有仓库与 GraphQL Review thread 状态需要只放在后端的令牌，并按所选导入授予最小的 Contents、Issues 与 Pull requests 读取权限。空值或纯空白令牌视为未配置。`GITHUB_GRAPHQL_URL` 默认指向 GitHub.com，可为兼容测试端点独立调整；remote 登记仍只支持 GitHub.com。修改配置后重启 API。本地环境文件已补齐缺失的空值/默认配置字段，真实密钥不得提交或放进前端配置。
 
 解析资料后，在候选区域显式请求提取，才会把该篇资料分块发送到 DeepSeek。`POST /api/v1/sources/{source_id}/extract` 同步执行，`GET /api/v1/sources/{source_id}/extraction` 读取任务状态。解析 Worker 不调用模型。单次默认最多 100 个分块、序列化输入 JSON 60000 字符、50 个实体、100 个关系、8192 输出 token 和 1 MiB 响应；超限会拒绝，不会静默截断，请拆分来源。
 

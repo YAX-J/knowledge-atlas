@@ -121,6 +121,9 @@ def test_postgresql_migrations_compile_without_a_live_server(monkeypatch) -> Non
     assert "CREATE TABLE repository_snapshot_files" in sql
     assert "CREATE TABLE github_work_item_versions" in sql
     assert "CREATE TABLE github_pull_review_versions" in sql
+    assert "review_threads_count" in sql
+    assert "resolved_review_threads_count" in sql
+    assert "review_threads_included" in sql
 
 
 def test_github_work_item_version_migration_is_reversible(tmp_path, monkeypatch) -> None:
@@ -226,6 +229,88 @@ def test_github_work_item_version_migration_is_reversible(tmp_path, monkeypatch)
     command.downgrade(config, "20261020_0010")
     assert "github_work_item_versions" not in inspect(engine).get_table_names()
     assert "github_pull_review_versions" not in inspect(engine).get_table_names()
+    command.upgrade(config, "head")
+    engine.dispose()
+
+
+def test_review_thread_state_migration_preserves_existing_versions(
+    tmp_path, monkeypatch
+) -> None:
+    url = f"sqlite+pysqlite:///{(tmp_path / 'github-review-threads.db').as_posix()}"
+    monkeypatch.setattr(
+        app_config, "get_settings", lambda: SimpleNamespace(database_url=url)
+    )
+    config = migration_config()
+    command.upgrade(config, "20261021_0012")
+    engine = create_engine(url)
+    user_id = uuid.uuid4()
+    review_version_id = uuid.uuid4()
+    with Session(engine) as db:
+        project = Project(user_id=user_id, name="Review thread migration")
+        db.add(project)
+        db.flush()
+        repository = SourceRepository(
+            user_id=user_id,
+            project_id=project.id,
+            name="example/demo",
+            kind="git_remote",
+            provider="github",
+            provider_repository_id="42",
+            remote_owner="example",
+            remote_name="demo",
+            remote_url="https://github.com/example/demo",
+        )
+        db.add(repository)
+        db.flush()
+        project_id = project.id
+        repository_id = repository.id
+        db.commit()
+    with engine.begin() as connection:
+        connection.execute(text(
+            "INSERT INTO github_pull_review_versions "
+            "(id, user_id, project_id, repository_id, provider_pull_id, number, "
+            "html_url, activity_digest, reviews_count, review_comments_count, "
+            "reviews_truncated, review_comments_truncated, created_at, updated_at) "
+            "VALUES (:id, :user_id, :project_id, :repository_id, '202', 8, "
+            "'https://github.com/example/demo/pull/8', :digest, 1, 1, 0, 0, "
+            "CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+        ), {
+            "id": review_version_id.hex,
+            "user_id": user_id.hex,
+            "project_id": project_id.hex,
+            "repository_id": repository_id.hex,
+            "digest": "b" * 64,
+        })
+
+    command.upgrade(config, "head")
+    columns = {
+        column["name"]
+        for column in inspect(engine).get_columns("github_pull_review_versions")
+    }
+    assert {
+        "review_threads_count",
+        "resolved_review_threads_count",
+        "review_threads_included",
+        "review_threads_truncated",
+    } <= columns
+    with engine.connect() as connection:
+        row = connection.execute(text(
+            "SELECT review_threads_count, resolved_review_threads_count, "
+            "review_threads_included, review_threads_truncated "
+            "FROM github_pull_review_versions WHERE id = :id"
+        ), {"id": review_version_id.hex}).one()
+        assert tuple(row) == (0, 0, 0, 0)
+
+    command.downgrade(config, "20261021_0012")
+    columns = {
+        column["name"]
+        for column in inspect(engine).get_columns("github_pull_review_versions")
+    }
+    assert "review_threads_count" not in columns
+    with engine.connect() as connection:
+        assert connection.execute(text(
+            "SELECT activity_digest FROM github_pull_review_versions WHERE id = :id"
+        ), {"id": review_version_id.hex}).scalar_one() == "b" * 64
     command.upgrade(config, "head")
     engine.dispose()
 

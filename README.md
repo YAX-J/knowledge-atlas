@@ -4,7 +4,7 @@
 
 Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成带有来源、时间和上下文的知识网络，帮助开发者重新找到历史方案、理解技术决策，并基于真实证据回答问题。
 
-> 当前进度：Markdown 与 Java 的本地单文件/仓库文件夹导入（含仓库内相对路径持久化）、规范化 GitHub remote 身份、显式有界快照及 Commit 元数据持久化/增量同步、从快照派生的不可变 GitHub 文件/行号证据链接、显式有界 Issue/PR 与 PR Review 活动版本导入、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、关键词/语义向量/一跳图关系融合检索，以及同步证据问答已经实现。GitHub 文件同步当前只处理单个 ref 中最多 50 份支持文件；工作项导入最多读取最近更新的 20 项、每项 20 条普通评论，以及每个 PR 各 20 条 Review 与行级 Review Comment。删除保留为历史快照，不自动失效既有知识。Java 支持有界跨文件类型，以及显式声明类型的直接类型、字段、方法参数和直属局部变量接收者调用，但不代表完整 AST 或调用图已经完成。
+> 当前进度：Markdown 与 Java 的本地单文件/仓库文件夹导入（含仓库内相对路径持久化）、规范化 GitHub remote 身份、显式有界快照及 Commit 元数据持久化/增量同步、从快照派生的不可变 GitHub 文件/行号证据链接、显式有界 Issue/PR 与 PR Review 活动版本导入、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、关键词/语义向量/一跳图关系融合检索，以及同步证据问答已经实现。GitHub 文件同步当前只处理单个 ref 中最多 50 份支持文件；工作项导入最多读取最近更新的 20 项、每项 20 条普通评论，以及每个 PR 各 20 条 Review、行级 Review Comment 与 GraphQL Review thread 当前状态。删除保留为历史快照，不自动失效既有知识。Java 支持有界跨文件类型，以及显式声明类型的直接类型、字段、方法参数和直属局部变量接收者调用，但不代表完整 AST 或调用图已经完成。
 
 ![Knowledge Atlas 知识图谱工作台](docs/images/knowledge-atlas-overview.png)
 
@@ -49,7 +49,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - 真实项目列表与创建、项目资料列表，以及 Markdown/Java 的桌面端单文件上传或本地仓库文件夹导入（最多 50 份支持文件，保存仓库身份和仓库内相对路径）。
 - 来源仓库清单、GitHub HTTPS/SSH remote 规范化登记、稳定 provider ID、关联已有本地仓库，以及从默认分支或指定 ref 显式增量同步最多 50 份 Markdown/Java 文件并保存 Commit 快照。
 - GitHub 导入资料的固定 Commit 文件入口，以及图谱、搜索和问答证据中固定到精确行号的 GitHub 原文入口。
-- 最近更新的 GitHub Issue/PR 显式导入，正文、普通评论以及 PR Review/行级 Review Comment 分别形成有界的不可变 Markdown 来源版本，并从资料和证据打开规范会话。
+- 最近更新的 GitHub Issue/PR 显式导入，正文、普通评论以及 PR Review/行级 Review Comment/有界 thread 当前状态分别形成不可变 Markdown 来源版本，并从资料和证据打开规范会话。
 - 显式开始/重试解析、原文预览、标题或代码结构与行号分块查询。
 - Java 类型、字段、方法、有界同文件调用，以及按包/导入解析的跨文件继承/实现和显式声明类型的直接类型、字段、方法参数、直属局部变量接收者调用展示，明确与已审核正式图谱分离。
 - 候选知识确认/拒绝、名称摘要修正和旧确认补写入图谱。
@@ -125,7 +125,7 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-候选提取、语义索引、GitHub Commit 快照、工作项与 PR Review 版本需要先应用最新迁移（`20261021_0012`）。候选提取在后端 `.env` 设置 `DEEPSEEK_API_KEY`；语义检索需另外配置 `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL` 和 `EMBEDDING_MODEL`，当前固定 1024 维。外部调用都由用户显式触发。GitHub 公开仓库读取无需令牌；私有仓库可在后端设置具备 Contents、Issues 与 Pull requests 只读权限的 `GITHUB_TOKEN`。详细设置见 [后端说明](backend/README.zh-CN.md)。
+候选提取、语义索引、GitHub Commit 快照、工作项与 PR Review 版本需要先应用最新迁移（`20261021_0013`）。候选提取在后端 `.env` 设置 `DEEPSEEK_API_KEY`；语义检索需另外配置 `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL` 和 `EMBEDDING_MODEL`，当前固定 1024 维。外部调用都由用户显式触发。GitHub 公开 REST 读取无需令牌；私有仓库与 Review thread 状态可在后端设置具备 Contents、Issues 与 Pull requests 只读权限的 `GITHUB_TOKEN`。详细设置见 [后端说明](backend/README.zh-CN.md)。
 
 接口文档地址为 `http://localhost:8000/docs`，存活检查地址为 `http://localhost:8000/api/v1/health/live`。
 
@@ -225,7 +225,7 @@ knowledge-atlas/
 7. 回答必须返回原文证据；证据不足时明确说明缺失信息。
 8. 至少支持一组新旧结论的替代关系和历史查询。
 
-该闭环的当前实现已继续扩展到本地 Java、有界 GitHub Commit 快照、增量 blob 同步、不可变 Git 行链接，以及有界 Issue/PR、Review 摘要与行级 Review Comment 版本导入；完整 Review thread 解决状态、事件、多跳查询和知识治理仍按路线逐步推进。
+该闭环的当前实现已继续扩展到本地 Java、有界 GitHub Commit 快照、增量 blob 同步、不可变 Git 行链接，以及有界 Issue/PR、Review 摘要、行级 Review Comment 与 Review thread 当前状态版本导入；权威 thread 事件时间、多跳查询和知识治理仍按路线逐步推进。
 
 ## 设计原则
 

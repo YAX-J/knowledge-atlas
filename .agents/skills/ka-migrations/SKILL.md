@@ -29,8 +29,9 @@ description: Knowledge Atlas 的 SQLAlchemy 模型与 Alembic 迁移。新增/�
 | `20261020_0010` | GitHub provider ID、Commit 快照及逐文件状态 |
 | `20261021_0011` | GitHub Issue/PR 不可变导入版本与来源/任务映射 |
 | `20261021_0012` | GitHub PR Review 活动内容摘要版本与来源/任务映射 |
+| `20261021_0013` | GitHub PR Review thread 当前状态、解决数量与截断元数据 |
 
-当前 head 是 `20261021_0012`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
+当前 head 是 `20261021_0013`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
 
 ## 规则
 

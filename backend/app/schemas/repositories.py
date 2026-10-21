@@ -103,6 +103,7 @@ class GithubWorkItemImport(BaseModel):
     item_type: Literal["all", "issue", "pull_request"] = "all"
     include_comments: bool = True
     include_reviews: bool = True
+    include_review_threads: bool = True
     limit: int = Field(default=20, ge=1, le=20)
 
 
@@ -124,6 +125,12 @@ class GithubWorkItemImportItem(BaseModel):
     review_comments_count: int = 0
     reviews_truncated: bool = False
     review_comments_truncated: bool = False
+    review_threads_status: Literal[
+        "included", "token_required", "not_requested"
+    ] = "not_requested"
+    review_threads_count: int = 0
+    resolved_review_threads_count: int = 0
+    review_threads_truncated: bool = False
     error_code: str | None = None
     review_error_code: str | None = None
 
