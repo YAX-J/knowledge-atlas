@@ -95,7 +95,7 @@ flowchart TB
 
 PR Review 活动与基础工作项分开版本化。显式活动导入为每个入选 PR 读取各最多 20 条 Review 和行级 Review Comment；配置令牌时，再通过 GraphQL 读取最多 20 个 Review thread 及每个 thread 20 个评论标识，保存当前解决状态、解决者、位置与过期状态。结果渲染成独立 Markdown，并在 `github_pull_review_versions` 中以 provider PR ID 与内容 SHA-256 保存映射，同时记录 thread 数量、已解决数量、是否纳入和截断元数据。这样 Review 内容或 thread 状态变化无需依赖 PR `updated_at`；行级评论的 `in_reply_to_id` 与有界 thread 成员关系会保留，但查询快照不声称拥有权威解决事件时间。Review 来源继续复用相同解析、证据和规范 PR URL 流程，见 [ADR 0023](adr/0023-versioned-github-pull-reviews.zh-CN.md) 与 [ADR 0024](adr/0024-bounded-github-review-thread-state.zh-CN.md)。
 
-Java 接收者解析还支持方法体及普通块/if/else/while 内局部变量中的 `var x = new Type(...)`，仅从完整构造器表达式确定原始类型名，并复用既有包、导入和仓库边界。无法确认初始化类型时保守阻止同名字段/类型回退；不引入数据流或完整符号求解。局部绑定记录词法范围，离开块后恢复外层绑定；未知绑定与不支持的带花括号执行区域保守处理。该扩展不改变来源分块、接口形状或数据库，见 [ADR 0025](adr/0025-constructor-initialized-java-var-receivers.zh-CN.md) 与 [ADR 0026](adr/0026-scoped-java-local-receivers.zh-CN.md)。
+Java 接收者解析还支持方法体及普通块/if/else/while 内局部变量中的 `var x = new Type(...)`，仅从完整构造器表达式确定原始类型名，并复用既有包、导入和仓库边界。无法确认初始化类型时保守阻止同名字段/类型回退；不引入数据流或完整符号求解。局部绑定记录词法范围，离开块后恢复外层绑定；未知绑定与不支持的带花括号执行区域保守处理。增强 for 的显式类型元素也可在循环体和受支持子块中解析；头部调用省略，`var`/数组元素保留未知绑定，不做集合元素类型推断，见 [ADR 0027](adr/0027-enhanced-for-java-receivers.zh-CN.md)。该扩展不改变来源分块、接口形状或数据库，见 [ADR 0025](adr/0025-constructor-initialized-java-var-receivers.zh-CN.md) 与 [ADR 0026](adr/0026-scoped-java-local-receivers.zh-CN.md)。
 
 ### Worker
 

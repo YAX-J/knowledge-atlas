@@ -89,3 +89,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0024: Snapshot bounded GitHub review thread state through GraphQL](0024-bounded-github-review-thread-state.md)
 - [ADR 0025: Infer bounded Java var receivers from constructor initializers](0025-constructor-initialized-java-var-receivers.md)
 - [ADR 0026: Resolve Java local receivers within bounded lexical blocks](0026-scoped-java-local-receivers.md)
+- [ADR 0027: Resolve Java receivers through bounded enhanced-for elements](0027-enhanced-for-java-receivers.md)

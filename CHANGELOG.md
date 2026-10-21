@@ -10,6 +10,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Java cross-file method links through explicitly typed enhanced-for elements in braced bodies, with nested/sibling scope isolation, outer-binding restoration, and conservative unknown `var`/array shadowing.
 - Scoped Java local receiver links in ordinary/if/else/while brace blocks, with declaration lifetimes, sibling isolation, outer-binding restoration, and conservative exclusion of unsupported execution scopes.
 - Repository-local Java method links through direct `var` locals initialized by a complete constructor expression, including qualified/generic types, exact lines, stable IDs, and conservative shadowing for unsupported initializers.
 - Bounded GraphQL Pull Request Review thread-state enrichment with current resolved state, resolver, location, outdated state, bounded comment membership, token-aware REST fallback, immutable digest versioning, a reversible migration, and desktop counts.

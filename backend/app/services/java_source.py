@@ -179,6 +179,7 @@ class _BlockScope:
     parent: int | None
     supported: bool
     header_start: int
+    loop_variable: tuple[str, str | None] | None = None
 
 
 @dataclass(frozen=True)
@@ -741,6 +742,36 @@ def _supported_block_header(header: str) -> bool:
     return False
 
 
+def _enhanced_for_variable(header: str) -> tuple[str, str | None] | None:
+    """Recognize a single enhanced-for binding, without element-type inference."""
+    match = re.fullmatch(
+        r"\s*for\s*\(\s*(?:final\s+)?"
+        r"(?P<type>[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*"
+        r"(?:\s*<[\w$.,?<>\[\]&\s]+>)?(?:\s*\[\s*\])*)\s+"
+        r"(?P<name>[A-Za-z_$][\w$]*)(?P<array>(?:\s*\[\s*\])*)\s*:\s*"
+        r"(?P<iterable>[^;{}]+)\)\s*",
+        header,
+    )
+    if match is None or re.search(r"\binstanceof\b", header):
+        return None
+    depth = 0
+    for char in match.group("iterable"):
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth < 0:
+                return None
+    if depth != 0 or not match.group("iterable").strip():
+        return None
+    declared_type = match.group("type")
+    referenced = _referenced_type_name(declared_type)
+    type_name = referenced[0] if referenced is not None else None
+    if type_name == "var" or re.search(r"\]\s*$", declared_type) or match.group("array"):
+        type_name = None
+    return match.group("name"), type_name
+
+
 def _method_scopes(text: str, *, opening: int, end: int) -> _MethodScopes:
     """Index supported lexical blocks and exclude bodies with unknown bindings."""
     blocks = [_BlockScope(opening, end, None, True, opening)]
@@ -755,13 +786,15 @@ def _method_scopes(text: str, *, opening: int, end: int) -> _MethodScopes:
             round_depth -= 1
         elif char == "{":
             parent = stack[-1]
+            header = text[statement_start:position]
+            loop_variable = _enhanced_for_variable(header)
             supported = (
                 blocks[parent].supported
                 and round_depth == 0
-                and _supported_block_header(text[statement_start:position])
+                and (_supported_block_header(header) or loop_variable is not None)
             )
             blocks.append(_BlockScope(
-                position, end, parent, supported, statement_start,
+                position, end, parent, supported, statement_start, loop_variable,
             ))
             stack.append(len(blocks) - 1)
             statement_start = position + 1
@@ -774,12 +807,15 @@ def _method_scopes(text: str, *, opening: int, end: int) -> _MethodScopes:
 
     blocked: list[tuple[int, int]] = []
     for block in sorted(blocks[1:], key=lambda item: item.header_start):
-        if block.supported:
+        if block.supported and block.loop_variable is None:
             continue
+        # Iterable expressions are outside the loop variable's body scope.
+        # Skip header calls rather than guess complex expression bindings.
+        blocked_end = block.opening if block.supported else block.end
         if blocked and block.header_start <= blocked[-1][1]:
-            blocked[-1] = (blocked[-1][0], max(blocked[-1][1], block.end))
+            blocked[-1] = (blocked[-1][0], max(blocked[-1][1], blocked_end))
         else:
-            blocked.append((block.header_start, block.end))
+            blocked.append((block.header_start, blocked_end))
     return _MethodScopes(
         blocks=blocks,
         openings=[block.opening for block in blocks],
@@ -796,6 +832,12 @@ def _local_variable_types(
     if method.opening is None:
         return {}
     result: dict[str, list[_LocalBinding]] = {}
+    for scope in scopes.blocks:
+        if scope.supported and scope.loop_variable is not None:
+            name, type_name = scope.loop_variable
+            result.setdefault(name, []).append(_LocalBinding(
+                scope.opening, scope.end, type_name,
+            ))
     matches = [
         (match, inferred)
         for pattern, inferred in (

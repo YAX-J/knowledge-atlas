@@ -89,3 +89,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0024：通过 GraphQL 快照化有界 GitHub Review thread 状态](0024-bounded-github-review-thread-state.zh-CN.md)
 - [ADR 0025：从构造器初始化推断有界 Java var 接收者](0025-constructor-initialized-java-var-receivers.zh-CN.md)
 - [ADR 0026：在有界词法块内解析 Java 局部接收者](0026-scoped-java-local-receivers.zh-CN.md)
+- [ADR 0027：通过有界增强 for 元素解析 Java 接收者](0027-enhanced-for-java-receivers.zh-CN.md)

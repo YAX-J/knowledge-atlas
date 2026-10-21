@@ -775,6 +775,9 @@ def test_nested_calls_keep_ancestor_bindings_after_sibling_blocks_close() -> Non
     "try (var validator = create()) {\n    validator.validate();\n}",
     "try {} catch (Exception validator) {\n    validator.validate();\n}",
     "Runnable action = () -> {\n    validator.validate();\n};",
+    "Runnable action = () -> {\n"
+    "    for (Validator validator : items) {\n"
+    "        validator.validate();\n    }\n};",
     "Object action = new Object() {\n"
     "    void run() {\n        this.validator.validate();\n    }\n};",
     "class Local {\n    void run() {\n        validator.validate();\n    }\n}",
@@ -799,6 +802,150 @@ def test_excluded_scopes_do_not_guess_outer_receivers(excluded_body: str) -> Non
         )],
     )
     assert [call.receiver for call in result.cross_file_calls] == ["this.validator"]
+
+
+@pytest.mark.parametrize("declaration", [
+    "Validator validator",
+    "final example.Validator<String> validator",
+    "example.Validator<java.util.Map<String[], Integer>> validator",
+    "final\n            Validator<String>\n            validator",
+])
+def test_code_structure_resolves_enhanced_for_receivers_and_restores_fields(
+    client: TestClient,
+    declaration: str,
+) -> None:
+    project_id = create_project(client)
+    targets = {
+        name: upload_java(
+            client, project_id,
+            name=f"{name}.java", relative_path=f"src/example/{name}.java",
+            content=(f"package example;\nclass {name} {{\n"
+                     "    void validate() {}\n"
+                     + ("    Iterable<Validator> values() { return null; }\n"
+                        if name == "FieldValidator" else "")
+                     + "}\n"),
+        )
+        for name in ("FieldValidator", "Validator")
+    }
+    content = (
+        "package example;\nclass Consumer {\n"
+        "    FieldValidator validator;\n    void run() {\n"
+        "        validator.validate();\n"
+        f"        for ({declaration} : validator.values()) {{\n"
+        "            validator.validate();\n"
+        "            this.validator.validate();\n"
+        "            if (ready()) {\n"
+        "                var helper = new Validator();\n"
+        "                helper.validate();\n"
+        "            }\n"
+        "        }\n"
+        "        validator.validate();\n"
+        "        helper.validate();\n"
+        "    }\n}\n"
+    )
+    consumer = upload_java(
+        client, project_id, name="Consumer.java",
+        relative_path="src/example/Consumer.java", content=content,
+    )
+    endpoint = f"/api/v1/sources/{consumer['source_id']}/code-structure"
+    response = client.get(endpoint)
+    assert response.status_code == 200
+    result = response.json()
+    methods = {method["id"]: method for method in result["related_methods"]}
+    extra_lines = declaration.count("\n")
+    assert [
+        (call["line"], call["receiver"], call["resolution"],
+         methods[call["target_ids"][0]]["source_id"])
+        for call in result["cross_file_calls"]
+    ] == [
+        (5, "validator", "resolved", targets["FieldValidator"]["source_id"]),
+        (7 + extra_lines, "validator", "resolved", targets["Validator"]["source_id"]),
+        (8 + extra_lines, "this.validator", "resolved", targets["FieldValidator"]["source_id"]),
+        (11 + extra_lines, "helper", "resolved", targets["Validator"]["source_id"]),
+        (14 + extra_lines, "validator", "resolved", targets["FieldValidator"]["source_id"]),
+    ]
+    assert client.get(endpoint).json() == result
+
+
+@pytest.mark.parametrize("declaration", [
+    "var Validator", "Validator[] Validator", "Validator Validator[]",
+])
+def test_unknown_enhanced_for_elements_do_not_fall_back_to_fields_or_types(
+    declaration: str,
+) -> None:
+    result = analyze_java(
+        "package example;\nclass Consumer {\n"
+        "    Validator Validator;\n    void run(Validator parameter) {\n"
+        f"        for ({declaration} : items) {{\n"
+        "            Validator.validate();\n"
+        "            this.Validator.validate();\n"
+        "            parameter.validate();\n"
+        "        }\n"
+        "        Validator.validate();\n"
+        "    }\n}\n",
+        source_id=uuid.uuid4(),
+        related_sources=[JavaSourceInput(
+            source_id=uuid.uuid4(), source_path="src/example/Validator.java",
+            content="package example;\nclass Validator {\n    void validate() {}\n}\n",
+        )],
+    )
+    assert [(call.line, call.receiver) for call in result.cross_file_calls] == [
+        (7, "this.Validator"), (8, "parameter"), (10, "Validator"),
+    ]
+
+
+def test_enhanced_for_bindings_are_isolated_between_nested_and_sibling_loops() -> None:
+    result = analyze_java(
+        "package example;\nclass Consumer {\n    void run() {\n"
+        "        for (Validator outer : items) {\n"
+        "            for (Validator inner : others) {\n"
+        "                outer.validate();\n"
+        "                inner.validate();\n"
+        "            }\n"
+        "            outer.validate();\n"
+        "            inner.validate();\n"
+        "        }\n"
+        "        for (Other outer : others) {\n"
+        "            outer.validate();\n"
+        "        }\n"
+        "        outer.validate();\n"
+        "    }\n}\n",
+        source_id=uuid.uuid4(),
+        related_sources=[JavaSourceInput(
+            source_id=uuid.uuid4(), source_path=f"src/example/{name}.java",
+            content=(f"package example;\nclass {name} {{\n"
+                     "    void validate() {}\n}\n"),
+        ) for name in ("Validator", "Other")],
+    )
+    methods = {method.id: method for method in result.related_methods}
+    assert [
+        (call.line, call.receiver, methods[call.target_ids[0]].owner_qualified_name)
+        for call in result.cross_file_calls
+    ] == [
+        (6, "outer", "example.Validator"),
+        (7, "inner", "example.Validator"),
+        (9, "outer", "example.Validator"),
+        (13, "outer", "example.Other"),
+    ]
+
+
+@pytest.mark.parametrize("header", [
+    "for (Validator item = create(); active; step())",
+    "for (@Marker Validator item : items)",
+])
+def test_unsupported_for_headers_keep_body_calls_excluded(header: str) -> None:
+    result = analyze_java(
+        "package example;\nclass Consumer {\n"
+        "    Validator item;\n    void run() {\n"
+        f"        {header} {{\n            item.validate();\n        }}\n"
+        "        item.validate();\n    }\n}\n",
+        source_id=uuid.uuid4(),
+        related_sources=[JavaSourceInput(
+            source_id=uuid.uuid4(), source_path="src/example/Validator.java",
+            content="package example;\nclass Validator {\n    void validate() {}\n}\n",
+        )],
+    )
+    assert [(call.line, call.receiver) for call in result.cross_file_calls] == [(8, "item")]
 
 
 def test_code_structure_ignores_unready_and_other_project_types(
