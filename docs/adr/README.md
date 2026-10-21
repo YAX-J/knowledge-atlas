@@ -84,3 +84,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0019: Persist incremental GitHub commit snapshots](0019-incremental-github-commit-snapshots.md)
 - [ADR 0020: Derive immutable GitHub evidence links from snapshots](0020-derived-immutable-github-evidence-links.md)
 - [ADR 0021: Import bounded GitHub work items as immutable source versions](0021-versioned-github-work-items.md)
+- [ADR 0022: Resolve bounded Java calls through declared method receivers](0022-bounded-java-declared-receiver-calls.md)

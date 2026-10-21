@@ -268,11 +268,88 @@ def test_code_structure_marks_cross_file_overloads_as_ambiguous(
     assert len(structure["related_methods"]) == 2
 
 
-def test_code_structure_does_not_guess_parameter_receiver_types(
+def test_code_structure_resolves_parameter_and_shadowed_field_receivers(
     client: TestClient,
 ) -> None:
     project_id = create_project(client)
-    upload_java(
+    field_validator = upload_java(
+        client,
+        project_id,
+        name="FieldValidator.java",
+        relative_path="src/example/FieldValidator.java",
+        content=(
+            "package example;\n"
+            "class FieldValidator {\n"
+            "    void validate() {}\n"
+            "}\n"
+        ),
+    )
+    request_validator = upload_java(
+        client,
+        project_id,
+        name="RequestValidator.java",
+        relative_path="src/example/RequestValidator.java",
+        content=(
+            "package example;\n"
+            "class RequestValidator {\n"
+            "    void validate() {}\n"
+            "}\n"
+        ),
+    )
+    consumer = upload_java(
+        client,
+        project_id,
+        name="Consumer.java",
+        relative_path="src/example/Consumer.java",
+        content=(
+            "package example;\n"
+            "class Consumer {\n"
+            "    FieldValidator validator;\n"
+            "    void run(@Deprecated final RequestValidator validator) {\n"
+            "        validator.validate();\n"
+            "        this.validator.validate();\n"
+            "    }\n"
+            "}\n"
+        ),
+    )
+
+    structure = client.get(
+        f"/api/v1/sources/{consumer['source_id']}/code-structure"
+    ).json()
+
+    assert [
+        item["receiver"] for item in structure["cross_file_calls"]
+    ] == ["validator", "this.validator"]
+    methods_by_id = {
+        item["id"]: item for item in structure["related_methods"]
+    }
+    call_targets = {
+        item["receiver"]: methods_by_id[item["target_ids"][0]]["source_id"]
+        for item in structure["cross_file_calls"]
+    }
+    assert call_targets == {
+        "validator": request_validator["source_id"],
+        "this.validator": field_validator["source_id"],
+    }
+
+
+def test_code_structure_resolves_direct_method_local_receiver(
+    client: TestClient,
+) -> None:
+    project_id = create_project(client)
+    field_validator = upload_java(
+        client,
+        project_id,
+        name="FieldValidator.java",
+        relative_path="src/example/FieldValidator.java",
+        content=(
+            "package example;\n"
+            "class FieldValidator {\n"
+            "    void validate() {}\n"
+            "}\n"
+        ),
+    )
+    local_validator = upload_java(
         client,
         project_id,
         name="Validator.java",
@@ -292,10 +369,11 @@ def test_code_structure_does_not_guess_parameter_receiver_types(
         content=(
             "package example;\n"
             "class Consumer {\n"
-            "    Validator validator;\n"
-            "    void run(Validator validator) {\n"
-            "        validator.validate();\n"
-            "        this.validator.validate();\n"
+            "    FieldValidator local;\n"
+            "    void run() {\n"
+            "        final Validator local = new Validator();\n"
+            "        local.validate();\n"
+            "        this.local.validate();\n"
             "    }\n"
             "}\n"
         ),
@@ -305,10 +383,67 @@ def test_code_structure_does_not_guess_parameter_receiver_types(
         f"/api/v1/sources/{consumer['source_id']}/code-structure"
     ).json()
 
-    assert len(structure["related_methods"]) == 1
     assert [
-        item["receiver"] for item in structure["cross_file_calls"]
-    ] == ["this.validator"]
+        (item["receiver"], item["callee_name"], item["line"])
+        for item in structure["cross_file_calls"]
+    ] == [
+        ("local", "validate", 6),
+        ("this.local", "validate", 7),
+    ]
+    methods_by_id = {
+        item["id"]: item for item in structure["related_methods"]
+    }
+    call_targets = {
+        item["receiver"]: methods_by_id[item["target_ids"][0]]["source_id"]
+        for item in structure["cross_file_calls"]
+    }
+    assert call_targets == {
+        "local": local_validator["source_id"],
+        "this.local": field_validator["source_id"],
+    }
+    assert all(
+        item["resolution"] == "resolved"
+        for item in structure["cross_file_calls"]
+    )
+
+
+def test_code_structure_ignores_unsupported_local_receiver_forms() -> None:
+    source_id = uuid.uuid4()
+    related_source_id = uuid.uuid4()
+    structure = analyze_java(
+        (
+            "package example;\n"
+            "class Consumer {\n"
+            "    void run() {\n"
+            "        before.validate();\n"
+            "        Validator before = new Validator();\n"
+            "        var inferred = new Validator();\n"
+            "        inferred.validate();\n"
+            "        Validator first, second;\n"
+            "        second.validate();\n"
+            "        if (true) {\n"
+            "            Validator nested = new Validator();\n"
+            "            nested.validate();\n"
+            "        }\n"
+            "    }\n"
+            "}\n"
+        ),
+        source_id=source_id,
+        source_path="src/example/Consumer.java",
+        related_sources=[
+            JavaSourceInput(
+                source_id=related_source_id,
+                source_path="src/example/Validator.java",
+                content=(
+                    "package example;\n"
+                    "class Validator { void validate() {} }\n"
+                ),
+            )
+        ],
+    )
+
+    assert structure.related_methods == []
+    assert structure.cross_file_calls == []
 
 
 def test_code_structure_ignores_unready_and_other_project_types(

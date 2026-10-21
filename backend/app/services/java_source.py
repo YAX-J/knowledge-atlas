@@ -608,21 +608,67 @@ def _field_types_by_owner(current: _JavaTypeIndex) -> dict[tuple[str, str], str]
             before_initializer = field_match.group("tail").split("=", 1)[0]
             if "(" in before_initializer:
                 continue
-            referenced = _referenced_type_name(field_match.group("type"))
+            declared_type = field_match.group("type")
+            if len(_split_type_list(declared_type)) != 1:
+                continue
+            referenced = _referenced_type_name(declared_type)
             if referenced is not None:
                 result[(declaration.name, field_match.group("name"))] = referenced[0]
     return result
 
 
-def _parameter_names(parameters: str) -> set[str]:
-    result: set[str] = set()
+def _parameter_types(parameters: str) -> dict[str, str]:
+    result: dict[str, str] = {}
     for segment, _ in _split_type_list(parameters):
-        match = re.search(
+        name_match = re.search(
             r"(?P<name>[A-Za-z_$][\w$]*)\s*(?:\[\s*\])?\s*$",
             segment,
         )
-        if match is not None:
-            result.add(match.group("name"))
+        if name_match is None:
+            continue
+        declaration = segment[:name_match.start()]
+        declaration = re.sub(
+            r"@[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*"
+            r"(?:\s*\([^()]*\))?\s*",
+            "",
+            declaration,
+        )
+        declaration = re.sub(r"\bfinal\b", "", declaration)
+        declaration = re.sub(r"\.\.\.\s*$", "", declaration).strip()
+        referenced = _referenced_type_name(declaration)
+        if referenced is not None and referenced[0] != "var":
+            result[name_match.group("name")] = referenced[0]
+    return result
+
+
+def _direct_local_variable_types(
+    current: _JavaTypeIndex,
+    method: _MethodDeclaration,
+    depths: list[int],
+) -> dict[str, list[tuple[int, str]]]:
+    if method.opening is None:
+        return {}
+    body_depth = depths[method.opening] + 1
+    result: dict[str, list[tuple[int, str]]] = {}
+    for match in FIELD_DECLARATION.finditer(
+        current.sanitized,
+        method.opening + 1,
+        method.end,
+    ):
+        if depths[match.start()] != body_depth:
+            continue
+        before_initializer = match.group("tail").split("=", 1)[0]
+        if "(" in before_initializer or "," in before_initializer:
+            continue
+        declared_type = match.group("type")
+        if len(_split_type_list(declared_type)) != 1:
+            continue
+        referenced = _referenced_type_name(declared_type)
+        if referenced is None or referenced[0] == "var":
+            continue
+        result.setdefault(match.group("name"), []).append(
+            (match.start(), referenced[0])
+        )
     return result
 
 
@@ -641,6 +687,7 @@ def _resolve_cross_file_calls(
                 (method.owner_qualified_name, method.name), []
             ).append(method)
     field_types = _field_types_by_owner(current)
+    depths = _depths(current.sanitized)
     line_number = _line_resolver(current.sanitized)
     related_by_id: dict[uuid.UUID, JavaRelatedMethod] = {}
     calls: list[JavaCrossFileCall] = []
@@ -649,7 +696,8 @@ def _resolve_cross_file_calls(
     for method, caller in method_records:
         if method.opening is None or caller.id not in visible_source_symbol_ids:
             continue
-        parameter_names = _parameter_names(method.parameters)
+        parameter_types = _parameter_types(method.parameters)
+        local_types = _direct_local_variable_types(current, method, depths)
         for call_match in QUALIFIED_CALL.finditer(
             current.sanitized,
             method.opening + 1,
@@ -657,17 +705,29 @@ def _resolve_cross_file_calls(
         ):
             receiver = re.sub(r"\s+", "", call_match.group("receiver"))
             callee_name = call_match.group("name")
-            if "." not in receiver and receiver in parameter_names:
-                continue
-            field_name: str | None = None
             if receiver.startswith("this.") and receiver.count(".") == 1:
                 field_name = receiver.split(".", 1)[1]
+                target_type_name = field_types.get(
+                    (caller.owner or "", field_name)
+                )
             elif "." not in receiver:
-                field_name = receiver
-            target_type_name = (
-                field_types.get((caller.owner or "", field_name))
-                if field_name is not None else None
-            )
+                declarations = local_types.get(receiver, [])
+                target_type_name = next(
+                    (
+                        type_name
+                        for offset, type_name in reversed(declarations)
+                        if offset < call_match.start()
+                    ),
+                    None,
+                )
+                if target_type_name is None:
+                    target_type_name = parameter_types.get(receiver)
+                if target_type_name is None:
+                    target_type_name = field_types.get(
+                        (caller.owner or "", receiver)
+                    )
+            else:
+                target_type_name = None
             if target_type_name is None:
                 receiver_type_name = receiver.rsplit(".", 1)[-1]
                 if (

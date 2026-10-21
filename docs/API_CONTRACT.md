@@ -319,7 +319,7 @@ Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，�
 
 `related_types` 返回关系目标的稳定类型 ID、来源 ID、相对路径优先的 `source_path`、包限定名和行号；`type_relationships` 返回当前类型符号 ID、目标 ID 列表、源码中的目标名、`extends` / `implements`、声明行及 `resolved` / `ambiguous`。`related_methods` 返回跨文件目标方法的稳定 ID、来源、路径、所属包限定类型、方法限定名和行号；`cross_file_calls` 返回当前调用方 ID、目标方法 ID 列表、接收者、方法名、调用行及解析状态。解析遵循显式导入、同包和通配导入优先级，只返回能匹配同仓库已解析来源的目标；外部库、其他仓库和未解析文件不会伪造关系。同一路径的多个不可变版本若声明相同包限定类型，也会作为多个候选显示为 `ambiguous`。`truncated=true` 表示符号、调用、相关类型/方法、类型关系、跨文件调用或仓库来源至少一类达到上限。
 
-同文件调用识别未限定名或 `this.` 方法；跨文件调用只解析遵循常规大写类型命名的直接类型限定调用，以及当前顶层类型直接字段上的 `field.method()` / `this.field.method()`，并按方法名返回唯一或歧义候选。不解析局部变量、参数、链式接收者、重载选择、继承方法分派、依赖注入或动态分派。结果按需从不可变原文派生，不写入正式图谱。非 Java 来源或未完成解析分别返回 HTTP 409。边界见 [ADR 0013](adr/0013-derived-java-source-structure.zh-CN.md)、[ADR 0014](adr/0014-bounded-cross-file-java-types.zh-CN.md) 与 [ADR 0017](adr/0017-bounded-cross-file-java-method-calls.zh-CN.md)。
+同文件调用识别未限定名或 `this.` 方法；跨文件调用解析遵循常规大写类型命名的直接类型限定调用、当前顶层类型字段，以及具有显式声明类型的方法参数和方法体直属作用域内单变量局部声明。未限定接收者按“最近的可用直属局部变量 → 参数 → 字段”处理遮蔽，`this.field` 始终选择字段；局部变量只在声明行之后生效。目标方法仍只按名称返回唯一或歧义候选。不解析 `var`、多变量声明、嵌套块局部变量、重新赋值/数据流、链式接收者、重载选择、继承方法分派、依赖注入或动态分派。结果按需从不可变原文派生，不写入正式图谱。非 Java 来源或未完成解析分别返回 HTTP 409。边界见 [ADR 0013](adr/0013-derived-java-source-structure.zh-CN.md)、[ADR 0014](adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0017](adr/0017-bounded-cross-file-java-method-calls.zh-CN.md) 与 [ADR 0022](adr/0022-bounded-java-declared-receiver-calls.zh-CN.md)。
 
 ## 知识图谱
 
