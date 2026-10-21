@@ -16,7 +16,7 @@ import {
   runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
   getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
   getJavaCodeStructure,
-  listRepositories, resolveGithubRepository, resolveLocalRepository, syncGithubRepository,
+  importGithubWorkItems, listRepositories, resolveGithubRepository, resolveLocalRepository, syncGithubRepository,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
@@ -43,8 +43,8 @@ const task = ref<ProcessingTask | null>(null)
 const chunks = ref<SourceChunkList | null>(null)
 const codeStructure = ref<JavaCodeStructure | null>(null)
 const notice = ref('')
-const loading = reactive<IngestionLoading>({ projects: false, create: false, repositories: false, remote: false, sync: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false })
-const errors = reactive<IngestionErrors>({ projects: '', create: '', repositories: '', remote: '', sync: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '' })
+const loading = reactive<IngestionLoading>({ projects: false, create: false, repositories: false, remote: false, sync: false, activity: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false })
+const errors = reactive<IngestionErrors>({ projects: '', create: '', repositories: '', remote: '', sync: '', activity: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '' })
 let projectsRequest = 0
 let repositoriesRequest = 0
 let sourcesRequest = 0
@@ -234,7 +234,7 @@ async function loadProjects(page = 1) {
 }
 
 function selectProject(value: ApiProject) {
-  if (loading.upload || loading.task || loading.remote || loading.sync) return
+  if (loading.upload || loading.task || loading.remote || loading.sync || loading.activity) return
   clearQuestion()
   project.value = value
   clearSearch()
@@ -249,13 +249,13 @@ function selectProject(value: ApiProject) {
   sources.value = null
   sourcesRequest++
   clearSourceSelection()
-  errors.repositories = errors.remote = errors.sync = errors.sources = errors.upload = ''
+  errors.repositories = errors.remote = errors.sync = errors.activity = errors.sources = errors.upload = ''
   notice.value = ''
   void Promise.all([loadRepositories(1), loadSources(1)])
 }
 
 async function addProject(input: { name: string; description: string }) {
-  if (loading.create || loading.upload || loading.task || loading.remote || loading.sync) return
+  if (loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity) return
   loading.create = true
   errors.create = ''
   try {
@@ -314,7 +314,7 @@ async function registerGithubRepository(input: {
   localRepositoryId?: string
 }) {
   const projectId = project.value?.id
-  if (!projectId || loading.remote || loading.sync || loading.upload || loading.task) return
+  if (!projectId || loading.remote || loading.sync || loading.activity || loading.upload || loading.task) return
   loading.remote = true
   errors.remote = ''
   notice.value = ''
@@ -339,9 +339,9 @@ async function syncRegisteredGithubRepository(input: {
   ref?: string
 }) {
   const projectId = project.value?.id
-  if (!projectId || loading.sync || loading.remote || loading.upload || loading.task) return
+  if (!projectId || loading.sync || loading.activity || loading.remote || loading.upload || loading.task) return
   loading.sync = true
-  errors.sync = ''
+  errors.sync = errors.activity = ''
   notice.value = '正在从 GitHub 读取仓库快照…'
   try {
     const result = await syncGithubRepository(projectId, input.repositoryId, input.ref)
@@ -368,8 +368,40 @@ async function syncRegisteredGithubRepository(input: {
   }
 }
 
+async function importRegisteredGithubActivity(repositoryId: string) {
+  const projectId = project.value?.id
+  if (!projectId || loading.activity || loading.sync || loading.remote || loading.upload || loading.task) return
+  loading.activity = true
+  errors.activity = errors.sync = ''
+  notice.value = '正在从 GitHub 读取最近更新的 Issue 与 Pull Request…'
+  try {
+    const result = await importGithubWorkItems(projectId, repositoryId)
+    if (project.value?.id !== projectId) return
+    const selected = [...result.items].reverse().find(
+      item => item.status !== 'skipped' && item.source_id && item.task_id,
+    )
+    if (selected?.source_id && selected.task_id) {
+      sourcesRequest++
+      clearSourceSelection()
+      selectedSourceId.value = selected.source_id
+      selectedTaskId.value = selected.task_id
+    }
+    const truncatedComments = result.items.filter(item => item.comments_truncated).length
+    notice.value = `GitHub Issue/PR 导入完成：新增版本 ${result.imported_count}、复用 ${result.reused_count}、跳过 ${result.skipped_count}${result.truncated ? '；结果达到 20 项上限' : ''}${truncatedComments ? `；${truncatedComments} 项评论达到导入上限` : ''}。`
+    await Promise.all([loadSources(1), loadRepositories(repositories.value?.page ?? 1)])
+    if (selectedSourceId.value) await refreshSource()
+  } catch (error) {
+    if (project.value?.id === projectId) {
+      notice.value = ''
+      errors.activity = errorMessage(error)
+    }
+  } finally {
+    loading.activity = false
+  }
+}
+
 async function selectSource(sourceId: string, taskId: string | null) {
-  if (loading.create || loading.upload || loading.task || loading.sync) return
+  if (loading.create || loading.upload || loading.task || loading.sync || loading.activity) return
   clearSourceSelection()
   selectedSourceId.value = sourceId
   selectedTaskId.value = taskId
@@ -443,7 +475,7 @@ async function loadCodeStructure() {
 
 async function uploadFiles(files: File[]) {
   const projectId = project.value?.id
-  if (!projectId || !files.length || loading.create || loading.upload || loading.task || loading.remote || loading.sync) return
+  if (!projectId || !files.length || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity) return
   loading.upload = true
   errors.upload = ''
   notice.value = ''
@@ -503,7 +535,7 @@ async function uploadFiles(files: File[]) {
 
 async function parseSource() {
   const taskId = selectedTaskId.value
-  if (!taskId || loading.create || loading.task || loading.upload || loading.sync) return
+  if (!taskId || loading.create || loading.task || loading.upload || loading.sync || loading.activity) return
   loading.task = true
   errors.task = ''
   try {
@@ -739,7 +771,7 @@ function setTimeline(value: number) {
       :code-structure="codeStructure"
       :loading="loading" :errors="errors" :notice="notice"
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
-      @repositories-page="loadRepositories" @resolve-github="registerGithubRepository" @sync-github="syncRegisteredGithubRepository"
+      @repositories-page="loadRepositories" @resolve-github="registerGithubRepository" @sync-github="syncRegisteredGithubRepository" @import-github-activity="importRegisteredGithubActivity"
       @sources-page="loadSources" @select-source="selectSource" @upload="uploadFiles"
       @run="parseSource" @refresh="refreshSource" @chunks-page="loadChunks"
       @graph="openProjectGraph"

@@ -1,5 +1,6 @@
 from app.models.domain import (
     CandidateKnowledge,
+    GithubWorkItemVersion,
     Project,
     ProcessingTask,
     RepositorySnapshot,
@@ -13,6 +14,7 @@ from app.models.graph import KnowledgeEmbedding, KnowledgeEntity, KnowledgeEvide
 
 __all__ = [
     "CandidateKnowledge",
+    "GithubWorkItemVersion",
     "ProcessingTask",
     "Project",
     "RepositorySnapshot",

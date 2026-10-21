@@ -8,13 +8,15 @@ from app.schemas.repositories import (
     GithubRepositoryResolve,
     GithubRepositorySync,
     GithubRepositorySyncResult,
+    GithubWorkItemImport,
+    GithubWorkItemImportResult,
     RepositoryList,
     RepositoryRead,
     RepositoryResolve,
     RepositorySnapshotList,
     RepositorySnapshotRead,
 )
-from app.services import github_import, repositories as repository_service
+from app.services import github_activity, github_import, repositories as repository_service
 
 
 router = APIRouter(tags=["repositories"])
@@ -74,6 +76,30 @@ def sync_github_repository(
         project_id=project_id,
         repository_id=repository_id,
         requested_ref=sync_in.ref,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/repositories/{repository_id}/import-github-work-items",
+    response_model=GithubWorkItemImportResult,
+)
+def import_github_work_items(
+    project_id: uuid.UUID,
+    repository_id: uuid.UUID,
+    import_in: GithubWorkItemImport,
+    db: DatabaseSession,
+    user_id: CurrentUserId,
+) -> GithubWorkItemImportResult:
+    return github_activity.import_github_work_items(
+        db,
+        settings=get_settings(),
+        user_id=user_id,
+        project_id=project_id,
+        repository_id=repository_id,
+        state=import_in.state,
+        item_type=import_in.item_type,
+        include_comments=import_in.include_comments,
+        limit=import_in.limit,
     )
 
 

@@ -27,8 +27,9 @@ description: Knowledge Atlas 的 SQLAlchemy 模型与 Alembic 迁移。新增/�
 | `20261019_0008` | 本地来源仓库身份与来源可空仓库外键 |
 | `20261019_0009` | 规范化 GitHub remote 身份与仅远程仓库类型 |
 | `20261020_0010` | GitHub provider ID、Commit 快照及逐文件状态 |
+| `20261021_0011` | GitHub Issue/PR 不可变导入版本与来源/任务映射 |
 
-当前 head 是 `20261020_0010`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
+当前 head 是 `20261021_0011`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
 
 ## 规则
 

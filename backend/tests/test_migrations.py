@@ -1,7 +1,8 @@
+import uuid
+from datetime import datetime
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
-import uuid
 
 from alembic import command
 from alembic.config import Config
@@ -10,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core import config as app_config
 from app.models.domain import (
+    GithubWorkItemVersion,
     ProcessingTask,
     Project,
     RepositorySnapshot,
@@ -116,6 +118,77 @@ def test_postgresql_migrations_compile_without_a_live_server(monkeypatch) -> Non
     assert "provider_repository_id VARCHAR(255)" in sql
     assert "CREATE TABLE repository_snapshots" in sql
     assert "CREATE TABLE repository_snapshot_files" in sql
+    assert "CREATE TABLE github_work_item_versions" in sql
+
+
+def test_github_work_item_version_migration_is_reversible(tmp_path, monkeypatch) -> None:
+    url = f"sqlite+pysqlite:///{(tmp_path / 'github-work-items.db').as_posix()}"
+    monkeypatch.setattr(
+        app_config, "get_settings", lambda: SimpleNamespace(database_url=url)
+    )
+    config = migration_config()
+    command.upgrade(config, "20261020_0010")
+    engine = create_engine(url)
+    command.upgrade(config, "head")
+    assert "github_work_item_versions" in inspect(engine).get_table_names()
+
+    with Session(engine) as db:
+        project = Project(user_id=uuid.uuid4(), name="Work item migration")
+        db.add(project)
+        db.flush()
+        repository = SourceRepository(
+            user_id=project.user_id,
+            project_id=project.id,
+            name="example/demo",
+            kind="git_remote",
+            provider="github",
+            provider_repository_id="42",
+            remote_owner="example",
+            remote_name="demo",
+            remote_url="https://github.com/example/demo",
+        )
+        db.add(repository)
+        db.flush()
+        source_id = insert_legacy_source(
+            db,
+            user_id=project.user_id,
+            project_id=project.id,
+            original_name="issue-7.md",
+        )
+        task = ProcessingTask(
+            user_id=project.user_id,
+            project_id=project.id,
+            source_id=source_id,
+            type="markdown_parsing",
+        )
+        db.add(task)
+        db.flush()
+        version = GithubWorkItemVersion(
+            user_id=project.user_id,
+            project_id=project.id,
+            repository_id=repository.id,
+            source_id=source_id,
+            task_id=task.id,
+            provider_item_id="101",
+            number=7,
+            item_type="issue",
+            state="open",
+            title="Decision",
+            html_url="https://github.com/example/demo/issues/7",
+            provider_updated_at=datetime.fromisoformat("2026-10-21T08:00:00+00:00"),
+            comments_count=1,
+            comments_included=True,
+        )
+        db.add(version)
+        db.commit()
+        version_id = version.id
+    with Session(engine) as db:
+        assert db.get(GithubWorkItemVersion, version_id).title == "Decision"
+
+    command.downgrade(config, "20261020_0010")
+    assert "github_work_item_versions" not in inspect(engine).get_table_names()
+    command.upgrade(config, "head")
+    engine.dispose()
 
 
 def test_repository_snapshot_migration_is_reversible(tmp_path, monkeypatch) -> None:

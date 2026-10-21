@@ -98,6 +98,34 @@ class GithubRepositorySyncResult(BaseModel):
     items: list[GithubRepositorySyncItem]
 
 
+class GithubWorkItemImport(BaseModel):
+    state: Literal["all", "open", "closed"] = "all"
+    item_type: Literal["all", "issue", "pull_request"] = "all"
+    include_comments: bool = True
+    limit: int = Field(default=20, ge=1, le=20)
+
+
+class GithubWorkItemImportItem(BaseModel):
+    number: int
+    item_type: Literal["issue", "pull_request"]
+    title: str
+    html_url: str
+    source_id: uuid.UUID | None = None
+    task_id: uuid.UUID | None = None
+    status: Literal["imported", "reused", "skipped"]
+    comments_truncated: bool = False
+    error_code: str | None = None
+
+
+class GithubWorkItemImportResult(BaseModel):
+    repository_id: uuid.UUID
+    imported_count: int
+    reused_count: int
+    skipped_count: int
+    truncated: bool
+    items: list[GithubWorkItemImportItem]
+
+
 class RepositorySnapshotRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

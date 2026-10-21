@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.domain import (
+    GithubWorkItemVersion,
     RepositorySnapshot,
     RepositorySnapshotFile,
     SourceDocument,
@@ -19,9 +20,30 @@ def github_file_urls(
     project_id: uuid.UUID,
     source_ids: list[uuid.UUID],
 ) -> dict[uuid.UUID, str]:
-    """Return each source's latest immutable GitHub file URL, when available."""
+    """Return each source's GitHub file or canonical work-item URL."""
     if not source_ids:
         return {}
+
+    work_item_rows = db.execute(
+        select(
+            GithubWorkItemVersion.source_id,
+            GithubWorkItemVersion.html_url,
+        )
+        .where(
+            GithubWorkItemVersion.source_id.in_(source_ids),
+            GithubWorkItemVersion.user_id == user_id,
+            GithubWorkItemVersion.project_id == project_id,
+            GithubWorkItemVersion.source_id.is_not(None),
+        )
+        .order_by(
+            GithubWorkItemVersion.provider_updated_at.desc(),
+            GithubWorkItemVersion.created_at.desc(),
+        )
+    )
+    urls: dict[uuid.UUID, str] = {}
+    for source_id, html_url in work_item_rows:
+        if source_id is not None and source_id not in urls:
+            urls[source_id] = html_url
 
     rows = db.execute(
         select(
@@ -61,7 +83,6 @@ def github_file_urls(
             RepositorySnapshotFile.path,
         )
     )
-    urls: dict[uuid.UUID, str] = {}
     for source_id, path, commit_sha, remote_url in rows:
         if source_id is None or source_id in urls or remote_url is None:
             continue
@@ -80,6 +101,10 @@ def github_line_url(
 ) -> str | None:
     if file_url is None:
         return None
+    if "/blob/" not in file_url and (
+        "/issues/" in file_url or "/pull/" in file_url
+    ):
+        return file_url
     fragment = f"L{start_line}"
     if end_line != start_line:
         fragment += f"-L{end_line}"

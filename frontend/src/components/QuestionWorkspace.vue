@@ -118,7 +118,7 @@ function submit() {
           <div><span>[{{ index + 1 }}]</span><button type="button" @click="emit('openEntity', item.entity_id)">{{ item.entity_name }} ↗</button></div>
           <strong>{{ item.title }}</strong>
           <small>第 {{ item.start_line }}–{{ item.end_line }} 行 · {{ item.heading_path.join(' / ') || '文档开头' }}</small>
-          <a v-if="item.git_url" :href="item.git_url" target="_blank" rel="noopener noreferrer">在 GitHub 固定行号中查看 ↗</a>
+          <a v-if="item.git_url" :href="item.git_url" target="_blank" rel="noopener noreferrer">在 GitHub 查看来源 ↗</a>
           <blockquote>{{ item.quote }}</blockquote>
         </article>
       </aside>

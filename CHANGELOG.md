@@ -10,6 +10,7 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Explicit bounded GitHub Issue/Pull Request import with up to 20 recently updated items and 20 comments per item, deterministic Markdown sources, provider-ID/`updated_at` version reuse, immutable local history, canonical conversation links, existing parsing/review reuse, a reversible migration, and desktop controls.
 - Immutable GitHub source and evidence links derived from persisted snapshots: source views open commit-pinned files, formal graph/search/question citations open exact line fragments, local sources return null, and remotely deleted files retain their last-existing snapshot link without a migration.
 - Persistent GitHub commit/tree snapshots and per-file blob provenance, with same-commit short-circuiting, incremental unchanged/known-blob reuse, conservative rename/deletion records, provider-ID-backed repository coordinate updates, a scoped snapshot-history API, and expanded desktop synchronization summaries. Remote deletions remain non-destructive.
 - Explicit bounded GitHub snapshot synchronization from a repository default branch or requested ref, with optional backend-only token authentication, deterministic selection of up to 50 Markdown/Java blobs, a 20 MiB aggregate budget, per-file import/reuse/skip results, existing parsing-task reuse, and desktop controls.

@@ -27,6 +27,7 @@ const emit = defineEmits<{
   repositoriesPage: [page: number]
   resolveGithub: [input: { remoteUrl: string; localRepositoryId?: string }]
   syncGithub: [input: { repositoryId: string; ref?: string }]
+  importGithubActivity: [repositoryId: string]
   sourcesPage: [page: number]
   selectSource: [sourceId: string, taskId: string | null]
   upload: [files: File[]]
@@ -55,7 +56,7 @@ const relatedMethodsById = computed(() => new Map((props.codeStructure?.related_
 const linkableLocalRepositories = computed(() => (
   props.repositories?.items.filter(item => item.kind === 'local_folder' && !item.remote_url) ?? []
 ))
-const locked = computed(() => props.loading.create || props.loading.upload || props.loading.task || props.loading.remote || props.loading.sync)
+const locked = computed(() => props.loading.create || props.loading.upload || props.loading.task || props.loading.remote || props.loading.sync || props.loading.activity)
 const statusLabels: Record<string, string> = {
   uploaded: '待解析', processing: '解析中', ready: '已解析', failed: '解析失败',
   queued: '待解析', running: '解析中', succeeded: '已解析', cancelled: '已取消',
@@ -275,6 +276,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
             <p v-if="loading.repositories" class="muted-copy" role="status">正在读取仓库身份…</p>
             <div v-if="errors.repositories" class="inline-error" role="alert"><p>{{ errors.repositories }}</p><button class="text-button" type="button" @click="emit('repositoriesPage', repositories?.page ?? 1)">重试加载仓库</button></div>
             <p v-if="errors.sync" class="inline-error" role="alert">{{ errors.sync }}</p>
+            <p v-if="errors.activity" class="inline-error" role="alert">{{ errors.activity }}</p>
             <p v-if="!loading.repositories && !errors.repositories && repositories?.total === 0" class="empty-copy">尚未登记仓库；上传文件夹或登记 GitHub 地址后会显示在这里。</p>
             <div v-if="repositories?.items.length" class="repository-list">
               <article v-for="repository in repositories.items" :key="repository.id" class="repository-card">
@@ -287,6 +289,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                   <label :for="`github-ref-${repository.id}`">同步 ref <span>选填</span></label>
                   <input :id="`github-ref-${repository.id}`" v-model="githubRefs[repository.id]" type="text" maxlength="255" placeholder="默认分支" :disabled="locked" />
                   <button class="text-button" type="button" :disabled="locked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubRefs[repository.id]?.trim() || undefined })">{{ loading.sync ? '正在同步…' : '同步 GitHub 内容' }}</button>
+                  <button class="text-button" type="button" :disabled="locked" @click="emit('importGithubActivity', repository.id)">{{ loading.activity ? '正在导入…' : '导入 Issue / PR' }}</button>
                 </div>
               </article>
             </div>
@@ -336,7 +339,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
 
           <section v-if="selectedSourceId" class="source-reader" aria-label="原文与解析结果" :aria-busy="loading.detail || loading.task || loading.chunks || loading.structure">
             <div class="source-section-heading reader-heading">
-              <div><h3>{{ source ? sourceName(source) : '资料详情' }}</h3><p v-if="source" class="muted-copy">{{ source.repository_name ? `仓库 · ${source.repository_name} · ` : '' }}{{ source.line_count }} 行原文 · {{ formatSize(source.size_bytes) }}</p><a v-if="source?.git_url" class="source-git-link" :href="source.git_url" target="_blank" rel="noopener noreferrer">在 GitHub 固定版本中查看 ↗</a></div>
+              <div><h3>{{ source ? sourceName(source) : '资料详情' }}</h3><p v-if="source" class="muted-copy">{{ source.repository_name ? `仓库 · ${source.repository_name} · ` : '' }}{{ source.line_count }} 行原文 · {{ formatSize(source.size_bytes) }}</p><a v-if="source?.git_url" class="source-git-link" :href="source.git_url" target="_blank" rel="noopener noreferrer">在 GitHub 查看来源 ↗</a></div>
               <button class="text-button" type="button" :disabled="loading.detail || locked || loading.chunks" @click="emit('refresh')">刷新状态</button>
             </div>
             <p v-if="loading.detail" role="status" class="muted-copy">正在读取原文与任务…</p>

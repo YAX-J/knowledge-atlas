@@ -36,11 +36,12 @@
 - 增加默认分支或指定 ref 的显式有界 GitHub 快照同步，通过既有仓库范围去重和解析任务链路导入最多 50 份 Markdown/Java blob，累计预算 20 MiB。
 - 持久化 GitHub Commit/tree 与逐文件 blob 来源，支持同 Commit 短路、未变化/已知 blob 复用、保守的重命名/删除记录，以及基于 provider ID 的仓库改名跟踪。
 - 从持久化快照派生不可变 GitHub 来源/证据 URL，固定到 Commit 文件和精确行号；本地来源返回空值，远端删除后链接到最后一次存在的快照。
+- 把最近更新的最多 20 个 GitHub Issue/Pull Request 及每项最多 20 条评论显式导入为确定性 Markdown，按 provider ID/`updated_at` 保存不可变版本，并提供规范会话链接和桌面端入口。
 - 增加仓库范围内直接类型限定和当前类型字段接收者的 Java 方法调用目标，在正式图谱之外展示目标路径、精确行号和歧义。
 
 ## 当前阶段
 
-当前阶段为阶段四代码导入。本地文件有界切片可接收 Java 文件，使用 `code_parsing`，把精确源码行保存为结构分块，持久化本地文件夹仓库身份与仓库内相对路径，并复用现有 Worker 与证据流程。它能解析一小部分仓库内跨文件类型关系及直接类型/字段接收者方法关系，登记规范化的 GitHub 所有者/仓库坐标，并显式导入有界的默认分支或指定 ref 快照。GitHub 同步已持久化 Commit/tree 与逐文件 blob 来源，复用未变化或已知 blob，保守记录重命名/删除，通过 provider ID 跟踪远端坐标变化，并从该历史派生不可变来源/证据链接；仍不代表已经具备完整 Java AST 或符号/调用图、局部变量/参数/继承分派解析、GitHub Issue/PR 导入、Webhook、轮询、强制推送可达性分析或破坏性来源失效传播。见 [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.zh-CN.md)、[ADR 0014](docs/adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0015](docs/adr/0015-local-folder-repository-identity.zh-CN.md)、[ADR 0016](docs/adr/0016-normalized-github-remote-identity.zh-CN.md)、[ADR 0017](docs/adr/0017-bounded-cross-file-java-method-calls.zh-CN.md)、[ADR 0018](docs/adr/0018-bounded-github-snapshot-import.zh-CN.md)、[ADR 0019](docs/adr/0019-incremental-github-commit-snapshots.zh-CN.md) 与 [ADR 0020](docs/adr/0020-derived-immutable-github-evidence-links.zh-CN.md)。
+当前阶段为阶段四代码导入。本地文件有界切片可接收 Java 文件，使用 `code_parsing`，把精确源码行保存为结构分块，持久化本地文件夹仓库身份与仓库内相对路径，并复用现有 Worker 与证据流程。它能解析一小部分仓库内跨文件类型关系及直接类型/字段接收者方法关系，登记规范化的 GitHub 所有者/仓库坐标，显式导入有界的默认分支或指定 ref 快照，并把最近的 Issue/Pull Request 版本导入为 Markdown。GitHub 文件同步已持久化 Commit/tree 与逐文件 blob 来源，复用未变化或已知 blob，保守记录重命名/删除，通过 provider ID 跟踪远端坐标变化，并从该历史派生不可变来源/证据链接；工作项则按 provider ID 与 `updated_at` 保存不可变本地版本和规范会话链接。当前仍不代表已经具备完整 Java AST 或符号/调用图、局部变量/参数/继承分派解析、Review thread/comment 导入、Webhook、轮询、强制推送可达性分析或破坏性来源失效传播。见 [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.zh-CN.md)、[ADR 0014](docs/adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0015](docs/adr/0015-local-folder-repository-identity.zh-CN.md)、[ADR 0016](docs/adr/0016-normalized-github-remote-identity.zh-CN.md)、[ADR 0017](docs/adr/0017-bounded-cross-file-java-method-calls.zh-CN.md)、[ADR 0018](docs/adr/0018-bounded-github-snapshot-import.zh-CN.md)、[ADR 0019](docs/adr/0019-incremental-github-commit-snapshots.zh-CN.md)、[ADR 0020](docs/adr/0020-derived-immutable-github-evidence-links.zh-CN.md) 与 [ADR 0021](docs/adr/0021-versioned-github-work-items.zh-CN.md)。
 
 本次功能切片已实现：
 
@@ -56,6 +57,7 @@
 - 将 GitHub HTTPS、SCP 风格 SSH 与 `ssh://` remote 规范化为项目范围的所有者/仓库身份及标准 URL；既可登记仅远程仓库，也可关联已有本地文件夹仓库，且不会请求 GitHub。
 - 已登记 GitHub 仓库可显式同步默认分支或指定 ref；最多 50 份、累计 20 MiB 的支持 blob 进入同一不可变来源/任务流程，并报告部分跳过与截断。
 - 成功的 GitHub 同步会保存 Commit/tree 快照与逐文件 blob/状态；连续相同 Commit 直接复用，未变化与已知 blob 无需下载，完整快照保守记录重命名/删除，GitHub provider ID 则在远端坐标改变时保持仓库身份。
+- 显式活动导入最多读取最近更新的 20 个 GitHub Issue/Pull Request 和每项 20 条评论；相同版本复用，后续 `updated_at` 创建新 Markdown 来源，资料与证据视图打开规范会话。
 - 依据导入与包规则，把直接类型限定和当前类型字段接收者调用解析到同仓库其他已解析来源中的方法，并按名称标记重载歧义、返回有界目标信息。
 
 仍需验收：
@@ -72,7 +74,7 @@
 ## 后续阶段
 
 1. 代表性真实回答验收与检索/提示质量评估。
-2. 增加 GitHub Issue/PR 导入，并将 Java 解析扩展到直接类型/字段接收者之外。
+2. 将 Java 解析扩展到直接类型/字段接收者之外，并评估更完整的 GitHub Review thread/event 导入。
 3. 时序演进、治理、实验和部署。
 
 Markdown 解析、受 Schema 约束的审核和确认候选入图已作为边界清晰的切片完成。

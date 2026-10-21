@@ -8,7 +8,7 @@
 
 Knowledge Atlas 是面向单人开发者的毕业设计项目。它将技术笔记、代码、项目文档和 Git 记录组织成个人时序知识图谱，并通过有证据支撑的检索来回答问题。
 
-仓库当前包含可交互的 Mock 演示图谱、接入真实 API 且分别支持桌面端 Markdown/Java 单文件与仓库范围文件夹上传及相对路径持久化的项目/资料工作台、规范化 GitHub remote 身份与 provider ID，以及带持久化 Commit 快照和增量 blob 复用的显式有界 ref 同步、从快照派生并固定到 Commit 的 GitHub 文件/行号证据 URL、Markdown 解析、有界的本地 Java 源码解析及派生的类型/字段/方法、同文件调用大纲、仓库范围跨文件 `extends`/`implements` 目标与直接类型/字段接收者方法调用、租约恢复、DeepSeek 候选抽取和带审计审核、确认后写入 PostgreSQL 图谱、带证据的关键词/语义向量/一跳图关系混合检索，以及带引用校验的同步非持久化证据问答。GitHub Issue/PR 导入、自动轮询/Webhook、远端删除的破坏性传播、完整跨文件代码语义、实体消歧、问答历史和多轮 Agent 尚未实现；派生代码结构不是正式知识。真实 GitHub/私有令牌验收、DeepSeek 质量与代表性原生 pgvector 验收应与模拟测试区分。
+仓库当前包含可交互的 Mock 演示图谱、接入真实 API 且分别支持桌面端 Markdown/Java 单文件与仓库范围文件夹上传及相对路径持久化的项目/资料工作台、规范化 GitHub remote 身份与 provider ID，以及带持久化 Commit 快照和增量 blob 复用的显式有界 ref 同步、从快照派生并固定到 Commit 的 GitHub 文件/行号证据 URL、显式有界且带版本的 Issue/Pull Request Markdown 导入、Markdown 解析、有界的本地 Java 源码解析及派生的类型/字段/方法、同文件调用大纲、仓库范围跨文件 `extends`/`implements` 目标与直接类型/字段接收者方法调用、租约恢复、DeepSeek 候选抽取和带审计审核、确认后写入 PostgreSQL 图谱、带证据的关键词/语义向量/一跳图关系混合检索，以及带引用校验的同步非持久化证据问答。GitHub Review thread/event 导入、自动轮询/Webhook、远端删除的破坏性传播、完整跨文件代码语义、实体消歧、问答历史和多轮 Agent 尚未实现；派生代码结构不是正式知识。真实 GitHub/私有令牌验收、DeepSeek 质量与代表性原生 pgvector 验收应与模拟测试区分。
 
 ## 修改代码前阅读
 

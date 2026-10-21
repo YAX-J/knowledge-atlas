@@ -189,6 +189,25 @@ export interface GithubRepositorySyncResult {
   }[]
 }
 
+export interface GithubWorkItemImportResult {
+  repository_id: string
+  imported_count: number
+  reused_count: number
+  skipped_count: number
+  truncated: boolean
+  items: {
+    number: number
+    item_type: 'issue' | 'pull_request'
+    title: string
+    html_url: string
+    source_id: string | null
+    task_id: string | null
+    status: 'imported' | 'reused' | 'skipped'
+    comments_truncated: boolean
+    error_code: string | null
+  }[]
+}
+
 export interface RepositorySnapshotList {
   items: {
     id: string
@@ -312,6 +331,25 @@ export function syncGithubRepository(
     {
       method: 'POST',
       body: JSON.stringify({ ref: ref?.trim() || null }),
+      signal: AbortSignal.timeout(120000),
+    },
+  )
+}
+
+export function importGithubWorkItems(
+  projectId: string,
+  repositoryId: string,
+): Promise<GithubWorkItemImportResult> {
+  return apiRequest<GithubWorkItemImportResult>(
+    `/projects/${projectId}/repositories/${repositoryId}/import-github-work-items`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        state: 'all',
+        item_type: 'all',
+        include_comments: true,
+        limit: 20,
+      }),
       signal: AbortSignal.timeout(120000),
     },
   )

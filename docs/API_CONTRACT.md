@@ -13,6 +13,7 @@
 | `POST /api/v1/projects/{project_id}/repositories/resolve` | 已实现，幂等解析本地文件夹仓库身份 |
 | `POST /api/v1/projects/{project_id}/repositories/resolve-github` | 已实现，规范化并登记 GitHub remote 身份 |
 | `POST /api/v1/projects/{project_id}/repositories/{repository_id}/sync-github` | 已实现，显式导入有界 GitHub 快照 |
+| `POST /api/v1/projects/{project_id}/repositories/{repository_id}/import-github-work-items` | 已实现，显式导入有界 GitHub Issue/PR 版本 |
 | `GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots` | 已实现，分页查询持久化 Commit 快照历史 |
 | `GET /api/v1/projects/{project_id}/repositories` | 已实现，分页查询来源仓库 |
 | `POST /api/v1/projects/{project_id}/sources` | 已实现，Markdown 与 Java 源文件 |
@@ -174,6 +175,46 @@
 
 未关联 GitHub 的仓库返回 HTTP 409 `GITHUB_REPOSITORY_REQUIRED`；远端仓库/ref 不存在或无权读取返回 HTTP 404 `GITHUB_REPOSITORY_UNAVAILABLE`；GitHub 限流/拒绝返回 HTTP 503 `GITHUB_RATE_LIMITED`；网络、响应结构或其他供应商错误返回 HTTP 502 `GITHUB_PROVIDER_FAILED`。Blob 使用 GitHub raw 媒体类型流式读取，并在接收过程中执行单份大小限制。所有错误均不会暴露令牌或原始远端响应。
 
+### 导入 GitHub Issue 与 Pull Request
+
+`POST /api/v1/projects/{project_id}/repositories/{repository_id}/import-github-work-items`
+
+```json
+{
+  "state": "all",
+  "item_type": "all",
+  "include_comments": true,
+  "limit": 20
+}
+```
+
+仓库必须已关联 `provider=github`。`state` 可为 `all`、`open`、`closed`；`item_type` 可为 `all`、`issue`、`pull_request`；`limit` 为 1–20。后端按 GitHub `updated` 倒序读取一个有界候选页，最多导入 20 项；启用评论时，每项最多读取 20 条 Issue 评论。Pull Request 额外包含可获得的 head、base 与 merged 元数据。正文和评论被确定性渲染为 Markdown，随后复用现有仓库范围去重、`markdown_parsing` 任务与人工审核链路。
+
+```json
+{
+  "repository_id": "...",
+  "imported_count": 2,
+  "reused_count": 1,
+  "skipped_count": 0,
+  "truncated": false,
+  "items": [
+    {
+      "number": 17,
+      "item_type": "issue",
+      "title": "记录重试决策",
+      "html_url": "https://github.com/example/repository/issues/17",
+      "source_id": "...",
+      "task_id": "...",
+      "status": "imported",
+      "comments_truncated": false,
+      "error_code": null
+    }
+  ]
+}
+```
+
+GitHub provider item ID、`updated_at` 与 `include_comments` 组合标识不可变导入版本。相同版本与评论配置重复导入返回 `reused`，远端更新或评论配置变化则创建新版本记录，不覆盖旧来源或证据。超过单份资料大小限制等本地导入错误按项返回 `skipped`；`truncated=true` 表示远端候选或筛选结果达到有界读取上限。资料、图谱、搜索和问答中的 `git_url` 对工作项指向规范 Issue/PR 会话；行号仍定位本地保存的 Markdown 快照，不伪造 GitHub 会话行号片段。Review comment/thread、事件、附件、reaction、完整分页、Webhook、轮询与远端删除传播尚未实现。供应商错误沿用仓库快照接口的 `GITHUB_REPOSITORY_UNAVAILABLE`、`GITHUB_RATE_LIMITED` 与 `GITHUB_PROVIDER_FAILED`。
+
 ### 查询仓库 Commit 快照
 
 `GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots?page=1&page_size=20`
@@ -258,7 +299,7 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 `GET /api/v1/sources/{source_id}`
 
-返回资料元数据（包括可空的 `repository_id`、`repository_name`、`relative_path` 与 `git_url`）、SHA-256、解析状态、行数和最多 4000 字符的可预览内容，不返回服务器绝对路径。项目资料列表中的每项也返回相同语义的可空 `git_url`。GitHub 来源从最近一次非删除快照派生固定到 Commit 的文件 URL；本地来源返回 `null`，远端文件后来删除时保留指向最后一次存在快照的链接。
+返回资料元数据（包括可空的 `repository_id`、`repository_name`、`relative_path` 与 `git_url`）、SHA-256、解析状态、行数和最多 4000 字符的可预览内容，不返回服务器绝对路径。项目资料列表中的每项也返回相同语义的可空 `git_url`。GitHub 文件来源从最近一次非删除快照派生固定到 Commit 的文件 URL；GitHub 工作项来源返回规范 Issue/PR 会话 URL；本地来源返回 `null`，远端文件后来删除时保留指向最后一次存在快照的链接。
 
 ### 查询资料分块
 
@@ -340,7 +381,7 @@ Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，�
 
 `GET /api/v1/knowledge/entities/{entity_id}`
 
-状态：已实现，只读。返回 `entity`、`evidence`、`relationships` 和 `truncated`。证据包含 `id`、`source_id`、`chunk_id`、`title`、`uri`、可空 `git_url`、`quote`、`start_line`、`end_line`、`heading_path`；直接关系最多返回 100 条。`uri` 始终保留应用内 `project://` 定位，GitHub 来源的 `git_url` 额外固定到 Commit 与 `#Lx-Ly` 行号。
+状态：已实现，只读。返回 `entity`、`evidence`、`relationships` 和 `truncated`。证据包含 `id`、`source_id`、`chunk_id`、`title`、`uri`、可空 `git_url`、`quote`、`start_line`、`end_line`、`heading_path`；直接关系最多返回 100 条。`uri` 始终保留应用内 `project://` 定位。GitHub 文件来源的 `git_url` 固定到 Commit 与 `#Lx-Ly` 行号；GitHub 工作项来源打开规范 Issue/PR 会话，行号只描述本地保存的 Markdown 快照。
 
 ### 查询关系详情
 

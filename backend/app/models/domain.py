@@ -139,6 +139,9 @@ class SourceRepository(TimestampMixin, Base):
     snapshots: Mapped[list["RepositorySnapshot"]] = relationship(
         back_populates="repository", cascade="all, delete-orphan"
     )
+    work_item_versions: Mapped[list["GithubWorkItemVersion"]] = relationship(
+        back_populates="repository", cascade="all, delete-orphan"
+    )
 
 
 class RepositorySnapshot(TimestampMixin, Base):
@@ -222,6 +225,69 @@ class RepositorySnapshotFile(TimestampMixin, Base):
     error_code: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
     snapshot: Mapped[RepositorySnapshot] = relationship(back_populates="files")
+
+
+class GithubWorkItemVersion(TimestampMixin, Base):
+    __tablename__ = "github_work_item_versions"
+    __table_args__ = (
+        CheckConstraint(
+            "item_type IN ('issue', 'pull_request')",
+            name="ck_github_work_item_versions_type",
+        ),
+        CheckConstraint(
+            "state IN ('open', 'closed')",
+            name="ck_github_work_item_versions_state",
+        ),
+        CheckConstraint("number >= 1", name="ck_github_work_item_versions_number"),
+        CheckConstraint(
+            "comments_count >= 0", name="ck_github_work_item_versions_comments_count"
+        ),
+        UniqueConstraint(
+            "repository_id", "provider_item_id", "provider_updated_at",
+            "comments_included",
+            name="uq_github_work_item_versions_provider_update",
+        ),
+        Index(
+            "ix_github_work_item_versions_repository_number_updated",
+            "repository_id", "number", "provider_updated_at",
+        ),
+        Index("ix_github_work_item_versions_source", "source_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    repository_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("source_repositories.id", ondelete="CASCADE"), nullable=False
+    )
+    source_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("source_documents.id", ondelete="SET NULL"), nullable=True
+    )
+    task_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("processing_tasks.id", ondelete="SET NULL"), nullable=True
+    )
+    provider_item_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    number: Mapped[int] = mapped_column(nullable=False)
+    item_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    state: Mapped[str] = mapped_column(String(20), nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    html_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    provider_updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    comments_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    comments_included: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
+    comments_truncated: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+
+    repository: Mapped[SourceRepository] = relationship(
+        back_populates="work_item_versions"
+    )
 
 
 class SourceDocument(TimestampMixin, Base):
