@@ -142,6 +142,9 @@ class SourceRepository(TimestampMixin, Base):
     work_item_versions: Mapped[list["GithubWorkItemVersion"]] = relationship(
         back_populates="repository", cascade="all, delete-orphan"
     )
+    pull_review_versions: Mapped[list["GithubPullReviewVersion"]] = relationship(
+        back_populates="repository", cascade="all, delete-orphan"
+    )
 
 
 class RepositorySnapshot(TimestampMixin, Base):
@@ -287,6 +290,65 @@ class GithubWorkItemVersion(TimestampMixin, Base):
 
     repository: Mapped[SourceRepository] = relationship(
         back_populates="work_item_versions"
+    )
+
+
+class GithubPullReviewVersion(TimestampMixin, Base):
+    __tablename__ = "github_pull_review_versions"
+    __table_args__ = (
+        CheckConstraint("number >= 1", name="ck_github_pull_review_versions_number"),
+        CheckConstraint(
+            "reviews_count >= 0",
+            name="ck_github_pull_review_versions_reviews_count",
+        ),
+        CheckConstraint(
+            "review_comments_count >= 0",
+            name="ck_github_pull_review_versions_comments_count",
+        ),
+        CheckConstraint(
+            "length(activity_digest) = 64",
+            name="ck_github_pull_review_versions_digest",
+        ),
+        UniqueConstraint(
+            "repository_id", "provider_pull_id", "activity_digest",
+            name="uq_github_pull_review_versions_activity",
+        ),
+        Index(
+            "ix_github_pull_review_versions_repository_number_created",
+            "repository_id", "number", "created_at",
+        ),
+        Index("ix_github_pull_review_versions_source", "source_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False, index=True)
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
+    )
+    repository_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("source_repositories.id", ondelete="CASCADE"), nullable=False
+    )
+    source_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("source_documents.id", ondelete="SET NULL"), nullable=True
+    )
+    task_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("processing_tasks.id", ondelete="SET NULL"), nullable=True
+    )
+    provider_pull_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    number: Mapped[int] = mapped_column(nullable=False)
+    html_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    activity_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    reviews_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    review_comments_count: Mapped[int] = mapped_column(default=0, nullable=False)
+    reviews_truncated: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    review_comments_truncated: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+
+    repository: Mapped[SourceRepository] = relationship(
+        back_populates="pull_review_versions"
     )
 
 

@@ -13,7 +13,7 @@
 | `POST /api/v1/projects/{project_id}/repositories/resolve` | 已实现，幂等解析本地文件夹仓库身份 |
 | `POST /api/v1/projects/{project_id}/repositories/resolve-github` | 已实现，规范化并登记 GitHub remote 身份 |
 | `POST /api/v1/projects/{project_id}/repositories/{repository_id}/sync-github` | 已实现，显式导入有界 GitHub 快照 |
-| `POST /api/v1/projects/{project_id}/repositories/{repository_id}/import-github-work-items` | 已实现，显式导入有界 GitHub Issue/PR 版本 |
+| `POST /api/v1/projects/{project_id}/repositories/{repository_id}/import-github-work-items` | 已实现，显式导入有界 GitHub Issue/PR 与 PR Review 活动版本 |
 | `GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots` | 已实现，分页查询持久化 Commit 快照历史 |
 | `GET /api/v1/projects/{project_id}/repositories` | 已实现，分页查询来源仓库 |
 | `POST /api/v1/projects/{project_id}/sources` | 已实现，Markdown 与 Java 源文件 |
@@ -184,11 +184,12 @@
   "state": "all",
   "item_type": "all",
   "include_comments": true,
+  "include_reviews": true,
   "limit": 20
 }
 ```
 
-仓库必须已关联 `provider=github`。`state` 可为 `all`、`open`、`closed`；`item_type` 可为 `all`、`issue`、`pull_request`；`limit` 为 1–20。后端按 GitHub `updated` 倒序读取一个有界候选页，最多导入 20 项；启用评论时，每项最多读取 20 条 Issue 评论。Pull Request 额外包含可获得的 head、base 与 merged 元数据。正文和评论被确定性渲染为 Markdown，随后复用现有仓库范围去重、`markdown_parsing` 任务与人工审核链路。
+仓库必须已关联 `provider=github`。`state` 可为 `all`、`open`、`closed`；`item_type` 可为 `all`、`issue`、`pull_request`；`limit` 为 1–20。后端按 GitHub `updated` 倒序读取一个有界候选页，最多导入 20 项；启用普通评论时，每项最多读取 20 条 Issue 评论。Pull Request 额外包含可获得的 head、base 与 merged 元数据。`include_reviews=true` 时，每个入选 PR 还读取最多 20 条 Review 和 20 条行级 Review Comment，并用 GitHub `Link` 响应头报告各自的截断状态。正文、评论与 Review 活动被确定性渲染为 Markdown，随后复用现有仓库范围去重、`markdown_parsing` 任务与人工审核链路。
 
 ```json
 {
@@ -196,6 +197,9 @@
   "imported_count": 2,
   "reused_count": 1,
   "skipped_count": 0,
+  "review_imported_count": 1,
+  "review_reused_count": 0,
+  "review_skipped_count": 0,
   "truncated": false,
   "items": [
     {
@@ -207,13 +211,21 @@
       "task_id": "...",
       "status": "imported",
       "comments_truncated": false,
-      "error_code": null
+      "review_source_id": null,
+      "review_task_id": null,
+      "review_status": "not_requested",
+      "reviews_count": 0,
+      "review_comments_count": 0,
+      "reviews_truncated": false,
+      "review_comments_truncated": false,
+      "error_code": null,
+      "review_error_code": null
     }
   ]
 }
 ```
 
-GitHub provider item ID、`updated_at` 与 `include_comments` 组合标识不可变导入版本。相同版本与评论配置重复导入返回 `reused`，远端更新或评论配置变化则创建新版本记录，不覆盖旧来源或证据。超过单份资料大小限制等本地导入错误按项返回 `skipped`；`truncated=true` 表示远端候选或筛选结果达到有界读取上限。资料、图谱、搜索和问答中的 `git_url` 对工作项指向规范 Issue/PR 会话；行号仍定位本地保存的 Markdown 快照，不伪造 GitHub 会话行号片段。Review comment/thread、事件、附件、reaction、完整分页、Webhook、轮询与远端删除传播尚未实现。供应商错误沿用仓库快照接口的 `GITHUB_REPOSITORY_UNAVAILABLE`、`GITHUB_RATE_LIMITED` 与 `GITHUB_PROVIDER_FAILED`。
+GitHub provider item ID、`updated_at` 与 `include_comments` 组合标识工作项不可变版本。相同版本与评论配置重复导入返回 `reused`，远端更新或评论配置变化则创建新版本记录，不覆盖旧来源或证据。PR Review 活动保存为独立来源，以 provider PR ID 和渲染内容 SHA-256 标识版本，因此 Review 或行级评论变化时即使 PR `updated_at` 未变也会创建新快照。超过单份资料大小限制等本地导入错误分别在工作项或 Review 状态中返回 `skipped`；`truncated=true` 仅表示工作项候选达到有界读取上限，各 Review 截断字段独立报告。资料、图谱、搜索和问答中的 `git_url` 对两类来源都指向规范 Issue/PR 会话；行号仍定位本地保存的 Markdown 快照，不伪造 GitHub 会话行号片段。行级评论的 `in_reply_to_id` 会保留为回复关系，但完整 Review thread 的解决状态、事件、附件、reaction、完整分页、Webhook、轮询与远端删除传播尚未实现。供应商错误沿用仓库快照接口的 `GITHUB_REPOSITORY_UNAVAILABLE`、`GITHUB_RATE_LIMITED` 与 `GITHUB_PROVIDER_FAILED`。
 
 ### 查询仓库 Commit 快照
 
@@ -299,7 +311,7 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 `GET /api/v1/sources/{source_id}`
 
-返回资料元数据（包括可空的 `repository_id`、`repository_name`、`relative_path` 与 `git_url`）、SHA-256、解析状态、行数和最多 4000 字符的可预览内容，不返回服务器绝对路径。项目资料列表中的每项也返回相同语义的可空 `git_url`。GitHub 文件来源从最近一次非删除快照派生固定到 Commit 的文件 URL；GitHub 工作项来源返回规范 Issue/PR 会话 URL；本地来源返回 `null`，远端文件后来删除时保留指向最后一次存在快照的链接。
+返回资料元数据（包括可空的 `repository_id`、`repository_name`、`relative_path` 与 `git_url`）、SHA-256、解析状态、行数和最多 4000 字符的可预览内容，不返回服务器绝对路径。项目资料列表中的每项也返回相同语义的可空 `git_url`。GitHub 文件来源从最近一次非删除快照派生固定到 Commit 的文件 URL；GitHub 工作项与 PR Review 活动来源返回规范 Issue/PR 会话 URL；本地来源返回 `null`，远端文件后来删除时保留指向最后一次存在快照的链接。
 
 ### 查询资料分块
 

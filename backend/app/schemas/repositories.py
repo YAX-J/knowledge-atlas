@@ -102,6 +102,7 @@ class GithubWorkItemImport(BaseModel):
     state: Literal["all", "open", "closed"] = "all"
     item_type: Literal["all", "issue", "pull_request"] = "all"
     include_comments: bool = True
+    include_reviews: bool = True
     limit: int = Field(default=20, ge=1, le=20)
 
 
@@ -114,7 +115,17 @@ class GithubWorkItemImportItem(BaseModel):
     task_id: uuid.UUID | None = None
     status: Literal["imported", "reused", "skipped"]
     comments_truncated: bool = False
+    review_source_id: uuid.UUID | None = None
+    review_task_id: uuid.UUID | None = None
+    review_status: Literal["imported", "reused", "skipped", "not_requested"] = (
+        "not_requested"
+    )
+    reviews_count: int = 0
+    review_comments_count: int = 0
+    reviews_truncated: bool = False
+    review_comments_truncated: bool = False
     error_code: str | None = None
+    review_error_code: str | None = None
 
 
 class GithubWorkItemImportResult(BaseModel):
@@ -122,6 +133,9 @@ class GithubWorkItemImportResult(BaseModel):
     imported_count: int
     reused_count: int
     skipped_count: int
+    review_imported_count: int
+    review_reused_count: int
+    review_skipped_count: int
     truncated: bool
     items: list[GithubWorkItemImportItem]
 

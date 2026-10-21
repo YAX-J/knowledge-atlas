@@ -85,3 +85,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0020: Derive immutable GitHub evidence links from snapshots](0020-derived-immutable-github-evidence-links.md)
 - [ADR 0021: Import bounded GitHub work items as immutable source versions](0021-versioned-github-work-items.md)
 - [ADR 0022: Resolve bounded Java calls through declared method receivers](0022-bounded-java-declared-receiver-calls.md)
+- [ADR 0023: Version bounded GitHub Pull Request review activity independently](0023-versioned-github-pull-reviews.md)

@@ -99,6 +99,7 @@ def import_github_work_items(
         state=import_in.state,
         item_type=import_in.item_type,
         include_comments=import_in.include_comments,
+        include_reviews=import_in.include_reviews,
         limit=import_in.limit,
     )
 

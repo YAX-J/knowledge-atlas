@@ -194,6 +194,9 @@ export interface GithubWorkItemImportResult {
   imported_count: number
   reused_count: number
   skipped_count: number
+  review_imported_count: number
+  review_reused_count: number
+  review_skipped_count: number
   truncated: boolean
   items: {
     number: number
@@ -204,7 +207,15 @@ export interface GithubWorkItemImportResult {
     task_id: string | null
     status: 'imported' | 'reused' | 'skipped'
     comments_truncated: boolean
+    review_source_id: string | null
+    review_task_id: string | null
+    review_status: 'imported' | 'reused' | 'skipped' | 'not_requested'
+    reviews_count: number
+    review_comments_count: number
+    reviews_truncated: boolean
+    review_comments_truncated: boolean
     error_code: string | null
+    review_error_code: string | null
   }[]
 }
 
@@ -348,6 +359,7 @@ export function importGithubWorkItems(
         state: 'all',
         item_type: 'all',
         include_comments: true,
+        include_reviews: true,
         limit: 20,
       }),
       signal: AbortSignal.timeout(120000),

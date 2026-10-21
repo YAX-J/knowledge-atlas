@@ -373,7 +373,7 @@ async function importRegisteredGithubActivity(repositoryId: string) {
   if (!projectId || loading.activity || loading.sync || loading.remote || loading.upload || loading.task) return
   loading.activity = true
   errors.activity = errors.sync = ''
-  notice.value = '正在从 GitHub 读取最近更新的 Issue 与 Pull Request…'
+  notice.value = '正在从 GitHub 读取最近更新的 Issue、Pull Request 与 Review…'
   try {
     const result = await importGithubWorkItems(projectId, repositoryId)
     if (project.value?.id !== projectId) return
@@ -387,7 +387,10 @@ async function importRegisteredGithubActivity(repositoryId: string) {
       selectedTaskId.value = selected.task_id
     }
     const truncatedComments = result.items.filter(item => item.comments_truncated).length
-    notice.value = `GitHub Issue/PR 导入完成：新增版本 ${result.imported_count}、复用 ${result.reused_count}、跳过 ${result.skipped_count}${result.truncated ? '；结果达到 20 项上限' : ''}${truncatedComments ? `；${truncatedComments} 项评论达到导入上限` : ''}。`
+    const truncatedReviews = result.items.filter(
+      item => item.reviews_truncated || item.review_comments_truncated,
+    ).length
+    notice.value = `GitHub Issue/PR 导入完成：工作项新增 ${result.imported_count}、复用 ${result.reused_count}、跳过 ${result.skipped_count}；Review 快照新增 ${result.review_imported_count}、复用 ${result.review_reused_count}、跳过 ${result.review_skipped_count}${result.truncated ? '；结果达到 20 项上限' : ''}${truncatedComments ? `；${truncatedComments} 项普通评论达到导入上限` : ''}${truncatedReviews ? `；${truncatedReviews} 项 Review 活动达到导入上限` : ''}。`
     await Promise.all([loadSources(1), loadRepositories(repositories.value?.page ?? 1)])
     if (selectedSourceId.value) await refreshSource()
   } catch (error) {

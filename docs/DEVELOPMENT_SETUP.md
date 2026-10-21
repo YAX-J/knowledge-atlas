@@ -86,7 +86,7 @@ Useful endpoints:
 
 To verify ingestion in the OpenAPI interface, create a project, upload UTF-8 Markdown or Java source, call `POST /api/v1/tasks/{task_id}/run`, and query `GET /api/v1/sources/{source_id}/chunks`. Alternatively, run `python -m app.worker` from `backend/` in a second activated terminal to consume uploads automatically. Apply the latest migration first, including execution lease and graph tables. `python -m app.worker --once` handles at most one eligible task and exits. See [backend instructions](../backend/README.md) for configuration, recovery rules, exit codes, and parsing limitations.
 
-Validate the native service setup by running `alembic current` from `backend/` (expected `20261021_0011`) and querying `/api/v1/health/ready`; PostgreSQL must report `up`. Then verify project creation, upload, automatic parsing, duplicate reuse, restart persistence, and worker/API contention against the real local database. SQLite tests do not validate native connectivity, PostgreSQL locking, or pgvector distance operations.
+Validate the native service setup by running `alembic current` from `backend/` (expected `20261021_0012`) and querying `/api/v1/health/ready`; PostgreSQL must report `up`. Then verify project creation, upload, automatic parsing, duplicate reuse, restart persistence, and worker/API contention against the real local database. SQLite tests do not validate native connectivity, PostgreSQL locking, or pgvector distance operations.
 
 For optional container use, `docker compose up -d --build` from the repository root starts the complete stack. The worker waits for the API to apply migrations and pass its liveness check. Docker is not a prerequisite for acceptance.
 
@@ -100,7 +100,7 @@ Configure `EMBEDDING_API_KEY`, `EMBEDDING_BASE_URL`, and `EMBEDDING_MODEL` in th
 
 ## GitHub snapshot import
 
-Public repository reads need no credential. For a private repository, set `GITHUB_TOKEN` only in `backend/.env` and grant the minimum read permissions for Contents, Issues, and Pull requests needed by the chosen import. Keep `GITHUB_API_BASE_URL=https://api.github.com`, `GITHUB_API_VERSION=2026-03-10`, and adjust `GITHUB_TIMEOUT_SECONDS` only when needed. Apply migration `20261021_0011`, register a remote in the source workspace, then explicitly synchronize its default branch/requested ref or import recent Issue/Pull Request versions. A file request imports at most 50 supported files and 20 MiB; a work-item request imports at most 20 items and 20 comments per item. Neither path clones, polls, invalidates historical evidence, or synchronizes automatically.
+Public repository reads need no credential. For a private repository, set `GITHUB_TOKEN` only in `backend/.env` and grant the minimum read permissions for Contents, Issues, and Pull requests needed by the chosen import. Keep `GITHUB_API_BASE_URL=https://api.github.com`, `GITHUB_API_VERSION=2026-03-10`, and adjust `GITHUB_TIMEOUT_SECONDS` only when needed. Apply migration `20261021_0012`, register a remote in the source workspace, then explicitly synchronize its default branch/requested ref or import recent Issue/Pull Request versions. A file request imports at most 50 supported files and 20 MiB; a work-item request imports at most 20 items and 20 issue comments per item, plus at most 20 reviews and 20 inline review comments per selected PR. Neither path clones, polls, invalidates historical evidence, or synchronizes automatically.
 
 ## Frontend verification
 

@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.domain import (
+    GithubPullReviewVersion,
     GithubWorkItemVersion,
     RepositorySnapshot,
     RepositorySnapshotFile,
@@ -42,6 +43,23 @@ def github_file_urls(
     )
     urls: dict[uuid.UUID, str] = {}
     for source_id, html_url in work_item_rows:
+        if source_id is not None and source_id not in urls:
+            urls[source_id] = html_url
+
+    review_rows = db.execute(
+        select(
+            GithubPullReviewVersion.source_id,
+            GithubPullReviewVersion.html_url,
+        )
+        .where(
+            GithubPullReviewVersion.source_id.in_(source_ids),
+            GithubPullReviewVersion.user_id == user_id,
+            GithubPullReviewVersion.project_id == project_id,
+            GithubPullReviewVersion.source_id.is_not(None),
+        )
+        .order_by(GithubPullReviewVersion.created_at.desc())
+    )
+    for source_id, html_url in review_rows:
         if source_id is not None and source_id not in urls:
             urls[source_id] = html_url
 

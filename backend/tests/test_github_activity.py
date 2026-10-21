@@ -58,6 +58,10 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
         "updated_at": "2026-10-21T08:00:00Z",
         "body": "Retries must preserve evidence.",
     }
+    review_version = {
+        "updated_at": "2026-10-21T09:30:00Z",
+        "body": "Please keep the retry budget bounded.",
+    }
 
     def respond(request: httpx.Request) -> httpx.Response:
         path = request.url.path
@@ -148,6 +152,50 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
                 "merged": True,
                 "labels": [],
             })
+        if path == "/repos/example/demo/pulls/8/reviews":
+            return httpx.Response(
+                200,
+                headers={
+                    "Link": (
+                        '<https://api.github.test/repos/example/demo/pulls/8/'
+                        'reviews?per_page=20&page=2>; rel="next"'
+                    )
+                },
+                json=[{
+                    "id": 401,
+                    "user": {"login": "margaret"},
+                    "body": review_version["body"],
+                    "state": "CHANGES_REQUESTED",
+                    "html_url": (
+                        "https://github.com/example/demo/pull/8#pullrequestreview-401"
+                    ),
+                    "submitted_at": review_version["updated_at"],
+                    "commit_id": "abc123",
+                }],
+            )
+        if path == "/repos/example/demo/pulls/8/comments":
+            return httpx.Response(
+                200,
+                headers={
+                    "Link": (
+                        '<https://api.github.test/repos/example/demo/pulls/8/'
+                        'comments?per_page=20&page=2>; rel="next"'
+                    )
+                },
+                json=[{
+                    "id": 402,
+                    "in_reply_to_id": 399,
+                    "user": {"login": "grace"},
+                    "path": "backend/retry.py",
+                    "line": 17,
+                    "body": "The counter is now capped.",
+                    "created_at": "2026-10-21T09:40:00Z",
+                    "updated_at": "2026-10-21T09:41:00Z",
+                    "html_url": (
+                        "https://github.com/example/demo/pull/8#discussion_r402"
+                    ),
+                }],
+            )
         raise AssertionError(path)
 
     install_github_mock(monkeypatch, respond)
@@ -166,13 +214,18 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
         payload["reused_count"],
         payload["skipped_count"],
     ) == (2, 0, 0)
+    assert (
+        payload["review_imported_count"],
+        payload["review_reused_count"],
+        payload["review_skipped_count"],
+    ) == (1, 0, 0)
     assert [item["item_type"] for item in payload["items"]] == [
         "issue", "pull_request",
     ]
     sources = client.get(
         f"/api/v1/projects/{project_id}/sources?page=1&page_size=20"
     ).json()
-    assert sources["total"] == 2
+    assert sources["total"] == 3
     urls = {item["git_url"] for item in sources["items"]}
     assert urls == {
         "https://github.com/example/demo/issues/7",
@@ -188,17 +241,42 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
         start_line=2,
         end_line=4,
     ).endswith("#L2-L4")
+    review_source = next(
+        item for item in sources["items"]
+        if item["relative_path"] == (
+            "github/pull-request-reviews/pull-request-8-reviews.md"
+        )
+    )
+    review_detail = client.get(f"/api/v1/sources/{review_source['id']}").json()
+    assert "Please keep the retry budget bounded." in review_detail["content_preview"]
+    assert "`backend/retry.py:17`" in review_detail["content_preview"]
+    assert "Reply to review comment: 399" in review_detail["content_preview"]
+    pull_item = next(
+        item for item in payload["items"] if item["item_type"] == "pull_request"
+    )
+    assert pull_item["review_source_id"] == review_source["id"]
+    assert pull_item["reviews_count"] == 1
+    assert pull_item["review_comments_count"] == 1
+    assert pull_item["reviews_truncated"] is True
+    assert pull_item["review_comments_truncated"] is True
 
     request_count = len(requests)
     second = client.post(endpoint, json={})
     assert second.status_code == 200
-    assert (second.json()["imported_count"], second.json()["reused_count"]) == (0, 2)
+    second_payload = second.json()
+    assert (second_payload["imported_count"], second_payload["reused_count"]) == (0, 2)
+    assert (
+        second_payload["review_imported_count"],
+        second_payload["review_reused_count"],
+    ) == (0, 1)
     assert requests[request_count:] == [
         "/repos/example/demo", "/repos/example/demo/issues",
+        "/repos/example/demo/pulls/8/reviews",
+        "/repos/example/demo/pulls/8/comments",
     ]
     assert client.get(
         f"/api/v1/projects/{project_id}/sources?page=1&page_size=20"
-    ).json()["total"] == 2
+    ).json()["total"] == 3
 
     request_count = len(requests)
     pull_only = client.post(endpoint, json={"item_type": "pull_request"})
@@ -207,7 +285,39 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
     assert requests[request_count:] == [
         "/repos/example/demo", "/repos/example/demo/pulls",
         "/repos/example/demo/issues/8",
+        "/repos/example/demo/pulls/8/reviews",
+        "/repos/example/demo/pulls/8/comments",
     ]
+
+    request_count = len(requests)
+    without_reviews = client.post(
+        endpoint,
+        json={"item_type": "pull_request", "include_reviews": False},
+    )
+    assert without_reviews.status_code == 200
+    assert without_reviews.json()["items"][0]["review_status"] == "not_requested"
+    assert requests[request_count:] == [
+        "/repos/example/demo", "/repos/example/demo/pulls",
+        "/repos/example/demo/issues/8",
+    ]
+
+    review_version.update({
+        "updated_at": "2026-10-21T09:50:00Z",
+        "body": "Please keep the retry budget bounded and observable.",
+    })
+    review_updated = client.post(endpoint, json={"item_type": "pull_request"})
+    assert review_updated.status_code == 200
+    assert (
+        review_updated.json()["imported_count"],
+        review_updated.json()["reused_count"],
+    ) == (0, 1)
+    assert (
+        review_updated.json()["review_imported_count"],
+        review_updated.json()["review_reused_count"],
+    ) == (1, 0)
+    assert client.get(
+        f"/api/v1/projects/{project_id}/sources?page=1&page_size=20"
+    ).json()["total"] == 4
 
     issue_version.update({
         "updated_at": "2026-10-21T10:00:00Z",
@@ -222,7 +332,7 @@ def test_import_github_issues_and_pull_requests_as_versioned_sources(
     assert updated_issue["source_id"] != issue["id"]
     assert client.get(
         f"/api/v1/projects/{project_id}/sources?page=1&page_size=20"
-    ).json()["total"] == 3
+    ).json()["total"] == 5
 
 
 def test_import_github_work_items_rejects_local_only_repository(

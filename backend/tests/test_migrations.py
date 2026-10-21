@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core import config as app_config
 from app.models.domain import (
+    GithubPullReviewVersion,
     GithubWorkItemVersion,
     ProcessingTask,
     Project,
@@ -119,6 +120,7 @@ def test_postgresql_migrations_compile_without_a_live_server(monkeypatch) -> Non
     assert "CREATE TABLE repository_snapshots" in sql
     assert "CREATE TABLE repository_snapshot_files" in sql
     assert "CREATE TABLE github_work_item_versions" in sql
+    assert "CREATE TABLE github_pull_review_versions" in sql
 
 
 def test_github_work_item_version_migration_is_reversible(tmp_path, monkeypatch) -> None:
@@ -131,6 +133,7 @@ def test_github_work_item_version_migration_is_reversible(tmp_path, monkeypatch)
     engine = create_engine(url)
     command.upgrade(config, "head")
     assert "github_work_item_versions" in inspect(engine).get_table_names()
+    assert "github_pull_review_versions" in inspect(engine).get_table_names()
 
     with Session(engine) as db:
         project = Project(user_id=uuid.uuid4(), name="Work item migration")
@@ -180,13 +183,49 @@ def test_github_work_item_version_migration_is_reversible(tmp_path, monkeypatch)
             comments_included=True,
         )
         db.add(version)
+        review_source_id = insert_legacy_source(
+            db,
+            user_id=project.user_id,
+            project_id=project.id,
+            original_name="pull-request-8-reviews.md",
+        )
+        review_task = ProcessingTask(
+            user_id=project.user_id,
+            project_id=project.id,
+            source_id=review_source_id,
+            type="markdown_parsing",
+        )
+        db.add(review_task)
+        db.flush()
+        review_version = GithubPullReviewVersion(
+            user_id=project.user_id,
+            project_id=project.id,
+            repository_id=repository.id,
+            source_id=review_source_id,
+            task_id=review_task.id,
+            provider_pull_id="202",
+            number=8,
+            html_url="https://github.com/example/demo/pull/8",
+            activity_digest="a" * 64,
+            reviews_count=1,
+            review_comments_count=1,
+            reviews_truncated=False,
+            review_comments_truncated=False,
+        )
+        db.add(review_version)
         db.commit()
         version_id = version.id
+        review_version_id = review_version.id
     with Session(engine) as db:
         assert db.get(GithubWorkItemVersion, version_id).title == "Decision"
+        assert (
+            db.get(GithubPullReviewVersion, review_version_id).activity_digest
+            == "a" * 64
+        )
 
     command.downgrade(config, "20261020_0010")
     assert "github_work_item_versions" not in inspect(engine).get_table_names()
+    assert "github_pull_review_versions" not in inspect(engine).get_table_names()
     command.upgrade(config, "head")
     engine.dispose()
 

@@ -85,3 +85,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0020：从快照派生不可变 GitHub 证据链接](0020-derived-immutable-github-evidence-links.zh-CN.md)
 - [ADR 0021：把有界 GitHub 工作项导入为不可变来源版本](0021-versioned-github-work-items.zh-CN.md)
 - [ADR 0022：解析通过显式声明接收者发起的有界 Java 调用](0022-bounded-java-declared-receiver-calls.zh-CN.md)
+- [ADR 0023：独立版本化有界 GitHub Pull Request Review 活动](0023-versioned-github-pull-reviews.zh-CN.md)
