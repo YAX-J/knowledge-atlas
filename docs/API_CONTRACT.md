@@ -169,9 +169,11 @@
 }
 ```
 
-每次新 Commit 同步会持久化 Commit/tree 元数据和逐文件 blob 映射，并以上一份同 ref 快照作为增量基线。`status` 可为 `imported`、`reused`、`unchanged`、`renamed`、`deleted` 或 `skipped`；未变化和可复用 blob 不再下载，唯一旧路径消失且 blob 未变时报告 `renamed`，完整 tree 中消失的旧路径报告 `deleted`。连续重复同一 Commit 会直接复用同一个 `snapshot_id`，不再读取 tree/blob。远端删除只记录快照变化，不物理删除历史来源、分块、知识或证据。
+每次新 Commit 或不完整快照重试会持久化 Commit/tree 元数据和逐文件 blob 映射，并以上一份同 ref 快照作为增量基线。`status` 可为 `imported`、`reused`、`unchanged`、`renamed`、`deleted` 或 `skipped`；未变化和可复用 blob 仅在来源类型及解析任务兼容、用户/项目/仓库一致时避免下载。完整文件集合中唯一旧路径消失且同类型 blob 未变时报告 `renamed`，完整 tree 中消失的旧路径报告 `deleted`。跨 Markdown/Java 类型变化会创建或复用正确类型的来源/任务，不把不兼容来源重命名。远端删除只记录快照变化，不物理删除历史来源、分块、知识或证据。
 
-空文件、非 UTF-8、非法路径或超限文件会按项跳过，已成功项不会回滚。`truncated=true` 表示 GitHub tree 自身截断、支持文件超过 50 份，或达到累计字节预算；此时 `deletion_detection_complete=false`，不会猜测删除。复制文件或同 blob 多路径存在歧义时只复用来源，不猜测重命名。
+连续相同 Commit 仅在快照未截断、删除检测完整、成功引用兼容且没有大小类跳过时复用同一个 `snapshot_id`，不读取 tree/blob。确定性的空文件、非法编码/路径跳过不妨碍短路。否则再次调用同一接口会重读 tree，复用成功文件并尝试遗漏项，保存新的 `snapshot_id`；旧快照保留。每次仍最多选择 50 份文件、下载 20 MiB，不增加分页或自动重试；固定 50 文件上限不会因重复操作而绕过。普通失败解析任务仍通过原任务重试接口处理。详见 [ADR 0031](adr/0031-recoverable-typed-github-snapshots.zh-CN.md)。
+
+空文件、非 UTF-8、非法路径或超限文件会按项跳过，已成功项不会回滚。`truncated=true` 表示 GitHub tree 自身截断、支持文件超过 50 份，或达到累计字节预算；此时 `deletion_detection_complete=false`，不会猜测删除。tree/文件选择截断时也不推断重命名。复制文件或同 blob 多路径存在歧义时只复用来源，不猜测重命名。
 
 未关联 GitHub 的仓库返回 HTTP 409 `GITHUB_REPOSITORY_REQUIRED`；远端仓库/ref 不存在或无权读取返回 HTTP 404 `GITHUB_REPOSITORY_UNAVAILABLE`；GitHub 限流/拒绝返回 HTTP 503 `GITHUB_RATE_LIMITED`；网络、响应结构或其他供应商错误返回 HTTP 502 `GITHUB_PROVIDER_FAILED`。Blob 使用 GitHub raw 媒体类型流式读取，并在接收过程中执行单份大小限制。所有错误均不会暴露令牌或原始远端响应。
 

@@ -32,7 +32,7 @@
 - GitHub HTTPS、SCP 风格 SSH 与 `ssh://` remote 可登记为项目范围的规范化仓库身份，可选关联已有本地文件夹仓库，并在桌面端仓库列表展示；登记不访问 GitHub 或拉取内容。
 - GitHub 仓库可由用户显式同步默认分支或指定 ref，通过 REST commit/tree/blob 读取最多 50 份 Markdown/Java 文件、累计最多 20 MiB，并复用现有来源去重和解析任务。
 - GitHub 仓库可显式导入最近更新的最多 20 个 Issue/Pull Request 及每项最多 20 条普通评论；每个入选 PR 另导入最多 20 条 Review 与 20 条行级 Review Comment，配置令牌时再补充最多 20 个 Review thread 及每个 thread 20 个评论标识的当前状态。工作项按 provider item ID 与 `updated_at` 复用，Review 活动按渲染内容摘要复用，并提供规范会话链接。
-- GitHub 同步持久化 Commit/tree 及逐文件 blob/status 快照；连续相同 Commit 直接短路，未变化或已知 blob 无需再次下载，完整 tree 可保守记录唯一重命名与删除，provider ID 可在远端 owner/name 改变后保持同一仓库身份。
+- GitHub 同步持久化 Commit/tree 及逐文件 blob/status 快照；完整且引用兼容的连续相同 Commit 直接短路，不完整/大小受限快照可显式重试，未变化或已知 blob 按来源类型复用正确任务。完整文件集合可保守记录唯一重命名与删除；截断集合不猜测重命名，provider ID 可在远端 owner/name 改变后保持同一仓库身份，见 [ADR 0031](adr/0031-recoverable-typed-github-snapshots.zh-CN.md)。
 - GitHub 导入来源的资料列表/详情派生固定 Commit 文件 URL；正式图谱、搜索和问答证据派生同一 Commit 的精确行号 URL。本地来源返回空值，远端删除后链接到最后一次存在的快照。
 
 尚未完成：

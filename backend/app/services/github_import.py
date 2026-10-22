@@ -6,14 +6,16 @@ from typing import Any
 from urllib.parse import quote
 
 import httpx
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import Settings
 from app.core.errors import AppError
 from app.models.domain import (
+    ProcessingTask,
     RepositorySnapshot,
     RepositorySnapshotFile,
+    SourceDocument,
     SourceRepository,
 )
 from app.schemas.repositories import (
@@ -262,6 +264,68 @@ def _repeat_snapshot_result(
     )
 
 
+def _reusable_snapshot_files(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    project_id: uuid.UUID,
+    repository_id: uuid.UUID,
+    blob_shas: set[str],
+) -> list[tuple[RepositorySnapshotFile, str]]:
+    """Validate source/task ownership and parser type before reusing provenance."""
+    if not blob_shas:
+        return []
+    return list(db.execute(
+        select(RepositorySnapshotFile, SourceDocument.source_type)
+        .join(RepositorySnapshot, RepositorySnapshot.id == RepositorySnapshotFile.snapshot_id)
+        .join(SourceDocument, SourceDocument.id == RepositorySnapshotFile.source_id)
+        .join(ProcessingTask, ProcessingTask.id == RepositorySnapshotFile.task_id)
+        .where(
+            RepositorySnapshot.user_id == user_id,
+            RepositorySnapshot.project_id == project_id,
+            RepositorySnapshot.repository_id == repository_id,
+            RepositorySnapshotFile.blob_sha.in_(blob_shas),
+            SourceDocument.user_id == user_id,
+            SourceDocument.project_id == project_id,
+            SourceDocument.repository_id == repository_id,
+            ProcessingTask.user_id == user_id,
+            ProcessingTask.project_id == project_id,
+            ProcessingTask.source_id == SourceDocument.id,
+            or_(
+                and_(SourceDocument.source_type == "java", ProcessingTask.type == "code_parsing"),
+                and_(SourceDocument.source_type == "markdown",
+                     ProcessingTask.type.in_(("markdown_parsing", "knowledge_extraction"))),
+            ),
+        )
+        .order_by(
+            RepositorySnapshot.created_at.desc(),
+            RepositorySnapshot.id.desc(),
+            RepositorySnapshotFile.created_at.desc(),
+            RepositorySnapshotFile.id.desc(),
+        )
+    ).all())
+
+
+def _snapshot_is_reusable(
+    snapshot: RepositorySnapshot,
+    reusable_types: dict[uuid.UUID, str],
+) -> bool:
+    if snapshot.truncated or not snapshot.deletion_detection_complete:
+        return False
+    for item in snapshot.files:
+        if item.status == "deleted":
+            continue
+        if item.source_id is not None or item.task_id is not None:
+            expected_type = ingestion.SOURCE_TYPE_BY_SUFFIX.get(Path(item.path).suffix.lower())
+            if expected_type is None or reusable_types.get(item.id) != expected_type:
+                return False
+        elif item.error_code not in {"SOURCE_EMPTY", "SOURCE_ENCODING_INVALID", "SOURCE_PATH_INVALID"}:
+            # Byte limits can change and truncated work can be retried. A
+            # deterministic invalid blob/path need not be downloaded again.
+            return False
+    return True
+
+
 def list_repository_snapshots(
     db: Session,
     *,
@@ -371,9 +435,18 @@ def sync_github_repository(
             previous_snapshot is not None
             and previous_snapshot.commit_sha == commit_sha
         ):
-            db.add(repository)
-            db.commit()
-            return _repeat_snapshot_result(previous_snapshot)
+            reusable_types = {
+                item.id: source_type
+                for item, source_type in _reusable_snapshot_files(
+                    db, user_id=user_id, project_id=project_id,
+                    repository_id=repository.id,
+                    blob_shas={item.blob_sha for item in previous_snapshot.files},
+                )
+            }
+            if _snapshot_is_reusable(previous_snapshot, reusable_types):
+                db.add(repository)
+                db.commit()
+                return _repeat_snapshot_result(previous_snapshot)
 
         commit_details = commit_payload.get("commit")
         tree_details = (
@@ -405,33 +478,21 @@ def sync_github_repository(
         )
         previous_by_path = {item.path: item for item in previous_files}
         previous_by_blob: defaultdict[
-            str, list[RepositorySnapshotFile]
+            tuple[str, str], list[RepositorySnapshotFile]
         ] = defaultdict(list)
-        for item in previous_files:
-            if item.source_id is not None:
-                previous_by_blob[item.blob_sha].append(item)
 
         selected_blob_shas = {entry["sha"] for entry in selected_entries}
-        known_by_blob: dict[str, RepositorySnapshotFile] = {}
-        if selected_blob_shas:
-            known_files = db.scalars(
-                select(RepositorySnapshotFile)
-                .join(
-                    RepositorySnapshot,
-                    RepositorySnapshot.id == RepositorySnapshotFile.snapshot_id,
-                )
-                .where(
-                    RepositorySnapshot.repository_id == repository.id,
-                    RepositorySnapshotFile.blob_sha.in_(selected_blob_shas),
-                    RepositorySnapshotFile.source_id.is_not(None),
-                )
-                .order_by(
-                    RepositorySnapshot.created_at.desc(),
-                    RepositorySnapshotFile.created_at.desc(),
-                )
-            )
-            for known_file in known_files:
-                known_by_blob.setdefault(known_file.blob_sha, known_file)
+        known_files = _reusable_snapshot_files(
+            db, user_id=user_id, project_id=project_id,
+            repository_id=repository.id, blob_shas=selected_blob_shas,
+        )
+        reusable_types = {item.id: source_type for item, source_type in known_files}
+        known_by_blob: dict[tuple[str, str], RepositorySnapshotFile] = {}
+        for known_file, source_type in known_files:
+            known_by_blob.setdefault((known_file.blob_sha, source_type), known_file)
+        for item in previous_files:
+            if item.id in reusable_types:
+                previous_by_blob[(item.blob_sha, reusable_types[item.id])].append(item)
 
         current_paths = {entry["path"] for entry in selected_entries}
         current_paths_by_blob: defaultdict[str, list[str]] = defaultdict(list)
@@ -447,11 +508,12 @@ def sync_github_repository(
             path = entry["path"]
             blob_sha = entry["sha"]
             size = entry["size"]
+            source_type = ingestion.SOURCE_TYPE_BY_SUFFIX[Path(path).suffix.lower()]
             previous_at_path = previous_by_path.get(path)
             if (
                 previous_at_path is not None
                 and previous_at_path.blob_sha == blob_sha
-                and previous_at_path.source_id is not None
+                and reusable_types.get(previous_at_path.id) == source_type
             ):
                 item = GithubRepositorySyncItem(
                     path=path,
@@ -478,7 +540,7 @@ def sync_github_repository(
                 file_records.append((path, blob_sha, size, item))
                 continue
 
-            blob_candidates = previous_by_blob.get(blob_sha, [])
+            blob_candidates = previous_by_blob.get((blob_sha, source_type), [])
             rename_candidates = [
                 candidate
                 for candidate in blob_candidates
@@ -487,6 +549,7 @@ def sync_github_repository(
             ]
             if (
                 previous_at_path is None
+                and deletion_detection_complete
                 and len(rename_candidates) == 1
                 and len(current_paths_by_blob[blob_sha]) == 1
             ):
@@ -510,7 +573,7 @@ def sync_github_repository(
                     source_path_updates.append((candidate.source_id, path))
                 continue
 
-            known_file = known_by_blob.get(blob_sha)
+            known_file = known_by_blob.get((blob_sha, source_type))
             if known_file is not None:
                 item = GithubRepositorySyncItem(
                     path=path,

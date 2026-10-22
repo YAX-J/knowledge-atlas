@@ -36,10 +36,10 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 ## GitHub 快照同步
 
 - `POST /projects/{project_id}/repositories/{repository_id}/sync-github` 只接受已登记 `provider=github` 的仓库。
-- `ref` 省略时读取默认分支，也可指定 branch、tag 或 commit SHA；每次有效同步保存 Commit/tree 元数据与逐文件 blob/status 快照。同一 ref 连续解析到相同 Commit 时直接返回已有快照，不再请求 tree/blob。
+- `ref` 省略时读取默认分支，也可指定 branch、tag 或 commit SHA；每次有效同步保存 Commit/tree 元数据与逐文件 blob/status 快照。同一 ref 连续解析到相同 Commit，只有完整且引用兼容的快照可以直接返回，不再请求 tree/blob。截断/大小跳过、缺失或不兼容来源/任务引用时，下次显式同步重试并创建独立快照，保留已成功来源/历史；确定性空文件/编码/路径跳过仍可短路，见 ADR 0031。
 - 使用 GitHub repository、commit、recursive tree 和 blob REST 端点。公开仓库无需令牌；私有仓库令牌只放后端 `GITHUB_TOKEN`，建议仅授予 Contents read。
 - 单份跳过码包括 `SOURCE_EMPTY`、`SOURCE_ENCODING_INVALID`、`SOURCE_PATH_INVALID`、`SOURCE_TOO_LARGE` 和 `GITHUB_IMPORT_TOTAL_SIZE_EXCEEDED`。
-- 后续 Commit 优先按“路径 + blob SHA”复用未变化文件；已知 blob 可复用既有来源/任务而不重新下载。旧路径消失且相同 blob 只出现在一个新路径时记录 `renamed`；完整 tree 中消失的旧路径记录 `deleted`。截断快照禁止推断删除。
+- 后续 Commit 优先按“路径 + blob SHA + 来源类型”复用未变化文件；已知 blob 仅在用户/项目/仓库、来源类型及解析任务兼容时复用，不跨 Markdown/Java 类型。完整文件集合中旧路径消失且相同类型 blob 只出现在一个新路径时记录 `renamed`；完整 tree 中消失的旧路径记录 `deleted`。截断 tree/文件集合不推断重命名，截断快照不推断删除。重试仍受每次 50 文件/20 MiB 预算限制，不增加分页或自动解析失败重试。
 - GitHub repository `id` 持久化为 provider ID；远端 owner/name 变化时在同一仓库记录上更新规范坐标。重命名/删除只记录同步事实，不破坏性删除历史来源、分块或正式证据。
 - 资料列表/详情从来源最近一次非 `deleted` 的快照记录派生固定 Commit 的 `git_url`；正式图谱、搜索和问答证据在同一文件 URL 上追加 `#Lx-Ly`。本地来源返回 `null`，远端删除后回退到最后一次存在的快照，`project://` 应用内 URI 保持不变。链接不持久化，见 ADR 0020。
 - `POST /projects/{project_id}/repositories/{repository_id}/import-github-work-items` 显式读取最近更新的最多 20 个 Issue/PR；可选导入每项最多 20 条 Issue 评论，并为每个入选 PR 各导入最多 20 条 Review 与行级 Review Comment，把确定性 Markdown 送入同一解析/证据链路。
@@ -134,7 +134,7 @@ python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_source_l
 - 分块数量、类型、标题路径、行号、哈希、ID 稳定性。
 - 手动执行幂等、失败重试、运行中 409。
 - Worker 租约接手、旧执行写入被拒、次数上限、`--once` 子进程退出码。
-- GitHub 默认/指定 ref、同 Commit 短路、路径/blob 复用、重命名/删除、provider ID 仓库改名、快照历史、不可变文件/行号 URL、远端删除回退、tree/文件/字节截断、raw blob 流式大小限制和供应商错误脱敏。
+- GitHub 默认/指定 ref、完整同 Commit 短路、不完整同 Commit 恢复、类型安全的路径/blob 复用、来源/任务引用校验、保守重命名/删除、provider ID 仓库改名、快照历史、不可变文件/行号 URL、远端删除回退、tree/文件/字节截断、raw blob 流式大小限制和供应商错误脱敏；恢复回归使用 `tests/test_github_sync_recovery.py`。
 - GitHub Issue/PR 类型筛选、工作项与 Review 快照版本复用、Review 内容/thread 状态变化建新来源、无令牌降级、各类评论/线程截断、规范会话 URL、单项大小跳过和供应商错误映射。
 - Java 跨文件直接类型/字段/参数/直属局部变量接收者解析、声明顺序、遮蔽、重载歧义，构造器初始化 `var`、未知初始化的遮蔽，以及工厂/链式/数组/匿名类、多变量声明、词法块生命周期、兄弟块隔离、增强 for 元素绑定/未知遮蔽/头部隔离、try/catch/finally 生命周期与资源作用域隔离和不支持块边界。
 - 正式证据存在时重解析失败（如已实现相应测试）。

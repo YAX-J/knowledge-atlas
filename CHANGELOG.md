@@ -64,6 +64,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Changed
 
+- Explicit GitHub synchronization now retries incomplete same-commit snapshots, preserves successful typed source/task reuse, repairs missing or incompatible snapshot links, and avoids guessing renames from truncated file selections. Markdown/Java copies or extension changes cannot share the wrong parser task.
+
 - Candidate review lists now place entities before relationships deterministically, preventing relation actions from appearing before their required endpoints.
 - Removed the Neo4j driver, settings, readiness checks, and optional Compose service/volume declarations. PostgreSQL is the sole current database and stores the formal graph; Neo4j is deferred under ADR 0005. Readiness now reports only PostgreSQL and still returns HTTP 503 for a failed database connection.
 - Native local PostgreSQL/pgvector are the default development and acceptance path; setup guides and plans now treat Docker Compose as optional and document actual local connection settings.

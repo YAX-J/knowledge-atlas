@@ -93,3 +93,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0028：在有界异常作用域内解析 Java 调用](0028-java-exception-scope-receivers.zh-CN.md)
 - [ADR 0029：打包有界仓库内 Java 分析 V1](0029-java-analysis-v1.zh-CN.md)
 - [ADR 0030：解析有界仓库内 Java 静态导入调用](0030-java-static-import-calls.zh-CN.md)
+- [ADR 0031：以类型安全的来源复用恢复不完整 GitHub 快照](0031-recoverable-typed-github-snapshots.zh-CN.md)

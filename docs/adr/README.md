@@ -93,3 +93,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0028: Resolve Java calls within bounded exception scopes](0028-java-exception-scope-receivers.md)
 - [ADR 0029: Package bounded repository-local Java analysis V1](0029-java-analysis-v1.md)
 - [ADR 0030: Resolve bounded repository-local Java static-import calls](0030-java-static-import-calls.md)
+- [ADR 0031: Recover incomplete GitHub snapshots with typed source reuse](0031-recoverable-typed-github-snapshots.md)
