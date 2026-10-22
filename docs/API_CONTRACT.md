@@ -330,6 +330,8 @@ Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，�
 
 ### 查询 Java 源码结构
 
+静态导入扩展保留响应形状：`import static Type.method` / `Type.*` 的未限定调用可返回同仓库其他 ready 来源中的静态方法候选，`cross_file_calls[].receiver` 为标记字符串 `import static`（不是源码接收者表达式）。原方法 ID、路径、行号及 `resolved`/`ambiguous` 语义不变。当前/继承成员名称保守阻止导入回退，即使参数数量不符；显式导入阻止通配回退，目标缺失时不猜测。排除非静态、私有和跨包不可访问候选；限定 `this`/`super` 不使用静态导入。完整类型/访问检查仍未实现，见 [ADR 0030](adr/0030-java-static-import-calls.zh-CN.md)。
+
 `GET /api/v1/sources/{source_id}/code-structure`
 
 仅用于状态为 `ready` 的 Java 来源。返回最多 200 个 `type` / `field` / `method` 符号、最多 500 条同文件方法调用，并在同仓库最多 100 份已解析 Java 来源中返回有界跨文件类型关系、最多 500 个相关方法和 500 条跨文件调用；相关来源原文累计最多读取 20 MiB。未归属仓库的旧来源只在同项目的未归属集合中解析。每个符号包含稳定 `id`、名称、限定名、所属类型和包含式行号。同文件调用包含调用方、候选被调方法 ID、名称、行号及 `resolved` / `ambiguous` 状态。

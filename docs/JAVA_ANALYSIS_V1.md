@@ -6,6 +6,8 @@ V1 is a bounded, read-only source outline and call-candidate analysis, not a Jav
 
 ## Capability boundary
 
+The static-import extension ([ADR 0030](adr/0030-java-static-import-calls.md)) adds explicit and wildcard imports for unqualified calls to accessible static methods in other ready sources in the same repository. Member names conservatively suppress import fallback, including arity mismatches; explicit imports suppress wildcard fallback even for missing owners. `this`/`super` calls never use imports. Results use `receiver="import static"` and original target symbols/lines, preserving overload/version ambiguity. Private/non-static methods, inaccessible imported types/methods, external dependencies, static-imported nested types/fields, and complete access/type semantics remain excluded. Incomplete member lookup suppresses import fallback.
+
 | Area | V1 behavior | Deliberate limit |
 | --- | --- | --- |
 | Source structure | Top-level types, conventional fields/methods, exact chunks and lines | No complete AST or nested/generated-type semantics |
@@ -28,7 +30,7 @@ Use the existing backend virtual environment; no GitHub/LLM token, frontend, or 
 
 ```powershell
 # backend/
-.\.venv\Scripts\python.exe -m pytest tests/test_java_v1.py tests/test_java_structure.py tests/test_parsing.py
+.\.venv\Scripts\python.exe -m pytest tests/test_java_static_imports.py tests/test_java_v1.py tests/test_java_structure.py tests/test_parsing.py
 .\.venv\Scripts\python.exe -m pytest
 # repository root
 git diff --check
@@ -41,3 +43,7 @@ Decision: [ADR 0029](adr/0029-java-analysis-v1.md).
 ## Acceptance record — 2026-10-21
 
 Agent-executed after the implementation package and final review corrections: 106 focused tests and 254 full-backend tests passed. Whitespace, new documentation links, and tracked secret/dependency/build-output checks passed. One existing Starlette deprecation warning remains. No real GitHub/LLM, native PostgreSQL, or browser acceptance was performed for this backend-only package.
+
+## Static-import extension acceptance — 2026-10-22
+
+The user selected agent execution after receiving the commands, prerequisites, and expected results. The final focused regression passed 127 tests (including 21 static-import cases); the full backend suite passed 275 tests with the existing Starlette deprecation warning. The sandbox run stalled at the HTTP TestClient phase and was stopped; authorized execution outside the sandbox passed. Changed-document links and tracked secret/dependency/build-output checks passed. No real GitHub/LLM, native PostgreSQL, or browser acceptance was performed for this backend-only extension.

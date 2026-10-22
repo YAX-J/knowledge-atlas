@@ -6,6 +6,8 @@ V1 是有界、只读的源码大纲与调用候选分析，不是 Java 编译�
 
 ## 能力边界
 
+静态导入扩展（[ADR 0030](adr/0030-java-static-import-calls.zh-CN.md)）增加显式/通配导入，把未限定调用链接到同仓库其他 ready 来源中的可访问静态方法。成员名称保守阻止导入回退，包括参数数量不符的情况；显式导入阻止通配回退，即使所属类型缺失。`this`/`super` 调用不使用导入。结果使用 `receiver="import static"` 和原目标符号/行号，保留重载/版本歧义。私有/非静态方法、不可访问的导入类型/方法、外部依赖、静态导入嵌套类型/字段及完整访问/类型语义仍不支持。成员查找不完整时不回退导入。
+
 | 范围 | V1 行为 | 明确保留的限制 |
 | --- | --- | --- |
 | 来源结构 | 顶层类型、常规字段/方法、精确分块与行号 | 不是完整 AST，不提供嵌套/生成类型语义 |
@@ -28,7 +30,7 @@ V1 是有界、只读的源码大纲与调用候选分析，不是 Java 编译�
 
 ```powershell
 # backend/
-.\.venv\Scripts\python.exe -m pytest tests/test_java_v1.py tests/test_java_structure.py tests/test_parsing.py
+.\.venv\Scripts\python.exe -m pytest tests/test_java_static_imports.py tests/test_java_v1.py tests/test_java_structure.py tests/test_parsing.py
 .\.venv\Scripts\python.exe -m pytest
 # repository root
 git diff --check
@@ -41,3 +43,7 @@ git diff --check
 ## 验收记录 — 2026-10-21
 
 功能包实现收齐并完成最终复核修正后，由 Agent 执行：106 项聚焦测试、254 项完整后端测试全部通过；空白、新增文档链接及跟踪密钥/依赖/构建产物检查通过。保留一条既有 Starlette 弃用警告。本纯后端功能包未进行真实 GitHub/LLM、原生 PostgreSQL 或浏览器验收。
+
+## 静态导入扩展验收 — 2026-10-22
+
+提供命令、前置条件和预期结果后，用户选择由 Agent 执行。最终聚焦回归 127 项通过（含 21 项静态导入用例），完整后端 275 项通过，保留既有 Starlette 弃用警告。沙箱内运行在 HTTP TestClient 阶段停滞后已停止；经授权在沙箱外执行通过。改动文档链接及跟踪密钥/依赖/构建产物检查通过。本纯后端扩展未进行真实 GitHub/LLM、原生 PostgreSQL 或浏览器验收。

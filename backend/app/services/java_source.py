@@ -17,6 +17,10 @@ PACKAGE_DECLARATION = re.compile(
 IMPORT_DECLARATION = re.compile(
     r"(?m)^[ \t]*import\s+(?!static\b)(?P<name>[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)(?P<wildcard>\.\*)?\s*;"
 )
+STATIC_IMPORT_DECLARATION = re.compile(
+    r"(?m)^[ \t]*import\s+static\s+(?P<name>[A-Za-z_$][\w$]*"
+    r"(?:\.[A-Za-z_$][\w$]*)+)(?P<wildcard>\.\*)?\s*;"
+)
 METHOD_DECLARATION = re.compile(
     r"(?m)^[ \t]*(?:@[A-Za-z_$][\w$]*(?:\s*\([^;{}]*?\))?\s*)*"
     r"(?P<prefix>(?:(?:public|protected|private|static|final|abstract|synchronized|native|default|strictfp)\s+)*"
@@ -219,6 +223,8 @@ class _JavaTypeIndex:
     package_name: str
     imports: dict[str, str]
     wildcard_imports: tuple[str, ...]
+    static_imports: dict[str, tuple[str, ...]]
+    static_wildcard_imports: tuple[str, ...]
     types: tuple[JavaRelatedType, ...]
     methods: tuple[JavaRelatedMethod, ...]
     declarations: tuple[_TypeDeclaration, ...]
@@ -476,6 +482,16 @@ def _index_java_source(source: JavaSourceInput) -> _JavaTypeIndex:
         else:
             imports[import_name.rsplit(".", 1)[-1]] = import_name
 
+    static_imports: dict[str, list[str]] = {}
+    static_wildcard_imports: list[str] = []
+    for match in STATIC_IMPORT_DECLARATION.finditer(sanitized):
+        import_name = match.group("name")
+        if match.group("wildcard"):
+            static_wildcard_imports.append(import_name)
+        else:
+            owner_name, member_name = import_name.rsplit(".", 1)
+            static_imports.setdefault(member_name, []).append(owner_name)
+
     declaration_pairs = _declarations(sanitized)
     declarations = tuple(item[0] for item in declaration_pairs)
     types: list[JavaRelatedType] = []
@@ -527,6 +543,8 @@ def _index_java_source(source: JavaSourceInput) -> _JavaTypeIndex:
         package_name=package_name,
         imports=imports,
         wildcard_imports=tuple(wildcard_imports),
+        static_imports={name: tuple(dict.fromkeys(owners)) for name, owners in static_imports.items()},
+        static_wildcard_imports=tuple(dict.fromkeys(static_wildcard_imports)),
         types=tuple(types),
         methods=tuple(methods),
         declarations=declarations,
@@ -1140,6 +1158,37 @@ class _MethodLookup:
         return result
 
 
+def _static_import_candidates(
+    current: _JavaTypeIndex, lookup: _MethodLookup, name: str, arity: int | None,
+) -> list[JavaRelatedMethod]:
+    # Explicit imports block wildcard fallback even when their owner is absent
+    # from the bounded source set. Never guess an external declaration.
+    owners = current.static_imports.get(name, current.static_wildcard_imports)
+    targets: dict[uuid.UUID, JavaRelatedMethod] = {}
+    for owner_name in owners:
+        for owner in lookup.types_by_name.get(owner_name, []):
+            owner_index = lookup.indexes[owner.source_id]
+            owner_declaration = next(item for item in owner_index.declarations if item.name == owner.name)
+            if owner_index.package_name != current.package_name:
+                # Public methods of a non-public imported type are inaccessible.
+                header = owner_index.sanitized[owner_declaration.start:owner_declaration.header_start]
+                if not re.search(r"\bpublic\b", header):
+                    continue
+            for method in lookup.candidates(owner, name, arity):
+                index = lookup.indexes[method.source_id]
+                modifiers = index.method_declarations[method.id].modifiers
+                if "static" not in modifiers or "private" in modifiers:
+                    continue
+                implicit_public = any(
+                    item.id in lookup.interfaces and item.qualified_name == method.owner_qualified_name
+                    for item in index.types
+                )
+                if index.package_name != current.package_name and "public" not in modifiers and not implicit_public:
+                    continue
+                targets[method.id] = method
+    return list(targets.values())
+
+
 def _resolve_cross_file_calls(
     current: _JavaTypeIndex,
     source_indexes: list[_JavaTypeIndex],
@@ -1164,7 +1213,7 @@ def _resolve_cross_file_calls(
         )
         local_types = _local_variable_types(current, method, scopes)
         owner = next(item for item in current.types if item.name == method.owner)
-        call_matches = [(match, re.sub(r"\s+", "", match.group("receiver")))
+        call_matches = [(match, re.sub(r"\s+", "", match.group("receiver")), False)
                         for match in QUALIFIED_CALL.finditer(current.sanitized, method.opening + 1, method.end)]
         for match in LOCAL_CALL.finditer(current.sanitized, method.opening + 1, method.end):
             if re.match(r"this\s*\.", match.group(0)):
@@ -1172,9 +1221,9 @@ def _resolve_cross_file_calls(
             prefix = current.sanitized[max(method.opening + 1, match.start() - 12):match.start()]
             if match.group("name") in CONTROL_WORDS or re.search(r"\bnew\s*$", prefix):
                 continue
-            call_matches.append((match, "this"))
+            call_matches.append((match, "this", True))
         call_matches.sort(key=lambda item: item[0].start())
-        for call_match, receiver in call_matches:
+        for call_match, receiver, unqualified in call_matches:
             if not scopes.allows(call_match.start()):
                 continue
             callee_name = call_match.group("name")
@@ -1225,13 +1274,23 @@ def _resolve_cross_file_calls(
                     current, target_type_name, types_by_qualified_name,
                 )
             arity = _call_arity(current.sanitized, call_match.end() - 1, method.end)
+            candidate_methods = [
+                target_method
+                for target_type in target_types
+                for target_method in lookup.candidates(
+                    target_type, callee_name, arity,
+                    inherited_from=owner if receiver == "super" else None,
+                )
+            ]
+            if (unqualified and not lookup.candidates(owner, callee_name, None)
+                    and not lookup.truncated):
+                # A member name suppresses import fallback conservatively, even
+                # when its overloads do not match this call's argument count.
+                candidate_methods = _static_import_candidates(current, lookup, callee_name, arity)
+                receiver = "import static"
             targets = sorted(
                 {target_method.id: target_method
-                    for target_type in target_types
-                    for target_method in lookup.candidates(
-                        target_type, callee_name, arity,
-                        inherited_from=owner if receiver == "super" else None,
-                    )
+                    for target_method in candidate_methods
                     if target_method.source_id != current.source_id
                 }.values(),
                 key=lambda item: (

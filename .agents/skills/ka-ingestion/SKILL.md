@@ -70,6 +70,7 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 `GET /sources/{source_id}/code-structure`：
 
 - Java 分析 V1 为按需派生、只读、不持久化，不进入正式图谱；统一能力/限制见 `docs/JAVA_ANALYSIS_V1.zh-CN.md` 和 ADR 0029。
+- 静态导入扩展见 ADR 0030：未限定调用可经显式/通配静态导入定位到同仓库其他 ready 来源中的可访问静态方法；成员名称保守优先、显式导入阻止通配回退、`this`/`super` 不回退导入。响应 `receiver="import static"` 为标记，保留原方法 ID/行号与歧义；成员查找截断时不猜测回退。聚焦验证加入 `tests/test_java_static_imports.py`。
 - 保留 200 符号、500 同文件调用、同仓库 100 份 ready 来源、相关原文 20 MiB、400 相关类型，以及各 500 条类型关系/相关方法/跨文件调用上限。未归属来源只与同项目未归属集合解析。
 - 普通块/if/else/while/try/catch/finally、带花括号的增强/传统 for 与资源 try 共用词法绑定。头部调用省略，头部绑定仅在主体生效；未知 var/数组元素/多异常 catch 遮蔽，不回退伪造字段/类型目标。
 - 继承方法候选定位到原声明，支持未限定/this/super；覆盖签名抑制、菱形去重，私有/构造器/接口静态方法不继承。单次查找最多 256 状态，环/触顶标记 truncated。

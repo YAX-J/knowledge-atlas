@@ -61,6 +61,8 @@ Markdown 任务使用 `markdown_parsing`，Java 任务使用 `code_parsing`；�
 
 Markdown 解析器支持 ATX/Setext 标题、段落、列表和围栏代码。
 
+Java 静态导入扩展可通过显式 `import static Type.method` 和通配 `Type.*`，把未限定调用链接到同仓库其他 ready 来源中的可访问静态方法。已有成员名称保守阻止导入回退，即使参数数量不符；显式静态导入阻止通配回退。跨文件响应使用 `receiver="import static"`，保留原方法 ID/行号、歧义和既有上限。限定 `this`/`super` 调用不会使用导入。这是有界扩展，不是完整 Java 访问/重载求解，见 [ADR 0030](../docs/adr/0030-java-static-import-calls.zh-CN.md)。
+
 Java 结构/调用分析 V1 为只读派生能力，限定同仓库最多 100 份 ready 来源、相关原文累计 20 MiB；返回稳定类型/字段/方法、同文件调用、继承目标和跨文件方法候选。词法作用域包括普通块/if/else/while/try/catch/finally、带花括号的增强/传统 for 及资源 try 体。头部调用省略，头部绑定随主体结束；未知 `var`、数组元素和多异常 catch 参数只遮蔽、不猜测类型。
 
 方法候选按实参数量（含可变参数）筛选；无法可靠计数时保留候选。有界继承查找去重菱形路径并抑制相同继承签名，保留同参数数量的类型重载和重复来源版本歧义；继承的未限定/`this`/`super` 调用定位到原方法符号。不继承私有方法、构造器和接口静态方法；继承环或单次 256 节点遍历预算触顶报告截断。不承诺运行时分派、完整访问/类型检查、工厂推断或外部 classpath 求解，见 [V1 能力与验收边界](../docs/JAVA_ANALYSIS_V1.zh-CN.md)。

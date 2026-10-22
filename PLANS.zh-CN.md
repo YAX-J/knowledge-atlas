@@ -45,6 +45,8 @@
 
 ## 当前阶段
 
+阶段四新增仓库内显式/通配静态导入方法调用，作为 Java V1 的有界扩展，保留原方法符号、成员名称优先、歧义与审核知识边界，见 [ADR 0030](docs/adr/0030-java-static-import-calls.zh-CN.md)。阶段四仍在进行中。
+
 当前阶段为阶段四代码导入。本地文件有界切片可接收 Java 文件，使用 `code_parsing`，把精确源码行保存为结构分块，持久化本地文件夹仓库身份与仓库内相对路径，并复用现有 Worker 与证据流程。它能解析一小部分仓库内跨文件类型关系，以及显式类型的直接类型、字段、方法参数和方法体直属局部变量接收者调用，登记规范化的 GitHub 所有者/仓库坐标，显式导入有界的默认分支或指定 ref 快照，并把最近的 Issue/Pull Request 与 PR Review 活动版本导入为 Markdown。GitHub 文件同步已持久化 Commit/tree 与逐文件 blob 来源，复用未变化或已知 blob，保守记录重命名/删除，通过 provider ID 跟踪远端坐标变化，并从该历史派生不可变来源/证据链接；工作项按 provider ID 与 `updated_at` 保存版本，PR Review 活动按独立渲染内容摘要保存版本，因此 Review 编辑及令牌支持的 Review thread 当前状态变化不依赖 PR 时间戳。当前仍不代表已经具备完整 Java AST 或符号/调用图、工厂推断/重赋值局部类型、实参类型重载选择或运行时动态分派、权威 Review thread 事件时间、Webhook、轮询、强制推送可达性分析或破坏性来源失效传播。见 [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.zh-CN.md)、[ADR 0014](docs/adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0015](docs/adr/0015-local-folder-repository-identity.zh-CN.md)、[ADR 0016](docs/adr/0016-normalized-github-remote-identity.zh-CN.md)、[ADR 0017](docs/adr/0017-bounded-cross-file-java-method-calls.zh-CN.md)、[ADR 0018](docs/adr/0018-bounded-github-snapshot-import.zh-CN.md)、[ADR 0019](docs/adr/0019-incremental-github-commit-snapshots.zh-CN.md)、[ADR 0020](docs/adr/0020-derived-immutable-github-evidence-links.zh-CN.md)、[ADR 0021](docs/adr/0021-versioned-github-work-items.zh-CN.md)、[ADR 0022](docs/adr/0022-bounded-java-declared-receiver-calls.zh-CN.md)、[ADR 0023](docs/adr/0023-versioned-github-pull-reviews.zh-CN.md) 与 [ADR 0024](docs/adr/0024-bounded-github-review-thread-state.zh-CN.md)。
 
 本次功能切片已实现：
