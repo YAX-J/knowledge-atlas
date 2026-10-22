@@ -75,6 +75,10 @@ Java 结构/调用分析 V1 为只读派生能力，限定同仓库最多 100 �
 
 `GET /api/v1/projects/{project_id}/code-symbols?q=save&kind=method` 检索 ready Java 来源，不调用模型、不写入知识。可选 `repository_id` 收窄项目范围；`limit` 默认 50（1–100）。按本地大纲限定名或来源路径进行不区分大小写的字面子串匹配。最多扫描 100 份来源、20 MiB 原文及每份 200 个符号，优先考虑较早来源。`scanned_source_count`、`matched_count`、`truncated` 描述有界扫描，不是全项目总数。结果保留大纲 ID/行号、来源/仓库/任务元数据、可空的 `chunk_id`/从 0 开始的 `chunk_position`，以及固定 Commit/行号的 `git_url`。不代表超出上限的分页或编译器求解，见 [ADR 0032](../docs/adr/0032-bounded-code-symbol-search.zh-CN.md)。
 
+### 已保存的提交证据
+
+`GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots` 查询已保存元数据，新增可空 `commit_source_id` / `commit_task_id`。在同一路径追加 `/{snapshot_id}/commit-source` 后 `POST`（无请求体），返回 HTTP 200，包含 `snapshot_id`、`source_id`、`task_id`、当前 `status`、`reused` 和规范 `git_url`。它把保存的 SHA、UTC 时间与提交说明渲染为确定性 Markdown，复用仓库范围导入；不请求 GitHub/模型，也不启动解析或抽取。相同字节跨 ref/改名复用来源，不跨仓库复用。沿用大小限制和作用域 404；无效 SHA 返回 409 `SNAPSHOT_COMMIT_INVALID`。提交证据打开 `/commit/{sha}`，不追加 `#L`，本地行号只描述 Markdown，不定位 patch。先应用迁移 `20261022_0014`，见 [ADR 0033](../docs/adr/0033-saved-commit-evidence-sources.zh-CN.md)。
+
 ## 自动解析 Worker
 
 先应用最新数据库迁移，然后在另一个已激活后端虚拟环境的终端中运行：
@@ -107,7 +111,7 @@ Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose 
 
 ## DeepSeek 候选提取与审核
 
-审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261021_0013`。只在后端 `.env` 中配置：
+审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261022_0014`。只在后端 `.env` 中配置：
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key

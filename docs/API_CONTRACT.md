@@ -15,6 +15,7 @@
 | `POST /api/v1/projects/{project_id}/repositories/{repository_id}/sync-github` | 已实现，显式导入有界 GitHub 快照 |
 | `POST /api/v1/projects/{project_id}/repositories/{repository_id}/import-github-work-items` | 已实现，显式导入有界 GitHub Issue/PR 与 PR Review 活动版本 |
 | `GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots` | 已实现，分页查询持久化 Commit 快照历史 |
+| `POST /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots/{snapshot_id}/commit-source` | 已实现，将已保存提交说明导入/复用为 Markdown 资料与任务 |
 | `GET /api/v1/projects/{project_id}/repositories` | 已实现，分页查询来源仓库 |
 | `POST /api/v1/projects/{project_id}/sources` | 已实现，Markdown 与 Java 源文件 |
 | `GET /api/v1/projects/{project_id}/sources` | 已实现，分页查询项目资料及最新任务 |
@@ -235,11 +236,32 @@
 
 GitHub provider item ID、`updated_at` 与 `include_comments` 组合标识工作项不可变版本。相同版本与评论配置重复导入返回 `reused`，远端更新或评论配置变化则创建新版本记录，不覆盖旧来源或证据。PR Review 活动保存为独立来源，以 provider PR ID 和渲染内容 SHA-256 标识版本，因此 Review、行级评论或 thread 当前状态变化时即使 PR `updated_at` 未变也会创建新快照。`review_threads_status` 为 `included`、`token_required` 或 `not_requested`；缺少令牌不会使 REST Review 导入失败，也不会把未读取误报为空线程。超过单份资料大小限制等本地导入错误分别在工作项或 Review 状态中返回 `skipped`；`truncated=true` 仅表示工作项候选达到有界读取上限，各 Review 截断字段独立报告，其中 `review_threads_truncated` 同时表示 thread 或其评论成员关系存在后续页。资料、图谱、搜索和问答中的 `git_url` 对两类来源都指向规范 Issue/PR 会话；行号仍定位本地保存的 Markdown 快照，不伪造 GitHub 会话行号片段。行级评论的 `in_reply_to_id` 与 GraphQL thread 评论标识会保留；连续快照可观察状态变化，但查询 API 不提供权威 resolved/unresolved 事件时间。附件、reaction、完整分页、Webhook、轮询与远端删除传播尚未实现。供应商错误沿用仓库快照接口的 `GITHUB_REPOSITORY_UNAVAILABLE`、`GITHUB_RATE_LIMITED` 与 `GITHUB_PROVIDER_FAILED`。
 
+### 已保存提交说明转资料
+
+`POST /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots/{snapshot_id}/commit-source` 无请求体，返回 HTTP 200：
+
+```json
+{
+  "snapshot_id": "snapshot-uuid",
+  "source_id": "source-uuid",
+  "task_id": "task-uuid",
+  "status": "queued",
+  "reused": false,
+  "git_url": "https://github.com/example/project/commit/0123456789012345678901234567890123456789"
+}
+```
+
+仅使用本用户、未归档项目及对应仓库中已保存的 GitHub 快照，不访问 GitHub 或模型。SHA（40/64 位十六进制）、UTC 提交时间和逐行引用的提交说明生成确定性 Markdown；ref、同步统计及可变 remote 坐标不参与内容摘要。文件名 `commit-{sha}.md`，相对路径 `github/commits/commit-{sha}.md`；空说明仍生成带来源边界的资料。相同仓库相同字节复用普通资料/解析任务，返回任务当前状态；无效/缺失映射重新走导入去重，不信任跨作用域或不兼容任务引用。大小限制沿用 `MAX_UPLOAD_BYTES`，超限为 413 `SOURCE_TOO_LARGE`，不写映射或半份资料。
+
+快照不存在/跨用户/项目/仓库或项目归档返回 404；仓库未关联 GitHub 返回 409 `GITHUB_REPOSITORY_REQUIRED`，无效 SHA 返回 409 `SNAPSHOT_COMMIT_INVALID`。成功会补充当前快照可空 `commit_source_id` / `commit_task_id`，不修改原有提交/文件同步事实。首次状态通常为 `queued`，不自动解析、抽取或审核；Worker 仍可消费普通解析任务。资料与正式图谱/搜索/问答证据派生规范 `/commit/{sha}`，不追加 Markdown 行号到 GitHub Commit 页面。`project://` 与本地分块行号不变；该来源不是 diff/变更文件清单，也不能证明说明中的结论成立。见 [ADR 0033](adr/0033-saved-commit-evidence-sources.zh-CN.md)。
+
 ### 查询仓库 Commit 快照
 
 `GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots?page=1&page_size=20`
 
 按创建时间倒序返回 `items`、`page`、`page_size` 与 `total`。每份快照包含 `id`、`repository_id`、`ref`、`commit_sha`、`tree_sha`、可空 `commit_url` / `committed_at`、`commit_message`、文件及各类变更计数、`downloaded_bytes`、`truncated`、`deletion_detection_complete` 与 `created_at`。接口不返回文件原文或后端令牌；越过用户/项目/仓库边界返回 HTTP 404。
+
+每份快照另返回可空的 `commit_source_id` / `commit_task_id`，供前端显示“加入资料/打开资料”；只有显式提交说明导入后才补充，不触发远端读取。项目已归档也返回 404。
 
 ### 查询项目资料
 

@@ -25,6 +25,22 @@ def github_file_urls(
     if not source_ids:
         return {}
 
+    commit_rows = db.execute(select(
+        RepositorySnapshot.commit_source_id, RepositorySnapshot.commit_sha, SourceRepository.remote_url,
+    ).join(SourceRepository, SourceRepository.id == RepositorySnapshot.repository_id)
+     .join(SourceDocument, SourceDocument.id == RepositorySnapshot.commit_source_id).where(
+        RepositorySnapshot.commit_source_id.in_(source_ids),
+        RepositorySnapshot.user_id == user_id, RepositorySnapshot.project_id == project_id,
+        SourceRepository.user_id == user_id, SourceRepository.project_id == project_id,
+        SourceRepository.provider == "github", SourceRepository.remote_url.is_not(None),
+        SourceDocument.user_id == user_id, SourceDocument.project_id == project_id,
+        SourceDocument.repository_id == SourceRepository.id,
+    ).order_by(RepositorySnapshot.created_at.desc(), RepositorySnapshot.id.desc()))
+    urls: dict[uuid.UUID, str] = {}
+    for source_id, sha, remote_url in commit_rows:
+        if source_id is not None and remote_url is not None:
+            urls.setdefault(source_id, f"{remote_url}/commit/{quote(sha.lower(), safe='')}")
+
     work_item_rows = db.execute(
         select(
             GithubWorkItemVersion.source_id,
@@ -41,7 +57,6 @@ def github_file_urls(
             GithubWorkItemVersion.created_at.desc(),
         )
     )
-    urls: dict[uuid.UUID, str] = {}
     for source_id, html_url in work_item_rows:
         if source_id is not None and source_id not in urls:
             urls[source_id] = html_url
@@ -120,7 +135,7 @@ def github_line_url(
     if file_url is None:
         return None
     if "/blob/" not in file_url and (
-        "/issues/" in file_url or "/pull/" in file_url
+        "/issues/" in file_url or "/pull/" in file_url or "/commit/" in file_url
     ):
         return file_url
     fragment = f"L{start_line}"

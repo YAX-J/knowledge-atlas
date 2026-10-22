@@ -157,6 +157,8 @@ class RepositorySnapshotRead(BaseModel):
     tree_sha: str
     commit_url: str | None
     commit_message: str
+    commit_source_id: uuid.UUID | None = None
+    commit_task_id: uuid.UUID | None = None
     committed_at: datetime | None
     truncated: bool
     deletion_detection_complete: bool
@@ -176,6 +178,15 @@ class RepositorySnapshotList(BaseModel):
     page: int
     page_size: int
     total: int
+
+
+class SnapshotCommitSourceRead(BaseModel):
+    snapshot_id: uuid.UUID
+    source_id: uuid.UUID
+    task_id: uuid.UUID
+    status: str
+    reused: bool
+    git_url: str
 
 
 class RepositoryList(BaseModel):

@@ -24,6 +24,7 @@ from app.schemas.repositories import (
 )
 from app.services import ingestion
 from app.services.repositories import get_repository, normalize_github_remote
+from app.services.projects import get_project
 
 
 MAX_GITHUB_IMPORT_FILES = 50
@@ -335,6 +336,7 @@ def list_repository_snapshots(
     page: int,
     page_size: int,
 ) -> tuple[list[RepositorySnapshot], int]:
+    get_project(db, user_id=user_id, project_id=project_id)
     get_repository(
         db,
         user_id=user_id,

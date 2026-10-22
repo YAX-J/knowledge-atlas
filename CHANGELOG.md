@@ -10,6 +10,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Saved GitHub snapshot history in the desktop workspace and explicit commit-message Markdown import/open, scoped source/task reuse across refs and repository renames, canonical commit evidence links without fabricated line fragments, and a reversible nullable-link migration. No provider/model call, patch import, automatic extraction, or formal Commit entity is introduced.
+
 - Bounded read-only Java symbol search in the source workspace, with literal case-insensitive name/path matching, repository/kind filters, explicit scan/result limits, original outline IDs/lines, source-chunk page navigation and focus, immutable GitHub line links, and empty/error/retry/clear states. Project, condition and navigation changes invalidate stale requests.
 
 - Repository-local Java static-import method links for explicit and wildcard imports, with member-name precedence, accessible static candidates, arity/varargs filtering, stable original symbols, preserved ambiguity, and readiness/repository isolation. No compiler, migration, or formal-graph write is introduced.

@@ -70,6 +70,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - 从已解析 Java 原文按需派生类型、常规字段、未限定/`this.` 同文件调用，以及同仓库已解析来源中的 `extends`/`implements` 目标，不写入正式知识图谱；未归属仓库的旧来源仅在同项目未归属集合内解析。
 - Java 静态导入支持把 `import static Type.method` / `Type.*` 的未限定调用链接到同仓库已解析来源中的可访问静态方法，保留成员名称优先和歧义；边界见 [ADR 0030](docs/adr/0030-java-static-import-calls.zh-CN.md)。
 - 资料工作台可按名称/文件路径检索已解析 Java 符号，支持仓库和类型筛选、截断提示，并跳到声明所在原文分块；GitHub 文件提供固定 Commit/行号链接，见 [ADR 0032](docs/adr/0032-bounded-code-symbol-search.zh-CN.md)。
+- 仓库卡片可分页查看已保存的同步快照，显式把提交说明保存为 Markdown 资料并打开解析任务；相同提交跨 ref/仓库改名可复用，资料与证据打开规范 Commit 页面。此操作不访问 GitHub，不导入 diff 或自动创建正式知识，见 [ADR 0033](docs/adr/0033-saved-commit-evidence-sources.zh-CN.md)。
 - GitHub 同步可在 Commit 未变化时重试截断/超限快照，复用已成功文件；Markdown/Java 之间按来源类型隔离 blob 复用，截断文件集合不推断重命名，见 [ADR 0031](docs/adr/0031-recoverable-typed-github-snapshots.zh-CN.md)。
 - 项目、资料、任务、候选知识和正式图谱的 SQLAlchemy 模型与 Alembic 迁移。
 - PostgreSQL/pgvector、API 和 Worker 的 Docker Compose 配置。
@@ -128,7 +129,7 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-候选提取、语义索引、GitHub Commit 快照、工作项与 PR Review 版本需要先应用最新迁移（`20261021_0013`）。候选提取在后端 `.env` 设置 `DEEPSEEK_API_KEY`；语义检索需另外配置 `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL` 和 `EMBEDDING_MODEL`，当前固定 1024 维。外部调用都由用户显式触发。GitHub 公开 REST 读取无需令牌；私有仓库与 Review thread 状态可在后端设置具备 Contents、Issues 与 Pull requests 只读权限的 `GITHUB_TOKEN`。详细设置见 [后端说明](backend/README.zh-CN.md)。
+候选提取、语义索引、GitHub Commit 快照、工作项与 PR Review 版本需要先应用最新迁移（`20261022_0014`）。候选提取在后端 `.env` 设置 `DEEPSEEK_API_KEY`；语义检索需另外配置 `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL` 和 `EMBEDDING_MODEL`，当前固定 1024 维。外部调用都由用户显式触发。GitHub 公开 REST 读取无需令牌；私有仓库与 Review thread 状态可在后端设置具备 Contents、Issues 与 Pull requests 只读权限的 `GITHUB_TOKEN`。详细设置见 [后端说明](backend/README.zh-CN.md)。
 
 接口文档地址为 `http://localhost:8000/docs`，存活检查地址为 `http://localhost:8000/api/v1/health/live`。
 

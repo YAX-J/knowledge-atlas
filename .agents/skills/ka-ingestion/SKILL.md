@@ -47,6 +47,8 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 - Issue/PR 以 provider item ID + `updated_at` 标识不可变版本；PR Review 活动作为独立来源，以 provider PR ID + 渲染内容 SHA-256 标识版本，因此 Review 编辑或 thread 状态变化不依赖 PR `updated_at`。相同版本复用来源/任务，变化时新建来源。两者的 `git_url` 都打开规范会话，不追加伪造的行号片段；行号定位本地 Markdown 快照，见 ADR 0021、0023、0024。
 - 行级 Review Comment 保留 `in_reply_to_id` 回复关系，GraphQL thread 保留有界评论成员关系；查询快照不提供权威解决事件时间。附件、reaction、Webhook、定时同步、完整分页、强制推送可达性分析和自动失效传播仍不实现。
 
+- 已保存 GitHub 快照可通过 `POST .../snapshots/{snapshot_id}/commit-source` 显式转成 SHA/UTC 时间/逐行引用提交说明的 Markdown 来源；不访问 GitHub/模型，不导入 patch，不自动解析或提升正式 Commit。内容不含 ref/统计/可变 remote 坐标，普通仓库范围字节去重支持跨 ref/改名复用。快照可空 `commit_source_id` / `commit_task_id` 只在引用兼容时复用，否则重新导入去重；返回任务当前状态。Commit 资料及证据 URL 打开规范 `/commit/{sha}`，不追加 Markdown 的 `#L`。测试 `tests/test_commit_sources.py`，原生 PostgreSQL 复验并发去重，见 ADR 0033。
+
 ## 解析规则
 
 `parse_markdown(content, source_id=...)`：

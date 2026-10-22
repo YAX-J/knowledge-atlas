@@ -45,6 +45,8 @@ Completed:
 
 ## Active phase
 
+Saved GitHub synchronization snapshots now have a desktop history panel and an explicit commit-message-to-Markdown action. Sources reuse the normal parsing/extraction/review pipeline and canonical commit links, without fetching patches, introducing formal Commit entities, or automatically asserting the message's claims. Migration head is `20261022_0014`; see [ADR 0033](docs/adr/0033-saved-commit-evidence-sources.md). Stage 4 remains active.
+
 The source workspace now provides bounded Java symbol search by name/path, repository and kind, reusing outline IDs and opening the correct original chunk page. This advances the Stage 4 file/symbol lookup criterion without introducing authoritative code entities; see [ADR 0032](docs/adr/0032-bounded-code-symbol-search.md).
 
 Stage 4 now also supports repository-local explicit/wildcard static-import method calls as a bounded Java V1 extension, preserving original method symbols, member-name precedence, ambiguity, and the reviewed-knowledge boundary; see [ADR 0030](docs/adr/0030-java-static-import-calls.md). Stage 4 remains active.

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import type {
-  ApiProject, ApiProjectList, ApiSource, JavaCodeStructure, ProcessingTask, SourceChunkList, SourceList, SourceListItem, SourceRepositoryList,
+  ApiProject, ApiProjectList, ApiSource, JavaCodeStructure, ProcessingTask, SourceChunkList, SourceList, SourceListItem, SourceRepository, SourceRepositoryList,
 } from '../api/knowledgeAtlas'
 import type { IngestionErrors, IngestionLoading } from '../types'
 
@@ -29,6 +29,7 @@ const emit = defineEmits<{
   resolveGithub: [input: { remoteUrl: string; localRepositoryId?: string }]
   syncGithub: [input: { repositoryId: string; ref?: string }]
   importGithubActivity: [repositoryId: string]
+  snapshots: [repository: SourceRepository]
   sourcesPage: [page: number]
   selectSource: [sourceId: string, taskId: string | null]
   upload: [files: File[]]
@@ -57,7 +58,7 @@ const relatedMethodsById = computed(() => new Map((props.codeStructure?.related_
 const linkableLocalRepositories = computed(() => (
   props.repositories?.items.filter(item => item.kind === 'local_folder' && !item.remote_url) ?? []
 ))
-const locked = computed(() => props.loading.create || props.loading.upload || props.loading.task || props.loading.remote || props.loading.sync || props.loading.activity)
+const locked = computed(() => props.loading.create || props.loading.upload || props.loading.task || props.loading.remote || props.loading.sync || props.loading.activity || props.loading.commit)
 const statusLabels: Record<string, string> = {
   uploaded: '待解析', processing: '解析中', ready: '已解析', failed: '解析失败',
   queued: '待解析', running: '解析中', succeeded: '已解析', cancelled: '已取消',
@@ -278,6 +279,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
             <div v-if="errors.repositories" class="inline-error" role="alert"><p>{{ errors.repositories }}</p><button class="text-button" type="button" @click="emit('repositoriesPage', repositories?.page ?? 1)">重试加载仓库</button></div>
             <p v-if="errors.sync" class="inline-error" role="alert">{{ errors.sync }}</p>
             <p v-if="errors.activity" class="inline-error" role="alert">{{ errors.activity }}</p>
+            <p v-if="errors.commit" class="inline-error" role="alert">{{ errors.commit }}</p>
             <p v-if="!loading.repositories && !errors.repositories && repositories?.total === 0" class="empty-copy">尚未登记仓库；上传文件夹或登记 GitHub 地址后会显示在这里。</p>
             <div v-if="repositories?.items.length" class="repository-list">
               <article v-for="repository in repositories.items" :key="repository.id" class="repository-card">
@@ -291,6 +293,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                   <input :id="`github-ref-${repository.id}`" v-model="githubRefs[repository.id]" type="text" maxlength="255" placeholder="默认分支" :disabled="locked" />
                   <button class="text-button" type="button" :disabled="locked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubRefs[repository.id]?.trim() || undefined })">{{ loading.sync ? '正在同步…' : '同步 GitHub 内容' }}</button>
                   <button class="text-button" type="button" :disabled="locked" @click="emit('importGithubActivity', repository.id)">{{ loading.activity ? '正在导入…' : '导入 Issue / PR / Review thread' }}</button>
+                  <button class="text-button" type="button" :disabled="locked" @click="emit('snapshots', repository)">查看同步快照</button>
                 </div>
               </article>
             </div>
@@ -299,6 +302,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
               <span>{{ repositories?.page }} / {{ repositoryPages }}</span>
               <button type="button" :disabled="loading.repositories || locked || (repositories?.page ?? 1) >= repositoryPages" @click="emit('repositoriesPage', (repositories?.page ?? 1) + 1)">下一页</button>
             </nav>
+            <slot name="snapshots" />
             <details class="repository-register">
               <summary>登记 GitHub remote</summary>
               <form class="repository-form" @submit.prevent="submitGithubRepository">

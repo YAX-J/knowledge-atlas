@@ -47,7 +47,7 @@ export interface TimelinePoint {
 
 export type WorkspaceNav = 'graph' | 'projectGraph' | 'projects' | 'sources' | 'questions'
 
-export type IngestionOperation = 'projects' | 'create' | 'repositories' | 'remote' | 'sync' | 'activity' | 'sources' | 'upload' | 'detail' | 'task' | 'chunks' | 'structure'
+export type IngestionOperation = 'projects' | 'create' | 'repositories' | 'remote' | 'sync' | 'activity' | 'commit' | 'sources' | 'upload' | 'detail' | 'task' | 'chunks' | 'structure'
 export type IngestionLoading = Record<IngestionOperation, boolean>
 export type IngestionErrors = Record<IngestionOperation, string>
 export interface CandidateEvidence {

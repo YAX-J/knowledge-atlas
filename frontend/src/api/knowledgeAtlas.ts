@@ -257,6 +257,8 @@ export interface RepositorySnapshotList {
     tree_sha: string
     commit_url: string | null
     commit_message: string
+    commit_source_id: string | null
+    commit_task_id: string | null
     committed_at: string | null
     truncated: boolean
     deletion_detection_complete: boolean
@@ -288,6 +290,19 @@ export interface ProcessingTask {
   updated_at: string
   started_at: string | null
   completed_at: string | null
+}
+
+export interface SnapshotCommitSource {
+  snapshot_id: string
+  source_id: string
+  task_id: string
+  status: ProcessingTask['status']
+  reused: boolean
+  git_url: string
+}
+
+export function importSnapshotCommit(projectId: string, repositoryId: string, snapshotId: string): Promise<SnapshotCommitSource> {
+  return apiRequest<SnapshotCommitSource>(`/projects/${projectId}/repositories/${repositoryId}/snapshots/${snapshotId}/commit-source`, { method: 'POST' })
 }
 
 export function listProjects(page = 1, pageSize = 20): Promise<ApiProjectList> {

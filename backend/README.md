@@ -75,6 +75,10 @@ GitHub synchronization retries incomplete same-commit snapshots when the existin
 
 `GET /api/v1/projects/{project_id}/code-symbols?q=save&kind=method` searches ready Java sources without invoking a model or writing knowledge. Optional `repository_id` narrows the project scope; `limit` defaults to 50 (1–100). Matching is a case-insensitive literal substring of the local outline qualified name or source path. At most 100 sources, 20 MiB of text and 200 symbols per source are scanned; oldest sources are considered first. `scanned_source_count`, `matched_count` and `truncated` describe the bounded scan, not a global count. Hits retain outline IDs/lines, source/repository/task metadata, nullable `chunk_id`/zero-based `chunk_position`, and commit/line-pinned `git_url`. No pagination beyond these bounds or compiler resolution is implied. See [ADR 0032](../docs/adr/0032-bounded-code-symbol-search.md).
 
+### Saved commit evidence
+
+`GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots` lists saved metadata with nullable `commit_source_id` / `commit_task_id`. `POST` to the same path plus `/{snapshot_id}/commit-source` (no body) returns HTTP 200 with `snapshot_id`, `source_id`, `task_id`, current `status`, `reused`, and canonical `git_url`. It renders saved SHA, UTC timestamp and commit message as deterministic Markdown, reusing repository-scoped ingestion. It performs no GitHub/model request and does not start parsing/extraction. Same bytes across refs/renames reuse the source; different repositories do not. Size limits and normal 404 scope rules apply; invalid SHA returns 409 `SNAPSHOT_COMMIT_INVALID`. Commit evidence opens `/commit/{sha}` without `#L` fragments: local lines refer only to the saved Markdown, not the patch. Apply migration `20261022_0014` first. See [ADR 0033](../docs/adr/0033-saved-commit-evidence-sources.md).
+
 ## Automatic parsing worker
 
 Apply the latest migration first. In another terminal with the backend virtual environment activated, run:
@@ -107,7 +111,7 @@ Docker Compose is an optional alternative: from the repository root, `docker com
 
 ## DeepSeek candidate extraction and review
 
-Apply `alembic upgrade head` (expected `20261021_0013`) before review or semantic-index operations. Configure only the backend `.env`:
+Apply `alembic upgrade head` (expected `20261022_0014`) before review or semantic-index operations. Configure only the backend `.env`:
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key

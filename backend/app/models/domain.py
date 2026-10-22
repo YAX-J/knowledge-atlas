@@ -173,6 +173,12 @@ class RepositorySnapshot(TimestampMixin, Base):
     tree_sha: Mapped[str] = mapped_column(String(64), nullable=False)
     commit_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     commit_message: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    commit_source_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("source_documents.id", name="fk_repository_snapshots_commit_source", ondelete="SET NULL"), nullable=True, index=True,
+    )
+    commit_task_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("processing_tasks.id", name="fk_repository_snapshots_commit_task", ondelete="SET NULL"), nullable=True,
+    )
     committed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     truncated: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     deletion_detection_complete: Mapped[bool] = mapped_column(

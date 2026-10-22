@@ -124,6 +124,61 @@ def test_postgresql_migrations_compile_without_a_live_server(monkeypatch) -> Non
     assert "review_threads_count" in sql
     assert "resolved_review_threads_count" in sql
     assert "review_threads_included" in sql
+    assert "commit_source_id" in sql and "commit_task_id" in sql
+    assert "fk_repository_snapshots_commit_source" in sql
+    downgrade_output = StringIO()
+    config.output_buffer = downgrade_output
+    command.downgrade(config, "20261022_0014:20261021_0013", sql=True)
+    assert "DROP COLUMN commit_source_id" in downgrade_output.getvalue()
+
+
+def test_commit_source_migration_preserves_snapshots_and_sources_on_roundtrip(tmp_path, monkeypatch):
+    url = f"sqlite+pysqlite:///{(tmp_path / 'commit-sources.db').as_posix()}"
+    monkeypatch.setattr(app_config, "get_settings", lambda: SimpleNamespace(database_url=url))
+    config = migration_config()
+    command.upgrade(config, "20261021_0013")
+    engine = create_engine(url)
+    snapshot_id = uuid.uuid4()
+    with Session(engine) as db:
+        project = Project(user_id=uuid.uuid4(), name="Saved commit")
+        db.add(project)
+        db.flush()
+        repository = SourceRepository(user_id=project.user_id, project_id=project.id,
+                                      name="repo", kind="local_folder")
+        db.add(repository)
+        db.flush()
+        # Core insert omits the new nullable columns, which do not exist yet.
+        db.execute(RepositorySnapshot.__table__.insert().values(
+            id=snapshot_id, user_id=project.user_id, project_id=project.id,
+            repository_id=repository.id, provider="github", ref="main",
+            commit_sha="a" * 40, tree_sha="b" * 40, commit_message="Preserve me",
+        ))
+        source_id = insert_legacy_source(db, user_id=project.user_id, project_id=project.id)
+        task = ProcessingTask(user_id=project.user_id, project_id=project.id,
+                              source_id=source_id, type="markdown_parsing")
+        db.add(task)
+        db.commit()
+        task_id = task.id
+    command.upgrade(config, "head")
+    with Session(engine) as db:
+        snapshot = db.get(RepositorySnapshot, snapshot_id)
+        assert snapshot.commit_message == "Preserve me"
+        assert snapshot.commit_source_id is None and snapshot.commit_task_id is None
+        snapshot.commit_source_id, snapshot.commit_task_id = source_id, task_id
+        db.commit()
+    assert "ix_repository_snapshots_commit_source_id" in {
+        index["name"] for index in inspect(engine).get_indexes("repository_snapshots")
+    }
+    command.downgrade(config, "20261021_0013")
+    assert "commit_source_id" not in {column["name"] for column in inspect(engine).get_columns("repository_snapshots")}
+    with Session(engine) as db:
+        assert db.get(SourceDocument, source_id).content == "Note"
+        assert db.get(ProcessingTask, task_id).source_id == source_id
+        assert db.scalar(text("SELECT commit_message FROM repository_snapshots")) == "Preserve me"
+    command.upgrade(config, "head")
+    with Session(engine) as db:
+        assert db.get(RepositorySnapshot, snapshot_id).commit_source_id is None
+    engine.dispose()
 
 
 def test_github_work_item_version_migration_is_reversible(tmp_path, monkeypatch) -> None:

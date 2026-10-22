@@ -8,6 +8,7 @@ import InsightPanel from './components/InsightPanel.vue'
 import TimelineBar from './components/TimelineBar.vue'
 import SourceWorkspace from './components/SourceWorkspace.vue'
 import CodeSymbolSearch from './components/CodeSymbolSearch.vue'
+import RepositorySnapshots from './components/RepositorySnapshots.vue'
 import CandidateReview from './components/CandidateReview.vue'
 import ProjectGraph from './components/ProjectGraph.vue'
 import QuestionWorkspace from './components/QuestionWorkspace.vue'
@@ -18,12 +19,14 @@ import {
   getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
   getJavaCodeStructure,
   searchCodeSymbols,
+  listRepositorySnapshots, importSnapshotCommit,
   importGithubWorkItems, listRepositories, resolveGithubRepository, resolveLocalRepository, syncGithubRepository,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
   CandidateList, ExtractionResult, JavaCodeStructure, SourceRepositoryList, SourceUploadResult,
   CodeSymbolHit, CodeSymbolSearchInput, CodeSymbolSearchResult,
+  RepositorySnapshotList, SourceRepository,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
 import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchMode, KnowledgeSearchResult, QuestionAnswer } from './types'
@@ -38,6 +41,71 @@ const visibleTypes = ref<NodeType[]>([...allTypes])
 const projects = ref<ApiProjectList | null>(null)
 const project = ref<ApiProject | null>(null)
 const repositories = ref<SourceRepositoryList | null>(null)
+const snapshotRepository = ref<SourceRepository | null>(null)
+const snapshots = ref<RepositorySnapshotList | null>(null)
+const snapshotsLoading = ref(false)
+const snapshotsError = ref('')
+const snapshotsPage = ref(1)
+const importingSnapshotId = ref('')
+let snapshotsRequest = 0
+
+function clearSnapshots() {
+  snapshotsRequest++
+  snapshotRepository.value = null
+  snapshots.value = null
+  snapshotsError.value = ''
+  snapshotsLoading.value = false
+  snapshotsPage.value = 1
+}
+
+async function loadSnapshots(repository: SourceRepository, page = 1) {
+  const projectId = project.value?.id
+  if (!projectId) return
+  const request = ++snapshotsRequest
+  snapshotsPage.value = page
+  snapshotRepository.value = repository
+  snapshots.value = null
+  snapshotsLoading.value = true
+  snapshotsError.value = ''
+  try {
+    const result = await listRepositorySnapshots(projectId, repository.id, page, 10)
+    if (request === snapshotsRequest && project.value?.id === projectId) snapshots.value = result
+  } catch (error) {
+    if (request === snapshotsRequest && project.value?.id === projectId) snapshotsError.value = errorMessage(error)
+  } finally {
+    if (request === snapshotsRequest) snapshotsLoading.value = false
+  }
+}
+
+async function saveSnapshotCommit(snapshotId: string) {
+  const projectId = project.value?.id
+  const repository = snapshotRepository.value
+  if (!projectId || !repository || loading.commit || loading.upload || loading.task || loading.sync || loading.activity || loading.remote) return
+  loading.commit = true
+  errors.commit = ''
+  importingSnapshotId.value = snapshotId
+  const page = snapshots.value?.page ?? 1
+  try {
+    const result = await importSnapshotCommit(projectId, repository.id, snapshotId)
+    if (project.value?.id !== projectId) return
+    notice.value = result.reused ? '已复用提交资料与解析任务，请核对当前状态。' : '提交说明已加入资料。解析后可显式抽取并审核知识。'
+    clearSourceSelection()
+    selectedSourceId.value = result.source_id
+    selectedTaskId.value = result.task_id
+    await Promise.all([loadSources(1), refreshSource(), loadSnapshots(repository, page)])
+    await nextTick()
+    if (project.value?.id === projectId && (activeNav.value === 'sources' || activeNav.value === 'projects')) {
+      const reader = document.getElementById('source-reader')
+      reader?.focus({ preventScroll: true })
+      reader?.scrollIntoView({ block: 'start', behavior: 'instant' })
+    }
+  } catch (error) {
+    if (project.value?.id === projectId) errors.commit = errorMessage(error)
+  } finally {
+    loading.commit = false
+    importingSnapshotId.value = ''
+  }
+}
 const sources = ref<SourceList | null>(null)
 const selectedSourceId = ref('')
 const selectedTaskId = ref<string | null>(null)
@@ -84,7 +152,7 @@ async function runCodeSearch(input: CodeSymbolSearchInput) {
 }
 
 async function openCodeSymbol(hit: CodeSymbolHit) {
-  if (loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity) return
+  if (loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
   const projectId = project.value?.id
   clearSourceSelection()
   const request = ++codeOpenRequest
@@ -102,8 +170,8 @@ async function openCodeSymbol(hit: CodeSymbolHit) {
   target?.scrollIntoView({ block: 'center', behavior: 'instant' })
 }
 const notice = ref('')
-const loading = reactive<IngestionLoading>({ projects: false, create: false, repositories: false, remote: false, sync: false, activity: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false })
-const errors = reactive<IngestionErrors>({ projects: '', create: '', repositories: '', remote: '', sync: '', activity: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '' })
+const loading = reactive<IngestionLoading>({ projects: false, create: false, repositories: false, remote: false, sync: false, activity: false, commit: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false })
+const errors = reactive<IngestionErrors>({ projects: '', create: '', repositories: '', remote: '', sync: '', activity: '', commit: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '' })
 let projectsRequest = 0
 let repositoriesRequest = 0
 let sourcesRequest = 0
@@ -295,8 +363,10 @@ async function loadProjects(page = 1) {
 }
 
 function selectProject(value: ApiProject) {
-  if (loading.upload || loading.task || loading.remote || loading.sync || loading.activity) return
+  if (loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
   clearQuestion()
+  clearSnapshots()
+  errors.commit = ''
   clearCodeSearch()
   project.value = value
   clearSearch()
@@ -317,7 +387,7 @@ function selectProject(value: ApiProject) {
 }
 
 async function addProject(input: { name: string; description: string }) {
-  if (loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity) return
+  if (loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
   loading.create = true
   errors.create = ''
   try {
@@ -376,7 +446,7 @@ async function registerGithubRepository(input: {
   localRepositoryId?: string
 }) {
   const projectId = project.value?.id
-  if (!projectId || loading.remote || loading.sync || loading.activity || loading.upload || loading.task) return
+  if (!projectId || loading.remote || loading.sync || loading.activity || loading.upload || loading.task || loading.commit) return
   loading.remote = true
   errors.remote = ''
   notice.value = ''
@@ -401,7 +471,7 @@ async function syncRegisteredGithubRepository(input: {
   ref?: string
 }) {
   const projectId = project.value?.id
-  if (!projectId || loading.sync || loading.activity || loading.remote || loading.upload || loading.task) return
+  if (!projectId || loading.sync || loading.activity || loading.remote || loading.upload || loading.task || loading.commit) return
   loading.sync = true
   errors.sync = errors.activity = ''
   notice.value = '正在从 GitHub 读取仓库快照…'
@@ -432,7 +502,7 @@ async function syncRegisteredGithubRepository(input: {
 
 async function importRegisteredGithubActivity(repositoryId: string) {
   const projectId = project.value?.id
-  if (!projectId || loading.activity || loading.sync || loading.remote || loading.upload || loading.task) return
+  if (!projectId || loading.activity || loading.sync || loading.remote || loading.upload || loading.task || loading.commit) return
   loading.activity = true
   errors.activity = errors.sync = ''
   notice.value = '正在从 GitHub 读取最近更新的 Issue、Pull Request、Review 与 thread 状态…'
@@ -478,7 +548,7 @@ async function importRegisteredGithubActivity(repositoryId: string) {
 }
 
 async function selectSource(sourceId: string, taskId: string | null) {
-  if (loading.create || loading.upload || loading.task || loading.sync || loading.activity) return
+  if (loading.create || loading.upload || loading.task || loading.sync || loading.activity || loading.commit) return
   clearSourceSelection()
   selectedSourceId.value = sourceId
   selectedTaskId.value = taskId
@@ -552,7 +622,7 @@ async function loadCodeStructure() {
 
 async function uploadFiles(files: File[]) {
   const projectId = project.value?.id
-  if (!projectId || !files.length || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity) return
+  if (!projectId || !files.length || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
   loading.upload = true
   errors.upload = ''
   notice.value = ''
@@ -612,7 +682,7 @@ async function uploadFiles(files: File[]) {
 
 async function parseSource() {
   const taskId = selectedTaskId.value
-  if (!taskId || loading.create || loading.task || loading.upload || loading.sync || loading.activity) return
+  if (!taskId || loading.create || loading.task || loading.upload || loading.sync || loading.activity || loading.commit) return
   loading.task = true
   errors.task = ''
   try {
@@ -850,14 +920,20 @@ function setTimeline(value: number) {
       :loading="loading" :errors="errors" :notice="notice"
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
       @repositories-page="loadRepositories" @resolve-github="registerGithubRepository" @sync-github="syncRegisteredGithubRepository" @import-github-activity="importRegisteredGithubActivity"
+      @snapshots="loadSnapshots"
       @sources-page="loadSources" @select-source="selectSource" @upload="uploadFiles"
       @run="parseSource" @refresh="refreshSource" @chunks-page="loadChunks"
       @graph="openProjectGraph"
     >
+      <template #snapshots>
+        <RepositorySnapshots :repository="snapshotRepository" :snapshots="snapshots" :loading="snapshotsLoading" :error="snapshotsError" :requested-page="snapshotsPage" :importing-id="importingSnapshotId"
+          :locked="loading.commit || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity"
+          @page="snapshotRepository && loadSnapshots(snapshotRepository, $event)" @import="saveSnapshotCommit" @close="clearSnapshots" />
+      </template>
       <template #code-search>
         <CodeSymbolSearch :key="project?.id ?? 'no-project'" :repositories="repositories"
           :result="codeSearchResult" :loading="codeSearchLoading" :error="codeSearchError"
-          :locked="loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity"
+          :locked="loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit"
           @search="runCodeSearch" @clear="clearCodeSearch" @retry="codeSearchInput && runCodeSearch(codeSearchInput)" @open="openCodeSymbol" />
       </template>
       <template #reviews>
