@@ -71,6 +71,10 @@ Chunk IDs remain stable for the same source and boundaries. Changed bytes create
 
 GitHub synchronization retries incomplete same-commit snapshots when the existing Sync action is used again. Completed sources/tasks are reused only within the same user/project/repository and source type, with compatible parsing tasks. Tree/file/byte truncation, size skips, or missing/incompatible source/task links trigger a fresh bounded snapshot; successful old snapshots remain unchanged. Complete snapshots (including deterministic empty/encoding/path skips) still short-circuit. A 50-file cap remains a selection cap, not pagination; repeated attempts cannot guarantee full repository import. Incomplete tree/file selections do not imply renames. Markdown/Java extension changes create or reuse the correct typed source rather than rename an incompatible one. See [ADR 0031](../docs/adr/0031-recoverable-typed-github-snapshots.md).
 
+### Code symbol lookup
+
+`GET /api/v1/projects/{project_id}/code-symbols?q=save&kind=method` searches ready Java sources without invoking a model or writing knowledge. Optional `repository_id` narrows the project scope; `limit` defaults to 50 (1–100). Matching is a case-insensitive literal substring of the local outline qualified name or source path. At most 100 sources, 20 MiB of text and 200 symbols per source are scanned; oldest sources are considered first. `scanned_source_count`, `matched_count` and `truncated` describe the bounded scan, not a global count. Hits retain outline IDs/lines, source/repository/task metadata, nullable `chunk_id`/zero-based `chunk_position`, and commit/line-pinned `git_url`. No pagination beyond these bounds or compiler resolution is implied. See [ADR 0032](../docs/adr/0032-bounded-code-symbol-search.md).
+
 ## Automatic parsing worker
 
 Apply the latest migration first. In another terminal with the backend virtual environment activated, run:

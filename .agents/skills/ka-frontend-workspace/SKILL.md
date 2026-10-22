@@ -43,6 +43,7 @@ npm run preview
 | `InsightPanel.vue` | Mock 节点详情、证据、关联、追问 |
 | `TimelineBar.vue` | Mock 时间回放 |
 | `SourceWorkspace.vue` | 项目/仓库/资料列表、GitHub remote 登记、显式 ref 快照同步与 Issue/PR/Review/thread 状态版本导入、Markdown/Java 桌面端单文件/文件夹选择（文件夹最多 50 份）、MD/JAVA 标记、解析、结构分块分页及 Java 符号/同文件调用/跨文件类型与显式类型的直接类型、字段、参数、直属局部变量接收者方法关系大纲 |
+| `CodeSymbolSearch.vue` | 来源工作台的 Java 名称/路径/仓库/类型检索，只发出检索/清空/重试/打开意图，展示扫描限制和原文定位 |
 | `CandidateReview.vue` | 候选、证据、改名/摘要、确认/拒绝 |
 | `ProjectGraph.vue` | 真实项目图谱、筛选、邻域、详情与证据 |
 | `KnowledgeSearch.vue` | 项目关键词/语义/混合检索、显式索引更新、组成得分、关系解释、结果证据与清空/重试/选择意图 |
@@ -60,6 +61,8 @@ npm run preview
 - 分页参数：`page` 从 1 开始，`page_size` 1–100，默认 20。
 
 ## Mock 与真实数据边界
+
+- 代码符号搜索使用独立 `codeSearchRequest`/`codeOpenRequest`，结果来自 `/projects/{id}/code-symbols`，不是正式知识检索。修改条件、清空、项目或离开资料页时丢弃迟到响应。打开结果先载来源，再按 chunk_position / 默认每页 20 条加载正确分块页，聚焦并高亮 chunk_id；操作期间使用既有上下文锁。仓库筛选选项来自当前仓库列表页，默认项目范围包含全部仓库。保持长路径换行、结果面板滚动、空/错误/重试及截断提示。
 
 - `VITE_DATA_SOURCE=mock`（默认）打开演示图谱；`api` 默认打开资料工作台。
 - 两种模式下，演示图谱及节点追问仍是 Mock，页面已标注。

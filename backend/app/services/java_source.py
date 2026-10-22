@@ -1437,26 +1437,9 @@ def parse_java(content: str, *, source_id: uuid.UUID) -> list[JavaChunk]:
     return chunks
 
 
-def analyze_java(
-    content: str,
-    *,
-    source_id: uuid.UUID,
-    source_path: str = "",
-    related_sources: list[JavaSourceInput] | None = None,
-    related_sources_truncated: bool = False,
-) -> JavaStructure:
-    """Return a bounded symbol view using only caller-supplied related sources."""
-    if not content:
-        return JavaStructure(
-            symbols=[],
-            calls=[],
-            related_types=[],
-            type_relationships=[],
-            related_methods=[],
-            cross_file_calls=[],
-            truncated=False,
-        )
-    sanitized, _ = _lex_java(content, literal_markers=True)
+def _source_symbols(
+    content: str, *, source_id: uuid.UUID, sanitized: str,
+) -> tuple[list[JavaSymbol], list[tuple[_MethodDeclaration, JavaSymbol]]]:
     depths = _depths(sanitized)
     lines = content.splitlines(keepends=True)
     line_number = _line_resolver(content)
@@ -1516,17 +1499,40 @@ def analyze_java(
             symbols.append(method_symbol)
             method_records.append((method, method_symbol))
 
+    kind_order = {"type": 0, "field": 1, "method": 2}
+    symbols.sort(key=lambda item: (
+        item.start_line, kind_order.get(item.kind, 99), item.end_line, item.qualified_name
+    ))
+    return symbols, method_records
+
+
+def java_symbols(content: str, *, source_id: uuid.UUID) -> tuple[list[JavaSymbol], bool]:
+    """Share outline identities without doing call or related-source analysis."""
+    sanitized, _ = _lex_java(content, literal_markers=True)
+    symbols, _ = _source_symbols(content, source_id=source_id, sanitized=sanitized)
+    return symbols[:MAX_STRUCTURE_SYMBOLS], len(symbols) > MAX_STRUCTURE_SYMBOLS
+
+
+def analyze_java(
+    content: str,
+    *,
+    source_id: uuid.UUID,
+    source_path: str = "",
+    related_sources: list[JavaSourceInput] | None = None,
+    related_sources_truncated: bool = False,
+) -> JavaStructure:
+    """Return a bounded symbol view using only caller-supplied related sources."""
+    if not content:
+        return JavaStructure([], [], [], [], [], [], False)
+    sanitized, _ = _lex_java(content, literal_markers=True)
+    symbols, method_records = _source_symbols(content, source_id=source_id, sanitized=sanitized)
+    line_number = _line_resolver(content)
     methods_by_owner_name: dict[tuple[str, str], list[JavaSymbol]] = {}
     declarations_by_id = {symbol.id: declaration for declaration, symbol in method_records}
     for _, method_symbol in method_records:
         methods_by_owner_name.setdefault(
             (method_symbol.owner or "", method_symbol.name), []
         ).append(method_symbol)
-
-    kind_order = {"type": 0, "field": 1, "method": 2}
-    symbols.sort(key=lambda item: (
-        item.start_line, kind_order.get(item.kind, 99), item.end_line, item.qualified_name
-    ))
 
     calls: list[JavaCall] = []
     seen_calls: set[tuple[uuid.UUID, str, int]] = set()

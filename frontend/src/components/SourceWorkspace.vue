@@ -16,6 +16,7 @@ const props = defineProps<{
   task: ProcessingTask | null
   chunks: SourceChunkList | null
   codeStructure: JavaCodeStructure | null
+  focusedChunkId?: string
   loading: IngestionLoading
   errors: IngestionErrors
   notice: string
@@ -315,6 +316,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
             </details>
           </section>
 
+          <slot name="code-search" />
           <div class="source-section-heading">
             <h3>项目资料 <span v-if="sources">{{ sources.total }}</span></h3>
             <button class="text-button" type="button" :disabled="loading.sources || locked" @click="emit('sourcesPage', sources?.page ?? 1)">刷新资料</button>
@@ -337,7 +339,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
             <button type="button" :disabled="loading.sources || locked || (sources?.page ?? 1) >= sourcePages" @click="emit('sourcesPage', (sources?.page ?? 1) + 1)">下一页</button>
           </nav>
 
-          <section v-if="selectedSourceId" class="source-reader" aria-label="原文与解析结果" :aria-busy="loading.detail || loading.task || loading.chunks || loading.structure">
+          <section v-if="selectedSourceId" id="source-reader" class="source-reader" tabindex="-1" aria-label="原文与解析结果" :aria-busy="loading.detail || loading.task || loading.chunks || loading.structure">
             <div class="source-section-heading reader-heading">
               <div><h3>{{ source ? sourceName(source) : '资料详情' }}</h3><p v-if="source" class="muted-copy">{{ source.repository_name ? `仓库 · ${source.repository_name} · ` : '' }}{{ source.line_count }} 行原文 · {{ formatSize(source.size_bytes) }}</p><a v-if="source?.git_url" class="source-git-link" :href="source.git_url" target="_blank" rel="noopener noreferrer">在 GitHub 查看来源 ↗</a></div>
               <button class="text-button" type="button" :disabled="loading.detail || locked || loading.chunks" @click="emit('refresh')">刷新状态</button>
@@ -348,7 +350,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
               <div class="task-strip" role="status">
                 <span class="source-status" :class="`status-${task?.status ?? source.status}`">{{ statusLabels[task?.status ?? source.status] }}</span>
                 <span v-if="loading.task">正在解析，请稍候…</span>
-                <span v-else-if="task?.status === 'succeeded'">解析完成，可以核对下方原文分块。</span>
+                <span v-else-if="source.status === 'ready'">解析完成，可以核对下方原文分块。</span>
                 <span v-else-if="task?.status === 'running'">任务正在执行，刷新状态查看结果。</span>
                 <span v-else-if="task?.status === 'failed'">解析未完成，可以重新尝试。</span>
                 <span v-else-if="task?.status === 'cancelled'">此任务已取消。</span>
@@ -357,7 +359,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                 <button v-if="task && ['queued', 'failed'].includes(task.status)" type="button" class="primary-button" :disabled="locked" @click="emit('run')">{{ loading.task ? '正在解析…' : task.status === 'failed' ? '重试解析' : '开始解析' }}</button>
               </div>
               <p v-if="errors.task" class="inline-error" role="alert">{{ errors.task }}</p>
-              <details v-if="task?.status !== 'succeeded'" class="raw-preview" open><summary>原文预览（最多 4000 字符）</summary><pre>{{ source.content_preview }}</pre></details>
+              <details v-if="source.status !== 'ready'" class="raw-preview" open><summary>原文预览（最多 4000 字符）</summary><pre>{{ source.content_preview }}</pre></details>
               <template v-else>
                 <section v-if="source.source_type === 'java'" class="code-structure" aria-labelledby="code-structure-title">
                   <div class="source-section-heading">
@@ -412,7 +414,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                 <p v-if="errors.chunks" role="alert" class="inline-error">{{ errors.chunks }} <button class="text-button" type="button" @click="emit('chunksPage', chunks?.page ?? 1)">重试加载分块</button></p>
                 <p v-if="!loading.chunks && !errors.chunks && chunks?.total === 0" class="empty-copy">解析已完成，没有可展示的内容块。</p>
                 <div v-if="!loading.chunks && !errors.chunks" class="chunk-list">
-                  <article v-for="chunk in chunks?.items ?? []" :key="chunk.id" class="source-chunk">
+                  <article v-for="chunk in chunks?.items ?? []" :key="chunk.id" :id="`source-chunk-${chunk.id}`" class="source-chunk" :class="{ 'focused-code-chunk': focusedChunkId === chunk.id }" tabindex="-1">
                     <header><span>{{ kindLabels[chunk.kind] }} <strong>第 {{ chunk.start_line }}–{{ chunk.end_line }} 行</strong></span><span>{{ chunk.heading_path.join(' / ') || '文档开头' }}</span></header>
                     <pre role="group" tabindex="0" :aria-label="`原文第 ${chunk.start_line} 至 ${chunk.end_line} 行`">{{ chunk.content }}</pre>
                   </article>

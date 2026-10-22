@@ -76,6 +76,25 @@ class JavaCallRead(BaseModel):
     resolution: str
 
 
+class CodeSymbolHit(JavaSymbolRead):
+    source_id: uuid.UUID
+    source_path: str
+    repository_id: uuid.UUID | None
+    repository_name: str | None
+    task_id: uuid.UUID | None
+    chunk_id: uuid.UUID | None = None
+    chunk_position: int | None = None
+    git_url: str | None = None
+
+
+class CodeSymbolSearchResult(BaseModel):
+    query: str
+    items: list[CodeSymbolHit]
+    scanned_source_count: int
+    matched_count: int
+    truncated: bool
+
+
 class JavaRelatedTypeRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

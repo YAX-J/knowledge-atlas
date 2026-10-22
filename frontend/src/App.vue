@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import AppHeader from './components/AppHeader.vue'
 import SideRail from './components/SideRail.vue'
@@ -7,6 +7,7 @@ import KnowledgeGraph from './components/KnowledgeGraph.vue'
 import InsightPanel from './components/InsightPanel.vue'
 import TimelineBar from './components/TimelineBar.vue'
 import SourceWorkspace from './components/SourceWorkspace.vue'
+import CodeSymbolSearch from './components/CodeSymbolSearch.vue'
 import CandidateReview from './components/CandidateReview.vue'
 import ProjectGraph from './components/ProjectGraph.vue'
 import QuestionWorkspace from './components/QuestionWorkspace.vue'
@@ -16,11 +17,13 @@ import {
   runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
   getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
   getJavaCodeStructure,
+  searchCodeSymbols,
   importGithubWorkItems, listRepositories, resolveGithubRepository, resolveLocalRepository, syncGithubRepository,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
   CandidateList, ExtractionResult, JavaCodeStructure, SourceRepositoryList, SourceUploadResult,
+  CodeSymbolHit, CodeSymbolSearchInput, CodeSymbolSearchResult,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
 import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchMode, KnowledgeSearchResult, QuestionAnswer } from './types'
@@ -42,6 +45,62 @@ const source = ref<ApiSource | null>(null)
 const task = ref<ProcessingTask | null>(null)
 const chunks = ref<SourceChunkList | null>(null)
 const codeStructure = ref<JavaCodeStructure | null>(null)
+const codeSearchResult = ref<CodeSymbolSearchResult | null>(null)
+const codeSearchLoading = ref(false)
+const codeSearchError = ref('')
+const focusedChunkId = ref('')
+let codeSearchRequest = 0
+let codeOpenRequest = 0
+let codeSearchInput: CodeSymbolSearchInput | null = null
+watch(activeNav, value => {
+  if (value !== 'sources' && value !== 'projects') clearCodeSearch()
+})
+
+function clearCodeSearch() {
+  codeSearchRequest++
+  codeOpenRequest++
+  codeSearchResult.value = null
+  codeSearchLoading.value = false
+  codeSearchError.value = ''
+  codeSearchInput = null
+}
+
+async function runCodeSearch(input: CodeSymbolSearchInput) {
+  const projectId = project.value?.id
+  if (!projectId) return
+  const request = ++codeSearchRequest
+  codeSearchInput = input
+  codeSearchLoading.value = true
+  codeSearchResult.value = null
+  codeSearchError.value = ''
+  try {
+    const result = await searchCodeSymbols(projectId, input)
+    if (request === codeSearchRequest && project.value?.id === projectId) codeSearchResult.value = result
+  } catch (error) {
+    if (request === codeSearchRequest && project.value?.id === projectId) codeSearchError.value = errorMessage(error)
+  } finally {
+    if (request === codeSearchRequest) codeSearchLoading.value = false
+  }
+}
+
+async function openCodeSymbol(hit: CodeSymbolHit) {
+  if (loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity) return
+  const projectId = project.value?.id
+  clearSourceSelection()
+  const request = ++codeOpenRequest
+  selectedSourceId.value = hit.source_id
+  selectedTaskId.value = hit.task_id
+  await refreshSource()
+  if (request !== codeOpenRequest || project.value?.id !== projectId) return
+  if (hit.chunk_position !== null && hit.chunk_position >= 20) await loadChunks(Math.floor(hit.chunk_position / 20) + 1)
+  if (request !== codeOpenRequest || selectedSourceId.value !== hit.source_id || project.value?.id !== projectId) return
+  focusedChunkId.value = hit.chunk_id ?? ''
+  await nextTick()
+  const target = (hit.chunk_id ? document.getElementById(`source-chunk-${hit.chunk_id}`) : null)
+    ?? document.getElementById('source-reader')
+  target?.focus({ preventScroll: true })
+  target?.scrollIntoView({ block: 'center', behavior: 'instant' })
+}
 const notice = ref('')
 const loading = reactive<IngestionLoading>({ projects: false, create: false, repositories: false, remote: false, sync: false, activity: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false })
 const errors = reactive<IngestionErrors>({ projects: '', create: '', repositories: '', remote: '', sync: '', activity: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '' })
@@ -198,6 +257,8 @@ function errorMessage(error: unknown): string {
 }
 
 function clearSourceSelection() {
+  codeOpenRequest++
+  focusedChunkId.value = ''
   reviewsRequest++
   reviewAction++
   candidates.value = null
@@ -236,6 +297,7 @@ async function loadProjects(page = 1) {
 function selectProject(value: ApiProject) {
   if (loading.upload || loading.task || loading.remote || loading.sync || loading.activity) return
   clearQuestion()
+  clearCodeSearch()
   project.value = value
   clearSearch()
   graphRequest++
@@ -443,7 +505,7 @@ async function refreshSource() {
       item.task_status = taskResult?.status ?? null
       item.updated_at = sourceResult.updated_at
     }
-    if (taskResult?.status === 'succeeded') {
+    if (sourceResult.status === 'ready') {
       const requests: Promise<void>[] = [loadChunks(1), loadReviews(1)]
       if (sourceResult.source_type === 'java') requests.push(loadCodeStructure())
       await Promise.all(requests)
@@ -784,6 +846,7 @@ function setTimeline(value: number) {
       :view="activeNav" :projects="projects" :project="project" :repositories="repositories" :sources="sources"
       :selected-source-id="selectedSourceId" :source="source" :task="task" :chunks="chunks"
       :code-structure="codeStructure"
+      :focused-chunk-id="focusedChunkId"
       :loading="loading" :errors="errors" :notice="notice"
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
       @repositories-page="loadRepositories" @resolve-github="registerGithubRepository" @sync-github="syncRegisteredGithubRepository" @import-github-activity="importRegisteredGithubActivity"
@@ -791,6 +854,12 @@ function setTimeline(value: number) {
       @run="parseSource" @refresh="refreshSource" @chunks-page="loadChunks"
       @graph="openProjectGraph"
     >
+      <template #code-search>
+        <CodeSymbolSearch :key="project?.id ?? 'no-project'" :repositories="repositories"
+          :result="codeSearchResult" :loading="codeSearchLoading" :error="codeSearchError"
+          :locked="loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity"
+          @search="runCodeSearch" @clear="clearCodeSearch" @retry="codeSearchInput && runCodeSearch(codeSearchInput)" @open="openCodeSymbol" />
+      </template>
       <template #reviews>
         <CandidateReview :key="selectedSourceId" :candidates="candidates" :extraction="extraction"
           :loading="reviewsLoading" :extracting="extracting" :resolving="resolving"

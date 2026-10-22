@@ -120,6 +120,31 @@ export interface JavaCodeStructure {
   truncated: boolean
 }
 
+export type CodeSymbolHit = JavaCodeStructure['symbols'][number] & {
+  source_id: string
+  source_path: string
+  repository_id: string | null
+  repository_name: string | null
+  task_id: string | null
+  chunk_id: string | null
+  chunk_position: number | null
+  git_url: string | null
+}
+
+export interface CodeSymbolSearchInput {
+  query: string
+  repositoryId: string
+  kind: '' | 'type' | 'field' | 'method'
+}
+
+export interface CodeSymbolSearchResult {
+  query: string
+  items: CodeSymbolHit[]
+  scanned_source_count: number
+  matched_count: number
+  truncated: boolean
+}
+
 export interface SourceListItem {
   id: string
   project_id: string
@@ -412,6 +437,13 @@ export function listSourceChunks(
 
 export function getJavaCodeStructure(sourceId: string): Promise<JavaCodeStructure> {
   return apiRequest<JavaCodeStructure>(`/sources/${sourceId}/code-structure`)
+}
+
+export function searchCodeSymbols(projectId: string, input: CodeSymbolSearchInput): Promise<CodeSymbolSearchResult> {
+  const query = new URLSearchParams({ q: input.query, limit: '50' })
+  if (input.repositoryId) query.set('repository_id', input.repositoryId)
+  if (input.kind) query.set('kind', input.kind)
+  return apiRequest<CodeSymbolSearchResult>(`/projects/${projectId}/code-symbols?${query}`)
 }
 
 export interface CandidateList {

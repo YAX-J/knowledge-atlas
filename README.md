@@ -69,6 +69,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - Markdown 解析标题、段落、列表和围栏代码块；Java 解析顶层类型与常规直接成员方法。两者保存精确原文、结构路径及行号，并按项目、可空仓库、来源类型和内容哈希复用来源与任务。
 - 从已解析 Java 原文按需派生类型、常规字段、未限定/`this.` 同文件调用，以及同仓库已解析来源中的 `extends`/`implements` 目标，不写入正式知识图谱；未归属仓库的旧来源仅在同项目未归属集合内解析。
 - Java 静态导入支持把 `import static Type.method` / `Type.*` 的未限定调用链接到同仓库已解析来源中的可访问静态方法，保留成员名称优先和歧义；边界见 [ADR 0030](docs/adr/0030-java-static-import-calls.zh-CN.md)。
+- 资料工作台可按名称/文件路径检索已解析 Java 符号，支持仓库和类型筛选、截断提示，并跳到声明所在原文分块；GitHub 文件提供固定 Commit/行号链接，见 [ADR 0032](docs/adr/0032-bounded-code-symbol-search.zh-CN.md)。
 - GitHub 同步可在 Commit 未变化时重试截断/超限快照，复用已成功文件；Markdown/Java 之间按来源类型隔离 blob 复用，截断文件集合不推断重命名，见 [ADR 0031](docs/adr/0031-recoverable-typed-github-snapshots.zh-CN.md)。
 - 项目、资料、任务、候选知识和正式图谱的 SQLAlchemy 模型与 Alembic 迁移。
 - PostgreSQL/pgvector、API 和 Worker 的 Docker Compose 配置。

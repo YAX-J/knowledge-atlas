@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, File, Form, Query, UploadFile, status
 
@@ -7,6 +8,7 @@ from app.core.config import get_settings
 from app.core.errors import AppError
 from app.models.domain import SourceStatus
 from app.schemas.sources import (
+    CodeSymbolSearchResult,
     JavaCallRead,
     JavaCrossFileCallRead,
     JavaRelatedMethodRead,
@@ -21,12 +23,26 @@ from app.schemas.sources import (
     SourceListItem,
     SourceUploadResponse,
 )
-from app.services import ingestion, parsing
+from app.services import code_search, ingestion, parsing
 from app.services.java_source import JavaSourceInput, analyze_java
 from app.services.source_links import github_file_urls
 
 
 router = APIRouter(tags=["sources"])
+
+
+@router.get("/projects/{project_id}/code-symbols", response_model=CodeSymbolSearchResult)
+def search_code_symbols(
+    project_id: uuid.UUID, db: DatabaseSession, user_id: CurrentUserId,
+    q: str = Query(min_length=1, max_length=200),
+    repository_id: uuid.UUID | None = Query(default=None),
+    kind: Literal["type", "field", "method"] | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=100),
+) -> CodeSymbolSearchResult:
+    return code_search.search_symbols(
+        db, user_id=user_id, project_id=project_id, query=q,
+        repository_id=repository_id, kind=kind, limit=limit,
+    )
 
 
 @router.get("/projects/{project_id}/sources", response_model=SourceList)

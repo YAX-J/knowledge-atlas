@@ -23,6 +23,7 @@
 | `POST /api/v1/tasks/{task_id}/run` | 已实现，同步执行 Markdown/Java 解析 |
 | `GET /api/v1/sources/{source_id}/chunks` | 已实现，分页查询原文分块 |
 | `GET /api/v1/sources/{source_id}/code-structure` | 已实现，派生 Java 符号、同文件调用及有界跨文件类型/方法关系 |
+| `GET /api/v1/projects/{project_id}/code-symbols` | 已实现，按名称/路径与仓库/类型检索已解析 Java 符号 |
 | `GET /api/v1/sources/{source_id}/extraction` | 已实现，读取候选提取任务状态 |
 | `POST /api/v1/sources/{source_id}/extract` | 已实现，显式 DeepSeek 候选提取 |
 | `GET /api/v1/projects/{project_id}/reviews` | 已实现，分页候选查询 |
@@ -330,7 +331,19 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，其余语法作为文本保留。Java 当前识别顶层类型和常规直接成员方法，并保留其余源码；不提供完整 Java AST、嵌套类型语义、重载签名、完整调用图或仓库增量同步。边界见 [ADR 0012](adr/0012-bounded-java-source-ingestion.zh-CN.md)。
 
-### 查询 Java 源码结构
+### 检索 Java 符号
+
+`GET /api/v1/projects/{project_id}/code-symbols?q=save&kind=method&limit=50`
+
+必填 `q` 为 1–200 字符，去掉首尾空白后按本地大纲限定名（例如 `OrderService.save`）或来源路径进行不区分大小写的字面子串匹配，不把 `%`、`_` 当 SQL 通配符。可选 `repository_id` 限定当前用户/项目的仓库；省略时包含该项目所有仓库及未归属资料。`kind` 可为 `type`、`field`、`method`；`limit` 默认为 50、范围 1–100。只读取 `ready` Java 来源，不调用模型或构建工具、不写正式知识。
+
+返回 `query`、`items`、`scanned_source_count`、`matched_count` 和 `truncated`。每项包含原大纲符号 `id`/`kind`/`name`/`qualified_name`/`owner`/包含式 `start_line`、`end_line`，以及 `source_id`、`source_path`、可空的 `repository_id`、`repository_name`、`task_id`、`chunk_id`、`chunk_position`、`git_url`。`chunk_position` 从 0 开始；前端使用资料分块接口默认每页 20 条计算目标页并聚焦对应 `chunk_id`。GitHub 文件 URL 固定到 Commit 和声明行，本地资料为 null。历史来源版本保持独立，不合并同名符号。
+
+按来源创建时间和 UUID 确定最多 100 份候选，再按累计最多 20 MiB 原文选择；单份保留大纲的 200 符号上限。结果优先精确名称，其次限定名，最后仅路径匹配，并按路径/行号/类型/UUID 稳定排序。`matched_count` 仅表示扫描内、应用返回上限前的匹配数；`truncated=true` 表示来源、字节、单份符号或结果数量至少一类被限制，空结果不能据此推断整个项目不存在目标。调整仓库/关键词可收窄范围，但本接口不保证扫描超出 100 份的全部资料。
+
+空白查询返回 422 `CODE_SEARCH_QUERY_EMPTY`；参数长度/类型错误返回统一 422；项目、仓库或用户越界返回 404。接口只提供已识别声明的位置，不是实体消歧或编译器全局符号索引，见 [ADR 0032](adr/0032-bounded-code-symbol-search.zh-CN.md)。
+
+### 查询 Java 源码结构（单文件）
 
 静态导入扩展保留响应形状：`import static Type.method` / `Type.*` 的未限定调用可返回同仓库其他 ready 来源中的静态方法候选，`cross_file_calls[].receiver` 为标记字符串 `import static`（不是源码接收者表达式）。原方法 ID、路径、行号及 `resolved`/`ambiguous` 语义不变。当前/继承成员名称保守阻止导入回退，即使参数数量不符；显式导入阻止通配回退，目标缺失时不猜测。排除非静态、私有和跨包不可访问候选；限定 `this`/`super` 不使用静态导入。完整类型/访问检查仍未实现，见 [ADR 0030](adr/0030-java-static-import-calls.zh-CN.md)。
 

@@ -77,6 +77,13 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 - 实参数量/可变参数用于筛选，同数量类型重载、重复来源版本仍 ambiguous；不确定表达式不缩窄。resolved 不等于完整编译/运行时目标。
 - 不承诺完整 AST/classpath/访问与类型检查、泛型替换、动态分派、工厂/链式推断、完整数据流。无花括号控制语句、switch/模式/lambda/匿名/局部类型及不支持的复杂声明不在 V1 支持范围，不能把派生关系直接提升为正式知识。
 
+## 只读代码符号检索
+
+- `/projects/{project_id}/code-symbols` 只读 ready Java 来源，按名称/路径字面匹配，可选仓库及 type/field/method。复用 `java_symbols` 与大纲相同的符号 ID/行号，不执行调用关系分析或写入正式图谱。
+- 扫描最多 100 份来源/20 MiB 原文，每份最多 200 符号；默认返回 50、最多 100。扫描内匹配数不是全项目总数；任何省略都标记 truncated，不把有界空结果说成全项目无目标。
+- 命中携带可空 chunk_id/0 起始 chunk_position、任务/仓库及固定 Commit/行号链接。前端按既有每页 20 分块跳转，ready 资料即使任务引用缺失仍可读取。
+- 聚焦测试 `tests/test_code_search.py`；边界与双语验收见 ADR 0032。
+
 ## 任务状态
 
 | 阶段 | 任务 | 来源 |

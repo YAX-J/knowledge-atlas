@@ -71,6 +71,10 @@ Java 结构/调用分析 V1 为只读派生能力，限定同仓库最多 100 �
 
 再次使用既有同步操作时，GitHub 同步会重试同 Commit 的不完整快照。成功资料/任务仅在用户/项目/仓库和来源类型一致、解析任务兼容时复用。tree/文件/字节截断、大小跳过或来源/任务引用缺失与不兼容，会触发新的有界快照；成功的历史快照保持不变。完整快照（包括确定性的空文件/编码/路径跳过）仍直接返回。50 文件上限仍是选择上限，不是分页；重复尝试不保证导入整个仓库。不完整 tree/文件集合不推断重命名。Markdown/Java 后缀变化会创建或复用正确类型的来源，不会重命名不兼容来源。见 [ADR 0031](../docs/adr/0031-recoverable-typed-github-snapshots.zh-CN.md)。
 
+### 代码符号定位
+
+`GET /api/v1/projects/{project_id}/code-symbols?q=save&kind=method` 检索 ready Java 来源，不调用模型、不写入知识。可选 `repository_id` 收窄项目范围；`limit` 默认 50（1–100）。按本地大纲限定名或来源路径进行不区分大小写的字面子串匹配。最多扫描 100 份来源、20 MiB 原文及每份 200 个符号，优先考虑较早来源。`scanned_source_count`、`matched_count`、`truncated` 描述有界扫描，不是全项目总数。结果保留大纲 ID/行号、来源/仓库/任务元数据、可空的 `chunk_id`/从 0 开始的 `chunk_position`，以及固定 Commit/行号的 `git_url`。不代表超出上限的分页或编译器求解，见 [ADR 0032](../docs/adr/0032-bounded-code-symbol-search.zh-CN.md)。
+
 ## 自动解析 Worker
 
 先应用最新数据库迁移，然后在另一个已激活后端虚拟环境的终端中运行：
