@@ -189,6 +189,32 @@ class SnapshotCommitSourceRead(BaseModel):
     git_url: str
 
 
+class RepositorySnapshotFileRead(BaseModel):
+    id: uuid.UUID
+    path: str
+    previous_path: str | None
+    blob_sha: str
+    size_bytes: int
+    status: Literal["imported", "reused", "unchanged", "renamed", "deleted", "skipped"]
+    error_code: str | None
+    source_id: uuid.UUID | None
+    task_id: uuid.UUID | None
+    source_status: str | None
+    git_url: str | None
+
+
+class RepositorySnapshotFileList(BaseModel):
+    snapshot_id: uuid.UUID
+    repository_id: uuid.UUID
+    commit_sha: str
+    truncated: bool
+    deletion_detection_complete: bool
+    items: list[RepositorySnapshotFileRead]
+    page: int
+    page_size: int
+    total: int
+
+
 class RepositoryList(BaseModel):
     items: list[RepositoryRead]
     page: int

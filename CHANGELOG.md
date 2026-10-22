@@ -10,6 +10,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Read-only saved-snapshot file provenance with stable pagination, import/reuse/unchanged/rename/delete/skip states, original paths, blob IDs and skip reasons, scoped source/task links, selected-commit GitHub URLs, and desktop original-source navigation. Deleted files retain local sources without fabricated links into the deletion commit; missing/incompatible references remain unavailable. No new migration, provider request, patch or formal knowledge is introduced.
+
 - Saved GitHub snapshot history in the desktop workspace and explicit commit-message Markdown import/open, scoped source/task reuse across refs and repository renames, canonical commit evidence links without fabricated line fragments, and a reversible nullable-link migration. No provider/model call, patch import, automatic extraction, or formal Commit entity is introduced.
 
 - Bounded read-only Java symbol search in the source workspace, with literal case-insensitive name/path matching, repository/kind filters, explicit scan/result limits, original outline IDs/lines, source-chunk page navigation and focus, immutable GitHub line links, and empty/error/retry/clear states. Project, condition and navigation changes invalidate stale requests.

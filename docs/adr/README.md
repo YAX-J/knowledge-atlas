@@ -96,3 +96,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0031: Recover incomplete GitHub snapshots with typed source reuse](0031-recoverable-typed-github-snapshots.md)
 - [ADR 0032: Search bounded Java source symbols and open original chunks](0032-bounded-code-symbol-search.md)
 - [ADR 0033: Import saved commit messages as evidence sources](0033-saved-commit-evidence-sources.md)
+- [ADR 0034: Read saved snapshot file provenance](0034-snapshot-file-provenance.md)

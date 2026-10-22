@@ -237,6 +237,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .snapshot-message:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
 .snapshot-actions a { font-size: 11px; color: var(--teal); }
 .snapshot-warning { padding: 8px; background: var(--amber-soft); }
+.snapshot-files { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.snapshot-files:focus-visible, .snapshot-file-list:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+.snapshot-files h4 { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.snapshot-files-toggle { margin-top: 8px; }
+.snapshot-file-list { max-height: 360px; overflow-y: auto; padding: 0 5px; scrollbar-gutter: stable; }
+.snapshot-file-row { padding: 12px 0; border-top: 1px solid var(--line); font-size: 12px; overflow-wrap: anywhere; }
+.snapshot-file-row > div:first-child { display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: space-between; }
+.snapshot-file-row strong { min-width: 0; flex: 1; }
+.snapshot-file-row small { display: block; margin: 6px 0; color: var(--muted); }
+.snapshot-file-state { color: var(--teal); font-size: 11px; }
 .repository-register > summary { min-height: 32px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .repository-form { display: grid; gap: 8px; padding-top: 10px; }
 .repository-form label { font-size: 12px; }

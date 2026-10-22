@@ -9,6 +9,7 @@ import TimelineBar from './components/TimelineBar.vue'
 import SourceWorkspace from './components/SourceWorkspace.vue'
 import CodeSymbolSearch from './components/CodeSymbolSearch.vue'
 import RepositorySnapshots from './components/RepositorySnapshots.vue'
+import SnapshotFiles from './components/SnapshotFiles.vue'
 import CandidateReview from './components/CandidateReview.vue'
 import ProjectGraph from './components/ProjectGraph.vue'
 import QuestionWorkspace from './components/QuestionWorkspace.vue'
@@ -19,14 +20,14 @@ import {
   getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
   getJavaCodeStructure,
   searchCodeSymbols,
-  listRepositorySnapshots, importSnapshotCommit,
+  listRepositorySnapshots, listSnapshotFiles, importSnapshotCommit,
   importGithubWorkItems, listRepositories, resolveGithubRepository, resolveLocalRepository, syncGithubRepository,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
   CandidateList, ExtractionResult, JavaCodeStructure, SourceRepositoryList, SourceUploadResult,
   CodeSymbolHit, CodeSymbolSearchInput, CodeSymbolSearchResult,
-  RepositorySnapshotList, SourceRepository,
+  RepositorySnapshotList, RepositorySnapshotFileList, RepositorySnapshotFile, SourceRepository,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
 import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchMode, KnowledgeSearchResult, QuestionAnswer } from './types'
@@ -48,8 +49,68 @@ const snapshotsError = ref('')
 const snapshotsPage = ref(1)
 const importingSnapshotId = ref('')
 let snapshotsRequest = 0
+const filesSnapshotId = ref('')
+const snapshotFiles = ref<RepositorySnapshotFileList | null>(null)
+const snapshotFilesLoading = ref(false)
+const snapshotFilesError = ref('')
+const snapshotFilesPage = ref(1)
+let snapshotFilesRequest = 0
+
+function clearSnapshotFiles() {
+  snapshotFilesRequest++
+  filesSnapshotId.value = ''
+  snapshotFiles.value = null
+  snapshotFilesLoading.value = false
+  snapshotFilesError.value = ''
+  snapshotFilesPage.value = 1
+}
+
+async function closeSnapshotFiles() {
+  const snapshotId = filesSnapshotId.value
+  clearSnapshotFiles()
+  await nextTick()
+  document.querySelector<HTMLButtonElement>(`[data-snapshot-files="${snapshotId}"]`)?.focus()
+}
+
+async function loadSnapshotFilePage(snapshotId: string, page = 1) {
+  const projectId = project.value?.id
+  const repositoryId = snapshotRepository.value?.id
+  if (!projectId || !repositoryId) return
+  const request = ++snapshotFilesRequest
+  filesSnapshotId.value = snapshotId
+  snapshotFilesPage.value = page
+  snapshotFiles.value = null
+  snapshotFilesLoading.value = true
+  snapshotFilesError.value = ''
+  await nextTick()
+  if (request === snapshotFilesRequest) {
+    const panel = document.getElementById('snapshot-files-panel')
+    panel?.focus({ preventScroll: true })
+    panel?.scrollIntoView({ block: 'start', behavior: 'instant' })
+  }
+  try {
+    const result = await listSnapshotFiles(projectId, repositoryId, snapshotId, page)
+    if (request === snapshotFilesRequest && project.value?.id === projectId) snapshotFiles.value = result
+  } catch (error) {
+    if (request === snapshotFilesRequest) snapshotFilesError.value = errorMessage(error)
+  } finally {
+    if (request === snapshotFilesRequest) snapshotFilesLoading.value = false
+  }
+}
+
+async function openSnapshotFile(file: RepositorySnapshotFile) {
+  if (!file.source_id || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
+  const projectId = project.value?.id
+  await selectSource(file.source_id, file.task_id)
+  await nextTick()
+  if (project.value?.id !== projectId || selectedSourceId.value !== file.source_id || (activeNav.value !== 'sources' && activeNav.value !== 'projects')) return
+  const reader = document.getElementById('source-reader')
+  reader?.focus({ preventScroll: true })
+  reader?.scrollIntoView({ block: 'start', behavior: 'instant' })
+}
 
 function clearSnapshots() {
+  clearSnapshotFiles()
   snapshotsRequest++
   snapshotRepository.value = null
   snapshots.value = null
@@ -62,6 +123,7 @@ async function loadSnapshots(repository: SourceRepository, page = 1) {
   const projectId = project.value?.id
   if (!projectId) return
   const request = ++snapshotsRequest
+  clearSnapshotFiles()
   snapshotsPage.value = page
   snapshotRepository.value = repository
   snapshots.value = null
@@ -926,9 +988,13 @@ function setTimeline(value: number) {
       @graph="openProjectGraph"
     >
       <template #snapshots>
-        <RepositorySnapshots :repository="snapshotRepository" :snapshots="snapshots" :loading="snapshotsLoading" :error="snapshotsError" :requested-page="snapshotsPage" :importing-id="importingSnapshotId"
+        <RepositorySnapshots :repository="snapshotRepository" :snapshots="snapshots" :loading="snapshotsLoading" :error="snapshotsError" :requested-page="snapshotsPage" :importing-id="importingSnapshotId" :files-snapshot-id="filesSnapshotId"
           :locked="loading.commit || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity"
-          @page="snapshotRepository && loadSnapshots(snapshotRepository, $event)" @import="saveSnapshotCommit" @close="clearSnapshots" />
+          @page="snapshotRepository && loadSnapshots(snapshotRepository, $event)" @import="saveSnapshotCommit" @files="loadSnapshotFilePage" @close="clearSnapshots">
+          <template #files><SnapshotFiles :snapshot-id="filesSnapshotId" :files="snapshotFiles" :loading="snapshotFilesLoading" :error="snapshotFilesError" :requested-page="snapshotFilesPage"
+            :locked="loading.commit || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity"
+            @page="loadSnapshotFilePage(filesSnapshotId, $event)" @open="openSnapshotFile" @close="closeSnapshotFiles" /></template>
+        </RepositorySnapshots>
       </template>
       <template #code-search>
         <CodeSymbolSearch :key="project?.id ?? 'no-project'" :repositories="repositories"

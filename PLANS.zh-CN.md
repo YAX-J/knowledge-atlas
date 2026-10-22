@@ -45,6 +45,8 @@
 
 ## 当前阶段
 
+已保存快照新增逐文件来源分页、有效资料/任务跳转、固定所选 Commit 的文件外链，以及删除/跳过/截断提示。这是阶段四的只读扩展，不是 Git diff 或完整仓库清单；不新增迁移或供应商调用。见 [ADR 0034](docs/adr/0034-snapshot-file-provenance.zh-CN.md)。
+
 已保存的 GitHub 同步快照新增桌面历史面板，并可显式把提交说明转成 Markdown 资料，复用普通解析/抽取/审核链路与规范 Commit 链接；不读取 patch、不引入正式 Commit 实体，也不自动认定说明中的结论成立。迁移 head 为 `20261022_0014`，见 [ADR 0033](docs/adr/0033-saved-commit-evidence-sources.zh-CN.md)。阶段四仍在进行中。
 
 资料工作台新增按名称/路径、仓库和类型筛选的有界 Java 符号检索，复用大纲 ID 并打开正确原文分块分页。这推进阶段四按文件/符号查询的验收项，不引入正式代码知识实体，见 [ADR 0032](docs/adr/0032-bounded-code-symbol-search.zh-CN.md)。

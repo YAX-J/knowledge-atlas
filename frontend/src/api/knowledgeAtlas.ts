@@ -277,6 +277,37 @@ export interface RepositorySnapshotList {
   total: number
 }
 
+export interface RepositorySnapshotFile {
+  id: string
+  path: string
+  previous_path: string | null
+  blob_sha: string
+  size_bytes: number
+  status: 'imported' | 'reused' | 'unchanged' | 'renamed' | 'deleted' | 'skipped'
+  error_code: string | null
+  source_id: string | null
+  task_id: string | null
+  source_status: string | null
+  git_url: string | null
+}
+
+export interface RepositorySnapshotFileList {
+  snapshot_id: string
+  repository_id: string
+  commit_sha: string
+  truncated: boolean
+  deletion_detection_complete: boolean
+  items: RepositorySnapshotFile[]
+  page: number
+  page_size: number
+  total: number
+}
+
+export function listSnapshotFiles(projectId: string, repositoryId: string, snapshotId: string, page = 1): Promise<RepositorySnapshotFileList> {
+  const query = new URLSearchParams({ page: String(page), page_size: '20' })
+  return apiRequest<RepositorySnapshotFileList>(`/projects/${projectId}/repositories/${repositoryId}/snapshots/${snapshotId}/files?${query}`)
+}
+
 export interface ProcessingTask {
   id: string
   project_id: string

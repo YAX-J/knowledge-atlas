@@ -15,12 +15,28 @@ from app.schemas.repositories import (
     RepositoryResolve,
     RepositorySnapshotList,
     RepositorySnapshotRead,
+    RepositorySnapshotFileList,
     SnapshotCommitSourceRead,
 )
-from app.services import commit_sources, github_activity, github_import, repositories as repository_service
+from app.services import commit_sources, github_activity, github_import, repository_history, repositories as repository_service
 
 
 router = APIRouter(tags=["repositories"])
+
+
+@router.get(
+    "/projects/{project_id}/repositories/{repository_id}/snapshots/{snapshot_id}/files",
+    response_model=RepositorySnapshotFileList,
+)
+def list_snapshot_files(
+    project_id: uuid.UUID, repository_id: uuid.UUID, snapshot_id: uuid.UUID,
+    db: DatabaseSession, user_id: CurrentUserId,
+    page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=100),
+) -> RepositorySnapshotFileList:
+    return repository_history.list_snapshot_files(
+        db, user_id=user_id, project_id=project_id, repository_id=repository_id,
+        snapshot_id=snapshot_id, page=page, page_size=page_size,
+    )
 
 
 @router.post(

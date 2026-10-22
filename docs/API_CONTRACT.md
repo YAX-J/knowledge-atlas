@@ -15,6 +15,7 @@
 | `POST /api/v1/projects/{project_id}/repositories/{repository_id}/sync-github` | 已实现，显式导入有界 GitHub 快照 |
 | `POST /api/v1/projects/{project_id}/repositories/{repository_id}/import-github-work-items` | 已实现，显式导入有界 GitHub Issue/PR 与 PR Review 活动版本 |
 | `GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots` | 已实现，分页查询持久化 Commit 快照历史 |
+| `GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots/{snapshot_id}/files` | 已实现，分页查询快照逐文件来源和有效资料跳转 |
 | `POST /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots/{snapshot_id}/commit-source` | 已实现，将已保存提交说明导入/复用为 Markdown 资料与任务 |
 | `GET /api/v1/projects/{project_id}/repositories` | 已实现，分页查询来源仓库 |
 | `POST /api/v1/projects/{project_id}/sources` | 已实现，Markdown 与 Java 源文件 |
@@ -262,6 +263,17 @@ GitHub provider item ID、`updated_at` 与 `include_comments` 组合标识工作
 按创建时间倒序返回 `items`、`page`、`page_size` 与 `total`。每份快照包含 `id`、`repository_id`、`ref`、`commit_sha`、`tree_sha`、可空 `commit_url` / `committed_at`、`commit_message`、文件及各类变更计数、`downloaded_bytes`、`truncated`、`deletion_detection_complete` 与 `created_at`。接口不返回文件原文或后端令牌；越过用户/项目/仓库边界返回 HTTP 404。
 
 每份快照另返回可空的 `commit_source_id` / `commit_task_id`，供前端显示“加入资料/打开资料”；只有显式提交说明导入后才补充，不触发远端读取。项目已归档也返回 404。
+
+### 查询快照逐文件来源
+
+`GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots/{snapshot_id}/files?page=1&page_size=20` 只读本地同步记录，不访问 GitHub 或模型。`page >= 1`，每页 1–100（默认 20），按 `path`、UUID 稳定排序。返回 `snapshot_id`、`repository_id`、`commit_sha`、`truncated`、`deletion_detection_complete`、`items`、`page`、`page_size`、`total`。每项字段：
+
+- `id`、`path`、可空 `previous_path`、`blob_sha`、`size_bytes`、可空 `error_code`。
+- `status`：`imported` / `reused` / `unchanged` / `renamed` / `deleted` / `skipped`，保持保存时的同步事实；来源状态可能随后变化。
+- 可空 `source_id`、`task_id`、`source_status`：只有本用户/项目/仓库且与路径来源类型兼容时提供来源跳转；任务还需匹配此来源及对应解析类型（包括旧 Markdown `knowledge_extraction`）。缺失、不兼容或跨作用域映射置空，仍保留原文件记录；跳过项不提供来源/任务跳转。ready 资料即使无有效任务也可打开原文。
+- 可空 `git_url`：使用当前规范 remote，固定到所选快照的 Commit 和编码后的路径，不使用来源最近一次出现的快照。删除项不生成指向删除后 Commit 的文件 URL；合法保留来源仍可读取。非法路径/SHA 不生成外链，跳过项的合法远端文件仍可有外链。
+
+`total` 包含已保存的删除/跳过记录，不等于 `file_count` 或完整仓库文件数；分页不会绕过原同步预算。空快照或超出最后一页返回空列表；不可访问/归档项目或快照不属于当前仓库/用户/项目返回 404。接口不返回原文、任务结果、服务器路径或令牌，也不写来源/任务/正式知识。它不是 patch/diff 或变更正确性证明。见 [ADR 0034](adr/0034-snapshot-file-provenance.zh-CN.md)。
 
 ### 查询项目资料
 

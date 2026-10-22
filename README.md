@@ -71,6 +71,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - Java 静态导入支持把 `import static Type.method` / `Type.*` 的未限定调用链接到同仓库已解析来源中的可访问静态方法，保留成员名称优先和歧义；边界见 [ADR 0030](docs/adr/0030-java-static-import-calls.zh-CN.md)。
 - 资料工作台可按名称/文件路径检索已解析 Java 符号，支持仓库和类型筛选、截断提示，并跳到声明所在原文分块；GitHub 文件提供固定 Commit/行号链接，见 [ADR 0032](docs/adr/0032-bounded-code-symbol-search.zh-CN.md)。
 - 仓库卡片可分页查看已保存的同步快照，显式把提交说明保存为 Markdown 资料并打开解析任务；相同提交跨 ref/仓库改名可复用，资料与证据打开规范 Commit 页面。此操作不访问 GitHub，不导入 diff 或自动创建正式知识，见 [ADR 0033](docs/adr/0033-saved-commit-evidence-sources.zh-CN.md)。
+- 每份快照可分页展开已保存的逐文件状态、blob、原路径与跳过原因，并打开对应资料；文件外链固定到所选快照，删除项仅打开本地保留资料而不伪造删除后文件链接，见 [ADR 0034](docs/adr/0034-snapshot-file-provenance.zh-CN.md)。
 - GitHub 同步可在 Commit 未变化时重试截断/超限快照，复用已成功文件；Markdown/Java 之间按来源类型隔离 blob 复用，截断文件集合不推断重命名，见 [ADR 0031](docs/adr/0031-recoverable-typed-github-snapshots.zh-CN.md)。
 - 项目、资料、任务、候选知识和正式图谱的 SQLAlchemy 模型与 Alembic 迁移。
 - PostgreSQL/pgvector、API 和 Worker 的 Docker Compose 配置。

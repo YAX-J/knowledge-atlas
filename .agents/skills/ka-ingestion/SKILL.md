@@ -49,6 +49,8 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 
 - 已保存 GitHub 快照可通过 `POST .../snapshots/{snapshot_id}/commit-source` 显式转成 SHA/UTC 时间/逐行引用提交说明的 Markdown 来源；不访问 GitHub/模型，不导入 patch，不自动解析或提升正式 Commit。内容不含 ref/统计/可变 remote 坐标，普通仓库范围字节去重支持跨 ref/改名复用。快照可空 `commit_source_id` / `commit_task_id` 只在引用兼容时复用，否则重新导入去重；返回任务当前状态。Commit 资料及证据 URL 打开规范 `/commit/{sha}`，不追加 Markdown 的 `#L`。测试 `tests/test_commit_sources.py`，原生 PostgreSQL 复验并发去重，见 ADR 0033。
 
+- 快照 `/snapshots/{snapshot_id}/files` 是只读分页（默认 20，1–100），只读文件元数据，稳定按 path/UUID 排序。保留删除/跳过事实，外连接校验来源/任务用户、项目、仓库、类型和关联；无效引用置空不泄露 UUID。文件 URL 固定所选 Commit；删除项仅可打开保留本地来源，不伪造删除后 URL。总记录数不表示完整仓库，分页不绕过同步预算。测试 `tests/test_snapshot_files.py`，见 ADR 0034。
+
 ## 解析规则
 
 `parse_markdown(content, source_id=...)`：

@@ -112,6 +112,8 @@
 
 ## 阶段四 代码与 GitHub 数据
 
+快照已提供逐文件历史分页与原文跳转，展示改名/删除/跳过事实并固定所选提交链接；删除项可打开保留来源而不伪造文件存在性。该只读追溯不等于完整 Git diff 或仓库清单，见 [ADR 0034](adr/0034-snapshot-file-provenance.zh-CN.md)。
+
 已保存 GitHub 快照可在桌面分页浏览，并显式将提交说明导入为普通 Markdown 资料，复用解析/抽取/人工审核与规范 Commit 证据链接，见 [ADR 0033](adr/0033-saved-commit-evidence-sources.zh-CN.md)。不导入 patch/父历史，不新增正式 Commit 实体；阶段四仍未整体完成。
 
 资料工作台已提供项目/仓库范围的有界 Java 名称/路径/类型检索，以及原文分块分页定位。复用原大纲符号/行号，并展示扫描上限，见 [ADR 0032](adr/0032-bounded-code-symbol-search.zh-CN.md)。这推进按文件/符号查询的验收项；代表性中等仓库、真实供应商及完整阶段四验收仍需继续。

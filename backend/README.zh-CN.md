@@ -79,6 +79,8 @@ Java 结构/调用分析 V1 为只读派生能力，限定同仓库最多 100 �
 
 `GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots` 查询已保存元数据，新增可空 `commit_source_id` / `commit_task_id`。在同一路径追加 `/{snapshot_id}/commit-source` 后 `POST`（无请求体），返回 HTTP 200，包含 `snapshot_id`、`source_id`、`task_id`、当前 `status`、`reused` 和规范 `git_url`。它把保存的 SHA、UTC 时间与提交说明渲染为确定性 Markdown，复用仓库范围导入；不请求 GitHub/模型，也不启动解析或抽取。相同字节跨 ref/改名复用来源，不跨仓库复用。沿用大小限制和作用域 404；无效 SHA 返回 409 `SNAPSHOT_COMMIT_INVALID`。提交证据打开 `/commit/{sha}`，不追加 `#L`，本地行号只描述 Markdown，不定位 patch。先应用迁移 `20261022_0014`，见 [ADR 0033](../docs/adr/0033-saved-commit-evidence-sources.zh-CN.md)。
 
+`GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots/{snapshot_id}/files?page=1&page_size=20` 查询保存的逐文件来源（每页 1–100）。只读本地记录，按路径/UUID 排序，包含删除与跳过项；`total` 是记录数，不是完整仓库覆盖率。可空来源/任务跳转会校验作用域和类型，不加载原文正文。文件 URL 固定所选提交并使用当前规范 remote；删除路径不生成该提交中的文件链接，仍可打开保留的本地资料。除现有 head `20261022_0014` 外无需新迁移或供应商请求。见 [ADR 0034](../docs/adr/0034-snapshot-file-provenance.zh-CN.md)。
+
 ## 自动解析 Worker
 
 先应用最新数据库迁移，然后在另一个已激活后端虚拟环境的终端中运行：

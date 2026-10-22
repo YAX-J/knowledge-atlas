@@ -45,12 +45,15 @@ npm run preview
 | `SourceWorkspace.vue` | 项目/仓库/资料列表、GitHub remote 登记、显式 ref 快照同步与 Issue/PR/Review/thread 状态版本导入、Markdown/Java 桌面端单文件/文件夹选择（文件夹最多 50 份）、MD/JAVA 标记、解析、结构分块分页及 Java 符号/同文件调用/跨文件类型与显式类型的直接类型、字段、参数、直属局部变量接收者方法关系大纲 |
 | `CodeSymbolSearch.vue` | 来源工作台的 Java 名称/路径/仓库/类型检索，只发出检索/清空/重试/打开意图，展示扫描限制和原文定位 |
 | `RepositorySnapshots.vue` | 仓库已保存同步历史分页、长说明滚动、加载/空/错误/重试与显式提交说明资料导入/打开意图 |
+| `SnapshotFiles.vue` | 快照逐文件来源分页、状态/原路径/blob/跳过原因、所选 Commit 链接与有效原文跳转意图 |
 | `CandidateReview.vue` | 候选、证据、改名/摘要、确认/拒绝 |
 | `ProjectGraph.vue` | 真实项目图谱、筛选、邻域、详情与证据 |
 | `KnowledgeSearch.vue` | 项目关键词/语义/混合检索、显式索引更新、组成得分、关系解释、结果证据与清空/重试/选择意图 |
 | `QuestionWorkspace.vue` | 真实同步问答、证据不足/错误状态、检索统计、引用原文与实体跳转意图 |
 
 ## 状态与请求
+
+- 快照文件面板使用 `snapshotFilesRequest` 与失败页号保存重试目标；切仓库、历史页、项目或关闭时清空并使旧响应失效。文件每页 20 项、有界滚动，保持文本插值；打开面板/原文与关闭返回按钮均管理焦点。删除项可读保留来源，不显示删除后文件 URL；详情沿用普通来源定位，不伪装成 Git diff。见 ADR 0034。
 
 - 已保存快照历史使用独立 `snapshotsRequest`、项目校验和每页 10 条；切项目/关闭面板使旧响应失效。提交说明导入由 `App.vue` 的 `commit` 上下文锁编排，成功后刷新资料和历史、打开当前来源/任务并聚焦原文，不自动解析/抽取。仓库卡片及历史读取不联网 GitHub；Commit URL 使用规范 remote/SHA，不追加伪造 Markdown 行号。可空映射只用于按钮文案，服务仍校验引用。见 ADR 0033。
 

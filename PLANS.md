@@ -45,6 +45,8 @@ Completed:
 
 ## Active phase
 
+Saved snapshots now expose paginated per-file provenance with safe source/task navigation, exact selected-commit file links, and explicit deletion/skip/truncation states. This is a read-only extension of Stage 4, not a Git diff or complete repository listing; no migration/provider call is added. See [ADR 0034](docs/adr/0034-snapshot-file-provenance.md).
+
 Saved GitHub synchronization snapshots now have a desktop history panel and an explicit commit-message-to-Markdown action. Sources reuse the normal parsing/extraction/review pipeline and canonical commit links, without fetching patches, introducing formal Commit entities, or automatically asserting the message's claims. Migration head is `20261022_0014`; see [ADR 0033](docs/adr/0033-saved-commit-evidence-sources.md). Stage 4 remains active.
 
 The source workspace now provides bounded Java symbol search by name/path, repository and kind, reusing outline IDs and opening the correct original chunk page. This advances the Stage 4 file/symbol lookup criterion without introducing authoritative code entities; see [ADR 0032](docs/adr/0032-bounded-code-symbol-search.md).
