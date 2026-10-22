@@ -112,6 +112,8 @@
 
 ## 阶段四 代码与 GitHub 数据
 
+图谱、搜索和问答引用可按证据 UUID 跳回本地精确分块，自动翻页和聚焦/高亮，补齐 Markdown/Java/提交说明等已保存来源的核验入口；不改变正式知识语义或引入新阶段，见 [ADR 0035](adr/0035-exact-evidence-source-navigation.zh-CN.md)。
+
 快照已提供逐文件历史分页与原文跳转，展示改名/删除/跳过事实并固定所选提交链接；删除项可打开保留来源而不伪造文件存在性。该只读追溯不等于完整 Git diff 或仓库清单，见 [ADR 0034](adr/0034-snapshot-file-provenance.zh-CN.md)。
 
 已保存 GitHub 快照可在桌面分页浏览，并显式将提交说明导入为普通 Markdown 资料，复用解析/抽取/人工审核与规范 Commit 证据链接，见 [ADR 0033](adr/0033-saved-commit-evidence-sources.zh-CN.md)。不导入 patch/父历史，不新增正式 Commit 实体；阶段四仍未整体完成。

@@ -53,6 +53,8 @@ npm run preview
 
 ## 状态与请求
 
+- 图谱/知识搜索/问答的本地原文按钮发出 `EvidenceLocator`，由 `App.vue` 的 `evidenceNavigationRequest` 调用项目范围单分块查询，按 position 翻页，聚焦/高亮原 UUID。定位加载/失败提示支持取消/重试；`clearSourceSelection`、项目切换或离开资料页使旧响应失效。`refreshSource` 接收初始分块页，不扫描全部页面、不自动解析/抽取，不把失败回退为同名或近似内容。见 ADR 0035。
+
 - 快照文件面板使用 `snapshotFilesRequest` 与失败页号保存重试目标；切仓库、历史页、项目或关闭时清空并使旧响应失效。文件每页 20 项、有界滚动，保持文本插值；打开面板/原文与关闭返回按钮均管理焦点。删除项可读保留来源，不显示删除后文件 URL；详情沿用普通来源定位，不伪装成 Git diff。见 ADR 0034。
 
 - 已保存快照历史使用独立 `snapshotsRequest`、项目校验和每页 10 条；切项目/关闭面板使旧响应失效。提交说明导入由 `App.vue` 的 `commit` 上下文锁编排，成功后刷新资料和历史、打开当前来源/任务并聚焦原文，不自动解析/抽取。仓库卡片及历史读取不联网 GitHub；Commit URL 使用规范 remote/SHA，不追加伪造 Markdown 行号。可空映射只用于按钮文案，服务仍校验引用。见 ADR 0033。

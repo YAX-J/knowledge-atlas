@@ -357,6 +357,8 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 ### 查询资料分块
 
+新增只读 `GET /api/v1/projects/{project_id}/sources/{source_id}/chunks/{chunk_id}`，按精确 UUID 获取单个已保存分块，返回与下方分页项相同的 `SourceChunkRead`（包括从 0 开始的 `position`），供图谱/搜索/问答证据跳转。校验未归档项目及来源、分块的用户/项目/来源关联；不存在或不匹配返回 404 `SOURCE_CHUNK_NOT_FOUND`（项目不可访问沿用项目 404），非法 UUID 为统一 422。不扫描文本、文件名或所有分块页，不要求解析任务仍存在，也不写数据或调用模型。前端以 `floor(position / 20) + 1` 读取既有分块分页并聚焦原 UUID；不能展示时提供错误/重试，不回退到同名资料。
+
 `GET /api/v1/sources/{source_id}/chunks?page=1&page_size=20`
 
 `page >= 1`，`1 <= page_size <= 100`。按原文顺序返回 `items`、`page`、`page_size`、`total`。未解析来源返回空列表；不存在或不属于当前用户的来源返回 HTTP 404。

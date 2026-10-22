@@ -97,3 +97,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0032：检索有界 Java 源码符号并打开原文分块](0032-bounded-code-symbol-search.zh-CN.md)
 - [ADR 0033：将已保存的提交说明导入为证据来源](0033-saved-commit-evidence-sources.zh-CN.md)
 - [ADR 0034：查询已保存的快照逐文件来源](0034-snapshot-file-provenance.zh-CN.md)
+- [ADR 0035：从证据跳转到精确原文分块](0035-exact-evidence-source-navigation.zh-CN.md)

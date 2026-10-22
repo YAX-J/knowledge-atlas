@@ -18,7 +18,7 @@ import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
   runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
   getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
-  getJavaCodeStructure,
+  getJavaCodeStructure, getProjectSourceChunk,
   searchCodeSymbols,
   listRepositorySnapshots, listSnapshotFiles, importSnapshotCommit,
   importGithubWorkItems, listRepositories, resolveGithubRepository, resolveLocalRepository, syncGithubRepository,
@@ -30,7 +30,7 @@ import type {
   RepositorySnapshotList, RepositorySnapshotFileList, RepositorySnapshotFile, SourceRepository,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
-import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchMode, KnowledgeSearchResult, QuestionAnswer } from './types'
+import type { EvidenceLocator, IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchMode, KnowledgeSearchResult, QuestionAnswer } from './types'
 
 const selectedId = ref('event-driven')
 const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'graph')
@@ -179,11 +179,72 @@ const codeSearchResult = ref<CodeSymbolSearchResult | null>(null)
 const codeSearchLoading = ref(false)
 const codeSearchError = ref('')
 const focusedChunkId = ref('')
+const evidenceTarget = ref<EvidenceLocator | null>(null)
+const evidenceNavigationLoading = ref(false)
+const evidenceNavigationError = ref('')
+let evidenceNavigationRequest = 0
+
+function clearEvidenceNavigation() {
+  evidenceNavigationRequest++
+  evidenceTarget.value = null
+  evidenceNavigationLoading.value = false
+  evidenceNavigationError.value = ''
+}
+
+async function openEvidence(locator: EvidenceLocator) {
+  if (!project.value || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
+  const projectId = project.value.id
+  clearSourceSelection()
+  notice.value = ''
+  evidenceTarget.value = { source_id: locator.source_id, chunk_id: locator.chunk_id }
+  evidenceNavigationLoading.value = true
+  activeNav.value = 'sources'
+  const request = ++evidenceNavigationRequest
+  const current = () => request === evidenceNavigationRequest && project.value?.id === projectId
+  try {
+    const chunk = await getProjectSourceChunk(projectId, locator.source_id, locator.chunk_id)
+    if (!current()) return
+    selectedSourceId.value = chunk.source_id
+    selectedTaskId.value = null // Evidence reads do not require a surviving parsing task.
+    await refreshSource(Math.floor(chunk.position / 20) + 1)
+    if (!current()) return
+    if (!chunks.value?.items.some(item => item.id === chunk.id)) {
+      evidenceNavigationError.value = errors.detail || errors.chunks || '证据分块未能在当前解析结果中定位，请刷新资料后重试。'
+      return
+    }
+    focusedChunkId.value = chunk.id
+    await nextTick()
+    if (!current()) return
+    const target = document.getElementById(`source-chunk-${chunk.id}`)
+    if (!target) {
+      evidenceNavigationError.value = '当前资料尚不能展示此分块，请检查解析状态后重试。'
+      return
+    }
+    clearEvidenceNavigation()
+    notice.value = `已定位证据原文第 ${chunk.start_line}–${chunk.end_line} 行。`
+    target.focus({ preventScroll: true })
+    target.scrollIntoView({ block: 'center', behavior: 'instant' })
+  } catch (error) {
+    if (current()) evidenceNavigationError.value = errorMessage(error)
+  } finally {
+    if (current()) {
+      evidenceNavigationLoading.value = false
+      if (evidenceNavigationError.value) {
+        await nextTick()
+        if (current()) document.getElementById('evidence-navigation')?.focus()
+      }
+    }
+  }
+}
 let codeSearchRequest = 0
 let codeOpenRequest = 0
 let codeSearchInput: CodeSymbolSearchInput | null = null
 watch(activeNav, value => {
-  if (value !== 'sources' && value !== 'projects') clearCodeSearch()
+  if (value !== 'sources' && value !== 'projects') {
+    clearCodeSearch()
+    if (evidenceNavigationLoading.value) clearSourceSelection()
+    else clearEvidenceNavigation()
+  }
 })
 
 function clearCodeSearch() {
@@ -387,6 +448,7 @@ function errorMessage(error: unknown): string {
 }
 
 function clearSourceSelection() {
+  clearEvidenceNavigation()
   codeOpenRequest++
   focusedChunkId.value = ''
   reviewsRequest++
@@ -617,7 +679,7 @@ async function selectSource(sourceId: string, taskId: string | null) {
   await refreshSource()
 }
 
-async function refreshSource() {
+async function refreshSource(chunkPage = 1) {
   const sourceId = selectedSourceId.value
   const taskId = selectedTaskId.value
   if (!sourceId) return
@@ -638,7 +700,7 @@ async function refreshSource() {
       item.updated_at = sourceResult.updated_at
     }
     if (sourceResult.status === 'ready') {
-      const requests: Promise<void>[] = [loadChunks(1), loadReviews(1)]
+      const requests: Promise<void>[] = [loadChunks(chunkPage), loadReviews(1)]
       if (sourceResult.source_type === 'java') requests.push(loadCodeStructure())
       await Promise.all(requests)
     }
@@ -987,6 +1049,14 @@ function setTimeline(value: number) {
       @run="parseSource" @refresh="refreshSource" @chunks-page="loadChunks"
       @graph="openProjectGraph"
     >
+      <template #evidence-navigation>
+        <section v-if="evidenceTarget" id="evidence-navigation" class="evidence-navigation" aria-label="证据原文定位" :aria-busy="evidenceNavigationLoading" tabindex="-1">
+          <p v-if="evidenceNavigationLoading" role="status">正在定位证据原文分块…</p>
+          <p v-if="evidenceNavigationError" class="inline-error" role="alert">{{ evidenceNavigationError }}</p>
+          <button v-if="evidenceNavigationError" type="button" class="text-button" @click="evidenceTarget && openEvidence(evidenceTarget)">重试定位证据</button>
+          <button type="button" class="text-button" @click="clearSourceSelection">{{ evidenceNavigationLoading ? '取消定位' : '关闭定位提示' }}</button>
+        </section>
+      </template>
       <template #snapshots>
         <RepositorySnapshots :repository="snapshotRepository" :snapshots="snapshots" :loading="snapshotsLoading" :error="snapshotsError" :requested-page="snapshotsPage" :importing-id="importingSnapshotId" :files-snapshot-id="filesSnapshotId"
           :locked="loading.commit || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity"
@@ -1018,12 +1088,12 @@ function setTimeline(value: number) {
       :selected-id="graphSelectedId" :center="graphCenter" :depth="graphDepth" :type-filter="graphType"
       @back="activeNav = 'sources'" @demo="activeNav = 'graph'" @refresh="loadRealGraph()"
       @select-entity="selectGraphEntity" @select-relationship="selectGraphRelationship" @neighborhood="loadRealGraph"
-      @reset="loadRealGraph('')" @filter-type="filterGraph" @depth="setGraphDepth" @retry-detail="retryGraphDetail" />
+      @reset="loadRealGraph('')" @filter-type="filterGraph" @depth="setGraphDepth" @retry-detail="retryGraphDetail" @open-evidence="openEvidence" />
     <QuestionWorkspace v-else-if="activeNav === 'questions'" :key="project?.id ?? 'no-project'"
       :projects="projects" :project="project" :projects-loading="loading.projects" :projects-error="errors.projects"
       :result="questionResult" :loading="questionLoading" :error="questionError"
       @select-project="selectProject" @retry-projects="loadProjects()" @ask="runQuestion" @retry="retryQuestion"
-      @clear="clearQuestion" @open-entity="openQuestionEntity" />
+      @clear="clearQuestion" @open-entity="openQuestionEntity" @open-evidence="openEvidence" />
     <main v-else class="atlas-main" :class="{ 'panel-collapsed': !panelOpen }">
       <section class="graph-workspace">
         <div class="workspace-title">

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { ApiProject, ApiProjectList } from '../api/knowledgeAtlas'
-import type { QuestionAnswer } from '../types'
+import type { EvidenceLocator, QuestionAnswer } from '../types'
 
 const props = defineProps<{
   projects: ApiProjectList | null
@@ -19,6 +19,7 @@ const emit = defineEmits<{
   retry: []
   clear: []
   openEntity: [id: string]
+  openEvidence: [locator: EvidenceLocator]
 }>()
 const question = ref('')
 const remaining = computed(() => 200 - question.value.length)
@@ -120,6 +121,7 @@ function submit() {
           <small>第 {{ item.start_line }}–{{ item.end_line }} 行 · {{ item.heading_path.join(' / ') || '文档开头' }}</small>
           <a v-if="item.git_url" :href="item.git_url" target="_blank" rel="noopener noreferrer">在 GitHub 查看来源 ↗</a>
           <blockquote>{{ item.quote }}</blockquote>
+          <button type="button" class="evidence-source-button" @click="emit('openEvidence', item)">查看原文分块</button>
         </article>
       </aside>
     </section>

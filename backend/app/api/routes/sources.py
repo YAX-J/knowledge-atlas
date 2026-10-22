@@ -154,6 +154,16 @@ def list_source_chunks(
     )
 
 
+@router.get("/projects/{project_id}/sources/{source_id}/chunks/{chunk_id}", response_model=SourceChunkRead)
+def get_project_source_chunk(
+    project_id: uuid.UUID, source_id: uuid.UUID, chunk_id: uuid.UUID,
+    db: DatabaseSession, user_id: CurrentUserId,
+) -> SourceChunkRead:
+    return SourceChunkRead.model_validate(parsing.get_project_chunk(
+        db, user_id=user_id, project_id=project_id, source_id=source_id, chunk_id=chunk_id,
+    ))
+
+
 @router.get("/sources/{source_id}/code-structure", response_model=JavaStructureRead)
 def get_code_structure(
     source_id: uuid.UUID,

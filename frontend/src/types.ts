@@ -108,7 +108,12 @@ export interface ProjectGraphData {
   truncated: boolean
 }
 
-export interface FormalEvidence extends CandidateEvidence {
+export interface EvidenceLocator {
+  source_id: string
+  chunk_id: string
+}
+
+export interface FormalEvidence extends CandidateEvidence, EvidenceLocator {
   id: string
   source_id: string
   title: string

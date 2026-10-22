@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import KnowledgeSearch from './KnowledgeSearch.vue'
 import type { ApiProject } from '../api/knowledgeAtlas'
-import type { EntityDetail, FormalKnowledgeEdge, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail } from '../types'
+import type { EntityDetail, EvidenceLocator, FormalKnowledgeEdge, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail } from '../types'
 
 const props = defineProps<{
   project: ApiProject | null
@@ -40,6 +40,7 @@ const emit = defineEmits<{
   clearSearch: []
   retrySearch: []
   selectSearchEntity: [id: string]
+  openEvidence: [locator: EvidenceLocator]
 }>()
 const labels: Record<string, string> = {
   Project: '项目', CodeFile: '代码文件', CodeEntity: '代码实体', Technology: '技术', Concept: '概念',
@@ -79,7 +80,7 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
     <KnowledgeSearch :key="project?.id" :result="searchResult" :loading="searchLoading" :error="searchError" :error-action="searchErrorAction" :labels="labels"
       :rebuilding="searchRebuilding" :notice="searchNotice"
       @search="(query, types, mode) => emit('search', query, types, mode)" @rebuild="emit('rebuildSearch')"
-      @clear="emit('clearSearch')" @retry="emit('retrySearch')" @select="id => emit('selectSearchEntity', id)" />
+      @clear="emit('clearSearch')" @retry="emit('retrySearch')" @select="id => emit('selectSearchEntity', id)" @open-evidence="emit('openEvidence', $event)" />
     <div class="graph-toolbar">
       <span class="graph-real-label">真实项目图谱</span>
       <label>知识类型 <select :value="typeFilter" :disabled="loading" @change="filter"><option value="">全部类型</option><option v-for="(label, type) in labels" :key="type" :value="type">{{ label }}</option></select></label>
@@ -118,7 +119,7 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
             <div v-if="relationshipDetail" class="graph-actions"><button type="button" @click="emit('neighborhood', relationshipDetail.relationship.source_id)">查看来源节点</button><button type="button" @click="emit('neighborhood', relationshipDetail.relationship.target_id)">查看目标节点</button></div>
             <h3>原文证据 <span>{{ evidence.length }}</span></h3>
             <p v-if="!evidence.length">暂无可访问的原文证据。</p>
-            <article v-for="item in evidence" :key="item.id" class="formal-evidence"><strong>{{ item.title }}</strong><a v-if="item.git_url" :href="item.git_url" target="_blank" rel="noopener noreferrer">GitHub 原文 ↗</a><small>第 {{ item.start_line }}–{{ item.end_line }} 行 · {{ item.heading_path.join(' / ') || '文档开头' }}</small><blockquote>{{ item.quote }}</blockquote></article>
+            <article v-for="item in evidence" :key="item.id" class="formal-evidence"><strong>{{ item.title }}</strong><a v-if="item.git_url" :href="item.git_url" target="_blank" rel="noopener noreferrer">GitHub 原文 ↗</a><small>第 {{ item.start_line }}–{{ item.end_line }} 行 · {{ item.heading_path.join(' / ') || '文档开头' }}</small><blockquote>{{ item.quote }}</blockquote><button type="button" class="evidence-source-button" @click="emit('openEvidence', item)">查看原文分块</button></article>
             <template v-if="entityDetail"><h3>直接关系</h3><p v-if="!entityDetail.relationships.length">还没有已确认的直接关系。</p><button v-for="edge in entityDetail.relationships" :key="edge.id" type="button" class="formal-relation" @click="emit('selectRelationship', edge.id)">{{ edge.name }} <small>{{ edge.type }}</small></button><p v-if="entityDetail.truncated">仅展示前 100 条直接关系。</p></template>
           </template>
         </aside>

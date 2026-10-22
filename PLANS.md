@@ -45,6 +45,8 @@ Completed:
 
 ## Active phase
 
+Graph details, knowledge search and question citations now open exact local source chunks by scoped UUID, automatically selecting the correct chunk page and focusing/highlighting the original. Missing or inaccessible targets fail explicitly; no model, graph write or migration is added. This closes a source-provenance navigation gap while Stage 4 remains active; see [ADR 0035](docs/adr/0035-exact-evidence-source-navigation.md).
+
 Saved snapshots now expose paginated per-file provenance with safe source/task navigation, exact selected-commit file links, and explicit deletion/skip/truncation states. This is a read-only extension of Stage 4, not a Git diff or complete repository listing; no migration/provider call is added. See [ADR 0034](docs/adr/0034-snapshot-file-provenance.md).
 
 Saved GitHub synchronization snapshots now have a desktop history panel and an explicit commit-message-to-Markdown action. Sources reuse the normal parsing/extraction/review pipeline and canonical commit links, without fetching patches, introducing formal Commit entities, or automatically asserting the message's claims. Migration head is `20261022_0014`; see [ADR 0033](docs/adr/0033-saved-commit-evidence-sources.md). Stage 4 remains active.

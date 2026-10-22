@@ -472,6 +472,10 @@ export function listSources(projectId: string, page = 1, pageSize = 20): Promise
   return apiRequest<SourceList>(`/projects/${projectId}/sources?${query}`)
 }
 
+export function getProjectSourceChunk(projectId: string, sourceId: string, chunkId: string): Promise<SourceChunk> {
+  return apiRequest<SourceChunk>(`/projects/${projectId}/sources/${sourceId}/chunks/${chunkId}`)
+}
+
 export function listSourceChunks(
   sourceId: string,
   page = 1,

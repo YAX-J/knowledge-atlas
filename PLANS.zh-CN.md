@@ -45,6 +45,8 @@
 
 ## 当前阶段
 
+图谱详情、知识搜索与问答引用现在可按作用域内 UUID 打开本地精确原文分块，自动翻到对应页并聚焦/高亮。缺失或不可访问目标明确失败，不新增模型调用、图谱写入或迁移。这补齐来源追溯导航，阶段四仍在进行，见 [ADR 0035](docs/adr/0035-exact-evidence-source-navigation.zh-CN.md)。
+
 已保存快照新增逐文件来源分页、有效资料/任务跳转、固定所选 Commit 的文件外链，以及删除/跳过/截断提示。这是阶段四的只读扩展，不是 Git diff 或完整仓库清单；不新增迁移或供应商调用。见 [ADR 0034](docs/adr/0034-snapshot-file-provenance.zh-CN.md)。
 
 已保存的 GitHub 同步快照新增桌面历史面板，并可显式把提交说明转成 Markdown 资料，复用普通解析/抽取/审核链路与规范 Commit 链接；不读取 patch、不引入正式 Commit 实体，也不自动认定说明中的结论成立。迁移 head 为 `20261022_0014`，见 [ADR 0033](docs/adr/0033-saved-commit-evidence-sources.zh-CN.md)。阶段四仍在进行中。

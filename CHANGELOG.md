@@ -10,6 +10,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Exact original-source navigation from graph entity/relationship evidence, knowledge search hits and answer citations, using a project-scoped chunk UUID lookup, original chunk pagination, keyboard focus/highlight, visible error/retry/cancel and stale-request fencing. No text/name guessing, migration, provider call or knowledge write is introduced.
+
 - Read-only saved-snapshot file provenance with stable pagination, import/reuse/unchanged/rename/delete/skip states, original paths, blob IDs and skip reasons, scoped source/task links, selected-commit GitHub URLs, and desktop original-source navigation. Deleted files retain local sources without fabricated links into the deletion commit; missing/incompatible references remain unavailable. No new migration, provider request, patch or formal knowledge is introduced.
 
 - Saved GitHub snapshot history in the desktop workspace and explicit commit-message Markdown import/open, scoped source/task reuse across refs and repository renames, canonical commit evidence links without fabricated line fragments, and a reversible nullable-link migration. No provider/model call, patch import, automatic extraction, or formal Commit entity is introduced.

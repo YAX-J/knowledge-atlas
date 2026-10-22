@@ -249,6 +249,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
       </aside>
 
       <section class="source-column" aria-label="项目资料">
+        <slot name="evidence-navigation" />
         <div v-if="!project" class="source-empty-state">
           <span class="empty-source-mark" aria-hidden="true">⌑</span>
           <h2>从一篇笔记开始</h2>

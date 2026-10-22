@@ -97,3 +97,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0032: Search bounded Java source symbols and open original chunks](0032-bounded-code-symbol-search.md)
 - [ADR 0033: Import saved commit messages as evidence sources](0033-saved-commit-evidence-sources.md)
 - [ADR 0034: Read saved snapshot file provenance](0034-snapshot-file-provenance.md)
+- [ADR 0035: Navigate evidence to exact original source chunks](0035-exact-evidence-source-navigation.md)

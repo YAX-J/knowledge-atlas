@@ -247,6 +247,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .snapshot-file-row strong { min-width: 0; flex: 1; }
 .snapshot-file-row small { display: block; margin: 6px 0; color: var(--muted); }
 .snapshot-file-state { color: var(--teal); font-size: 11px; }
+.evidence-source-button { display: inline-block; margin-top: 10px; }
+.evidence-navigation { margin-bottom: 18px; padding: 12px; border: 1px solid var(--line); border-radius: 5px; background: var(--paper); font-size: 13px; }
+.evidence-navigation:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
 .repository-register > summary { min-height: 32px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .repository-form { display: grid; gap: 8px; padding-top: 10px; }
 .repository-form label { font-size: 12px; }

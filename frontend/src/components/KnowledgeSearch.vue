@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { KnowledgeSearchMode, KnowledgeSearchResult } from '../types'
+import type { EvidenceLocator, KnowledgeSearchMode, KnowledgeSearchResult } from '../types'
 
 defineProps<{
   result: KnowledgeSearchResult | null
@@ -17,6 +17,7 @@ const emit = defineEmits<{
   clear: []
   retry: []
   select: [id: string]
+  openEvidence: [locator: EvidenceLocator]
 }>()
 const query = ref('')
 const type = ref('')
@@ -53,7 +54,7 @@ function clear() { query.value = type.value = ''; mode.value = 'keyword'; emit('
           <p v-else-if="result.mode === 'vector'" class="hit-meta">向量相似度 {{ ((hit.vector_score ?? 0) * 100).toFixed(1) }}%</p>
           <p v-else class="hit-meta">融合得分 {{ ((hit.hybrid_score ?? 0) * 100).toFixed(1) }} · 关键词 {{ ((hit.keyword_component ?? 0) * 100).toFixed(1) }}% · 向量 {{ ((hit.vector_component ?? 0) * 100).toFixed(1) }}% · 图关系 {{ ((hit.graph_score ?? 0) * 100).toFixed(1) }}%</p>
           <ul v-if="result.mode === 'hybrid' && hit.graph_connections.length" class="graph-signals" aria-label="图关系得分依据"><li v-for="signal in hit.graph_connections" :key="`${signal.relationship_id}:${signal.related_entity_id}`">经“{{ signal.relationship_name }}”关联到 {{ signal.related_entity_name }}（{{ (signal.score * 100).toFixed(1) }}%）</li></ul>
-          <article v-for="evidence in hit.evidence" :key="evidence.id" class="search-evidence"><strong>{{ evidence.title }}</strong><span>第 {{ evidence.start_line }}–{{ evidence.end_line }} 行</span><a v-if="evidence.git_url" :href="evidence.git_url" target="_blank" rel="noopener noreferrer">GitHub 原文 ↗</a><blockquote>{{ evidence.quote }}</blockquote></article>
+          <article v-for="evidence in hit.evidence" :key="evidence.id" class="search-evidence"><strong>{{ evidence.title }}</strong><span>第 {{ evidence.start_line }}–{{ evidence.end_line }} 行</span><a v-if="evidence.git_url" :href="evidence.git_url" target="_blank" rel="noopener noreferrer">GitHub 原文 ↗</a><blockquote>{{ evidence.quote }}</blockquote><button type="button" class="evidence-source-button" @click="emit('openEvidence', evidence)">查看原文分块</button></article>
           <p v-if="!hit.evidence.length" class="hit-meta">暂无可访问的原文证据。</p>
         </li>
       </ol>

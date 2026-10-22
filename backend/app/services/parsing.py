@@ -193,6 +193,24 @@ def run_task(
     return task
 
 
+def get_project_chunk(
+    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID,
+    source_id: uuid.UUID, chunk_id: uuid.UUID,
+) -> SourceChunk:
+    """Locate an exact saved chunk without guessing from names or quotes."""
+    get_project(db, user_id=user_id, project_id=project_id)
+    chunk = db.scalar(select(SourceChunk).join(
+        SourceDocument, SourceDocument.id == SourceChunk.source_id,
+    ).where(
+        SourceChunk.id == chunk_id, SourceChunk.source_id == source_id,
+        SourceChunk.user_id == user_id, SourceChunk.project_id == project_id,
+        SourceDocument.user_id == user_id, SourceDocument.project_id == project_id,
+    ))
+    if chunk is None:
+        raise AppError(status_code=404, code="SOURCE_CHUNK_NOT_FOUND", message="原文分块不存在或不属于当前项目")
+    return chunk
+
+
 def list_chunks(
     db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID,
     page: int, page_size: int,
