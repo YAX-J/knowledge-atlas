@@ -10,6 +10,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Java factory-local `var` inference now covers unqualified current/inherited static members and explicit/wildcard static imports, including private static factories in the exact current type. Member-name precedence, arity/varargs filtering, agreed return types, lexical lifetimes, original method IDs/lines, repository isolation and ambiguity are preserved. Shadowed type qualifiers, method type-parameter returns, missing selected import owners and mixed instance/static member candidates keep locals unknown. Focused coverage includes an upload/parse/structure API flow.
+
 - Bounded Java method-local `var` inference for complete type-qualified static factory initializers when accessible repository-local candidates agree on one resolvable return qualified name. Later receiver calls retain original target symbols, lexical shadowing, argument-count filtering and ambiguity; unsupported, external, non-static, private or disagreeing factories remain unknown. No API shape, persistence or formal-graph write changes.
 
 - Exact original-source navigation from graph entity/relationship evidence, knowledge search hits and answer citations, using a project-scoped chunk UUID lookup, original chunk pagination, keyboard focus/highlight, visible error/retry/cancel and stale-request fencing. No text/name guessing, migration, provider call or knowledge write is introduced.

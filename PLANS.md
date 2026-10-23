@@ -46,6 +46,8 @@ Completed:
 
 ## Active phase
 
+Stage 4 now extends factory-local `var` inference to unqualified current/inherited static members and explicit/wildcard static imports, preserving member-name precedence, lexical shadowing, agreed return types and original method evidence. Shadowed type qualifiers and method type parameters suppress false inference. See [ADR 0037](docs/adr/0037-unqualified-java-factory-receivers.md).
+
 Graph details, knowledge search and question citations now open exact local source chunks by scoped UUID, automatically selecting the correct chunk page and focusing/highlighting the original. Missing or inaccessible targets fail explicitly; no model, graph write or migration is added. This closes a source-provenance navigation gap while Stage 4 remains active; see [ADR 0035](docs/adr/0035-exact-evidence-source-navigation.md).
 
 Saved snapshots now expose paginated per-file provenance with safe source/task navigation, exact selected-commit file links, and explicit deletion/skip/truncation states. This is a read-only extension of Stage 4, not a Git diff or complete repository listing; no migration/provider call is added. See [ADR 0034](docs/adr/0034-snapshot-file-provenance.md).
@@ -90,7 +92,7 @@ Project keyword, semantic-vector, explainable one-hop graph hybrid retrieval, an
 ## Later phases
 
 1. Representative real-answer acceptance and retrieval/prompt quality evaluation.
-2. Extend Java resolution beyond the supported lexical blocks, constructor initializers and bounded type-qualified static factories, and evaluate webhook-backed authoritative GitHub Review-thread events beyond the bounded GraphQL state snapshot.
+2. Extend Java resolution beyond the supported lexical blocks, constructor initializers and bounded static factories (type-qualified, member or imported), and evaluate webhook-backed authoritative GitHub Review-thread events beyond the bounded GraphQL state snapshot.
 3. Temporal evolution, governance, experiments, and deployment.
 
 Markdown parsing, schema-constrained review, and confirmed-candidate graph persistence are complete as bounded slices.

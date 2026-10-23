@@ -42,8 +42,8 @@ CONSTRUCTOR_INITIALIZER = re.compile(
     r"(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*"
 )
 FACTORY_INITIALIZER = re.compile(
-    r"\s*(?P<owner>[A-Za-z_$][\w$]*"
-    r"(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*\.\s*"
+    r"\s*(?:(?P<owner>[A-Za-z_$][\w$]*"
+    r"(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*\.\s*)?"
     r"(?P<name>[A-Za-z_$][\w$]*)\s*\("
 )
 LOCAL_CALL = re.compile(
@@ -377,6 +377,7 @@ def _method_prefix(
     """Read modifiers and a raw return type from the bounded method grammar."""
     remainder = prefix.strip()
     modifiers: set[str] = set()
+    type_parameters: set[str] = set()
     while remainder:
         token = re.match(r"(?P<token>[A-Za-z_$][\w$]*)\b\s*", remainder)
         if token is None or token.group("token") not in METHOD_MODIFIERS:
@@ -392,6 +393,10 @@ def _method_prefix(
             elif char == ">":
                 depth -= 1
                 if depth == 0:
+                    for parameter, _ in _split_type_list(remainder[1:position]):
+                        parameter_name = _referenced_type_name(parameter)
+                        if parameter_name is not None:
+                            type_parameters.add(parameter_name[0])
                     remainder = remainder[position + 1:].strip()
                     break
         else:
@@ -403,7 +408,7 @@ def _method_prefix(
         return frozenset(modifiers), None
     referenced = _referenced_type_name(remainder)
     return_type = referenced[0] if referenced is not None else None
-    if return_type == "void":
+    if return_type == "void" or return_type in type_parameters:
         return_type = None
     return frozenset(modifiers), return_type
 
@@ -1006,9 +1011,22 @@ def _local_variable_types(
     method: _MethodDeclaration,
     scopes: _MethodScopes,
     lookup: "_MethodLookup",
+    field_types: dict[tuple[str, str], str],
 ) -> dict[str, list[_LocalBinding]]:
     if method.opening is None:
         return {}
+    owner = next(item for item in current.types if item.name == method.owner)
+    parameter_names = {
+        match.group("name")
+        for part, _ in _split_type_list(method.parameters)
+        if (match := re.search(
+            r"(?P<name>[A-Za-z_$][\w$]*)\s*(?:\[\s*\])?\s*$", part,
+        )) is not None
+    }
+    field_names = {
+        name for (owner_name, name) in field_types
+        if owner_name == method.owner
+    }
     result: dict[str, list[_LocalBinding]] = {}
     for scope in scopes.blocks:
         if scope.supported and scope.header_bindings is not None:
@@ -1058,10 +1076,16 @@ def _local_variable_types(
             current.sanitized[match.end():terminator]
         )
         if inferred_type is None:
+            shadowed_names = parameter_names | field_names | {
+                name for name, bindings in result.items()
+                if any(binding.start <= match.end() < binding.end for binding in bindings)
+            }
             inferred_type = _factory_initialized_type(
                 current.sanitized[match.end():terminator],
                 current=current,
                 lookup=lookup,
+                caller_owner=owner,
+                shadowed_names=shadowed_names,
             )
         if inferred_type is not None:
             declarations.append(_LocalBinding(terminator, scope.end, inferred_type))
@@ -1237,15 +1261,19 @@ def _factory_method_is_accessible(
     current: _JavaTypeIndex,
     lookup: _MethodLookup,
     method: JavaRelatedMethod,
+    *,
+    private_owner: JavaRelatedType | None = None,
 ) -> bool:
     index = lookup.indexes[method.source_id]
     declaration = index.method_declarations[method.id]
-    if "static" not in declaration.modifiers or "private" in declaration.modifiers:
+    if "static" not in declaration.modifiers:
         return False
     owner = next(
         item for item in index.types
         if item.qualified_name == method.owner_qualified_name
     )
+    if "private" in declaration.modifiers:
+        return private_owner is not None and private_owner.id == owner.id
     if not _type_is_accessible(current, lookup, owner):
         return False
     if index.package_name == current.package_name:
@@ -1258,6 +1286,8 @@ def _factory_initialized_type(
     *,
     current: _JavaTypeIndex,
     lookup: _MethodLookup,
+    caller_owner: JavaRelatedType,
+    shadowed_names: set[str],
 ) -> str | None:
     """Infer one repository-local return type from a complete static factory call."""
     match = FACTORY_INITIALIZER.match(initializer)
@@ -1278,22 +1308,47 @@ def _factory_initialized_type(
     if closing is None or initializer[closing + 1:].strip():
         return None
 
-    owner_name = re.sub(r"\s+", "", match.group("owner"))
-    if not owner_name.rsplit(".", 1)[-1][:1].isupper():
-        return None
-    owners = _resolve_type_name(current, owner_name, lookup.types_by_name)
-    if not owners or any(
-        not _type_is_accessible(current, lookup, owner) for owner in owners
-    ):
-        return None
-
     arity = _call_arity(initializer, opening, closing + 1)
-    methods = [
-        method
-        for owner in owners
-        for method in lookup.candidates(owner, match.group("name"), arity)
-        if _factory_method_is_accessible(current, lookup, method)
-    ]
+    name = match.group("name")
+    if match.group("owner") is None:
+        # Member names suppress imports even if the member's arity or static
+        # modifier cannot support this initializer. Match ordinary call lookup.
+        members = lookup.candidates(caller_owner, name, None)
+        if lookup.truncated:
+            return None
+        if members:
+            methods = lookup.candidates(caller_owner, name, arity)
+            if any(
+                not _factory_method_is_accessible(
+                    current, lookup, method, private_owner=caller_owner,
+                )
+                for method in methods
+            ):
+                return None
+        else:
+            import_owners = current.static_imports.get(name, current.static_wildcard_imports)
+            # A missing import owner may provide another return type. Do not
+            # infer a type from just the known part of the bounded source set.
+            if any(not lookup.types_by_name.get(owner) for owner in import_owners):
+                return None
+            methods = _static_import_candidates(current, lookup, name, arity)
+    else:
+        owner_name = re.sub(r"\s+", "", match.group("owner"))
+        if (owner_name.split(".", 1)[0] in shadowed_names
+                or not owner_name.rsplit(".", 1)[-1][:1].isupper()):
+            return None
+        owners = _resolve_type_name(current, owner_name, lookup.types_by_name)
+        if not owners or any(
+            not _type_is_accessible(current, lookup, owner) for owner in owners
+        ):
+            return None
+        methods = [
+            method
+            for owner in owners
+            for method in lookup.candidates(owner, name, arity)
+        ]
+        if any(not _factory_method_is_accessible(current, lookup, method) for method in methods):
+            return None
     if lookup.truncated or not methods:
         return None
 
@@ -1368,7 +1423,7 @@ def _resolve_cross_file_calls(
         scopes = _method_scopes(
             current.sanitized, opening=method.opening, end=method.end,
         )
-        local_types = _local_variable_types(current, method, scopes, lookup)
+        local_types = _local_variable_types(current, method, scopes, lookup, field_types)
         owner = next(item for item in current.types if item.name == method.owner)
         call_matches = [(match, re.sub(r"\s+", "", match.group("receiver")), False)
                         for match in QUALIFIED_CALL.finditer(current.sanitized, method.opening + 1, method.end)]

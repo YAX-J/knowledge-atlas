@@ -112,6 +112,8 @@
 
 ## 阶段四 代码与 GitHub 数据
 
+工厂 `var` 进一步支持当前/继承静态成员与显式/通配静态导入的完整未限定名调用，按成员名称优先并要求返回限定名一致；类型限定名遮蔽和方法类型参数返回继续保持未知。阶段四仍在进行，见 [ADR 0037](adr/0037-unqualified-java-factory-receivers.zh-CN.md)。
+
 Java V1 现可从完整 `Type.factory(...)` 静态工厂初始化表达式推断普通方法体局部 `var`：只有可访问的仓库内候选对一个可解析返回限定名一致时才继续解析后续接收者调用；其余情况保持未知并阻止回退。该切片不包含通用表达式/数据流推断，见 [ADR 0036](adr/0036-bounded-java-static-factory-var-receivers.zh-CN.md)。
 
 图谱、搜索和问答引用可按证据 UUID 跳回本地精确分块，自动翻页和聚焦/高亮，补齐 Markdown/Java/提交说明等已保存来源的核验入口；不改变正式知识语义或引入新阶段，见 [ADR 0035](adr/0035-exact-evidence-source-navigation.zh-CN.md)。

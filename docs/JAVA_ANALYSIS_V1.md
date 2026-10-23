@@ -8,19 +8,19 @@ V1 is a bounded, read-only source outline and call-candidate analysis, not a Jav
 
 The static-import extension ([ADR 0030](adr/0030-java-static-import-calls.md)) adds explicit and wildcard imports for unqualified calls to accessible static methods in other ready sources in the same repository. Member names conservatively suppress import fallback, including arity mismatches; explicit imports suppress wildcard fallback even for missing owners. `this`/`super` calls never use imports. Results use `receiver="import static"` and original target symbols/lines, preserving overload/version ambiguity. Private/non-static methods, inaccessible imported types/methods, external dependencies, static-imported nested types/fields, and complete access/type semantics remain excluded. Incomplete member lookup suppresses import fallback.
 
-The static-factory extension ([ADR 0036](adr/0036-bounded-java-static-factory-var-receivers.md)) infers an ordinary method-local `var` only from a complete `Type.factory(...)` initializer when accessible repository-local static candidates agree on one resolvable repository-local return qualified name. The binding begins after its declaration and keeps existing lexical shadowing. Missing, inaccessible, non-static, private, external-return or disagreeing candidates leave the local unknown.
+The static-factory extensions ([ADR 0036](adr/0036-bounded-java-static-factory-var-receivers.md), [ADR 0037](adr/0037-unqualified-java-factory-receivers.md)) infer ordinary method-local `var` from complete `Type.factory(...)` or unqualified `factory(...)` initializers when selected accessible repository-local static candidates agree on one resolvable return qualified name. Unqualified calls prefer current/inherited members; any member name suppresses import fallback. A private static factory is supported only as an unqualified member of the exact current type. Other unqualified calls use explicit/wildcard static imports. Missing selected import owners, incomplete member lookup, non-static/member-access failures, external/array/type-parameter returns and disagreeing return types keep the local unknown. Supported locals/parameters/current-type fields shadowing a type qualifier suppress inference.
 
 | Area | V1 behavior | Deliberate limit |
 | --- | --- | --- |
 | Source structure | Top-level types, conventional fields/methods, exact chunks and lines | No complete AST or nested/generated-type semantics |
-| Receivers | Direct types, current-type fields, parameters, lexical locals, constructor-initialized `var`, and uniquely returned type-qualified static factories | No general factory/chained inference, reassignment data flow, generic substitution, or runtime data flow |
+| Receivers | Direct types, current-type fields, parameters, lexical locals, constructor-initialized `var`, and static factories qualified by type or called through members/static imports | No general factory/chained inference, reassignment data flow, generic substitution, or runtime data flow |
 | Scoped bodies | Ordinary/if/else/while/try/catch/finally and braced enhanced/classic for/resource try | No general unbraced control flow, switch/pattern/lambda/anonymous/local-type semantics |
 | Header bindings | Single classic-for declaration; multiple resource declarations or existing references; enhanced-for and catch parameters | Header calls omitted; annotated/complex/multi-declarator headers excluded; unknown `var`, array elements and union catches shadow instead of guessing |
 | Inheritance | Repository-local extends/implements candidates, original target IDs, unqualified/this/super calls, signature-based override suppression, diamond deduplication | No runtime implementation selection; private/constructor/interface-static inheritance excluded; full access/type checking deferred |
 | Overloads | Argument-count filtering and varargs for same-file and cross-file calls | Same-arity type overloads stay ambiguous; uncertain generic/comparison expressions do not narrow candidates |
 | Safety | Same repository/user/project readiness boundaries, duplicate versions ambiguous, no compiler/service execution | Sources not imported or not ready cannot supply targets |
 
-`resolved` means one candidate within these rules, not a guarantee about Java compilation or runtime dispatch. Full Java semantics, external dependency/build-system integration, and further language coverage are separate future work. Multiline headers are supported; body declarations remain the existing line-oriented single-variable subset. Factory inference excludes chained, cast, conditional, instance, unqualified/static-import, header-binding and reassignment forms.
+`resolved` means one candidate within these rules, not a guarantee about Java compilation or runtime dispatch. Full Java semantics, external dependency/build-system integration, and further language coverage are separate future work. Multiline headers are supported; body declarations remain the existing line-oriented single-variable subset. Factory inference excludes chained, cast, conditional, instance, `this`/`super`-qualified, header-binding and reassignment forms.
 
 ## Bounds
 
@@ -32,7 +32,7 @@ Use the existing backend virtual environment; no GitHub/LLM token, frontend, or 
 
 ```powershell
 # backend/
-.\.venv\Scripts\python.exe -m pytest tests/test_java_static_imports.py tests/test_java_v1.py tests/test_java_structure.py tests/test_parsing.py
+.\.venv\Scripts\python.exe -m pytest tests/test_java_factory_receivers.py tests/test_java_static_imports.py tests/test_java_v1.py tests/test_java_structure.py tests/test_parsing.py
 .\.venv\Scripts\python.exe -m pytest
 # repository root
 git diff --check
@@ -53,3 +53,7 @@ The user selected agent execution after receiving the commands, prerequisites, a
 ## Static-factory receiver extension acceptance — 2026-10-23
 
 The user selected agent execution after receiving the commands, prerequisites, and expected results. The focused Java/parsing regression passed 133 tests; the full backend suite passed 377 tests with the existing Starlette deprecation warning. The sandbox run again stalled without output at the HTTP TestClient phase and was stopped; authorized execution outside the sandbox passed. No migration, real GitHub/LLM, native PostgreSQL, frontend build, or browser acceptance was required for this backend-only, response-shape-preserving extension.
+
+## Unqualified factory extension acceptance — 2026-10-23
+
+Agent execution continued under the user's existing executor choice. Using the existing backend virtual environment outside the sandbox to avoid the previously confirmed TestClient stall, final focused factory/Java/parsing regression passed 166 tests and the full backend suite passed 410 tests. The existing Starlette deprecation warning remains. New coverage includes original method IDs/lines, explicit/wildcard import precedence, current private static and inherited factories, arity/varargs, mixed instance/static overloads, return disagreement, missing import owners, duplicate versions, scope exit, name/type-parameter shadowing, output bounds and a repository/readiness-scoped upload/parse/structure API flow. This backend-only change adds no migration; real providers, native PostgreSQL and browser interaction were not exercised.

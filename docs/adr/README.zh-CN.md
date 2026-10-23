@@ -99,3 +99,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0034：查询已保存的快照逐文件来源](0034-snapshot-file-provenance.zh-CN.md)
 - [ADR 0035：从证据跳转到精确原文分块](0035-exact-evidence-source-navigation.zh-CN.md)
 - [ADR 0036：从静态工厂调用推断有界 Java `var` 接收者](0036-bounded-java-static-factory-var-receivers.zh-CN.md)
+- [ADR 0037：解析未限定名 Java 工厂接收者](0037-unqualified-java-factory-receivers.zh-CN.md)
