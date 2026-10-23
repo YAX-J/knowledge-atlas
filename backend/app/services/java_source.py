@@ -41,6 +41,11 @@ CONSTRUCTOR_INITIALIZER = re.compile(
     r"\s*new\s+(?P<type>[A-Za-z_$][\w$]*"
     r"(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*"
 )
+FACTORY_INITIALIZER = re.compile(
+    r"\s*(?P<owner>[A-Za-z_$][\w$]*"
+    r"(?:\s*\.\s*[A-Za-z_$][\w$]*)*)\s*\.\s*"
+    r"(?P<name>[A-Za-z_$][\w$]*)\s*\("
+)
 LOCAL_CALL = re.compile(
     r"(?<![\w$.])(?:(?:this)\s*\.\s*)?(?P<name>[A-Za-z_$][\w$]*)\s*\("
 )
@@ -51,6 +56,10 @@ QUALIFIED_CALL = re.compile(
     r"\s*\.\s*(?P<name>[A-Za-z_$][\w$]*)\s*\("
 )
 CONTROL_WORDS = {"if", "for", "while", "switch", "catch", "try", "do", "new", "return", "throw"}
+METHOD_MODIFIERS = frozenset({
+    "public", "protected", "private", "static", "final", "abstract",
+    "synchronized", "native", "default", "strictfp",
+})
 MAX_STRUCTURE_SYMBOLS = 200
 MAX_STRUCTURE_CALLS = 500
 MAX_RELATED_TYPES = 400
@@ -176,6 +185,7 @@ class _MethodDeclaration:
     opening: int | None
     end: int
     modifiers: frozenset[str] = frozenset()
+    return_type: str | None = None
 
 
 @dataclass
@@ -361,6 +371,43 @@ def _closing_brace(text: str, opening: int) -> int:
     return len(text) - 1
 
 
+def _method_prefix(
+    prefix: str, *, owner: str, name: str,
+) -> tuple[frozenset[str], str | None]:
+    """Read modifiers and a raw return type from the bounded method grammar."""
+    remainder = prefix.strip()
+    modifiers: set[str] = set()
+    while remainder:
+        token = re.match(r"(?P<token>[A-Za-z_$][\w$]*)\b\s*", remainder)
+        if token is None or token.group("token") not in METHOD_MODIFIERS:
+            break
+        modifiers.add(token.group("token"))
+        remainder = remainder[token.end():]
+
+    if remainder.startswith("<"):
+        depth = 0
+        for position, char in enumerate(remainder):
+            if char == "<":
+                depth += 1
+            elif char == ">":
+                depth -= 1
+                if depth == 0:
+                    remainder = remainder[position + 1:].strip()
+                    break
+        else:
+            remainder = ""
+
+    if name == owner:
+        return frozenset(modifiers), None
+    if re.search(r"\[\s*\]\s*$", remainder):
+        return frozenset(modifiers), None
+    referenced = _referenced_type_name(remainder)
+    return_type = referenced[0] if referenced is not None else None
+    if return_type == "void":
+        return_type = None
+    return frozenset(modifiers), return_type
+
+
 def _declarations(text: str) -> list[tuple[_TypeDeclaration, list[_MethodDeclaration]]]:
     depths = _depths(text)
     result: list[tuple[_TypeDeclaration, list[_MethodDeclaration]]] = []
@@ -387,11 +434,17 @@ def _declarations(text: str) -> list[tuple[_TypeDeclaration, list[_MethodDeclara
             method_opening = end_offset if method_match.group("end") == "{" else None
             if method_opening is not None:
                 end_offset = _closing_brace(text, method_opening)
+            modifiers, return_type = _method_prefix(
+                method_match.group("prefix"),
+                owner=type_declaration.name,
+                name=method_name,
+            )
             methods.append(_MethodDeclaration(
                 owner=type_declaration.name, name=method_name,
                 parameters=method_match.group("params"),
                 start=method_match.start(), opening=method_opening, end=end_offset,
-                modifiers=frozenset(method_match.group("prefix").split()),
+                modifiers=modifiers,
+                return_type=return_type,
             ))
         result.append((type_declaration, methods))
     return result
@@ -952,6 +1005,7 @@ def _local_variable_types(
     current: _JavaTypeIndex,
     method: _MethodDeclaration,
     scopes: _MethodScopes,
+    lookup: "_MethodLookup",
 ) -> dict[str, list[_LocalBinding]]:
     if method.opening is None:
         return {}
@@ -1003,6 +1057,12 @@ def _local_variable_types(
         inferred_type = _constructor_initialized_type(
             current.sanitized[match.end():terminator]
         )
+        if inferred_type is None:
+            inferred_type = _factory_initialized_type(
+                current.sanitized[match.end():terminator],
+                current=current,
+                lookup=lookup,
+            )
         if inferred_type is not None:
             declarations.append(_LocalBinding(terminator, scope.end, inferred_type))
     for declarations in result.values():
@@ -1158,6 +1218,103 @@ class _MethodLookup:
         return result
 
 
+def _type_is_accessible(
+    current: _JavaTypeIndex,
+    lookup: _MethodLookup,
+    target: JavaRelatedType,
+) -> bool:
+    target_index = lookup.indexes[target.source_id]
+    if target_index.package_name == current.package_name:
+        return True
+    declaration = next(
+        item for item in target_index.declarations if item.name == target.name
+    )
+    header = target_index.sanitized[declaration.start:declaration.header_start]
+    return re.search(r"\bpublic\b", header) is not None
+
+
+def _factory_method_is_accessible(
+    current: _JavaTypeIndex,
+    lookup: _MethodLookup,
+    method: JavaRelatedMethod,
+) -> bool:
+    index = lookup.indexes[method.source_id]
+    declaration = index.method_declarations[method.id]
+    if "static" not in declaration.modifiers or "private" in declaration.modifiers:
+        return False
+    owner = next(
+        item for item in index.types
+        if item.qualified_name == method.owner_qualified_name
+    )
+    if not _type_is_accessible(current, lookup, owner):
+        return False
+    if index.package_name == current.package_name:
+        return True
+    return "public" in declaration.modifiers or owner.id in lookup.interfaces
+
+
+def _factory_initialized_type(
+    initializer: str,
+    *,
+    current: _JavaTypeIndex,
+    lookup: _MethodLookup,
+) -> str | None:
+    """Infer one repository-local return type from a complete static factory call."""
+    match = FACTORY_INITIALIZER.match(initializer)
+    if match is None:
+        return None
+    opening = match.end() - 1
+    depth = 0
+    closing = None
+    for position in range(opening, len(initializer)):
+        char = initializer[position]
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                closing = position
+                break
+    if closing is None or initializer[closing + 1:].strip():
+        return None
+
+    owner_name = re.sub(r"\s+", "", match.group("owner"))
+    if not owner_name.rsplit(".", 1)[-1][:1].isupper():
+        return None
+    owners = _resolve_type_name(current, owner_name, lookup.types_by_name)
+    if not owners or any(
+        not _type_is_accessible(current, lookup, owner) for owner in owners
+    ):
+        return None
+
+    arity = _call_arity(initializer, opening, closing + 1)
+    methods = [
+        method
+        for owner in owners
+        for method in lookup.candidates(owner, match.group("name"), arity)
+        if _factory_method_is_accessible(current, lookup, method)
+    ]
+    if lookup.truncated or not methods:
+        return None
+
+    return_types: set[str] = set()
+    for method in methods:
+        index = lookup.indexes[method.source_id]
+        return_type = index.method_declarations[method.id].return_type
+        if return_type is None:
+            return None
+        targets = _resolve_type_name(index, return_type, lookup.types_by_name)
+        qualified_names = {
+            target.qualified_name
+            for target in targets
+            if _type_is_accessible(current, lookup, target)
+        }
+        if len(qualified_names) != 1:
+            return None
+        return_types.update(qualified_names)
+    return next(iter(return_types)) if len(return_types) == 1 else None
+
+
 def _static_import_candidates(
     current: _JavaTypeIndex, lookup: _MethodLookup, name: str, arity: int | None,
 ) -> list[JavaRelatedMethod]:
@@ -1211,7 +1368,7 @@ def _resolve_cross_file_calls(
         scopes = _method_scopes(
             current.sanitized, opening=method.opening, end=method.end,
         )
-        local_types = _local_variable_types(current, method, scopes)
+        local_types = _local_variable_types(current, method, scopes, lookup)
         owner = next(item for item in current.types if item.name == method.owner)
         call_matches = [(match, re.sub(r"\s+", "", match.group("receiver")), False)
                         for match in QUALIFIED_CALL.finditer(current.sanitized, method.opening + 1, method.end)]

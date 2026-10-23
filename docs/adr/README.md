@@ -98,3 +98,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0033: Import saved commit messages as evidence sources](0033-saved-commit-evidence-sources.md)
 - [ADR 0034: Read saved snapshot file provenance](0034-snapshot-file-provenance.md)
 - [ADR 0035: Navigate evidence to exact original source chunks](0035-exact-evidence-source-navigation.md)
+- [ADR 0036: Infer bounded Java `var` receivers from static factory calls](0036-bounded-java-static-factory-var-receivers.md)

@@ -528,6 +528,170 @@ def test_code_structure_resolves_constructor_var_receivers_with_repository_scope
     assert client.get(endpoint).json() == structure
 
 
+def test_factory_initialized_var_resolves_unique_repository_return_type() -> None:
+    factory_id = uuid.uuid4()
+    validator_id = uuid.uuid4()
+    structure = analyze_java(
+        (
+            "package example;\n"
+            "import tools.Factory;\n"
+            "class Consumer {\n"
+            "    void run() {\n"
+            "        var validator = Factory.create(\"input\");\n"
+            "        validator.validate();\n"
+            "    }\n"
+            "}\n"
+        ),
+        source_id=uuid.uuid4(),
+        source_path="src/example/Consumer.java",
+        related_sources=[
+            JavaSourceInput(
+                source_id=factory_id,
+                source_path="src/tools/Factory.java",
+                content=(
+                    "package tools;\n"
+                    "import model.Validator;\n"
+                    "public class Factory {\n"
+                    "    public static Validator create(String value) { return null; }\n"
+                    "}\n"
+                ),
+            ),
+            JavaSourceInput(
+                source_id=validator_id,
+                source_path="src/model/Validator.java",
+                content=(
+                    "package model;\n"
+                    "public class Validator {\n"
+                    "    public void validate() {}\n"
+                    "}\n"
+                ),
+            ),
+        ],
+    )
+
+    methods = {method.id: method for method in structure.related_methods}
+    calls = {
+        (call.receiver, call.callee_name): call
+        for call in structure.cross_file_calls
+    }
+    assert set(calls) == {("Factory", "create"), ("validator", "validate")}
+    assert calls[("Factory", "create")].resolution == "resolved"
+    assert methods[calls[("Factory", "create")].target_ids[0]].source_id == factory_id
+    assert calls[("validator", "validate")].resolution == "resolved"
+    assert methods[calls[("validator", "validate")].target_ids[0]].source_id == validator_id
+
+
+def test_factory_initialized_var_stays_unknown_when_return_types_disagree() -> None:
+    structure = analyze_java(
+        (
+            "package example;\n"
+            "class Consumer {\n"
+            "    Result value;\n"
+            "    void run() {\n"
+            "        var value = Factory.create(1);\n"
+            "        value.validate();\n"
+            "        this.value.validate();\n"
+            "    }\n"
+            "}\n"
+        ),
+        source_id=uuid.uuid4(),
+        related_sources=[
+            JavaSourceInput(
+                source_id=uuid.uuid4(),
+                source_path="src/example/Factory.java",
+                content=(
+                    "package example;\n"
+                    "class Factory {\n"
+                    "    static Left create(int value) { return null; }\n"
+                    "    static Right create(String value) { return null; }\n"
+                    "}\n"
+                ),
+            ),
+            JavaSourceInput(
+                source_id=uuid.uuid4(),
+                source_path="src/example/Left.java",
+                content=(
+                    "package example;\nclass Left {\n"
+                    "    void validate() {}\n}\n"
+                ),
+            ),
+            JavaSourceInput(
+                source_id=uuid.uuid4(),
+                source_path="src/example/Right.java",
+                content=(
+                    "package example;\nclass Right {\n"
+                    "    void validate() {}\n}\n"
+                ),
+            ),
+            JavaSourceInput(
+                source_id=uuid.uuid4(),
+                source_path="src/example/Result.java",
+                content=(
+                    "package example;\nclass Result {\n"
+                    "    void validate() {}\n}\n"
+                ),
+            ),
+        ],
+    )
+
+    assert [
+        (call.receiver, call.callee_name, call.resolution)
+        for call in structure.cross_file_calls
+    ] == [
+        ("Factory", "create", "ambiguous"),
+        ("this.value", "validate", "resolved"),
+    ]
+
+
+@pytest.mark.parametrize("factory_method", [
+    "Validator create() { return null; }",
+    "private static Validator create() { return null; }",
+    "static Missing create() { return null; }",
+    "static Validator[] create() { return null; }",
+])
+def test_unsupported_factory_methods_do_not_infer_var_receivers(
+    factory_method: str,
+) -> None:
+    structure = analyze_java(
+        (
+            "package example;\n"
+            "class Consumer {\n"
+            "    Validator value;\n"
+            "    void run() {\n"
+            "        var value = Factory.create();\n"
+            "        value.validate();\n"
+            "        this.value.validate();\n"
+            "    }\n"
+            "}\n"
+        ),
+        source_id=uuid.uuid4(),
+        related_sources=[
+            JavaSourceInput(
+                source_id=uuid.uuid4(),
+                source_path="src/example/Factory.java",
+                content=(
+                    "package example;\nclass Factory {\n"
+                    f"    {factory_method}\n"
+                    "}\n"
+                ),
+            ),
+            JavaSourceInput(
+                source_id=uuid.uuid4(),
+                source_path="src/example/Validator.java",
+                content=(
+                    "package example;\nclass Validator {\n"
+                    "    void validate() {}\n}\n"
+                ),
+            ),
+        ],
+    )
+
+    assert [
+        call.receiver for call in structure.cross_file_calls
+        if call.callee_name == "validate"
+    ] == ["this.value"]
+
+
 @pytest.mark.parametrize("initializer", [
     "new Validator()",
     "new example.Validator<>()",

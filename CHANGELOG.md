@@ -10,6 +10,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Bounded Java method-local `var` inference for complete type-qualified static factory initializers when accessible repository-local candidates agree on one resolvable return qualified name. Later receiver calls retain original target symbols, lexical shadowing, argument-count filtering and ambiguity; unsupported, external, non-static, private or disagreeing factories remain unknown. No API shape, persistence or formal-graph write changes.
+
 - Exact original-source navigation from graph entity/relationship evidence, knowledge search hits and answer citations, using a project-scoped chunk UUID lookup, original chunk pagination, keyboard focus/highlight, visible error/retry/cancel and stale-request fencing. No text/name guessing, migration, provider call or knowledge write is introduced.
 
 - Read-only saved-snapshot file provenance with stable pagination, import/reuse/unchanged/rename/delete/skip states, original paths, blob IDs and skip reasons, scoped source/task links, selected-commit GitHub URLs, and desktop original-source navigation. Deleted files retain local sources without fabricated links into the deletion commit; missing/incompatible references remain unavailable. No new migration, provider request, patch or formal knowledge is introduced.
