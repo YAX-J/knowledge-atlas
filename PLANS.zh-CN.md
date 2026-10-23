@@ -46,6 +46,8 @@
 
 ## 当前阶段
 
+阶段四已支持带花括号的传统 for 与资源 try 头部工厂初始化 `var`，按源码/资源声明顺序处理，解析绑定仅在主体生效。头部调用继续省略，catch/finally/相邻块恢复外层绑定。见 [ADR 0038](docs/adr/0038-java-header-factory-receivers.zh-CN.md)。
+
 阶段四已把工厂局部 `var` 推断扩展到未限定名的当前/继承静态成员及显式/通配静态导入，保留成员名称优先、词法遮蔽、一致返回类型与原方法证据。类型限定名被遮蔽或方法类型参数返回时停止错误推断。见 [ADR 0037](docs/adr/0037-unqualified-java-factory-receivers.zh-CN.md)。
 
 图谱详情、知识搜索与问答引用现在可按作用域内 UUID 打开本地精确原文分块，自动翻到对应页并聚焦/高亮。缺失或不可访问目标明确失败，不新增模型调用、图谱写入或迁移。这补齐来源追溯导航，阶段四仍在进行，见 [ADR 0035](docs/adr/0035-exact-evidence-source-navigation.zh-CN.md)。

@@ -69,7 +69,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - Markdown 解析标题、段落、列表和围栏代码块；Java 解析顶层类型与常规直接成员方法。两者保存精确原文、结构路径及行号，并按项目、可空仓库、来源类型和内容哈希复用来源与任务。
 - 从已解析 Java 原文按需派生类型、常规字段、未限定/`this.` 同文件调用，以及同仓库已解析来源中的 `extends`/`implements` 目标，不写入正式知识图谱；未归属仓库的旧来源仅在同项目未归属集合内解析。
 - Java 静态导入支持把 `import static Type.method` / `Type.*` 的未限定调用链接到同仓库已解析来源中的可访问静态方法，保留成员名称优先和歧义；边界见 [ADR 0030](docs/adr/0030-java-static-import-calls.zh-CN.md)。
-- 普通方法体的 `var x = create(...)` 可经当前/继承静态成员或静态导入推断一致的仓库内返回类型，再定位 `x.method()`；成员优先、类型名遮蔽及未知/冲突返回均保守处理，见 [ADR 0037](docs/adr/0037-unqualified-java-factory-receivers.zh-CN.md)。
+- 方法体及受支持传统 for/资源 try 头部的 `var x = create(...)` 可经当前/继承静态成员或静态导入推断一致的仓库内返回类型，再定位 `x.method()`；成员优先、声明顺序、类型名遮蔽及未知/冲突返回均保守处理，见 [ADR 0037](docs/adr/0037-unqualified-java-factory-receivers.zh-CN.md) 与 [ADR 0038](docs/adr/0038-java-header-factory-receivers.zh-CN.md)。
 - 资料工作台可按名称/文件路径检索已解析 Java 符号，支持仓库和类型筛选、截断提示，并跳到声明所在原文分块；GitHub 文件提供固定 Commit/行号链接，见 [ADR 0032](docs/adr/0032-bounded-code-symbol-search.zh-CN.md)。
 - 仓库卡片可分页查看已保存的同步快照，显式把提交说明保存为 Markdown 资料并打开解析任务；相同提交跨 ref/仓库改名可复用，资料与证据打开规范 Commit 页面。此操作不访问 GitHub，不导入 diff 或自动创建正式知识，见 [ADR 0033](docs/adr/0033-saved-commit-evidence-sources.zh-CN.md)。
 - 每份快照可分页展开已保存的逐文件状态、blob、原路径与跳过原因，并打开对应资料；文件外链固定到所选快照，删除项仅打开本地保留资料而不伪造删除后文件链接，见 [ADR 0034](docs/adr/0034-snapshot-file-provenance.zh-CN.md)。

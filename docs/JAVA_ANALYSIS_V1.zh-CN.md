@@ -8,19 +8,21 @@ V1 是有界、只读的源码大纲与调用候选分析，不是 Java 编译�
 
 静态导入扩展（[ADR 0030](adr/0030-java-static-import-calls.zh-CN.md)）增加显式/通配导入，把未限定调用链接到同仓库其他 ready 来源中的可访问静态方法。成员名称保守阻止导入回退，包括参数数量不符的情况；显式导入阻止通配回退，即使所属类型缺失。`this`/`super` 调用不使用导入。结果使用 `receiver="import static"` 和原目标符号/行号，保留重载/版本歧义。私有/非静态方法、不可访问的导入类型/方法、外部依赖、静态导入嵌套类型/字段及完整访问/类型语义仍不支持。成员查找不完整时不回退导入。
 
-静态工厂扩展（[ADR 0036](adr/0036-bounded-java-static-factory-var-receivers.zh-CN.md)、[ADR 0037](adr/0037-unqualified-java-factory-receivers.zh-CN.md)）可从完整 `Type.factory(...)` 或未限定名 `factory(...)` 初始化推断普通方法体局部 `var`，要求所选可访问仓库内静态候选对同一个可解析返回限定名一致。未限定调用优先查找当前/继承成员；只要存在成员名称就阻止导入回退。私有静态工厂仅支持在精确当前类型中以未限定名调用。其余未限定调用使用显式/通配静态导入。所选导入所有者缺失、成员查找不完整、非静态/成员不可访问、外部/数组/类型参数返回或返回类型不一致时保持未知。受支持局部变量/参数/当前类型字段遮蔽类型限定名时停止推断。
+静态工厂扩展（[ADR 0036](adr/0036-bounded-java-static-factory-var-receivers.zh-CN.md)、[ADR 0037](adr/0037-unqualified-java-factory-receivers.zh-CN.md)）可从完整 `Type.factory(...)` 或未限定名 `factory(...)` 初始化推断方法局部 `var`，要求所选可访问仓库内静态候选对同一个可解析返回限定名一致。未限定调用优先查找当前/继承成员；只要存在成员名称就阻止导入回退。私有静态工厂仅支持在精确当前类型中以未限定名调用。其余未限定调用使用显式/通配静态导入。所选导入所有者缺失、成员查找不完整、非静态/成员不可访问、外部/数组/类型参数返回或返回类型不一致时保持未知。受支持局部变量/参数/当前类型字段遮蔽类型限定名时停止推断。
+
+头部扩展（[ADR 0038](adr/0038-java-header-factory-receivers.zh-CN.md)）把相同工厂规则用于带花括号主体的传统 for 单声明及资源 try 单/多声明。头部与方法体声明按源码顺序求解：前面的资源名遮蔽后面的限定名，后面的名称不能影响前面的初始化表达式。绑定只在主体及其嵌套作用域可见，不泄漏到 catch/finally 或相邻块。头部调用边继续省略，未知工厂保留未知绑定。聚焦覆盖：`tests/test_java_header_factories.py`。
 
 | 范围 | V1 行为 | 明确保留的限制 |
 | --- | --- | --- |
 | 来源结构 | 顶层类型、常规字段/方法、精确分块与行号 | 不是完整 AST，不提供嵌套/生成类型语义 |
 | 接收者 | 直接类型、当前类型字段、参数、词法局部变量、构造器初始化 `var`、类型限定或通过成员/静态导入调用的静态工厂 | 不做通用工厂/链式推断、重新赋值数据流、泛型替换或运行时数据流 |
 | 块体 | 普通块/if/else/while/try/catch/finally、带花括号的增强/传统 for 与资源 try | 不提供通用无花括号控制流、switch/模式/lambda/匿名/局部类型语义 |
-| 头部绑定 | 传统 for 单变量声明；多个资源声明或既有引用；增强 for 与 catch 参数 | 省略头部调用；带注解/复杂/多变量声明头部排除；未知 `var`、数组元素与联合 catch 只遮蔽、不猜测 |
+| 头部绑定 | 传统 for 单变量声明；多个资源声明或既有引用；构造器/静态工厂 `var`；增强 for 与 catch 参数 | 省略头部调用；带注解/复杂/多变量声明头部排除；未知 `var`、数组元素与联合 catch 只遮蔽、不猜测 |
 | 继承 | 仓库内 extends/implements 候选、原目标 ID、未限定/this/super 调用、按签名抑制覆盖及菱形去重 | 不选择运行时实现；排除私有/构造器/接口静态方法继承；完整访问/类型检查延后 |
 | 重载 | 同文件及跨文件调用按实参数量和可变参数筛选 | 同数量类型重载保持歧义；泛型/比较等不确定表达式不缩窄候选 |
 | 安全 | 维持仓库/用户/项目与 ready 边界、重复版本歧义、不执行编译器或服务 | 未导入或未解析来源不能提供目标 |
 
-`resolved` 仅表示上述规则内唯一候选，不保证 Java 编译通过或运行时分派目标。完整 Java 语义、外部依赖/构建系统集成及进一步语法覆盖属于独立后续工作。支持多行头部；块体声明仍沿用按行识别的单变量子集。工厂推断不包含链式、强制转换、条件表达式、实例、`this`/`super` 限定、头部绑定及重新赋值形式。
+`resolved` 仅表示上述规则内唯一候选，不保证 Java 编译通过或运行时分派目标。完整 Java 语义、外部依赖/构建系统集成及进一步语法覆盖属于独立后续工作。支持多行头部；块体声明仍沿用按行识别的单变量子集。工厂推断不包含链式、强制转换、条件表达式、实例、`this`/`super` 限定及重新赋值形式，也不包含不支持的头部。
 
 接收者安全边界：数组/可变参数、数组字段和数组局部变量保留声明名称的绑定，但不提供元素类型的方法目标。覆盖变量名前/后的方括号和多维数组。未知绑定阻止字段/类型回退；退出块后恢复外层标量绑定。`Product<Other[]>` 等标量泛型接收者仍按标量处理。工厂推断保留已经解析的限定类型身份，包括默认包类型，调用文件的导入不能再重新解释它；构造器/显式声明仍在其声明上下文解析。聚焦回归：`tests/test_java_receiver_safety.py`。
 
@@ -34,7 +36,7 @@ V1 是有界、只读的源码大纲与调用候选分析，不是 Java 编译�
 
 ```powershell
 # backend/
-.\.venv\Scripts\python.exe -m pytest tests/test_java_receiver_safety.py tests/test_java_factory_receivers.py tests/test_java_static_imports.py tests/test_java_v1.py tests/test_java_structure.py tests/test_parsing.py
+.\.venv\Scripts\python.exe -m pytest tests/test_java_header_factories.py tests/test_java_receiver_safety.py tests/test_java_factory_receivers.py tests/test_java_static_imports.py tests/test_java_v1.py tests/test_java_structure.py tests/test_parsing.py
 .\.venv\Scripts\python.exe -m pytest
 # repository root
 git diff --check
@@ -63,3 +65,7 @@ git diff --check
 ## 接收者安全回归验收 — 2026-10-23
 
 沿用既有执行方选择，由 Agent 按已说明的 Java 聚焦/完整后端/空白/文档链接/跟踪文件方案执行。实现前，新增安全文件的 20 项用例复现了 16 项失败：数组/可变参数接收者错误生成元素类方法，默认包工厂返回类型被调用文件导入重新解释。修复后并扩展直接/继承工厂与重复版本覆盖，23 项安全用例、189 项 Java/解析聚焦用例、433 项完整后端用例全部通过。使用既有虚拟环境在沙箱外运行，仅保留既有 Starlette 弃用警告。这些是隔离夹具/API 回归；未进行真实供应商、原生 PostgreSQL 或浏览器验收，无新迁移。
+
+## 头部工厂扩展验收 — 2026-10-23
+
+沿用用户既有的 Agent 执行选择，按已说明的聚焦/完整后端方案，使用既有虚拟环境在沙箱外运行。27 项新增头部工厂用例、216 项 Java/解析聚焦用例及 460 项完整后端用例全部通过，保留既有 Starlette 弃用警告。覆盖传统 for/资源声明、显式/通配/成员/继承工厂、精确原 ID/行号、资源顺序与外层名称遮蔽、catch/finally/相邻块恢复、嵌套作用域、头部调用省略、未知/冲突工厂、默认包身份、重复版本、不完整查找及 API 仓库/ready 隔离。本次为纯后端夹具/API 验收，未执行真实供应商、原生 PostgreSQL、前端构建或浏览器走查，无新迁移。

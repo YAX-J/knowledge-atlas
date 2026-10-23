@@ -188,6 +188,13 @@ class _MethodDeclaration:
     return_type: str | None = None
 
 
+@dataclass(frozen=True)
+class _HeaderBinding:
+    name: str
+    type_name: str | None
+    factory_initializer: str | None = None
+
+
 @dataclass
 class _BlockScope:
     opening: int
@@ -195,7 +202,7 @@ class _BlockScope:
     parent: int | None
     supported: bool
     header_start: int
-    header_bindings: tuple[tuple[str, str | None], ...] | None = None
+    header_bindings: tuple[_HeaderBinding, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -904,7 +911,7 @@ def _split_expressions(value: str, separator: str) -> list[str] | None:
     return None if stack else parts + [value[start:]]
 
 
-def _header_local(value: str) -> tuple[str, str | None] | None:
+def _header_local(value: str) -> _HeaderBinding | None:
     match = re.fullmatch(
         r"\s*(?:final\s+)?"
         r"(?P<type>[A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)*"
@@ -921,17 +928,21 @@ def _header_local(value: str) -> tuple[str, str | None] | None:
     declared_type = match.group("type")
     referenced = _referenced_type_name(declared_type)
     type_name = referenced[0] if referenced else None
+    factory_initializer = None
     if type_name == "var":
         type_name = _constructor_initialized_type(match.group("initializer"))
+        if type_name is None:
+            factory_initializer = match.group("initializer")
     if re.search(r"\]\s*$", declared_type) or match.group("array"):
         type_name = None
-    return match.group("name"), type_name
+        factory_initializer = None
+    return _HeaderBinding(match.group("name"), type_name, factory_initializer)
 
 
-def _header_bindings(header: str) -> tuple[tuple[str, str | None], ...] | None:
+def _header_bindings(header: str) -> tuple[_HeaderBinding, ...] | None:
     single = _enhanced_for_variable(header) or _catch_variable(header)
     if single is not None:
-        return (single,)
+        return (_HeaderBinding(*single),)
     match = re.fullmatch(r"\s*(?P<kind>for|try)\s*\((?P<body>[\s\S]*)\)\s*", header)
     if match is None or re.search(r"\binstanceof\b", header):
         return None
@@ -955,7 +966,7 @@ def _header_bindings(header: str) -> tuple[tuple[str, str | None], ...] | None:
         parts.pop()  # Optional trailing resource separator.
     if not parts:
         return None
-    bindings: list[tuple[str, str | None]] = []
+    bindings: list[_HeaderBinding] = []
     for part in parts:
         binding = _header_local(part)
         if binding is not None:
@@ -1033,12 +1044,43 @@ def _local_variable_types(
         if owner_name == method.owner
     }
     result: dict[str, list[_LocalBinding]] = {}
-    for scope in scopes.blocks:
-        if scope.supported and scope.header_bindings is not None:
-            for name, type_name in scope.header_bindings:
-                result.setdefault(name, []).append(_LocalBinding(
-                    scope.opening, scope.end, type_name,
-                ))
+
+    def infer_factory(initializer: str, offset: int) -> str | None:
+        shadowed_names = parameter_names | field_names | {
+            name for name, bindings in result.items()
+            if any(binding.start <= offset < binding.end for binding in bindings)
+        }
+        return _factory_initialized_type(
+            initializer, current=current, lookup=lookup,
+            caller_owner=owner, shadowed_names=shadowed_names,
+        )
+
+    header_scopes = [
+        scope for scope in scopes.blocks
+        if scope.supported and scope.header_bindings is not None
+    ]
+    header_cursor = 0
+
+    def add_headers_before(offset: int) -> None:
+        nonlocal header_cursor
+        while (
+            header_cursor < len(header_scopes)
+            and header_scopes[header_cursor].opening < offset
+        ):
+            scope = header_scopes[header_cursor]
+            header_cursor += 1
+            # A later resource name must not shadow an earlier initializer.
+            # The bindings themselves remain visible only inside this body.
+            for binding in scope.header_bindings or ():
+                declarations = result.setdefault(binding.name, [])
+                declarations.append(_LocalBinding(scope.opening, scope.end, binding.type_name))
+                if binding.factory_initializer is not None:
+                    inferred_type = infer_factory(binding.factory_initializer, scope.opening)
+                    if inferred_type is not None:
+                        declarations.append(_LocalBinding(
+                            scope.opening, scope.end, inferred_type, type_is_resolved=True,
+                        ))
+
     matches = [
         (match, inferred)
         for pattern, inferred in (
@@ -1052,6 +1094,7 @@ def _local_variable_types(
     round_depth = 0
     scanned_until = method.opening + 1
     for match, inferred in matches:
+        add_headers_before(match.start())
         prefix = current.sanitized[scanned_until:match.start()]
         round_depth += prefix.count("(") - prefix.count(")")
         scanned_until = match.start()
@@ -1083,22 +1126,13 @@ def _local_variable_types(
         )
         type_is_resolved = False
         if inferred_type is None:
-            shadowed_names = parameter_names | field_names | {
-                name for name, bindings in result.items()
-                if any(binding.start <= match.end() < binding.end for binding in bindings)
-            }
-            inferred_type = _factory_initialized_type(
-                current.sanitized[match.end():terminator],
-                current=current,
-                lookup=lookup,
-                caller_owner=owner,
-                shadowed_names=shadowed_names,
-            )
+            inferred_type = infer_factory(current.sanitized[match.end():terminator], match.end())
             type_is_resolved = inferred_type is not None
         if inferred_type is not None:
             declarations.append(_LocalBinding(
                 terminator, scope.end, inferred_type, type_is_resolved=type_is_resolved,
             ))
+    add_headers_before(method.end)
     for declarations in result.values():
         declarations.sort(key=lambda item: item.start)
     return result

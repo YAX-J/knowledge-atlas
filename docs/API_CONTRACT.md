@@ -395,7 +395,9 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 
 数组字段/参数/局部变量与可变参数保留未知绑定，不能作为元素类接收者，也不会回退到同名字段或导入类型；支持变量名前/后及多维方括号。标量泛型参数内的数组不把外层接收者变成数组。工厂返回类型已在工厂声明文件解析，后续调用按该精确限定名匹配，包括默认包名称，不能被调用文件的同名导入改指向其他类型；重复不可变版本继续保留歧义。响应形状与来源/分块/正式图谱均不改变。
 
-不支持区域仍保守处理；完整 AST、外部依赖、动态分派、泛型替换、通用工厂/链式推断、重新赋值数据流和完整控制流不在 V1 范围。静态工厂切片不支持链式、强制转换、条件表达式、实例、`this`/`super` 限定、头部绑定或重新赋值形式。能力矩阵、精确限制及综合验收步骤见 [Java 分析 V1](JAVA_ANALYSIS_V1.zh-CN.md)、[ADR 0029](adr/0029-java-analysis-v1.zh-CN.md)、[ADR 0036](adr/0036-bounded-java-static-factory-var-receivers.zh-CN.md) 与 [ADR 0037](adr/0037-unqualified-java-factory-receivers.zh-CN.md)。
+传统 for 的单声明及资源 try 的单/多声明头部，也支持用完整静态工厂初始化 `var`，复用方法体局部变量的候选、遮蔽和一致返回类型规则。按源码顺序处理头部与方法体声明，资源列表按声明顺序绑定名称；后声明的资源不能反向遮蔽前面的初始化表达式。绑定只在花括号主体及嵌套块可见，不泄漏到 catch/finally 或相邻块；未知工厂仍遮蔽，头部表达式不新增调用边。见 [ADR 0038](adr/0038-java-header-factory-receivers.zh-CN.md)。
+
+不支持区域仍保守处理；完整 AST、外部依赖、动态分派、泛型替换、通用工厂/链式推断、重新赋值数据流和完整控制流不在 V1 范围。静态工厂切片不支持链式、强制转换、条件表达式、实例、`this`/`super` 限定或重新赋值形式，也不支持复杂/带注解/传统 for 多变量声明等既有排除头部。能力矩阵、精确限制及综合验收步骤见 [Java 分析 V1](JAVA_ANALYSIS_V1.zh-CN.md)、[ADR 0029](adr/0029-java-analysis-v1.zh-CN.md)、[ADR 0036](adr/0036-bounded-java-static-factory-var-receivers.zh-CN.md)、[ADR 0037](adr/0037-unqualified-java-factory-receivers.zh-CN.md) 与 [ADR 0038](adr/0038-java-header-factory-receivers.zh-CN.md)。
 
 ## 知识图谱
 

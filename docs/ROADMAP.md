@@ -112,6 +112,8 @@
 
 ## 阶段四 代码与 GitHub 数据
 
+传统 for/资源 try 的受支持花括号头部也能从静态工厂推断 `var`，按声明顺序解析并把变量限制在主体范围；保留头部调用省略、未知遮蔽和原方法证据，不泄漏到 catch/finally 或相邻块。见 [ADR 0038](adr/0038-java-header-factory-receivers.zh-CN.md)。阶段四仍在进行。
+
 工厂 `var` 进一步支持当前/继承静态成员与显式/通配静态导入的完整未限定名调用，按成员名称优先并要求返回限定名一致；类型限定名遮蔽和方法类型参数返回继续保持未知。阶段四仍在进行，见 [ADR 0037](adr/0037-unqualified-java-factory-receivers.zh-CN.md)。
 
 Java V1 现可从完整 `Type.factory(...)` 静态工厂初始化表达式推断普通方法体局部 `var`：只有可访问的仓库内候选对一个可解析返回限定名一致时才继续解析后续接收者调用；其余情况保持未知并阻止回退。该切片不包含通用表达式/数据流推断，见 [ADR 0036](adr/0036-bounded-java-static-factory-var-receivers.zh-CN.md)。

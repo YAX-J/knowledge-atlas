@@ -46,6 +46,8 @@ Completed:
 
 ## Active phase
 
+Stage 4 now supports factory-initialized `var` in braced classic-for and resource-try headers, processing declarations in source/resource order and limiting resolved bindings to the body. Header calls remain omitted and catch/finally/sibling scopes restore outer bindings. See [ADR 0038](docs/adr/0038-java-header-factory-receivers.md).
+
 Stage 4 now extends factory-local `var` inference to unqualified current/inherited static members and explicit/wildcard static imports, preserving member-name precedence, lexical shadowing, agreed return types and original method evidence. Shadowed type qualifiers and method type parameters suppress false inference. See [ADR 0037](docs/adr/0037-unqualified-java-factory-receivers.md).
 
 Graph details, knowledge search and question citations now open exact local source chunks by scoped UUID, automatically selecting the correct chunk page and focusing/highlighting the original. Missing or inaccessible targets fail explicitly; no model, graph write or migration is added. This closes a source-provenance navigation gap while Stage 4 remains active; see [ADR 0035](docs/adr/0035-exact-evidence-source-navigation.md).
