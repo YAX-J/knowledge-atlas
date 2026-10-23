@@ -16,6 +16,7 @@ Scope approved by the user: Stage 4 bounded code/GitHub core, Stage 5 temporal/g
 | Review safety | Evidence revalidated at confirmation, stable identical-request UUIDs, same-action idempotency, stale/cross-scope/archived/invalid-time rejection, no reversal/fork/merge/cycle; reject does not mutate knowledge |
 | Governance | Deterministic read-only missing-evidence, same-name duplicate/possible-conflict and orphan suggestions; no automatic candidates or writes; bounded scan/results/history and explicit truncation |
 | Native PostgreSQL | PostgreSQL 17.10 / pgvector 0.8.7: all 29 opt-in tests passed, migration empty→head→0014→head, independent-session upload/proposal/confirmation races, competing successors and abandoned Worker fencing |
+| Actual local business upgrade | User approved and completed `0013 → 0014 → 0015` on 2026-10-23 after a 222,313-byte custom-format public-schema backup. Archive catalog and every block decoded successfully; no restore into a database was performed. All 15 pre-existing business tables retained identical row counts and original-field hashes. Readiness, project list, graph, evolution review list and read-only governance GETs returned 200. |
 | Desktop UI | Chrome 1440×1100, disposable SQLite fixture: empty states, keyboard proposal/second confirmation, three-version chain, historical search and exact chunk focus, long names, scroll, network error/retry; new evolution region axe 22 passes / 0 violations / 0 incomplete after fix |
 | Build/regression | `npm run build` passed. Final ordinary pytest: 488 passed / 4 opt-in native/public tests skipped / 1 existing Starlette deprecation warning (31.42 s). Native/provider results above are separate from SQLite regression. |
 
@@ -25,10 +26,10 @@ The first native harness incorrectly relied on `search_path=temp,public`, allowi
 
 The corrected harness explicitly sets `version_table_schema`, verifies all local core tables plus an initially empty project table before tests, and checks the public marker after cleanup. Subsequent native runs passed with a fully created temporary schema and no public marker change. Never use a business schema for downgrade acceptance or fixture cleanup. Downgrading `0015` loses change/audit records without undoing entity validity; back up before any business migration.
 
-## Boundaries and next service step
+## Boundaries and local service state
 
 - No real model/embedding invocation in this round, per user choice; no private-token/thread authorization acceptance, automatic polling/webhooks, full Java compiler semantics or automatic semantic conflict judgment.
 - Supplement/conflict confirmation records classification only; replacement is linear and cannot be dated before both endpoints' current validity starts or into the future. History is separate from one-hop semantic retrieval.
 - Experiment datasets, quality metrics, entity merging/disambiguation, question history and multi-turn behavior are not claimed complete.
-- Apply `alembic upgrade head` to the actual service only after backing it up and choosing to upgrade. Disposable acceptance never upgrades the business schema. Current code head is `20261023_0015`.
+- Actual business schema and code head are now both `20261023_0015`, following separate user approval and backup. The pre-upgrade archive/report remain private under `output/db-backups/20261023T193448-b314f63706b4/`; keep them safe and do not run downgrade or automatic restore. Disposable acceptance itself never upgrades the business schema. No persistent API/frontend processes were started for this upgrade.
 - Generated screenshots, native metadata and backups belong under ignored `output/`; do not commit original imported bodies, credentials or database dumps.
