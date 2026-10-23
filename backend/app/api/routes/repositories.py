@@ -107,6 +107,7 @@ def sync_github_repository(
         project_id=project_id,
         repository_id=repository_id,
         requested_ref=sync_in.ref,
+        rescan=sync_in.rescan,
     )
 
 

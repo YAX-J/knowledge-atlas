@@ -17,11 +17,9 @@ from app.models.domain import (
 )
 from app.services.projects import get_project
 from app.services.repositories import get_repository
+from app.services.source_languages import MEDIA_TYPE_BY_SOURCE, SOURCE_TYPE_BY_SUFFIX, TASK_TYPE_BY_SOURCE, TASK_TYPES_BY_SOURCE
 
 
-SOURCE_TYPE_BY_SUFFIX = {".md": "markdown", ".markdown": "markdown", ".java": "java"}
-TASK_TYPE_BY_SOURCE = {"markdown": "markdown_parsing", "java": "code_parsing"}
-MEDIA_TYPE_BY_SOURCE = {"markdown": "text/markdown", "java": "text/x-java-source"}
 PARSING_TASK_TYPES = ("markdown_parsing", "knowledge_extraction", "code_parsing")
 MAX_RELATIVE_PATH_LENGTH = 1024
 MAX_RELATED_JAVA_BYTES = 20 * 1024 * 1024
@@ -106,7 +104,7 @@ def create_source_and_task_from_bytes(
         raise AppError(
             status_code=415,
             code="UNSUPPORTED_SOURCE_TYPE",
-            message="当前阶段仅支持 Markdown 与 Java 源文件",
+            message="支持 Markdown 及 Java、Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C# 源文件",
             details={"allowed_extensions": sorted(SOURCE_TYPE_BY_SUFFIX)},
         )
 
@@ -176,7 +174,7 @@ def create_source_and_task_from_bytes(
             repository_filter,
             ProcessingTask.user_id == user_id,
             ProcessingTask.project_id == project_id,
-            ProcessingTask.type.in_(PARSING_TASK_TYPES),
+            ProcessingTask.type.in_(TASK_TYPES_BY_SOURCE[normalized_source_type]),
         )
         .order_by(
             SourceDocument.created_at, SourceDocument.id,

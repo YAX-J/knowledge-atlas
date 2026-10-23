@@ -1,5 +1,7 @@
 # Knowledge Atlas 实施计划
 
+多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。新语言仅做语法结构，不扩展 Java 的跨文件语义；语法错误显式提示，不执行代码或自动入图。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。无新迁移，重新安装后端 `.[dev]` 获取固定解析依赖。 见 [ADR 0040](docs/adr/0040-multilanguage-source-parsing.zh-CN.md)。
+
 [English](PLANS.md)
 
 本文标明当前实施阶段，并指向详细路线，不替代 [开发路线](docs/ROADMAP.md)。

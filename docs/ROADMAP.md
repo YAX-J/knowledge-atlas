@@ -1,5 +1,7 @@
 # Knowledge Atlas 开发路线与验收标准
 
+多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。新语言仅做语法结构，不扩展 Java 的跨文件语义；语法错误显式提示，不执行代码或自动入图。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。无新迁移，重新安装后端 `.[dev]` 获取固定解析依赖。 详见[多语言说明](MULTILANGUAGE_PARSING.zh-CN.md)。不代表真实模型或毕业实验已验收。
+
 路线以先完成端到端闭环、再扩展数据源和高级能力为原则。用户批准的阶段四有界代码/GitHub 核心与阶段五人工时序/只读治理已实现并完成本轮功能验收：40 文件集成、公开 petclinic 的 30 文件截断导入、原生 PostgreSQL 竞争/恢复和桌面走查通过。真实模型/嵌入按用户选择暂缓，完整 Java 编译语义、私有授权、Webhook 和论文实验不算完成。实际证据及限制见[核心功能验收](CORE_ACCEPTANCE.zh-CN.md)。
 
 ## 当前基线

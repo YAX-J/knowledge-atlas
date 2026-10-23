@@ -53,6 +53,7 @@ class GithubRepositoryResolve(BaseModel):
 
 class GithubRepositorySync(BaseModel):
     ref: str | None = Field(default=None, max_length=255)
+    rescan: bool = False
 
     @field_validator("ref", mode="before")
     @classmethod

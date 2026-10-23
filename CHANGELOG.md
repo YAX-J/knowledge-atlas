@@ -10,6 +10,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Multi-language upload/folder/GitHub/Worker parsing for Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: lossless bounded chunks, deterministic outlines/search, language badges and syntax warnings. Optional GitHub `rescan` discovers new extensions in old complete snapshots while reusing blobs. Java analysis and review authority stay unchanged; see ADR 0040.
+
 - Configurable GitHub scan file budget (`GITHUB_IMPORT_MAX_FILES`, 1–50, default unchanged at 50), with explicit truncation and same-commit recovery when increased, reducing anonymous-request pressure without requiring a token.
 
 - Explicit cross-source replacement/supplement/conflict proposals and human review, with stable request UUIDs, revalidated formal evidence, atomic interval updates, immutable audit snapshots, historical graph/search navigation and a bounded evidence-linked replacement chain. Read-only governance flags missing evidence, same-name duplicates/possible conflicts and orphan knowledge without automatic writes; see ADR 0039.

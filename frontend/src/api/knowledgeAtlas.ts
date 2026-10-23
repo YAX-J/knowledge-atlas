@@ -64,6 +64,8 @@ export interface SourceChunkList {
 
 export interface JavaCodeStructure {
   source_id: string
+  language: string
+  has_syntax_errors: boolean
   symbols: {
     id: string
     kind: 'type' | 'field' | 'method'
@@ -122,6 +124,7 @@ export interface JavaCodeStructure {
 }
 
 export type CodeSymbolHit = JavaCodeStructure['symbols'][number] & {
+  language: string
   source_id: string
   source_path: string
   repository_id: string | null
@@ -144,6 +147,7 @@ export interface CodeSymbolSearchResult {
   scanned_source_count: number
   matched_count: number
   truncated: boolean
+  has_syntax_errors: boolean
 }
 
 export interface SourceListItem {
@@ -366,7 +370,6 @@ export function uploadSource(
 ): Promise<SourceUploadResult> {
   const body = new FormData()
   body.append('file', file)
-  body.append('source_type', file.name.toLowerCase().endsWith('.java') ? 'java' : 'markdown')
   if (relativePath) body.append('relative_path', relativePath)
   if (repositoryId) body.append('repository_id', repositoryId)
   return apiRequest<SourceUploadResult>(`/projects/${projectId}/sources`, {
@@ -412,12 +415,13 @@ export function syncGithubRepository(
   projectId: string,
   repositoryId: string,
   ref?: string,
+  rescan = false,
 ): Promise<GithubRepositorySyncResult> {
   return apiRequest<GithubRepositorySyncResult>(
     `/projects/${projectId}/repositories/${repositoryId}/sync-github`,
     {
       method: 'POST',
-      body: JSON.stringify({ ref: ref?.trim() || null }),
+      body: JSON.stringify({ ref: ref?.trim() || null, rescan }),
       signal: AbortSignal.timeout(120000),
     },
   )

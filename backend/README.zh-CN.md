@@ -1,5 +1,7 @@
 # Knowledge Atlas 后端
 
+多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。新语言仅做语法结构，不扩展 Java 的跨文件语义；语法错误显式提示，不执行代码或自动入图。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。无新迁移，重新安装后端 `.[dev]` 获取固定解析依赖。 见[扩展名和边界](../docs/MULTILANGUAGE_PARSING.zh-CN.md)。
+
 [English](README.md)
 
 为 Knowledge Atlas 持久化、Markdown/Java 导入、带证据校验的候选提取与审核，以及有界只读项目图谱查询提供服务的 FastAPI 后端。
@@ -58,7 +60,7 @@ OpenAPI 文档地址为 `http://localhost:8000/docs`。
 在交互式 API 文档中依次调用：
 
 1. `POST /api/v1/projects`：创建项目。
-2. 文件夹导入先用根目录名调用 `POST /api/v1/projects/{project_id}/repositories/resolve`，再通过 `POST /api/v1/projects/{project_id}/sources` 逐份上传 UTF-8 `.md`、`.markdown` 或 `.java` 文件，同时提交 `repository_id` 和规范化的仓库内 `relative_path`。单文件上传同时省略两者。还可通过 `POST /api/v1/projects/{project_id}/repositories/resolve-github` 登记 GitHub HTTPS/SSH remote，再显式调用 `POST /api/v1/projects/{project_id}/repositories/{repository_id}/sync-github` 导入有界文件快照，或调用 `POST /api/v1/projects/{project_id}/repositories/{repository_id}/import-github-work-items` 导入最近的 Issue/Pull Request 版本。
+2. 文件夹导入先用根目录名调用 `POST /api/v1/projects/{project_id}/repositories/resolve`，再通过 `POST /api/v1/projects/{project_id}/sources` 逐份上传注册表支持的 UTF-8 Markdown/代码文件，同时提交 `repository_id` 和规范化的仓库内 `relative_path`。单文件上传同时省略两者。还可通过 `POST /api/v1/projects/{project_id}/repositories/resolve-github` 登记 GitHub HTTPS/SSH remote，再显式调用 `POST /api/v1/projects/{project_id}/repositories/{repository_id}/sync-github` 导入有界文件快照，或调用 `POST /api/v1/projects/{project_id}/repositories/{repository_id}/import-github-work-items` 导入最近的 Issue/Pull Request 版本。
 3. `POST /api/v1/tasks/{task_id}/run`：同步执行解析。
 4. `GET /api/v1/tasks/{task_id}`：查看状态和错误信息。
 5. `GET /api/v1/sources/{source_id}/chunks?page=1&page_size=20`：查看证据原文和行号位置。

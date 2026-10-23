@@ -25,6 +25,8 @@ from app.schemas.sources import (
 )
 from app.services import code_search, ingestion, parsing
 from app.services.java_source import JavaSourceInput, analyze_java
+from app.services.code_source import analyze_code
+from app.services.source_languages import CODE_SOURCE_TYPES
 from app.services.source_links import github_file_urls
 
 
@@ -171,15 +173,24 @@ def get_code_structure(
     user_id: CurrentUserId,
 ) -> JavaStructureRead:
     source = ingestion.get_source(db, user_id=user_id, source_id=source_id)
-    if source.source_type != "java":
+    if source.source_type not in CODE_SOURCE_TYPES:
         raise AppError(
             status_code=409, code="CODE_STRUCTURE_UNAVAILABLE",
-            message="当前资料不是 Java 源文件",
+            message="当前资料不是支持结构解析的代码文件",
         )
     if source.status != SourceStatus.READY:
         raise AppError(
             status_code=409, code="SOURCE_NOT_PARSED",
-            message="请先完成 Java 资料解析",
+            message="请先完成代码资料解析",
+        )
+    if source.source_type != "java":
+        structure = analyze_code(source.content, source_id=source.id, language=source.source_type)
+        return JavaStructureRead(
+            source_id=source.id, language=source.source_type,
+            has_syntax_errors=structure.has_syntax_errors,
+            symbols=[JavaSymbolRead.model_validate(item) for item in structure.symbols],
+            calls=[], related_types=[], type_relationships=[], related_methods=[], cross_file_calls=[],
+            truncated=structure.truncated,
         )
     related_sources, related_sources_truncated = ingestion.list_ready_java_sources(
         db,

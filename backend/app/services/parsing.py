@@ -20,13 +20,11 @@ from app.services.ingestion import get_source, get_task
 from app.services.java_source import JavaChunk, parse_java
 from app.services.markdown import MarkdownChunk, parse_markdown
 from app.services.projects import get_project
+from app.services.source_languages import TASK_TYPES_BY_SOURCE
+from app.services.code_source import parse_code
 
 
 PARSING_TASK_TYPES = ("markdown_parsing", "knowledge_extraction", "code_parsing")
-TASK_TYPES_BY_SOURCE = {
-    "markdown": {"markdown_parsing", "knowledge_extraction"},
-    "java": {"code_parsing"},
-}
 ParsedChunk = MarkdownChunk | JavaChunk
 logger = logging.getLogger(__name__)
 
@@ -179,11 +177,12 @@ def run_task(
     db.commit()
 
     try:
-        chunks = (
-            parse_java(source.content, source_id=source.id)
-            if source.source_type == "java"
-            else parse_markdown(source.content, source_id=source.id)
-        )
+        if source.source_type == "java":
+            chunks = parse_java(source.content, source_id=source.id)
+        elif source.source_type == "markdown":
+            chunks = parse_markdown(source.content, source_id=source.id)
+        else:
+            chunks = parse_code(source.content, source_id=source.id, language=source.source_type)
         _finish_task(db, task=task, execution_id=execution_id, chunks=chunks)
     except Exception as error:
         db.rollback()

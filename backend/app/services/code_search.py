@@ -1,4 +1,4 @@
-"""Bounded read-only Java symbol search over ready project sources."""
+"""Bounded read-only multi-language symbol search over ready project sources."""
 
 import uuid
 
@@ -10,6 +10,8 @@ from app.models.domain import ProcessingTask, SourceChunk, SourceDocument, Sourc
 from app.schemas.sources import CodeSymbolHit, CodeSymbolSearchResult
 from app.services.ingestion import PARSING_TASK_TYPES
 from app.services.java_source import java_symbols
+from app.services.code_source import analyze_code
+from app.services.source_languages import CODE_SOURCE_TYPES
 from app.services.projects import get_project
 from app.services.repositories import get_repository
 from app.services.source_links import github_file_urls, github_line_url
@@ -33,7 +35,7 @@ def search_symbols(
     filters = [
         SourceDocument.user_id == user_id,
         SourceDocument.project_id == project_id,
-        SourceDocument.source_type == "java",
+        SourceDocument.source_type.in_(tuple(CODE_SOURCE_TYPES)),
         SourceDocument.status == SourceStatus.READY,
     ]
     if repository_id is not None:
@@ -62,8 +64,14 @@ def search_symbols(
     )) if source_ids else []
     needle = query.casefold()
     hits: list[CodeSymbolHit] = []
+    has_syntax_errors = False
     for source in sources:
-        symbols, omitted = java_symbols(source.content, source_id=source.id)
+        if source.source_type == "java":
+            symbols, omitted = java_symbols(source.content, source_id=source.id)
+        else:
+            analysis = analyze_code(source.content, source_id=source.id, language=source.source_type)
+            symbols, omitted = analysis.symbols, analysis.truncated
+            has_syntax_errors |= analysis.has_syntax_errors
         truncated |= omitted
         path = source.relative_path or source.original_name
         for symbol in symbols:
@@ -72,7 +80,7 @@ def search_symbols(
             if needle not in symbol.qualified_name.casefold() and needle not in path.casefold():
                 continue
             hits.append(CodeSymbolHit(
-                **vars(symbol), source_id=source.id, source_path=path,
+                **vars(symbol), language=source.source_type, source_id=source.id, source_path=path,
                 repository_id=source.repository_id,
                 repository_name=source.repository.name if source.repository else None,
                 task_id=None,
@@ -112,5 +120,5 @@ def search_symbols(
                 hit.chunk_position = chunk.position
     return CodeSymbolSearchResult(
         query=query, items=hits, scanned_source_count=len(sources),
-        matched_count=matched_count, truncated=truncated,
+        matched_count=matched_count, truncated=truncated, has_syntax_errors=has_syntax_errors,
     )

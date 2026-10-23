@@ -1,5 +1,7 @@
 # Knowledge Atlas 系统架构
 
+多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。新语言仅做语法结构，不扩展 Java 的跨文件语义；语法错误显式提示，不执行代码或自动入图。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。无新迁移，重新安装后端 `.[dev]` 获取固定解析依赖。 复用来源/任务/分块模型；仅缓存不可变语法 Language，每次解析独立 Parser，见 [ADR 0040](adr/0040-multilanguage-source-parsing.zh-CN.md)。
+
 本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Markdown 与本地 Java 源码导入、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、项目图谱、关键词/显式索引语义向量/一跳图关系混合检索，以及同步、非持久化的证据问答；实体消歧、完整代码语义和多轮 Agent 仍属于后续阶段。当前只使用 PostgreSQL/pgvector，暂缓引入 Neo4j，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。
 
 ## 架构目标

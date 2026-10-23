@@ -1,5 +1,7 @@
 # Knowledge Atlas 开发环境配置
 
+多语言解析新增固定 Tree-sitter/语言 wheel。在 `backend` 运行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev]"` 更新依赖；不新增服务或迁移，安装后离线解析。详见[语言范围](MULTILANGUAGE_PARSING.zh-CN.md)。
+
 [English](DEVELOPMENT_SETUP.md)
 
 本文说明当前仓库的环境配置，并为后续后端开发保留约定。除非另有说明，命令从仓库根目录执行。

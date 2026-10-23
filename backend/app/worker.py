@@ -17,6 +17,7 @@ from app.core.logging import configure_logging
 from app.db.session import SessionLocal
 from app.models.domain import ProcessingTask, Project, SourceDocument, TaskStatus, utc_now
 from app.services.parsing import PARSING_TASK_TYPES, expired_task_filter, run_task
+from app.services.source_languages import TASK_TYPES_BY_SOURCE
 
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ def process_next(
             ProcessingTask.user_id == user_id,
             SourceDocument.user_id == user_id,
             SourceDocument.project_id == ProcessingTask.project_id,
-            SourceDocument.source_type.in_(("markdown", "java")),
+            SourceDocument.source_type.in_(tuple(TASK_TYPES_BY_SOURCE)),
             Project.user_id == user_id,
             Project.archived_at.is_(None),
             ProcessingTask.type.in_(PARSING_TASK_TYPES),

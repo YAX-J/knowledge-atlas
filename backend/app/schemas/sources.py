@@ -77,6 +77,7 @@ class JavaCallRead(BaseModel):
 
 
 class CodeSymbolHit(JavaSymbolRead):
+    language: str = "java"
     source_id: uuid.UUID
     source_path: str
     repository_id: uuid.UUID | None
@@ -93,6 +94,7 @@ class CodeSymbolSearchResult(BaseModel):
     scanned_source_count: int
     matched_count: int
     truncated: bool
+    has_syntax_errors: bool = False
 
 
 class JavaRelatedTypeRead(BaseModel):
@@ -146,6 +148,8 @@ class JavaCrossFileCallRead(BaseModel):
 
 class JavaStructureRead(BaseModel):
     source_id: uuid.UUID
+    language: str = "java"
+    has_syntax_errors: bool = False
     symbols: list[JavaSymbolRead]
     calls: list[JavaCallRead]
     related_types: list[JavaRelatedTypeRead]

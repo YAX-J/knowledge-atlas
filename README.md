@@ -1,5 +1,7 @@
 # Knowledge Atlas
 
+多语言解析 V1 已将原 Markdown/多语言代码 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。新语言仅做语法结构，不扩展 Java 的跨文件语义；语法错误显式提示，不执行代码或自动入图。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。无新迁移，重新安装后端 `.[dev]` 获取固定解析依赖。 See [语言范围与限制](docs/MULTILANGUAGE_PARSING.zh-CN.md).
+
 面向个人开发者的时序知识图谱与可追溯 AI 问答平台。
 
 Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成带有来源、时间和上下文的知识网络，帮助开发者重新找到历史方案、理解技术决策，并基于真实证据回答问题。
@@ -20,7 +22,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 
 | 能力 | 说明 | 当前状态 |
 | --- | --- | --- |
-| 资料导入 | 导入 Markdown、文本、代码及 GitHub 数据 | Markdown/Java 本地上传、有界 GitHub ref 快照、Commit 元数据、增量 blob 复用、不可变文件/行号链接及有界 Issue/PR/Review 版本导入已完成；自动同步待开发 |
+| 资料导入 | 导入 Markdown、文本、代码及 GitHub 数据 | Markdown/多语言代码 本地上传、有界 GitHub ref 快照、Commit 元数据、增量 blob 复用、不可变文件/行号链接及有界 Issue/PR/Review 版本导入已完成；自动同步待开发 |
 | 知识抽取与审核 | 提取带原文证据的实体、关系候选，并逐项确认或拒绝 | DeepSeek 接口、审核页面及确认后写入正式图谱已实现，真实调用待验收 |
 | 实体消歧 | 合并别名和重复实体，保留人工确认流程 | 规划中 |
 | 知识图谱 | 浏览节点、关系、项目归属和来源证据 | 项目图谱已接入真实数据；演示图谱仍为 Mock |
@@ -50,8 +52,8 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 - 通过时间轴回放不同阶段的知识状态。
 - 基于当前节点生成模拟证据回答。
 - 桌面端与移动端响应式布局。
-- 真实项目列表与创建、项目资料列表，以及 Markdown/Java 的桌面端单文件上传或本地仓库文件夹导入（最多 50 份支持文件，保存仓库身份和仓库内相对路径）。
-- 来源仓库清单、GitHub HTTPS/SSH remote 规范化登记、稳定 provider ID、关联已有本地仓库，以及从默认分支或指定 ref 显式增量同步最多 50 份 Markdown/Java 文件并保存 Commit 快照。
+- 真实项目列表与创建、项目资料列表，以及 Markdown/多语言代码 的桌面端单文件上传或本地仓库文件夹导入（最多 50 份支持文件，保存仓库身份和仓库内相对路径）。
+- 来源仓库清单、GitHub HTTPS/SSH remote 规范化登记、稳定 provider ID、关联已有本地仓库，以及从默认分支或指定 ref 显式增量同步最多 50 份 Markdown/多语言代码 文件并保存 Commit 快照。
 - GitHub 导入资料的固定 Commit 文件入口，以及图谱、搜索和问答证据中固定到精确行号的 GitHub 原文入口。
 - 最近更新的 GitHub Issue/PR 显式导入，正文、普通评论以及 PR Review/行级 Review Comment/有界 thread 当前状态分别形成不可变 Markdown 来源版本，并从资料和证据打开规范会话。
 - 显式开始/重试解析、原文预览、标题或代码结构与行号分块查询。
@@ -67,17 +69,17 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 
 - FastAPI 应用、CORS、请求 ID 和统一错误结构。
 - 项目创建、分页查询和详情接口。
-- UTF-8 Markdown/Java 上传、大小与类型校验、内容哈希、原文及可空仓库身份保存；支持项目范围内规范化 GitHub remote 身份与有界快照导入。
+- UTF-8 Markdown/多语言代码 上传、大小与类型校验、内容哈希、原文及可空仓库身份保存；支持项目范围内规范化 GitHub remote 身份与有界快照导入。
 - 上传后创建 `queued` 处理任务，支持显式执行解析和资料、任务、分块查询。
 - 独立 Worker 自动消费排队任务，通过执行租约恢复中断任务，并阻止旧进程覆盖新结果。
 - Markdown 解析标题、段落、列表和围栏代码块；Java 解析顶层类型与常规直接成员方法。两者保存精确原文、结构路径及行号，并按项目、可空仓库、来源类型和内容哈希复用来源与任务。
 - 从已解析 Java 原文按需派生类型、常规字段、未限定/`this.` 同文件调用，以及同仓库已解析来源中的 `extends`/`implements` 目标，不写入正式知识图谱；未归属仓库的旧来源仅在同项目未归属集合内解析。
 - Java 静态导入支持把 `import static Type.method` / `Type.*` 的未限定调用链接到同仓库已解析来源中的可访问静态方法，保留成员名称优先和歧义；边界见 [ADR 0030](docs/adr/0030-java-static-import-calls.zh-CN.md)。
 - 方法体及受支持传统 for/资源 try 头部的 `var x = create(...)` 可经当前/继承静态成员或静态导入推断一致的仓库内返回类型，再定位 `x.method()`；成员优先、声明顺序、类型名遮蔽及未知/冲突返回均保守处理，见 [ADR 0037](docs/adr/0037-unqualified-java-factory-receivers.zh-CN.md) 与 [ADR 0038](docs/adr/0038-java-header-factory-receivers.zh-CN.md)。
-- 资料工作台可按名称/文件路径检索已解析 Java 符号，支持仓库和类型筛选、截断提示，并跳到声明所在原文分块；GitHub 文件提供固定 Commit/行号链接，见 [ADR 0032](docs/adr/0032-bounded-code-symbol-search.zh-CN.md)。
+- 资料工作台可按名称/文件路径检索已解析多语言代码符号，支持仓库和类型筛选、截断提示，并跳到声明所在原文分块；GitHub 文件提供固定 Commit/行号链接，见 [ADR 0032](docs/adr/0032-bounded-code-symbol-search.zh-CN.md)。
 - 仓库卡片可分页查看已保存的同步快照，显式把提交说明保存为 Markdown 资料并打开解析任务；相同提交跨 ref/仓库改名可复用，资料与证据打开规范 Commit 页面。此操作不访问 GitHub，不导入 diff 或自动创建正式知识，见 [ADR 0033](docs/adr/0033-saved-commit-evidence-sources.zh-CN.md)。
 - 每份快照可分页展开已保存的逐文件状态、blob、原路径与跳过原因，并打开对应资料；文件外链固定到所选快照，删除项仅打开本地保留资料而不伪造删除后文件链接，见 [ADR 0034](docs/adr/0034-snapshot-file-provenance.zh-CN.md)。
-- GitHub 同步可在 Commit 未变化时重试截断/超限快照，复用已成功文件；Markdown/Java 之间按来源类型隔离 blob 复用，截断文件集合不推断重命名，见 [ADR 0031](docs/adr/0031-recoverable-typed-github-snapshots.zh-CN.md)。
+- GitHub 同步可在 Commit 未变化时重试截断/超限快照，复用已成功文件；Markdown/多语言代码 之间按来源类型隔离 blob 复用，截断文件集合不推断重命名，见 [ADR 0031](docs/adr/0031-recoverable-typed-github-snapshots.zh-CN.md)。
 - 项目、资料、任务、候选知识和正式图谱的 SQLAlchemy 模型与 Alembic 迁移。
 - PostgreSQL/pgvector、API 和 Worker 的 Docker Compose 配置。
 - 显式 DeepSeek 候选知识提取、类型/端点/原文引用校验、候选分页及确认/拒绝/名称摘要修正，保留审核前后记录。

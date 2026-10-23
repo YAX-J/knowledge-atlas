@@ -5,6 +5,8 @@ description: Knowledge Atlas 的 Vue 3 前端工作台。修改组件、项目/�
 
 # Vue 前端工作台
 
+多语言 V1（ADR 0040）：文件选择/标签共用 `sourceLanguages.ts`，支持 Markdown、Java、Python、JS/JSX、TS/TSX、Go、C/C++、C#。上传由后端推断类型，不再强填 markdown；全部代码读取原结构接口，展示 `language`、`has_syntax_errors` 和截断，函数/方法与字段/属性共用旧类型。检索命中显示语言，保留原分块分页/焦点 fencing。新语言仅大纲，不显示虚构调用；旧 Java 分析保持。仓库卡片 `rescan` checkbox 由 App 经 API 发送，禁止组件直发请求。下文 Java 专项仅适用 Java，通用上传/检索范围以新说明为准。
+
 前端同时服务两种数据：Mock 演示图谱，以及接真实 API 的项目/资料/审核/图谱/证据问答页面。两者必须保持边界，不能互相冒充。
 
 ## 何时使用

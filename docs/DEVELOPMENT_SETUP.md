@@ -1,5 +1,7 @@
 # Knowledge Atlas Development Setup
 
+Multi-language parsing requires the pinned Tree-sitter/language wheels. From `backend`, run `.\.venv\Scripts\python.exe -m pip install -e ".[dev]"`. No additional service/migration is required; parsing is offline after installation. See [language scope](MULTILANGUAGE_PARSING.md).
+
 [简体中文](DEVELOPMENT_SETUP.zh-CN.md)
 
 This guide describes the repository setup that exists today and reserves conventions for the planned backend. Commands are written to work from the repository root unless noted otherwise.

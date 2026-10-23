@@ -1,5 +1,7 @@
 # Knowledge Atlas Repository Instructions
 
+Multi-language V1 extends the existing Markdown/Java pipeline to Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: single-file/folder/GitHub imports, Worker, exact chunks, outlines and symbol search. New languages are syntax-only, with explicit syntax warnings, no execution, cross-file semantics or automatic graph writes. Explicit `rescan=true` discovers newly supported files in old complete same-commit snapshots. No migration; reinstall backend `.[dev]` for pinned parser dependencies. Read `docs/MULTILANGUAGE_PARSING.md` / ADR 0040; registry `services/source_languages.py`, syntax parser `services/code_source.py`. Java-specific rules below still apply only to Java.
+
 [简体中文](AGENTS.zh-CN.md)
 
 ## Project purpose

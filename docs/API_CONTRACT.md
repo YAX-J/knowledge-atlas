@@ -1,5 +1,12 @@
 # Knowledge Atlas 前后端接口草案
 
+## 多语言代码解析（已实现）
+
+- 上传新增 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，详见[扩展名和边界](MULTILANGUAGE_PARSING.zh-CN.md)。`source_type` 省略时由扩展名推断，显式填写仍须匹配。复用 `code_parsing`，无新迁移。
+- `GET /sources/{source_id}/code-structure` 对全部支持代码有效，新增 `language` 与 `has_syntax_errors`。新语言共用 `symbols`（`type/field/method`），调用/相关目标数组为空；Java 分析不变。
+- `GET /projects/{project_id}/code-symbols` 扫描全部支持代码，命中增加 `language`，响应增加 `has_syntax_errors`。语法错误与 `truncated` 独立，权限/仓库/数量上限不变。
+- GitHub 同步新增可选 `rescan:boolean=false`，例如 `{"ref":"main","rescan":true}`，重读同 Commit tree 以发现旧快照未记录的新语言；复用兼容 blob，仍遵守原预算和历史非破坏规则。默认继续完整同提交缓存。
+
 本文定义第一版前后端协作所需的最小接口。项目、Markdown/Java 来源、任务、健康检查、候选提取、审核、图谱、关键词/语义向量/一跳图关系混合检索及同步证据问答接口已经实现。字段调整时应保持错误结构和分页结构一致。
 
 ## 时序演化与只读治理（已实现）
@@ -38,7 +45,7 @@
 | `POST /api/v1/tasks/{task_id}/run` | 已实现，同步执行 Markdown/Java 解析 |
 | `GET /api/v1/sources/{source_id}/chunks` | 已实现，分页查询原文分块 |
 | `GET /api/v1/sources/{source_id}/code-structure` | 已实现，派生 Java 符号、同文件调用及有界跨文件类型/方法关系 |
-| `GET /api/v1/projects/{project_id}/code-symbols` | 已实现，按名称/路径与仓库/类型检索已解析 Java 符号 |
+| `GET /api/v1/projects/{project_id}/code-symbols` | 已实现，按名称/路径与仓库/类型检索已解析多语言代码符号 |
 | `GET /api/v1/sources/{source_id}/extraction` | 已实现，读取候选提取任务状态 |
 | `POST /api/v1/sources/{source_id}/extract` | 已实现，显式 DeepSeek 候选提取 |
 | `GET /api/v1/projects/{project_id}/reviews` | 已实现，分页候选查询 |
@@ -155,7 +162,7 @@
 }
 ```
 
-`ref` 可省略；省略时读取仓库默认分支，也可填写 branch、tag 或 commit SHA。仓库必须已登记或关联 `provider=github`。后端通过 GitHub REST 解析 commit 与递归 tree，按路径顺序选择最多 50 份 `.md`、`.markdown`、`.java` 文件，单份仍受 `MAX_UPLOAD_BYTES` 限制，一次同步累计下载最多 20 MiB。公开仓库无需令牌；私有仓库可在后端配置只读 `GITHUB_TOKEN`。
+`ref` 可省略；省略时读取仓库默认分支，也可填写 branch、tag 或 commit SHA。仓库必须已登记或关联 `provider=github`。后端通过 GitHub REST 解析 commit 与递归 tree，按路径顺序选择最多 50 份注册表支持的 Markdown/多语言代码文件，单份仍受 `MAX_UPLOAD_BYTES` 限制，一次同步累计下载最多 20 MiB。公开仓库无需令牌；私有仓库可在后端配置只读 `GITHUB_TOKEN`。
 
 ```json
 {
@@ -302,8 +309,8 @@ GitHub provider item ID、`updated_at` 与 `include_comments` 组合标识工作
 
 表单字段：
 
-- `file`：接受 UTF-8 `.md`、`.markdown` 或 `.java` 文件，默认最大 10 MiB。
-- `source_type`：可选，未填写时由后缀识别；填写时必须与后缀推断出的 `markdown` 或 `java` 一致。
+- `file`：接受[注册表支持](MULTILANGUAGE_PARSING.zh-CN.md)的 UTF-8 Markdown/代码文件，默认最大 10 MiB。
+- `source_type`：可选，未填写时由后缀识别；填写时必须与注册表根据后缀推断的来源类型一致。
 - `repository_id`：可选，必须属于当前用户和项目；文件夹导入先通过仓库解析接口取得。
 - `relative_path`：可选，供文件夹上传保存包含文件名的仓库内相对路径；最长 1024 字符，统一为 `/`，不得是绝对路径、包含空段、`.`/`..`，末段必须与上传文件名一致。提供 `repository_id` 时必填；单文件上传通常同时省略两者。
 
@@ -380,25 +387,25 @@ Worker 与手动执行竞争时，只有认领成功的一方执行；另一方�
 
 Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，其余语法作为文本保留。Java 当前识别顶层类型和常规直接成员方法，并保留其余源码；不提供完整 Java AST、嵌套类型语义、重载签名、完整调用图或仓库增量同步。边界见 [ADR 0012](adr/0012-bounded-java-source-ingestion.zh-CN.md)。
 
-### 检索 Java 符号
+### 检索多语言代码符号
 
 `GET /api/v1/projects/{project_id}/code-symbols?q=save&kind=method&limit=50`
 
-必填 `q` 为 1–200 字符，去掉首尾空白后按本地大纲限定名（例如 `OrderService.save`）或来源路径进行不区分大小写的字面子串匹配，不把 `%`、`_` 当 SQL 通配符。可选 `repository_id` 限定当前用户/项目的仓库；省略时包含该项目所有仓库及未归属资料。`kind` 可为 `type`、`field`、`method`；`limit` 默认为 50、范围 1–100。只读取 `ready` Java 来源，不调用模型或构建工具、不写正式知识。
+必填 `q` 为 1–200 字符，去掉首尾空白后按本地大纲限定名（例如 `OrderService.save`）或来源路径进行不区分大小写的字面子串匹配，不把 `%`、`_` 当 SQL 通配符。可选 `repository_id` 限定当前用户/项目的仓库；省略时包含该项目所有仓库及未归属资料。`kind` 可为 `type`、`field`、`method`；`limit` 默认为 50、范围 1–100。只读取 `ready` 的受支持代码来源，不调用模型或构建工具、不写正式知识。
 
-返回 `query`、`items`、`scanned_source_count`、`matched_count` 和 `truncated`。每项包含原大纲符号 `id`/`kind`/`name`/`qualified_name`/`owner`/包含式 `start_line`、`end_line`，以及 `source_id`、`source_path`、可空的 `repository_id`、`repository_name`、`task_id`、`chunk_id`、`chunk_position`、`git_url`。`chunk_position` 从 0 开始；前端使用资料分块接口默认每页 20 条计算目标页并聚焦对应 `chunk_id`。GitHub 文件 URL 固定到 Commit 和声明行，本地资料为 null。历史来源版本保持独立，不合并同名符号。
+返回 `query`、`items`、`scanned_source_count`、`matched_count`、`truncated` 和 `has_syntax_errors`。命中另含 `language`。每项包含原大纲符号 `id`/`kind`/`name`/`qualified_name`/`owner`/包含式 `start_line`、`end_line`，以及 `source_id`、`source_path`、可空的 `repository_id`、`repository_name`、`task_id`、`chunk_id`、`chunk_position`、`git_url`。`chunk_position` 从 0 开始；前端使用资料分块接口默认每页 20 条计算目标页并聚焦对应 `chunk_id`。GitHub 文件 URL 固定到 Commit 和声明行，本地资料为 null。历史来源版本保持独立，不合并同名符号。
 
 按来源创建时间和 UUID 确定最多 100 份候选，再按累计最多 20 MiB 原文选择；单份保留大纲的 200 符号上限。结果优先精确名称，其次限定名，最后仅路径匹配，并按路径/行号/类型/UUID 稳定排序。`matched_count` 仅表示扫描内、应用返回上限前的匹配数；`truncated=true` 表示来源、字节、单份符号或结果数量至少一类被限制，空结果不能据此推断整个项目不存在目标。调整仓库/关键词可收窄范围，但本接口不保证扫描超出 100 份的全部资料。
 
 空白查询返回 422 `CODE_SEARCH_QUERY_EMPTY`；参数长度/类型错误返回统一 422；项目、仓库或用户越界返回 404。接口只提供已识别声明的位置，不是实体消歧或编译器全局符号索引，见 [ADR 0032](adr/0032-bounded-code-symbol-search.zh-CN.md)。
 
-### 查询 Java 源码结构（单文件）
+### 查询代码结构（Java 专项扩展如下）
 
 静态导入扩展保留响应形状：`import static Type.method` / `Type.*` 的未限定调用可返回同仓库其他 ready 来源中的静态方法候选，`cross_file_calls[].receiver` 为标记字符串 `import static`（不是源码接收者表达式）。原方法 ID、路径、行号及 `resolved`/`ambiguous` 语义不变。当前/继承成员名称保守阻止导入回退，即使参数数量不符；显式导入阻止通配回退，目标缺失时不猜测。排除非静态、私有和跨包不可访问候选；限定 `this`/`super` 不使用静态导入。完整类型/访问检查仍未实现，见 [ADR 0030](adr/0030-java-static-import-calls.zh-CN.md)。
 
 `GET /api/v1/sources/{source_id}/code-structure`
 
-仅用于状态为 `ready` 的 Java 来源。返回最多 200 个 `type` / `field` / `method` 符号、最多 500 条同文件方法调用，并在同仓库最多 100 份已解析 Java 来源中返回有界跨文件类型关系、最多 500 个相关方法和 500 条跨文件调用；相关来源原文累计最多读取 20 MiB。未归属仓库的旧来源只在同项目的未归属集合中解析。每个符号包含稳定 `id`、名称、限定名、所属类型和包含式行号。同文件调用包含调用方、候选被调方法 ID、名称、行号及 `resolved` / `ambiguous` 状态。
+适用于状态为 `ready` 的支持代码来源。新语言返回 `language/has_syntax_errors/symbols`，关系数组为空；以下调用能力仅适用于 Java。返回最多 200 个 `type` / `field` / `method` 符号、最多 500 条同文件方法调用，并在同仓库最多 100 份已解析 Java 来源中返回有界跨文件类型关系、最多 500 个相关方法和 500 条跨文件调用；相关来源原文累计最多读取 20 MiB。未归属仓库的旧来源只在同项目的未归属集合中解析。每个符号包含稳定 `id`、名称、限定名、所属类型和包含式行号。同文件调用包含调用方、候选被调方法 ID、名称、行号及 `resolved` / `ambiguous` 状态。
 
 `related_types` 返回关系目标的稳定类型 ID、来源 ID、相对路径优先的 `source_path`、包限定名和行号；`type_relationships` 返回当前类型符号 ID、目标 ID 列表、源码中的目标名、`extends` / `implements`、声明行及 `resolved` / `ambiguous`。`related_methods` 返回跨文件目标方法的稳定 ID、来源、路径、所属包限定类型、方法限定名和行号；`cross_file_calls` 返回当前调用方 ID、目标方法 ID 列表、接收者、方法名、调用行及解析状态。解析遵循显式导入、同包和通配导入优先级，只返回能匹配同仓库已解析来源的目标；外部库、其他仓库和未解析文件不会伪造关系。同一路径的多个不可变版本若声明相同包限定类型，也会作为多个候选显示为 `ambiguous`。`truncated=true` 表示符号、调用、相关类型/方法、类型关系、跨文件调用或仓库来源至少一类达到上限。
 

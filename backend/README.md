@@ -1,5 +1,7 @@
 # Knowledge Atlas Backend
 
+Multi-language V1 extends the existing Markdown/Java pipeline to Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: single-file/folder/GitHub imports, Worker, exact chunks, outlines and symbol search. New languages are syntax-only, with explicit syntax warnings, no execution, cross-file semantics or automatic graph writes. Explicit `rescan=true` discovers newly supported files in old complete same-commit snapshots. No migration; reinstall backend `.[dev]` for pinned parser dependencies. See [supported extensions and limits](../docs/MULTILANGUAGE_PARSING.md).
+
 [简体中文](README.zh-CN.md)
 
 FastAPI service for Knowledge Atlas persistence, Markdown/Java ingestion, evidence-validated candidate extraction/review, and bounded read-only project-graph queries.
@@ -58,7 +60,7 @@ OpenAPI documentation is available at `http://localhost:8000/docs`.
 Use the interactive API documentation in this order:
 
 1. `POST /api/v1/projects` to create a project.
-2. For a folder, call `POST /api/v1/projects/{project_id}/repositories/resolve` with its root name, then upload each UTF-8 `.md`, `.markdown`, or `.java` file through `POST /api/v1/projects/{project_id}/sources` with `repository_id` and a normalized repository-relative `relative_path`. Single-file uploads omit both fields. Optionally register a GitHub HTTPS/SSH remote through `POST /api/v1/projects/{project_id}/repositories/resolve-github`, then explicitly call `POST /api/v1/projects/{project_id}/repositories/{repository_id}/sync-github` for a bounded file snapshot or `POST /api/v1/projects/{project_id}/repositories/{repository_id}/import-github-work-items` for recent Issue/Pull Request versions.
+2. For a folder, call `POST /api/v1/projects/{project_id}/repositories/resolve` with its root name, then upload each supported UTF-8 Markdown/code file through `POST /api/v1/projects/{project_id}/sources` with `repository_id` and a normalized repository-relative `relative_path`. Single-file uploads omit both fields. Optionally register a GitHub HTTPS/SSH remote through `POST /api/v1/projects/{project_id}/repositories/resolve-github`, then explicitly call `POST /api/v1/projects/{project_id}/repositories/{repository_id}/sync-github` for a bounded file snapshot or `POST /api/v1/projects/{project_id}/repositories/{repository_id}/import-github-work-items` for recent Issue/Pull Request versions.
 3. `POST /api/v1/tasks/{task_id}/run` to synchronously execute parsing.
 4. `GET /api/v1/tasks/{task_id}` to inspect status and error information.
 5. `GET /api/v1/sources/{source_id}/chunks?page=1&page_size=20` to inspect evidence text and line locations.

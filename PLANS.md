@@ -1,5 +1,7 @@
 # Knowledge Atlas Implementation Plan
 
+Multi-language V1 extends the existing Markdown/Java pipeline to Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: single-file/folder/GitHub imports, Worker, exact chunks, outlines and symbol search. New languages are syntax-only, with explicit syntax warnings, no execution, cross-file semantics or automatic graph writes. Explicit `rescan=true` discovers newly supported files in old complete same-commit snapshots. No migration; reinstall backend `.[dev]` for pinned parser dependencies. See [ADR 0040](docs/adr/0040-multilanguage-source-parsing.md).
+
 [简体中文](PLANS.zh-CN.md)
 
 This file identifies the active implementation phase and points to the detailed roadmap. It does not replace `docs/ROADMAP.md`.

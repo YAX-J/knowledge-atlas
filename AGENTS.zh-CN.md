@@ -1,5 +1,7 @@
 # Knowledge Atlas 仓库代理规范
 
+多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。新语言仅做语法结构，不扩展 Java 的跨文件语义；语法错误显式提示，不执行代码或自动入图。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。无新迁移，重新安装后端 `.[dev]` 获取固定解析依赖。 修改时读 `docs/MULTILANGUAGE_PARSING.zh-CN.md` / ADR 0040；注册表 `services/source_languages.py`，语法解析器 `services/code_source.py`；下文 Java 专项仍仅适用 Java。
+
 [English](AGENTS.md)
 
 本文为 `AGENTS.md` 的中文版本，两种版本同步维护。AI 编码代理的仓库规范入口仍为 `AGENTS.md`。

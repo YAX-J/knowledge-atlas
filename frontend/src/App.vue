@@ -15,6 +15,7 @@ import ProjectGraph from './components/ProjectGraph.vue'
 import KnowledgeEvolution from './components/KnowledgeEvolution.vue'
 import QuestionWorkspace from './components/QuestionWorkspace.vue'
 import { ApiError } from './api/client'
+import { isCodeSource } from './sourceLanguages'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
   runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
@@ -698,6 +699,7 @@ async function registerGithubRepository(input: {
 async function syncRegisteredGithubRepository(input: {
   repositoryId: string
   ref?: string
+  rescan?: boolean
 }) {
   const projectId = project.value?.id
   if (!projectId || loading.sync || loading.activity || loading.remote || loading.upload || loading.task || loading.commit) return
@@ -705,7 +707,7 @@ async function syncRegisteredGithubRepository(input: {
   errors.sync = errors.activity = ''
   notice.value = '正在从 GitHub 读取仓库快照…'
   try {
-    const result = await syncGithubRepository(projectId, input.repositoryId, input.ref)
+    const result = await syncGithubRepository(projectId, input.repositoryId, input.ref, input.rescan)
     if (project.value?.id !== projectId) return
     const selected = [...result.items].reverse().find(
       item => item.status !== 'deleted' && item.source_id && item.task_id,
@@ -806,7 +808,7 @@ async function refreshSource(chunkPage = 1) {
     }
     if (sourceResult.status === 'ready') {
       const requests: Promise<void>[] = [loadChunks(chunkPage), loadReviews(1)]
-      if (sourceResult.source_type === 'java') requests.push(loadCodeStructure())
+      if (isCodeSource(sourceResult.source_type)) requests.push(loadCodeStructure())
       await Promise.all(requests)
     }
   } catch (error) {

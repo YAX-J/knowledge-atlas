@@ -23,6 +23,7 @@ from app.schemas.repositories import (
     GithubRepositorySyncResult,
 )
 from app.services import ingestion
+from app.services.source_languages import CODE_SOURCE_TYPES
 from app.services.repositories import get_repository, normalize_github_remote
 from app.services.projects import get_project
 
@@ -293,7 +294,7 @@ def _reusable_snapshot_files(
             ProcessingTask.project_id == project_id,
             ProcessingTask.source_id == SourceDocument.id,
             or_(
-                and_(SourceDocument.source_type == "java", ProcessingTask.type == "code_parsing"),
+                and_(SourceDocument.source_type.in_(tuple(CODE_SOURCE_TYPES)), ProcessingTask.type == "code_parsing"),
                 and_(SourceDocument.source_type == "markdown",
                      ProcessingTask.type.in_(("markdown_parsing", "knowledge_extraction"))),
             ),
@@ -369,6 +370,7 @@ def sync_github_repository(
     project_id: uuid.UUID,
     repository_id: uuid.UUID,
     requested_ref: str | None,
+    rescan: bool = False,
 ) -> GithubRepositorySyncResult:
     repository = get_repository(
         db,
@@ -436,6 +438,7 @@ def sync_github_repository(
         if (
             previous_snapshot is not None
             and previous_snapshot.commit_sha == commit_sha
+            and not rescan
         ):
             reusable_types = {
                 item.id: source_type

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { isCodeSource, sourceFileAccept, sourceLanguageHint, sourceTypeForFile, sourceTypeLabel } from '../sourceLanguages'
 import type {
   ApiProject, ApiProjectList, ApiSource, JavaCodeStructure, ProcessingTask, SourceChunkList, SourceList, SourceListItem, SourceRepository, SourceRepositoryList,
 } from '../api/knowledgeAtlas'
@@ -27,7 +28,7 @@ const emit = defineEmits<{
   projectsPage: [page: number]
   repositoriesPage: [page: number]
   resolveGithub: [input: { remoteUrl: string; localRepositoryId?: string }]
-  syncGithub: [input: { repositoryId: string; ref?: string }]
+  syncGithub: [input: { repositoryId: string; ref?: string; rescan?: boolean }]
   importGithubActivity: [repositoryId: string]
   snapshots: [repository: SourceRepository]
   sourcesPage: [page: number]
@@ -43,6 +44,7 @@ const description = ref('')
 const remoteUrl = ref('')
 const localRepositoryId = ref('')
 const githubRefs = reactive<Record<string, string>>({})
+const githubRescans = reactive<Record<string, boolean>>({})
 const singleFileInput = ref<HTMLInputElement | null>(null)
 const folderInput = ref<HTMLInputElement | null>(null)
 const fileError = ref('')
@@ -116,8 +118,8 @@ function chooseSingleFile(event: Event) {
   if (!file) return
   fileError.value = ''
   selectionNote.value = ''
-  if (!/\.(md|markdown|java)$/i.test(file.name)) {
-    fileError.value = '请选择 .md、.markdown 或 .java 文件。'
+  if (!sourceTypeForFile(file.name)) {
+    fileError.value = `请选择支持的文件：${sourceLanguageHint}。`
     return
   }
   if (!file.size) {
@@ -133,10 +135,10 @@ function chooseFolder(event: Event) {
   if (!selected.length) return
   fileError.value = ''
   selectionNote.value = ''
-  const files = selected.filter(file => /\.(md|markdown|java)$/i.test(file.name) && file.size)
+  const files = selected.filter(file => sourceTypeForFile(file.name) && file.size)
   const ignored = selected.length - files.length
   if (!files.length) {
-    fileError.value = '这个文件夹中没有可上传的非空 Markdown 或 Java 文件。'
+    fileError.value = '这个文件夹中没有可上传的非空 Markdown 或受支持的代码文件。'
     return
   }
   if (files.length > 50) {
@@ -151,11 +153,8 @@ function chooseFolder(event: Event) {
 function formatSize(bytes: number) {
   return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`
 }
-function sourceTypeLabel(sourceType: string) {
-  return sourceType === 'java' ? 'JAVA' : 'MD'
-}
 function codeSymbolKindLabel(kind: string) {
-  return ({ type: '类型', field: '字段', method: '方法' } as Record<string, string>)[kind] ?? kind
+  return ({ type: '类型', field: '字段/属性', method: '函数/方法' } as Record<string, string>)[kind] ?? kind
 }
 function callerName(callerId: string) {
   return codeSymbolsById.value.get(callerId)?.qualified_name ?? '未知调用方'
@@ -253,20 +252,20 @@ function sourceMeta(source: SourceListItem | ApiSource) {
         <div v-if="!project" class="source-empty-state">
           <span class="empty-source-mark" aria-hidden="true">⌑</span>
           <h2>从一篇笔记开始</h2>
-          <p>选择或创建项目，然后上传 Markdown 或 Java 源文件。解析后可以查看结构和对应行号。</p>
+          <p>选择或创建项目，然后上传 {{ sourceLanguageHint }} 文件。解析后可以查看结构和对应行号。</p>
         </div>
         <template v-else>
           <header class="source-project-heading">
             <div><h2>{{ project.name }}</h2><p>{{ project.description || '在这里保存项目的技术笔记。' }}</p></div>
             <div class="upload-control">
               <button class="text-button" type="button" :disabled="locked" @click="emit('graph')">查看项目图谱</button>
-              <input ref="singleFileInput" class="file-picker" type="file" accept=".md,.markdown,.java,text/markdown,text/x-java-source" aria-label="选择一个 Markdown 或 Java 文件" tabindex="-1" :disabled="locked" @change="chooseSingleFile" />
+              <input ref="singleFileInput" class="file-picker" type="file" :accept="sourceFileAccept" aria-label="选择一个 Markdown 或代码文件" tabindex="-1" :disabled="locked" @change="chooseSingleFile" />
               <button class="primary-button" type="button" :disabled="locked" @click="singleFileInput?.click()">{{ loading.upload && uploadKind === 'file' ? '正在上传…' : '上传单个文件' }}</button>
-              <input ref="folderInput" class="file-picker" type="file" aria-label="选择包含 Markdown 或 Java 文件的文件夹" tabindex="-1" :disabled="locked" webkitdirectory directory multiple @change="chooseFolder" />
+              <input ref="folderInput" class="file-picker" type="file" aria-label="选择包含 Markdown 或代码文件的文件夹" tabindex="-1" :disabled="locked" webkitdirectory directory multiple @change="chooseFolder" />
               <button class="primary-button" type="button" :disabled="locked" @click="folderInput?.click()">{{ loading.upload && uploadKind === 'folder' ? '正在上传文件夹…' : '上传文件夹' }}</button>
             </div>
           </header>
-          <p class="source-upload-hint">可上传单个 UTF-8 Markdown/Java 文件，或把文件夹识别为本地仓库并导入最多 50 份支持的文件。仓库身份与仓库内相对路径会随资料保存；其他类型与空文件会被忽略。</p>
+          <p class="source-upload-hint">支持 UTF-8 {{ sourceLanguageHint }} 文件。文件夹最多导入 50 份支持文件，保存仓库与相对路径；其他类型与空文件会被忽略。</p>
           <p v-if="selectionNote" class="muted-copy" role="status">{{ selectionNote }}</p>
           <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
           <p v-if="fileError || errors.upload" class="inline-error" role="alert">{{ fileError || errors.upload }}</p>
@@ -292,7 +291,8 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                 <div v-if="repository.provider === 'github'" class="repository-sync">
                   <label :for="`github-ref-${repository.id}`">同步 ref <span>选填</span></label>
                   <input :id="`github-ref-${repository.id}`" v-model="githubRefs[repository.id]" type="text" maxlength="255" placeholder="默认分支" :disabled="locked" />
-                  <button class="text-button" type="button" :disabled="locked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubRefs[repository.id]?.trim() || undefined })">{{ loading.sync ? '正在同步…' : '同步 GitHub 内容' }}</button>
+                  <label><input v-model="githubRescans[repository.id]" type="checkbox" :disabled="locked" />重新扫描（发现新增语言文件）</label>
+                  <button class="text-button" type="button" :disabled="locked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubRefs[repository.id]?.trim() || undefined, rescan: githubRescans[repository.id] ?? false })">{{ loading.sync ? '正在同步…' : '同步 GitHub 内容' }}</button>
                   <button class="text-button" type="button" :disabled="locked" @click="emit('importGithubActivity', repository.id)">{{ loading.activity ? '正在导入…' : '导入 Issue / PR / Review thread' }}</button>
                   <button class="text-button" type="button" :disabled="locked" @click="emit('snapshots', repository)">查看同步快照</button>
                 </div>
@@ -314,7 +314,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                   <option value="">不关联，登记为远程仓库</option>
                   <option v-for="repository in linkableLocalRepositories" :key="repository.id" :value="repository.id">{{ repository.name }}</option>
                 </select>
-                <p class="source-upload-hint">接受 GitHub HTTPS 或 SSH remote；登记后可显式同步默认分支或指定 ref 中最多 50 份 Markdown/Java 文件。</p>
+                <p class="source-upload-hint">接受 GitHub HTTPS 或 SSH remote；登记后可显式同步默认分支或指定 ref 中最多 50 份支持的 Markdown/多语言代码文件。</p>
                 <p v-if="errors.remote" class="inline-error" role="alert">{{ errors.remote }}</p>
                 <button class="primary-button" type="submit" :disabled="locked || !remoteUrl.trim()">{{ loading.remote ? '正在登记…' : '登记 remote' }}</button>
               </form>
@@ -366,16 +366,18 @@ function sourceMeta(source: SourceListItem | ApiSource) {
               <p v-if="errors.task" class="inline-error" role="alert">{{ errors.task }}</p>
               <details v-if="source.status !== 'ready'" class="raw-preview" open><summary>原文预览（最多 4000 字符）</summary><pre>{{ source.content_preview }}</pre></details>
               <template v-else>
-                <section v-if="source.source_type === 'java'" class="code-structure" aria-labelledby="code-structure-title">
+                <section v-if="isCodeSource(source.source_type)" class="code-structure" aria-labelledby="code-structure-title">
                   <div class="source-section-heading">
                     <h3 id="code-structure-title">源码结构</h3>
                     <span v-if="codeStructure" class="muted-copy">{{ codeStructure.symbols.length }} 个符号 · {{ codeStructure.calls.length }} 条同文件调用 · {{ codeStructure.cross_file_calls.length }} 条跨文件调用 · {{ codeStructure.type_relationships.length }} 条跨文件类型关系</span>
                   </div>
                   <p class="source-upload-hint">结构关系由本地规则推导，不会自动写入已审核的正式知识图谱。</p>
+                  <p v-if="source.source_type !== 'java'" class="source-upload-hint">{{ sourceTypeLabel(source.source_type) }} 使用语法结构解析；当前仅提供符号与原文分块，不推断跨文件调用。</p>
                   <p v-if="loading.structure" class="muted-copy" role="status">正在读取源码结构…</p>
                   <p v-else-if="errors.structure" class="inline-error" role="alert">{{ errors.structure }} 请刷新状态重试。</p>
                   <template v-else-if="codeStructure">
                     <p v-if="codeStructure.truncated" class="inline-error">文件结构较大，当前仅展示有界结果。</p>
+                    <p v-if="codeStructure.has_syntax_errors" class="inline-error" role="status">源码包含语法错误或不支持的语法，符号可能不完整；原文与行号仍保留。</p>
                     <div v-if="codeStructure.symbols.length" class="code-symbol-grid">
                       <article v-for="symbol in codeStructure.symbols" :key="symbol.id" class="code-symbol-card">
                         <span>{{ codeSymbolKindLabel(symbol.kind) }}</span>
@@ -383,7 +385,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                         <small>第 {{ symbol.start_line }}–{{ symbol.end_line }} 行</small>
                       </article>
                     </div>
-                    <p v-else class="empty-copy">没有识别到可展示的 Java 符号。</p>
+                    <p v-else class="empty-copy">没有识别到可展示的代码符号。</p>
                     <div v-if="codeStructure.calls.length" class="code-call-list">
                       <h4>同文件方法调用</h4>
                       <p v-for="call in codeStructure.calls" :key="call.id">
