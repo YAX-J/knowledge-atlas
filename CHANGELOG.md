@@ -74,6 +74,11 @@ The project is pre-release. Version numbers and release dates will be added when
 - API-backed frontend project/source workspace with project creation/pagination, Markdown upload, source preview, parsing/retry, chunk pagination, and loading/error/empty states.
 - Paginated project-source listing with scoped latest-task references and interface tests.
 
+### Fixed
+
+- Java array fields, parameters and locals, including multidimensional/name-suffix declarations and varargs parameters, no longer generate calls to element-type methods or fall back to same-named fields/types. Scalar generic receivers containing array arguments still resolve normally, and lexical exit restores outer bindings.
+- Factory-inferred Java return types retain their resolved source identity across caller imports. Unnamed-package types no longer get redirected to a same-named imported class; duplicate source versions retain ambiguity.
+
 ### Changed
 
 - Explicit GitHub synchronization now retries incomplete same-commit snapshots, preserves successful typed source/task reuse, repairs missing or incompatible snapshot links, and avoids guessing renames from truncated file selections. Markdown/Java copies or extension changes cannot share the wrong parser task.

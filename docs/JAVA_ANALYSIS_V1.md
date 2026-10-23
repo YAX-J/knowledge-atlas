@@ -22,6 +22,8 @@ The static-factory extensions ([ADR 0036](adr/0036-bounded-java-static-factory-v
 
 `resolved` means one candidate within these rules, not a guarantee about Java compilation or runtime dispatch. Full Java semantics, external dependency/build-system integration, and further language coverage are separate future work. Multiline headers are supported; body declarations remain the existing line-oriented single-variable subset. Factory inference excludes chained, cast, conditional, instance, `this`/`super`-qualified, header-binding and reassignment forms.
 
+Receiver safety: array and varargs parameters, array fields and array locals keep their declared names bound but do not supply element-type method targets. Brackets before or after the variable name and multidimensional arrays are covered. Unknown bindings suppress field/type fallback; block exit restores outer scalar bindings. A scalar generic receiver such as `Product<Other[]>` remains scalar. Factory-inferred types retain their already-resolved qualified identity, including unnamed-package types, so caller imports cannot reinterpret them; constructor/explicit declarations still resolve in their declaring context. Focused regression: `tests/test_java_receiver_safety.py`.
+
 ## Bounds
 
 Existing limits remain: 200 symbols, 500 same-file calls, 100 related ready sources, 20 MiB related text, 400 related types, and 500 each for type relationships, related methods, and cross-file calls. A lookup additionally stops after 256 inheritance states; cycles and budget exhaustion set `truncated=true`. Omitted targets cannot leave dangling response edges. Diamonds and duplicate immutable versions are deduplicated by symbol ID, not by type name.
@@ -32,7 +34,7 @@ Use the existing backend virtual environment; no GitHub/LLM token, frontend, or 
 
 ```powershell
 # backend/
-.\.venv\Scripts\python.exe -m pytest tests/test_java_factory_receivers.py tests/test_java_static_imports.py tests/test_java_v1.py tests/test_java_structure.py tests/test_parsing.py
+.\.venv\Scripts\python.exe -m pytest tests/test_java_receiver_safety.py tests/test_java_factory_receivers.py tests/test_java_static_imports.py tests/test_java_v1.py tests/test_java_structure.py tests/test_parsing.py
 .\.venv\Scripts\python.exe -m pytest
 # repository root
 git diff --check
@@ -57,3 +59,7 @@ The user selected agent execution after receiving the commands, prerequisites, a
 ## Unqualified factory extension acceptance — 2026-10-23
 
 Agent execution continued under the user's existing executor choice. Using the existing backend virtual environment outside the sandbox to avoid the previously confirmed TestClient stall, final focused factory/Java/parsing regression passed 166 tests and the full backend suite passed 410 tests. The existing Starlette deprecation warning remains. New coverage includes original method IDs/lines, explicit/wildcard import precedence, current private static and inherited factories, arity/varargs, mixed instance/static overloads, return disagreement, missing import owners, duplicate versions, scope exit, name/type-parameter shadowing, output bounds and a repository/readiness-scoped upload/parse/structure API flow. This backend-only change adds no migration; real providers, native PostgreSQL and browser interaction were not exercised.
+
+## Receiver-safety regression acceptance — 2026-10-23
+
+Agent execution followed the existing executor choice and the announced Java-focused/full-backend/whitespace/document-link/tracked-file plan. Before implementation, the new safety file reproduced 16 failures out of 20 cases: array/varargs receivers incorrectly supplied element-class methods, and unnamed-package factory return types were rebound through caller imports. After fixing those paths and expanding direct/inherited-factory and duplicate-version coverage, 23 safety cases, 189 focused Java/parsing cases and 433 full-backend cases passed. Execution used the existing virtual environment outside the sandbox; only the existing Starlette deprecation warning remains. These are isolated fixture/API regressions; no real-provider, native PostgreSQL or browser acceptance was performed, and no migration was added.

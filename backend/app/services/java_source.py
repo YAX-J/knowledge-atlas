@@ -224,6 +224,7 @@ class _LocalBinding:
     start: int
     end: int
     type_name: str | None
+    type_is_resolved: bool = False
 
 
 @dataclass(frozen=True)
@@ -723,9 +724,18 @@ def _resolve_type_relationships(
     return visible_related_types, visible_relationships, truncated
 
 
-def _field_types_by_owner(current: _JavaTypeIndex) -> dict[tuple[str, str], str]:
+def _declared_receiver_type(declared_type: str, suffix: str = "") -> str | None:
+    """Keep arrays/varargs bound but unknown; generic element arrays are scalar."""
+    if (re.search(r"(?:\[\s*\]|\.\.\.)\s*$", declared_type)
+            or re.match(r"\s*\[", suffix)):
+        return None
+    referenced = _referenced_type_name(declared_type)
+    return referenced[0] if referenced is not None and referenced[0] != "var" else None
+
+
+def _field_types_by_owner(current: _JavaTypeIndex) -> dict[tuple[str, str], str | None]:
     depths = _depths(current.sanitized)
-    result: dict[tuple[str, str], str] = {}
+    result: dict[tuple[str, str], str | None] = {}
     for declaration, methods in _declarations(current.sanitized):
         method_ranges = [(method.start, method.end) for method in methods]
         for field_match in FIELD_DECLARATION.finditer(
@@ -745,15 +755,17 @@ def _field_types_by_owner(current: _JavaTypeIndex) -> dict[tuple[str, str], str]
                 continue
             referenced = _referenced_type_name(declared_type)
             if referenced is not None:
-                result[(declaration.name, field_match.group("name"))] = referenced[0]
+                result[(declaration.name, field_match.group("name"))] = _declared_receiver_type(
+                    declared_type, before_initializer,
+                )
     return result
 
 
-def _parameter_types(parameters: str) -> dict[str, str]:
-    result: dict[str, str] = {}
+def _parameter_types(parameters: str) -> dict[str, str | None]:
+    result: dict[str, str | None] = {}
     for segment, _ in _split_type_list(parameters):
         name_match = re.search(
-            r"(?P<name>[A-Za-z_$][\w$]*)\s*(?:\[\s*\])?\s*$",
+            r"(?P<name>[A-Za-z_$][\w$]*)(?P<array>(?:\s*\[\s*\])*)\s*$",
             segment,
         )
         if name_match is None:
@@ -766,10 +778,9 @@ def _parameter_types(parameters: str) -> dict[str, str]:
             declaration,
         )
         declaration = re.sub(r"\bfinal\b", "", declaration)
-        declaration = re.sub(r"\.\.\.\s*$", "", declaration).strip()
-        referenced = _referenced_type_name(declaration)
-        if referenced is not None and referenced[0] != "var":
-            result[name_match.group("name")] = referenced[0]
+        result[name_match.group("name")] = _declared_receiver_type(
+            declaration.strip(), name_match.group("array"),
+        )
     return result
 
 
@@ -1011,18 +1022,12 @@ def _local_variable_types(
     method: _MethodDeclaration,
     scopes: _MethodScopes,
     lookup: "_MethodLookup",
-    field_types: dict[tuple[str, str], str],
+    field_types: dict[tuple[str, str], str | None],
 ) -> dict[str, list[_LocalBinding]]:
     if method.opening is None:
         return {}
     owner = next(item for item in current.types if item.name == method.owner)
-    parameter_names = {
-        match.group("name")
-        for part, _ in _split_type_list(method.parameters)
-        if (match := re.search(
-            r"(?P<name>[A-Za-z_$][\w$]*)\s*(?:\[\s*\])?\s*$", part,
-        )) is not None
-    }
+    parameter_names = set(_parameter_types(method.parameters))
     field_names = {
         name for (owner_name, name) in field_types
         if owner_name == method.owner
@@ -1064,7 +1069,8 @@ def _local_variable_types(
             referenced = _referenced_type_name(declared_type)
             if referenced is not None and referenced[0] != "var":
                 declarations.append(_LocalBinding(
-                    match.start(), scope.end, referenced[0],
+                    match.start(), scope.end,
+                    _declared_receiver_type(declared_type, before_initializer),
                 ))
             continue
         # Even an unsupported initializer shadows a field or a type name.
@@ -1075,6 +1081,7 @@ def _local_variable_types(
         inferred_type = _constructor_initialized_type(
             current.sanitized[match.end():terminator]
         )
+        type_is_resolved = False
         if inferred_type is None:
             shadowed_names = parameter_names | field_names | {
                 name for name, bindings in result.items()
@@ -1087,8 +1094,11 @@ def _local_variable_types(
                 caller_owner=owner,
                 shadowed_names=shadowed_names,
             )
+            type_is_resolved = inferred_type is not None
         if inferred_type is not None:
-            declarations.append(_LocalBinding(terminator, scope.end, inferred_type))
+            declarations.append(_LocalBinding(
+                terminator, scope.end, inferred_type, type_is_resolved=type_is_resolved,
+            ))
     for declarations in result.values():
         declarations.sort(key=lambda item: item.start)
     return result
@@ -1439,6 +1449,7 @@ def _resolve_cross_file_calls(
             if not scopes.allows(call_match.start()):
                 continue
             callee_name = call_match.group("name")
+            type_is_resolved = False
             if receiver in {"this", "super"}:
                 target_type_name = owner.qualified_name
             elif receiver.startswith("this.") and receiver.count(".") == 1:
@@ -1458,14 +1469,19 @@ def _resolve_cross_file_calls(
                 )
                 if declaration is not None:
                     target_type_name = declaration.type_name
+                    type_is_resolved = declaration.type_is_resolved
+                    if target_type_name is None:
+                        continue
+                elif receiver in parameter_types:
+                    target_type_name = parameter_types[receiver]
                     if target_type_name is None:
                         continue
                 else:
-                    target_type_name = parameter_types.get(receiver)
-                if target_type_name is None:
                     target_type_name = field_types.get(
                         (caller.owner or "", receiver)
                     )
+                    if target_type_name is None and (caller.owner or "", receiver) in field_types:
+                        continue
             else:
                 target_type_name = None
             if target_type_name is None:
@@ -1481,6 +1497,10 @@ def _resolve_cross_file_calls(
                 target_types = [owner]  # The current source identity is known.
             elif receiver == "super":
                 target_types = lookup.superclasses.get(owner.id, [])
+            elif type_is_resolved:
+                # Factory return names were already resolved in the declaring
+                # source. A caller import must not reinterpret an unnamed type.
+                target_types = types_by_qualified_name.get(target_type_name, [])
             else:
                 target_types = _resolve_type_name(
                     current, target_type_name, types_by_qualified_name,

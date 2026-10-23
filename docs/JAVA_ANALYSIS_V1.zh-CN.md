@@ -22,6 +22,8 @@ V1 是有界、只读的源码大纲与调用候选分析，不是 Java 编译�
 
 `resolved` 仅表示上述规则内唯一候选，不保证 Java 编译通过或运行时分派目标。完整 Java 语义、外部依赖/构建系统集成及进一步语法覆盖属于独立后续工作。支持多行头部；块体声明仍沿用按行识别的单变量子集。工厂推断不包含链式、强制转换、条件表达式、实例、`this`/`super` 限定、头部绑定及重新赋值形式。
 
+接收者安全边界：数组/可变参数、数组字段和数组局部变量保留声明名称的绑定，但不提供元素类型的方法目标。覆盖变量名前/后的方括号和多维数组。未知绑定阻止字段/类型回退；退出块后恢复外层标量绑定。`Product<Other[]>` 等标量泛型接收者仍按标量处理。工厂推断保留已经解析的限定类型身份，包括默认包类型，调用文件的导入不能再重新解释它；构造器/显式声明仍在其声明上下文解析。聚焦回归：`tests/test_java_receiver_safety.py`。
+
 ## 上限
 
 保留既有上限：200 符号、500 同文件调用、100 份相关 ready 来源、20 MiB 相关原文、400 相关类型，以及各 500 条类型关系/相关方法/跨文件调用。单次继承查找另设 256 状态预算；继承环及预算触顶设置 `truncated=true`。省略目标不能留下悬空响应边；菱形路径和重复不可变版本按符号 ID 去重，不按类型名称合并。
@@ -32,7 +34,7 @@ V1 是有界、只读的源码大纲与调用候选分析，不是 Java 编译�
 
 ```powershell
 # backend/
-.\.venv\Scripts\python.exe -m pytest tests/test_java_factory_receivers.py tests/test_java_static_imports.py tests/test_java_v1.py tests/test_java_structure.py tests/test_parsing.py
+.\.venv\Scripts\python.exe -m pytest tests/test_java_receiver_safety.py tests/test_java_factory_receivers.py tests/test_java_static_imports.py tests/test_java_v1.py tests/test_java_structure.py tests/test_parsing.py
 .\.venv\Scripts\python.exe -m pytest
 # repository root
 git diff --check
@@ -57,3 +59,7 @@ git diff --check
 ## 未限定名工厂扩展验收 — 2026-10-23
 
 沿用用户此前选择，由 Agent 执行。使用既有后端虚拟环境，在沙箱外避开此前已确认的 TestClient 停滞，最终工厂/Java/解析聚焦回归 166 项通过，完整后端 410 项通过。保留既有 Starlette 弃用警告。新增覆盖包括原方法 ID/行号、显式/通配导入优先级、当前私有静态与继承工厂、实参数量/可变参数、实例/静态混合重载、返回类型冲突、导入所有者缺失、重复版本、退出作用域、名称/类型参数遮蔽、输出预算，以及仓库/ready 隔离的上传/解析/结构查询 API 流程。本纯后端改动无新迁移；未执行真实供应商、原生 PostgreSQL 或浏览器交互验收。
+
+## 接收者安全回归验收 — 2026-10-23
+
+沿用既有执行方选择，由 Agent 按已说明的 Java 聚焦/完整后端/空白/文档链接/跟踪文件方案执行。实现前，新增安全文件的 20 项用例复现了 16 项失败：数组/可变参数接收者错误生成元素类方法，默认包工厂返回类型被调用文件导入重新解释。修复后并扩展直接/继承工厂与重复版本覆盖，23 项安全用例、189 项 Java/解析聚焦用例、433 项完整后端用例全部通过。使用既有虚拟环境在沙箱外运行，仅保留既有 Starlette 弃用警告。这些是隔离夹具/API 回归；未进行真实供应商、原生 PostgreSQL 或浏览器验收，无新迁移。
