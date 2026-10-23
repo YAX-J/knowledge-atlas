@@ -35,6 +35,8 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 
 ## GitHub 快照同步
 
+- `GITHUB_IMPORT_MAX_FILES` 为后端每次新扫描预算，1–50、默认 50；与硬上限取最小。下调标记未完成，扩大后沿用同提交恢复和 blob 复用；已完整兼容缓存可直接返回既有元数据而不增加 blob 请求，不保证匿名/二级限流可用性。公开原生验收显式使用 30 并报告截断，不改变产品默认值。
+
 - `POST /projects/{project_id}/repositories/{repository_id}/sync-github` 只接受已登记 `provider=github` 的仓库。
 - `ref` 省略时读取默认分支，也可指定 branch、tag 或 commit SHA；每次有效同步保存 Commit/tree 元数据与逐文件 blob/status 快照。同一 ref 连续解析到相同 Commit，只有完整且引用兼容的快照可以直接返回，不再请求 tree/blob。截断/大小跳过、缺失或不兼容来源/任务引用时，下次显式同步重试并创建独立快照，保留已成功来源/历史；确定性空文件/编码/路径跳过仍可短路，见 ADR 0031。
 - 使用 GitHub repository、commit、recursive tree 和 blob REST 端点。公开仓库无需令牌；私有仓库令牌只放后端 `GITHUB_TOKEN`，建议仅授予 Contents read。

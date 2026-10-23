@@ -73,9 +73,15 @@ description: Knowledge Atlas 的候选审核与正式图谱写入。确认/拒�
 
 关键词/语义/混合检索：`GET /api/v1/projects/{project_id}/search` 只返回正式实体，沿用图谱 `visible` 与项目校验。关键词搜索名称、摘要和同作用域证据；语义模式只读查询显式构建的 1024 维索引；混合模式按 ADR 0010 以固定权重融合关键词、向量和可见一跳关系，并返回关系解释。修改时追加 `tests/test_search.py`，并同步 ADR 0008/0009/0010 和 API 文档。
 
+## 跨来源演化审核（阶段五）
+
+`services/evolution.py` 管理独立 `knowledge_changes`，不放松抽取关系同来源/同任务端点约束。创建 `SUPERSEDES/SUPPLEMENTS/CONFLICTS_WITH` 建议须有同项目同类型两个有效正式实体、理由、生效时间和可核验正式证据；不调用模型。规范化后相同请求 UUID 幂等。确认时先锁项目，重读建议/端点并重校验证据、有效状态与时间，再由 `graph.apply_reviewed_change` 原子保存审核快照及状态/有效期。它是 `promote_candidate` 之外唯一获准的正式有效期/状态修改边界，不创建无证据语义对象。
+
+替代方向新→旧；旧截止和新起点同为 effective_at。区间半开，不早于双方有效起点、不允许未来、不分叉/合并/环；补充/冲突仅记录分类。历史 API 只遍历已确认替代，最多 100 实体/200 变化，仍校验项目/用户/归档。治理只读最多 1000 当前实体，输出证据缺失、同名重复/可能冲突、孤立建议，不自动写入。测试加入 `tests/test_evolution.py`；原生并发通过 `python -m scripts.verify_native` 的临时 schema 验证，见 ADR 0039。
+
 ## 禁止事项
 
-- 不要在 `promote_candidate` 之外直接写 `knowledge_entities` / `knowledge_relationships` / `knowledge_evidence`。
+- 不要在 `promote_candidate` 之外创建 `knowledge_entities` / `knowledge_relationships` / `knowledge_evidence`；唯一有效期/状态更新例外是显式人工演化审核的 `apply_reviewed_change`，不能绕过服务或项目锁。
 - 不要跳过项目锁和条件更新；否则并发确认会重复审核或重复写入。
 - 不要通过 API 暴露 `user_id`、数据库内部 ID 或画布坐标。
 - 不要把 `SUPERSEDES` 方向写反：新知识指向旧知识。

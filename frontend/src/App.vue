@@ -12,12 +12,14 @@ import RepositorySnapshots from './components/RepositorySnapshots.vue'
 import SnapshotFiles from './components/SnapshotFiles.vue'
 import CandidateReview from './components/CandidateReview.vue'
 import ProjectGraph from './components/ProjectGraph.vue'
+import KnowledgeEvolution from './components/KnowledgeEvolution.vue'
 import QuestionWorkspace from './components/QuestionWorkspace.vue'
 import { ApiError } from './api/client'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
   runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
   getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
+  getKnowledgeHistory, inspectGovernance, listKnowledgeChanges, proposeKnowledgeChange, resolveKnowledgeChange,
   getJavaCodeStructure, getProjectSourceChunk,
   searchCodeSymbols,
   listRepositorySnapshots, listSnapshotFiles, importSnapshotCommit,
@@ -30,6 +32,7 @@ import type {
   RepositorySnapshotList, RepositorySnapshotFileList, RepositorySnapshotFile, SourceRepository,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
+import type { GovernanceResult, KnowledgeChangeInput, KnowledgeChangeList, KnowledgeHistory } from './types'
 import type { EvidenceLocator, IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchMode, KnowledgeSearchResult, QuestionAnswer } from './types'
 
 const selectedId = ref('event-driven')
@@ -192,7 +195,7 @@ function clearEvidenceNavigation() {
 }
 
 async function openEvidence(locator: EvidenceLocator) {
-  if (!project.value || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
+  if (!project.value || changeBusy.value || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
   const projectId = project.value.id
   clearSourceSelection()
   notice.value = ''
@@ -240,6 +243,11 @@ let codeSearchRequest = 0
 let codeOpenRequest = 0
 let codeSearchInput: CodeSymbolSearchInput | null = null
 watch(activeNav, value => {
+  if (value !== 'projectGraph') {
+    graphRequest++; graphDetailRequest++
+    graphLoading.value = graphDetailLoading.value = false
+    clearEvolution()
+  }
   if (value !== 'sources' && value !== 'projects') {
     clearCodeSearch()
     if (evidenceNavigationLoading.value) clearSourceSelection()
@@ -322,6 +330,100 @@ const graphSelectionKind = ref<'entity' | 'relationship'>('entity')
 const graphCenter = ref('')
 const graphType = ref('')
 const graphDepth = ref(1)
+const graphValidAt = ref('')
+const history = ref<KnowledgeHistory | null>(null)
+const knowledgeChanges = ref<KnowledgeChangeList | null>(null)
+const governance = ref<GovernanceResult | null>(null)
+const evolutionLoading = reactive({ history: false, changes: false, governance: false })
+const evolutionError = reactive({ history: '', changes: '', governance: '', action: '' })
+const changeBusy = ref(false)
+const changeNotice = ref('')
+let historyRequest = 0
+let changesRequest = 0
+let governanceRequest = 0
+
+function clearEvolution() {
+  historyRequest++; changesRequest++; governanceRequest++
+  history.value = null; knowledgeChanges.value = null; governance.value = null
+  evolutionLoading.history = evolutionLoading.changes = evolutionLoading.governance = false
+  evolutionError.history = evolutionError.changes = evolutionError.governance = evolutionError.action = ''
+  changeNotice.value = ''
+}
+
+async function loadHistory() {
+  const projectId = project.value?.id, entityId = realEntityDetail.value?.entity.id
+  const request = ++historyRequest
+  history.value = null; evolutionError.history = ''
+  if (!projectId || !entityId) { evolutionLoading.history = false; return }
+  evolutionLoading.history = true
+  try {
+    const result = await getKnowledgeHistory(projectId, entityId)
+    if (request === historyRequest && project.value?.id === projectId) history.value = result
+  } catch (error) { if (request === historyRequest) evolutionError.history = errorMessage(error) }
+  finally { if (request === historyRequest) evolutionLoading.history = false }
+}
+
+async function loadChanges(page = 1) {
+  const projectId = project.value?.id
+  if (!projectId) return
+  const request = ++changesRequest
+  evolutionLoading.changes = true; evolutionError.changes = ''
+  try {
+    const result = await listKnowledgeChanges(projectId, page)
+    if (request === changesRequest && project.value?.id === projectId) knowledgeChanges.value = result
+  } catch (error) { if (request === changesRequest) evolutionError.changes = errorMessage(error) }
+  finally { if (request === changesRequest) evolutionLoading.changes = false }
+}
+
+async function runGovernance() {
+  const projectId = project.value?.id
+  if (!projectId || changeBusy.value) return
+  const request = ++governanceRequest
+  governance.value = null; evolutionLoading.governance = true; evolutionError.governance = ''
+  try {
+    const result = await inspectGovernance(projectId)
+    if (request === governanceRequest && project.value?.id === projectId) governance.value = result
+  } catch (error) { if (request === governanceRequest) evolutionError.governance = errorMessage(error) }
+  finally { if (request === governanceRequest) evolutionLoading.governance = false }
+}
+
+async function proposeChange(input: KnowledgeChangeInput) {
+  const projectId = project.value?.id
+  if (!projectId || changeBusy.value || graphValidAt.value) return
+  changeBusy.value = true; evolutionError.action = ''; changeNotice.value = ''
+  try {
+    await proposeKnowledgeChange(projectId, input)
+    if (project.value?.id !== projectId) return
+    changeNotice.value = '建议已保存，尚未改变正式知识。请核对原文后单独确认。'
+    await loadChanges(1)
+  } catch (error) { if (project.value?.id === projectId) evolutionError.action = errorMessage(error) }
+  finally { changeBusy.value = false }
+}
+
+async function resolveChange(id: string, action: 'confirm' | 'reject') {
+  const projectId = project.value?.id
+  if (!projectId || changeBusy.value || graphValidAt.value) return
+  changeBusy.value = true; evolutionError.action = ''; changeNotice.value = ''
+  try {
+    const result = await resolveKnowledgeChange(projectId, id, action)
+    if (project.value?.id !== projectId) return
+    changeNotice.value = action === 'reject' ? '建议已拒绝，知识保持不变。' : '建议已确认，审核前后快照已保存。'
+    clearSearch()
+    governanceRequest++; governance.value = null; evolutionLoading.governance = false
+    if (action === 'confirm' && result.kind === 'SUPERSEDES') graphSelectedId.value = result.new_entity_id
+    await Promise.all([loadChanges(knowledgeChanges.value?.page ?? 1), loadRealGraph('')])
+  } catch (error) { if (project.value?.id === projectId) evolutionError.action = errorMessage(error) }
+  finally { changeBusy.value = false }
+}
+
+async function setGraphTime(value: string, entityId = '') {
+  if (changeBusy.value) return
+  graphValidAt.value = value
+  clearSearch()
+  if (entityId) graphSelectedId.value = entityId
+  graphType.value = ''
+  await loadRealGraph(entityId)
+}
 let graphRequest = 0
 let graphDetailRequest = 0
 const searchResult = ref<KnowledgeSearchResult | null>(null)
@@ -396,7 +498,7 @@ async function runSearch(query: string, types: string, mode: KnowledgeSearchMode
   searchError.value = ''
   searchResult.value = null
   try {
-    const result = await searchKnowledge(projectId, query, types, mode)
+    const result = await searchKnowledge(projectId, query, types, mode, graphValidAt.value)
     if (request === searchRequest && project.value?.id === projectId) searchResult.value = result
   } catch (error) {
     if (request === searchRequest) searchError.value = errorMessage(error)
@@ -435,6 +537,7 @@ async function openQuestionEntity(id: string) {
   if (!project.value) return
   activeNav.value = 'projectGraph'
   clearSearch()
+  graphValidAt.value = ''
   graphType.value = ''
   graphSelectedId.value = id
   await loadRealGraph(id)
@@ -487,7 +590,9 @@ async function loadProjects(page = 1) {
 }
 
 function selectProject(value: ApiProject) {
-  if (loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
+  if (changeBusy.value || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
+  clearEvolution()
+  graphValidAt.value = ''
   clearQuestion()
   clearSnapshots()
   errors.commit = ''
@@ -893,6 +998,8 @@ function openProjectGraph() {
   activeNav.value = 'projectGraph'
   graphType.value = ''
   graphCenter.value = ''
+  graphValidAt.value = ''
+  void loadChanges(1)
   void loadRealGraph('')
 }
 
@@ -909,7 +1016,7 @@ async function loadRealGraph(center = graphCenter.value) {
   realRelationshipDetail.value = null
   graphCenter.value = center
   try {
-    const result = await getProjectGraph(projectId, { centerId: center || undefined, depth: graphDepth.value, types: graphType.value })
+    const result = await getProjectGraph(projectId, { centerId: center || undefined, depth: graphDepth.value, types: graphType.value, validAt: graphValidAt.value })
     if (request !== graphRequest || project.value?.id !== projectId) return
     realGraph.value = result
     const selected = result.nodes.find(item => item.id === graphSelectedId.value) ?? result.nodes[0]
@@ -923,6 +1030,7 @@ async function loadRealGraph(center = graphCenter.value) {
 }
 
 async function selectGraphEntity(id: string) {
+  historyRequest++; history.value = null; evolutionLoading.history = false; evolutionError.history = ''
   if (!realGraph.value?.nodes.some(item => item.id === id)) {
     graphType.value = ''
     await loadRealGraph(id)
@@ -935,8 +1043,8 @@ async function selectGraphEntity(id: string) {
   graphDetailError.value = ''
   realEntityDetail.value = realRelationshipDetail.value = null
   try {
-    const result = await getEntityDetail(id)
-    if (request === graphDetailRequest) realEntityDetail.value = result
+    const result = await getEntityDetail(id, graphValidAt.value)
+    if (request === graphDetailRequest) { realEntityDetail.value = result; void loadHistory() }
   } catch (error) {
     if (request === graphDetailRequest) graphDetailError.value = errorMessage(error)
   } finally {
@@ -945,6 +1053,7 @@ async function selectGraphEntity(id: string) {
 }
 
 async function selectGraphRelationship(id: string) {
+  historyRequest++; history.value = null; evolutionLoading.history = false; evolutionError.history = ''
   const request = ++graphDetailRequest
   graphSelectedId.value = id
   graphSelectionKind.value = 'relationship'
@@ -952,7 +1061,7 @@ async function selectGraphRelationship(id: string) {
   graphDetailError.value = ''
   realEntityDetail.value = realRelationshipDetail.value = null
   try {
-    const result = await getRelationshipDetail(id)
+    const result = await getRelationshipDetail(id, graphValidAt.value)
     if (request === graphDetailRequest) realRelationshipDetail.value = result
   } catch (error) {
     if (request === graphDetailRequest) graphDetailError.value = errorMessage(error)
@@ -985,6 +1094,7 @@ function selectNode(id: string) {
 }
 
 function changeNav(value: string) {
+  if (changeBusy.value) return
   if (value === 'filter') {
     if (activeNav.value === 'projectGraph') {
       ElMessage({ message: '可在项目图谱顶部按知识类型筛选。', type: 'info' })
@@ -1080,6 +1190,7 @@ function setTimeline(value: number) {
       </template>
     </SourceWorkspace>
     <ProjectGraph v-else-if="activeNav === 'projectGraph'" :project="project" :graph="realGraph"
+      :valid-at="graphValidAt" :mutation-busy="changeBusy" @time="setGraphTime"
       :search-result="searchResult" :search-loading="searchLoading" :search-error="searchError"
       :search-rebuilding="searchRebuilding" :search-notice="searchNotice" :search-error-action="searchErrorAction"
       @search="runSearch" @rebuild-search="rebuildSemanticIndex" @clear-search="clearSearch" @retry-search="runSearch(searchQuery, searchTypes, searchMode)" @select-search-entity="openSearchEntity"
@@ -1088,7 +1199,14 @@ function setTimeline(value: number) {
       :selected-id="graphSelectedId" :center="graphCenter" :depth="graphDepth" :type-filter="graphType"
       @back="activeNav = 'sources'" @demo="activeNav = 'graph'" @refresh="loadRealGraph()"
       @select-entity="selectGraphEntity" @select-relationship="selectGraphRelationship" @neighborhood="loadRealGraph"
-      @reset="loadRealGraph('')" @filter-type="filterGraph" @depth="setGraphDepth" @retry-detail="retryGraphDetail" @open-evidence="openEvidence" />
+      @reset="loadRealGraph('')" @filter-type="filterGraph" @depth="setGraphDepth" @retry-detail="retryGraphDetail" @open-evidence="openEvidence">
+      <template #evolution><KnowledgeEvolution :nodes="realGraph?.nodes ?? []" :selected="realEntityDetail" :history="history"
+        :changes="knowledgeChanges" :governance="governance" :history-loading="evolutionLoading.history" :changes-loading="evolutionLoading.changes"
+        :governance-loading="evolutionLoading.governance" :history-error="evolutionError.history" :changes-error="evolutionError.changes"
+        :governance-error="evolutionError.governance" :action-error="evolutionError.action" :notice="changeNotice" :busy="changeBusy" :historical="Boolean(graphValidAt)"
+        @history="loadHistory" @changes="loadChanges" @inspect="runGovernance" @propose="proposeChange" @resolve="resolveChange"
+        @open-evidence="openEvidence" @visit-version="(id, at) => setGraphTime(at, id)" /></template>
+    </ProjectGraph>
     <QuestionWorkspace v-else-if="activeNav === 'questions'" :key="project?.id ?? 'no-project'"
       :projects="projects" :project="project" :projects-loading="loading.projects" :projects-error="errors.projects"
       :result="questionResult" :loading="questionLoading" :error="questionError"

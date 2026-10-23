@@ -108,6 +108,50 @@ export interface ProjectGraphData {
   truncated: boolean
 }
 
+export type KnowledgeChangeKind = 'SUPERSEDES' | 'SUPPLEMENTS' | 'CONFLICTS_WITH'
+export interface KnowledgeChangeInput {
+  new_entity_id: string
+  old_entity_id: string
+  evidence_id: string
+  kind: KnowledgeChangeKind
+  reason: string
+  effective_at: string
+}
+export interface KnowledgeChange extends KnowledgeChangeInput {
+  id: string
+  project_id: string
+  new_entity_name: string
+  old_entity_name: string
+  review_status: 'pending' | 'confirmed' | 'rejected'
+  resolved_at: string | null
+  created_at: string
+  before: Record<string, unknown>
+  after: Record<string, unknown>
+  evidence: FormalEvidence[]
+}
+export interface KnowledgeChangeList {
+  items: KnowledgeChange[]
+  total: number
+  page: number
+  page_size: number
+}
+export interface KnowledgeHistory {
+  entities: FormalKnowledgeNode[]
+  changes: KnowledgeChange[]
+  truncated: boolean
+}
+export interface GovernanceResult {
+  checked_at: string
+  scanned_entity_count: number
+  truncated: boolean
+  findings: {
+    id: string
+    kind: 'missing_evidence' | 'duplicate' | 'possible_conflict' | 'orphan'
+    entity_ids: string[]
+    message: string
+  }[]
+}
+
 export interface EvidenceLocator {
   source_id: string
   chunk_id: string

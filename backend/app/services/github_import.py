@@ -468,7 +468,7 @@ def sync_github_repository(
             params={"recursive": "1"},
         )
         entries = _supported_tree_entries(tree_payload.get("tree"))
-        selected_entries = entries[:MAX_GITHUB_IMPORT_FILES]
+        selected_entries = entries[:min(MAX_GITHUB_IMPORT_FILES, settings.github_import_max_files)]
         truncated = bool(tree_payload.get("truncated")) or len(entries) > len(
             selected_entries
         )

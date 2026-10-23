@@ -1,6 +1,6 @@
 import hashlib
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import get_args
 
 from pydantic import ValidationError
@@ -26,6 +26,24 @@ from app.services.source_links import github_file_urls, github_line_url
 
 
 MAX_EDGES = 500
+
+
+def apply_reviewed_change(change, new, old, *, confirm: bool):
+    """Evolution service validates evidence and holds the project lock; caller commits."""
+    def snapshot(entity):
+        def iso(value):
+            return (value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)).isoformat()
+        return {"id": str(entity.id), "status": entity.status,
+                "valid_from": iso(entity.valid_from),
+                "valid_to": iso(entity.valid_to) if entity.valid_to else None}
+
+    change.before = {"new": snapshot(new), "old": snapshot(old)}
+    if confirm and change.kind == "SUPERSEDES":
+        old.status, old.valid_to = "superseded", change.effective_at
+        new.valid_from = change.effective_at
+    change.after = {"new": snapshot(new), "old": snapshot(old)}
+    change.resolved_at = utc_now()
+    change.review_status = "confirmed" if confirm else "rejected"
 
 
 def knowledge_ids(db: Session, candidates: list[CandidateKnowledge]) -> dict[uuid.UUID, uuid.UUID]:

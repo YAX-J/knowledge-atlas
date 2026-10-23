@@ -150,6 +150,8 @@ npm run build
 
 ## 环境说明
 
+- `python -m scripts.verify_native` 在随机 schema 做原生迁移、时序/仓库集成、独立会话竞争与 Worker fencing；显式指定 Alembic 版本表 schema 并检查全部本地表，不能只设 search_path。`--github` 仅在用户明确允许公开 GitHub 只读验收时运行，不用令牌/模型，普通 pytest 跳过原生/外网用例。
+
 - 默认验收路径是用户本机原生 PostgreSQL 17 + pgvector；Docker Compose 可选，不是前提。
 - 后端测试用内存 SQLite，不验证行锁、组合外键强制、扩展和并发。
 - 若 shell / 构建环境不可用（例如沙箱文件权限问题），直接说明“无法运行”，不要用静态阅读冒充验证结果。

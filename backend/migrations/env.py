@@ -39,6 +39,9 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             compare_type=True,
+            # Explicit schema prevents search_path fallback to public.alembic_version
+            # when a disposable schema is empty (public remains needed for vector).
+            version_table_schema=config.attributes.get("version_table_schema"),
         )
         with context.begin_transaction():
             context.run_migrations()

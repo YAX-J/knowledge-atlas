@@ -26,6 +26,14 @@ Explicit DeepSeek extraction, review, formal graph promotion, project keyword/ve
 
 ## Setup
 
+### Reviewed evolution and native acceptance
+
+Apply head `20261023_0015` before using the time/evolution/governance panels. Cross-source proposals are separate from extraction candidates; only human confirmation can close the old interval and start the new one. History retains evidence, governance is read-only, and dates cannot precede promotion or be scheduled in the future. See [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.md).
+
+From `backend/`, run `.\.venv\Scripts\python.exe -m scripts.verify_native` for disposable-schema migration/API/contention/Worker checks. Requires configured native PostgreSQL, pgvector already in `public`, and `CREATE SCHEMA` permission. It explicitly qualifies the Alembic version schema, verifies local tables before tests and removes only its generated schema. Existing business data is not test data. `--github` additionally permits real read-only public petclinic import/search/repeat/commit-provenance acceptance; it never calls models or uses a GitHub token. Ordinary `pytest` skips these opt-in checks. Model/embedding quality and private-token acceptance are not covered.
+
+`GITHUB_IMPORT_MAX_FILES` sets the per-scan file budget (1–50, default 50); lower it to reduce anonymous REST calls. The public acceptance uses 30 and explicitly reports truncation, not complete-repository coverage. Increasing the budget lets a later explicit sync recover an incomplete same-commit snapshot and reuse downloaded blobs. A compatible complete cached snapshot can still return its existing metadata without additional blob downloads. This does not guarantee availability under shared/secondary GitHub rate limits.
+
 ```bash
 python -m venv .venv
 # Activate the virtual environment for the current shell.
@@ -87,7 +95,7 @@ GitHub synchronization retries incomplete same-commit snapshots when the existin
 
 `GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots` lists saved metadata with nullable `commit_source_id` / `commit_task_id`. `POST` to the same path plus `/{snapshot_id}/commit-source` (no body) returns HTTP 200 with `snapshot_id`, `source_id`, `task_id`, current `status`, `reused`, and canonical `git_url`. It renders saved SHA, UTC timestamp and commit message as deterministic Markdown, reusing repository-scoped ingestion. It performs no GitHub/model request and does not start parsing/extraction. Same bytes across refs/renames reuse the source; different repositories do not. Size limits and normal 404 scope rules apply; invalid SHA returns 409 `SNAPSHOT_COMMIT_INVALID`. Commit evidence opens `/commit/{sha}` without `#L` fragments: local lines refer only to the saved Markdown, not the patch. Apply migration `20261022_0014` first. See [ADR 0033](../docs/adr/0033-saved-commit-evidence-sources.md).
 
-Saved file provenance is available at `GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots/{snapshot_id}/files?page=1&page_size=20` (1–100 per page). It reads persisted rows only, sorted by path/UUID, including deleted and skipped records; `total` is a record count, not complete repository coverage. Source/task links are nullable and scope/type checked without loading source bodies. File URLs use the selected commit and current normalized remote coordinates; deleted paths have no URL into that commit, while retained local sources remain openable. No migration or provider request is needed beyond the existing schema head `20261022_0014`. See [ADR 0034](../docs/adr/0034-snapshot-file-provenance.md).
+Saved file provenance is available at `GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots/{snapshot_id}/files?page=1&page_size=20` (1–100 per page). It reads persisted rows only, sorted by path/UUID, including deleted and skipped records; `total` is a record count, not complete repository coverage. Source/task links are nullable and scope/type checked without loading source bodies. File URLs use the selected commit and current normalized remote coordinates; deleted paths have no URL into that commit, while retained local sources remain openable. No migration or provider request is needed beyond the existing snapshot schema `20261022_0014`. See [ADR 0034](../docs/adr/0034-snapshot-file-provenance.md).
 
 ## Automatic parsing worker
 
@@ -121,7 +129,7 @@ Docker Compose is an optional alternative: from the repository root, `docker com
 
 ## DeepSeek candidate extraction and review
 
-Apply `alembic upgrade head` (expected `20261022_0014`) before review or semantic-index operations. Configure only the backend `.env`:
+Apply `alembic upgrade head` (expected `20261023_0015`) before review or semantic-index operations. Configure only the backend `.env`:
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key

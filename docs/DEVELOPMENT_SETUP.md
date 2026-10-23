@@ -86,7 +86,7 @@ Useful endpoints:
 
 To verify ingestion in the OpenAPI interface, create a project, upload UTF-8 Markdown or Java source, call `POST /api/v1/tasks/{task_id}/run`, and query `GET /api/v1/sources/{source_id}/chunks`. Alternatively, run `python -m app.worker` from `backend/` in a second activated terminal to consume uploads automatically. Apply the latest migration first, including execution lease and graph tables. `python -m app.worker --once` handles at most one eligible task and exits. See [backend instructions](../backend/README.md) for configuration, recovery rules, exit codes, and parsing limitations.
 
-Validate the native service setup by running `alembic current` from `backend/` (expected `20261022_0014`) and querying `/api/v1/health/ready`; PostgreSQL must report `up`. Then verify project creation, upload, automatic parsing, duplicate reuse, restart persistence, and worker/API contention against the real local database. SQLite tests do not validate native connectivity, PostgreSQL locking, or pgvector distance operations.
+Validate the native service setup by running `alembic current` from `backend/` (expected `20261023_0015`) and querying `/api/v1/health/ready`; PostgreSQL must report `up`. Then verify project creation, upload, automatic parsing, duplicate reuse, restart persistence, and worker/API contention against the real local database. SQLite tests do not validate native connectivity, PostgreSQL locking, or pgvector distance operations.
 
 For optional container use, `docker compose up -d --build` from the repository root starts the complete stack. The worker waits for the API to apply migrations and pass its liveness check. Docker is not a prerequisite for acceptance.
 
@@ -99,6 +99,8 @@ Apply the latest migration first, including `review_events` and the formal graph
 Configure `EMBEDDING_API_KEY`, `EMBEDDING_BASE_URL`, and `EMBEDDING_MODEL` in the backend `.env`; `EMBEDDING_DIMENSIONS` must currently be `1024`. Use “Update semantic index” on the project graph before vector search. Entity text and queries are sent to the configured service; confirmation does not invoke embeddings. Validate the real provider and native pgvector path separately.
 
 ## GitHub snapshot import
+
+Optional `GITHUB_IMPORT_MAX_FILES=50` accepts 1–50 files per new scan. Lower budgets reduce anonymous calls and produce explicit incomplete snapshots; a later larger-budget sync reuses saved blobs. Cached complete-snapshot metadata may still exceed a lowered budget without extra blob downloads. Rate limiting can still occur. The opt-in public acceptance uses 30; it does not claim complete-repository coverage.
 
 Public REST repository reads need no credential. For a private repository or Review thread state, set `GITHUB_TOKEN` only in `backend/.env` and grant the minimum read permissions for Contents, Issues, and Pull requests needed by the chosen import. Keep `GITHUB_API_BASE_URL=https://api.github.com`, `GITHUB_GRAPHQL_URL=https://api.github.com/graphql`, `GITHUB_API_VERSION=2026-03-10`, and adjust `GITHUB_TIMEOUT_SECONDS` only when needed. Apply migration `20261022_0014`, register a remote in the source workspace, then explicitly synchronize its default branch/requested ref or import recent Issue/Pull Request versions. A file request imports at most 50 supported files and 20 MiB; a work-item request imports at most 20 items and 20 issue comments per item, plus at most 20 reviews, 20 inline review comments, 20 Review threads, and 20 comment identifiers per thread for each selected PR. Without a token the REST portion still succeeds and reports `review_threads_status=token_required`. Neither path clones, polls, receives webhook event history, invalidates historical evidence, or synchronizes automatically.
 
@@ -123,6 +125,8 @@ For visible changes, manually verify:
 - Keyboard focus and panel scrolling.
 
 ## Backend verification
+
+Native isolated acceptance: from `backend/`, run `.\.venv\Scripts\python.exe -m scripts.verify_native` (requires pgvector in `public` and `CREATE SCHEMA`). The script qualifies its Alembic version schema and checks that all test tables exist there before tests; it removes only that generated schema. Do not use existing business records as fixtures or assume `search_path=temp,public` alone provides isolation. Add `--github` only after explicitly choosing public GitHub read-only acceptance; no token or model calls are used. The application's actual schema is not upgraded by this test.
 
 ```bash
 cd backend

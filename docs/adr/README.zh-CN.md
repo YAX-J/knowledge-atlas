@@ -101,3 +101,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0036：从静态工厂调用推断有界 Java `var` 接收者](0036-bounded-java-static-factory-var-receivers.zh-CN.md)
 - [ADR 0037：解析未限定名 Java 工厂接收者](0037-unqualified-java-factory-receivers.zh-CN.md)
 - [ADR 0038：在循环与资源头部推断 Java 工厂接收者](0038-java-header-factory-receivers.zh-CN.md)
+- [ADR 0039：显式审核跨来源知识演化](0039-reviewed-knowledge-evolution.zh-CN.md)

@@ -10,6 +10,11 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Configurable GitHub scan file budget (`GITHUB_IMPORT_MAX_FILES`, 1–50, default unchanged at 50), with explicit truncation and same-commit recovery when increased, reducing anonymous-request pressure without requiring a token.
+
+- Explicit cross-source replacement/supplement/conflict proposals and human review, with stable request UUIDs, revalidated formal evidence, atomic interval updates, immutable audit snapshots, historical graph/search navigation and a bounded evidence-linked replacement chain. Read-only governance flags missing evidence, same-name duplicates/possible conflicts and orphan knowledge without automatic writes; see ADR 0039.
+- Reproducible 40-file repository API integration and disposable native PostgreSQL acceptance, including migration round trips, upload/review contention and Worker recovery fencing. Native isolation explicitly qualifies the Alembic version schema and validates local tables before tests.
+
 - Static factory `var` receivers in braced classic-for and resource-try headers, reusing method-body candidate and agreed-return rules. Source-order/resource-order binding preserves earlier-name shadowing, excludes later-name retroactive shadowing, and confines receivers to the body and nested scopes. Header call edges remain omitted; unknown factories, duplicate versions and incomplete lookup retain conservative behavior. No API shape or migration changes.
 
 - Java factory-local `var` inference now covers unqualified current/inherited static members and explicit/wildcard static imports, including private static factories in the exact current type. Member-name precedence, arity/varargs filtering, agreed return types, lexical lifetimes, original method IDs/lines, repository isolation and ambiguity are preserved. Shadowed type qualifiers, method type-parameter returns, missing selected import owners and mixed instance/static member candidates keep locals unknown. Focused coverage includes an upload/parse/structure API flow.

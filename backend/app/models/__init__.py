@@ -12,6 +12,7 @@ from app.models.domain import (
     SourceRepository,
 )
 from app.models.graph import KnowledgeEmbedding, KnowledgeEntity, KnowledgeEvidence, KnowledgeRelationship
+from app.models.evolution import KnowledgeChange
 
 __all__ = [
     "CandidateKnowledge",
@@ -29,5 +30,6 @@ __all__ = [
     "KnowledgeEmbedding",
     "KnowledgeEvidence",
     "KnowledgeRelationship",
+    "KnowledgeChange",
 ]
 

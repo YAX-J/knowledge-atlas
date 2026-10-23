@@ -88,7 +88,7 @@ uvicorn app.main:app --reload
 
 在 OpenAPI 界面验证导入时，依次创建项目、上传 UTF-8 Markdown 或 Java 源文件、调用 `POST /api/v1/tasks/{task_id}/run`，并查询 `GET /api/v1/sources/{source_id}/chunks`。也可以在另一个已激活环境的终端中，从 `backend/` 运行 `python -m app.worker`，自动消费上传任务。先应用包含执行租约与图谱表的最新迁移。`python -m app.worker --once` 最多处理一个符合条件的任务后退出。配置、恢复规则、退出码和解析限制见 [后端说明](../backend/README.zh-CN.md)。
 
-验证本机服务配置时，从 `backend/` 运行 `alembic current`，预期版本为 `20261022_0014`；查询 `/api/v1/health/ready`，PostgreSQL 应为 `up`。随后使用真实本地数据库验证项目创建、上传、自动解析、重复复用、重启持久化，以及 Worker/API 竞争。SQLite 测试不能验证原生服务联通、PostgreSQL 锁或 pgvector 距离运算。
+验证本机服务配置时，从 `backend/` 运行 `alembic current`，预期版本为 `20261023_0015`；查询 `/api/v1/health/ready`，PostgreSQL 应为 `up`。随后使用真实本地数据库验证项目创建、上传、自动解析、重复复用、重启持久化，以及 Worker/API 竞争。SQLite 测试不能验证原生服务联通、PostgreSQL 锁或 pgvector 距离运算。
 
 如果选择容器方案，从仓库根目录运行 `docker compose up -d --build` 可启动完整环境。Worker 等待 API 应用迁移并通过存活检查后启动。Docker 不是验收前提。
 
@@ -101,6 +101,8 @@ uvicorn app.main:app --reload
 在后端 `.env` 配置 `EMBEDDING_API_KEY`、`EMBEDDING_BASE_URL`、`EMBEDDING_MODEL`；当前 `EMBEDDING_DIMENSIONS` 必须为 `1024`。在项目图谱点击“更新语义索引”后再选择语义模式搜索。实体文本和查询会发送到所配置的服务；知识确认不调用嵌入服务。真实服务与原生 pgvector 路径需单独验收。
 
 ## GitHub 快照导入
+
+可选 `GITHUB_IMPORT_MAX_FILES=50` 接受每次新扫描 1–50 文件。下调可减少匿名请求并明确生成未完成快照；之后扩大预算显式同步会复用已有 blob。完整缓存的元数据可能超过下调后的预算，但不会额外下载 blob。仍可能遇到限流；显式公开验收使用 30，不代表完整仓库覆盖。
 
 公开仓库 REST 读取无需凭据。私有仓库或 Review thread 状态只在 `backend/.env` 设置 `GITHUB_TOKEN`，并按所用导入能力授予最小的 Contents、Issues 与 Pull requests 读取权限。保留 `GITHUB_API_BASE_URL=https://api.github.com`、`GITHUB_GRAPHQL_URL=https://api.github.com/graphql`、`GITHUB_API_VERSION=2026-03-10`，仅在需要时调整 `GITHUB_TIMEOUT_SECONDS`。应用迁移 `20261022_0014`，在资料工作台登记 remote 后显式同步默认分支/指定 ref，或导入最近的 Issue/Pull Request 版本。文件请求最多导入 50 份支持文件和 20 MiB；工作项请求最多导入 20 项及每项 20 条普通评论，并为每个入选 PR 最多读取 20 条 Review、20 条行级 Review Comment、20 个 Review thread 与每个 thread 20 个评论标识。无令牌时 REST 部分仍会成功，并返回 `review_threads_status=token_required`。两条链路都不会 clone、轮询、接收 webhook 事件历史、自动失效历史证据或自动同步。
 
@@ -125,6 +127,8 @@ npm run build
 - 键盘焦点和面板滚动。
 
 ## 后端验证
+
+原生隔离验收：在 `backend/` 运行 `.\.venv\Scripts\python.exe -m scripts.verify_native`（要求 `public` 中已有 pgvector 和 `CREATE SCHEMA` 权限）。脚本显式指定 Alembic 版本表 schema，测试前检查全部测试表确在该 schema，最后只删除自己生成的 schema。不能使用业务资料作为夹具，也不能认为单独设置 `search_path=temp,public` 足够隔离。仅在明确选择真实公开 GitHub 只读验收后加 `--github`，不使用令牌或调用模型。此测试不会升级应用的实际业务 schema。
 
 ```bash
 cd backend

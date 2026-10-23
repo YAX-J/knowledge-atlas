@@ -46,6 +46,8 @@
 
 ## 当前阶段
 
+用户于 2026-10-23 批准的完成范围：阶段四代码/GitHub 核心、阶段五时序/治理，再做整体验收。跨来源演化审核、历史图谱/搜索界面与只读治理已实现（ADR 0039，head `20261023_0015`）。已有 40 文件合成仓库集成和隔离原生 PostgreSQL 竞争/租约检查。真实公开 petclinic 已通过 30 文件截断预算验收；私有令牌及模型/嵌入质量仍暂缓，见[核心验收](docs/CORE_ACCEPTANCE.zh-CN.md)。以下段落记录阶段四实现基线，不表示要继续无限扩大 Java/编译器范围。
+
 阶段四已支持带花括号的传统 for 与资源 try 头部工厂初始化 `var`，按源码/资源声明顺序处理，解析绑定仅在主体生效。头部调用继续省略，catch/finally/相邻块恢复外层绑定。见 [ADR 0038](docs/adr/0038-java-header-factory-receivers.zh-CN.md)。
 
 阶段四已把工厂局部 `var` 推断扩展到未限定名的当前/继承静态成员及显式/通配静态导入，保留成员名称优先、词法遮蔽、一致返回类型与原方法证据。类型限定名被遮蔽或方法类型参数返回时停止错误推断。见 [ADR 0037](docs/adr/0037-unqualified-java-factory-receivers.zh-CN.md)。
@@ -54,13 +56,13 @@
 
 已保存快照新增逐文件来源分页、有效资料/任务跳转、固定所选 Commit 的文件外链，以及删除/跳过/截断提示。这是阶段四的只读扩展，不是 Git diff 或完整仓库清单；不新增迁移或供应商调用。见 [ADR 0034](docs/adr/0034-snapshot-file-provenance.zh-CN.md)。
 
-已保存的 GitHub 同步快照新增桌面历史面板，并可显式把提交说明转成 Markdown 资料，复用普通解析/抽取/审核链路与规范 Commit 链接；不读取 patch、不引入正式 Commit 实体，也不自动认定说明中的结论成立。迁移 head 为 `20261022_0014`，见 [ADR 0033](docs/adr/0033-saved-commit-evidence-sources.zh-CN.md)。阶段四仍在进行中。
+已保存的 GitHub 同步快照新增桌面历史面板，并可显式把提交说明转成 Markdown 资料，复用普通解析/抽取/审核链路与规范 Commit 链接；不读取 patch、不引入正式 Commit 实体，也不自动认定说明中的结论成立。该切片引入迁移 `20261022_0014`，见 [ADR 0033](docs/adr/0033-saved-commit-evidence-sources.zh-CN.md)。该阶段四基线已集成。
 
 资料工作台新增按名称/路径、仓库和类型筛选的有界 Java 符号检索，复用大纲 ID 并打开正确原文分块分页。这推进阶段四按文件/符号查询的验收项，不引入正式代码知识实体，见 [ADR 0032](docs/adr/0032-bounded-code-symbol-search.zh-CN.md)。
 
-阶段四新增仓库内显式/通配静态导入方法调用，作为 Java V1 的有界扩展，保留原方法符号、成员名称优先、歧义与审核知识边界，见 [ADR 0030](docs/adr/0030-java-static-import-calls.zh-CN.md)。阶段四仍在进行中。
+阶段四新增仓库内显式/通配静态导入方法调用，作为 Java V1 的有界扩展，保留原方法符号、成员名称优先、歧义与审核知识边界，见 [ADR 0030](docs/adr/0030-java-static-import-calls.zh-CN.md)。该阶段四基线已集成。
 
-当前阶段为阶段四代码导入。本地文件有界切片可接收 Java 文件，使用 `code_parsing`，把精确源码行保存为结构分块，持久化本地文件夹仓库身份与仓库内相对路径，并复用现有 Worker 与证据流程。它能解析一小部分仓库内跨文件类型关系，以及显式类型的直接类型、字段、方法参数/局部变量、构造器初始化 `var` 和返回类型唯一的类型限定静态工厂 `var` 接收者调用，登记规范化的 GitHub 所有者/仓库坐标，显式导入有界的默认分支或指定 ref 快照，并把最近的 Issue/Pull Request 与 PR Review 活动版本导入为 Markdown。GitHub 文件同步已持久化 Commit/tree 与逐文件 blob 来源，复用未变化或已知 blob，保守记录重命名/删除，通过 provider ID 跟踪远端坐标变化，并从该历史派生不可变来源/证据链接；工作项按 provider ID 与 `updated_at` 保存版本，PR Review 活动按独立渲染内容摘要保存版本，因此 Review 编辑及令牌支持的 Review thread 当前状态变化不依赖 PR 时间戳。当前仍不代表已经具备完整 Java AST 或符号/调用图、通用工厂/链式推断、重赋值局部类型、实参类型重载选择或运行时动态分派、权威 Review thread 事件时间、Webhook、轮询、强制推送可达性分析或破坏性来源失效传播。见 [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.zh-CN.md)、[ADR 0014](docs/adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0015](docs/adr/0015-local-folder-repository-identity.zh-CN.md)、[ADR 0016](docs/adr/0016-normalized-github-remote-identity.zh-CN.md)、[ADR 0017](docs/adr/0017-bounded-cross-file-java-method-calls.zh-CN.md)、[ADR 0018](docs/adr/0018-bounded-github-snapshot-import.zh-CN.md)、[ADR 0019](docs/adr/0019-incremental-github-commit-snapshots.zh-CN.md)、[ADR 0020](docs/adr/0020-derived-immutable-github-evidence-links.zh-CN.md)、[ADR 0021](docs/adr/0021-versioned-github-work-items.zh-CN.md)、[ADR 0022](docs/adr/0022-bounded-java-declared-receiver-calls.zh-CN.md)、[ADR 0023](docs/adr/0023-versioned-github-pull-reviews.zh-CN.md)、[ADR 0024](docs/adr/0024-bounded-github-review-thread-state.zh-CN.md) 与 [ADR 0036](docs/adr/0036-bounded-java-static-factory-var-receivers.zh-CN.md)。
+阶段四代码导入基线：本地文件有界切片可接收 Java 文件，使用 `code_parsing`，把精确源码行保存为结构分块，持久化本地文件夹仓库身份与仓库内相对路径，并复用现有 Worker 与证据流程。它能解析一小部分仓库内跨文件类型关系，以及显式类型的直接类型、字段、方法参数/局部变量、构造器初始化 `var` 和返回类型唯一的类型限定静态工厂 `var` 接收者调用，登记规范化的 GitHub 所有者/仓库坐标，显式导入有界的默认分支或指定 ref 快照，并把最近的 Issue/Pull Request 与 PR Review 活动版本导入为 Markdown。GitHub 文件同步已持久化 Commit/tree 与逐文件 blob 来源，复用未变化或已知 blob，保守记录重命名/删除，通过 provider ID 跟踪远端坐标变化，并从该历史派生不可变来源/证据链接；工作项按 provider ID 与 `updated_at` 保存版本，PR Review 活动按独立渲染内容摘要保存版本，因此 Review 编辑及令牌支持的 Review thread 当前状态变化不依赖 PR 时间戳。当前仍不代表已经具备完整 Java AST 或符号/调用图、通用工厂/链式推断、重赋值局部类型、实参类型重载选择或运行时动态分派、权威 Review thread 事件时间、Webhook、轮询、强制推送可达性分析或破坏性来源失效传播。见 [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.zh-CN.md)、[ADR 0014](docs/adr/0014-bounded-cross-file-java-types.zh-CN.md)、[ADR 0015](docs/adr/0015-local-folder-repository-identity.zh-CN.md)、[ADR 0016](docs/adr/0016-normalized-github-remote-identity.zh-CN.md)、[ADR 0017](docs/adr/0017-bounded-cross-file-java-method-calls.zh-CN.md)、[ADR 0018](docs/adr/0018-bounded-github-snapshot-import.zh-CN.md)、[ADR 0019](docs/adr/0019-incremental-github-commit-snapshots.zh-CN.md)、[ADR 0020](docs/adr/0020-derived-immutable-github-evidence-links.zh-CN.md)、[ADR 0021](docs/adr/0021-versioned-github-work-items.zh-CN.md)、[ADR 0022](docs/adr/0022-bounded-java-declared-receiver-calls.zh-CN.md)、[ADR 0023](docs/adr/0023-versioned-github-pull-reviews.zh-CN.md)、[ADR 0024](docs/adr/0024-bounded-github-review-thread-state.zh-CN.md) 与 [ADR 0036](docs/adr/0036-bounded-java-static-factory-var-receivers.zh-CN.md)。
 
 本次功能切片已实现：
 
@@ -85,7 +87,7 @@
 - 在本地配置 DeepSeek 密钥，用短篇公开 Markdown 验证真实模型响应。
 - 用代表性资料评估证据与模型输出质量；模拟测试不代表真实抽取质量。
 - 在本机 PostgreSQL 浏览器中验收真实项目图谱，覆盖空数据、截断、筛选和时间过滤状态。
-- 保留 PostgreSQL Worker/API 并发与恢复专项验证；审核/入图的重复确认竞争已在临时 schema 中通过。
+- 原生 PostgreSQL 独立会话上传/审核竞争、租约恢复及旧 Worker fencing 已在临时 schema 通过，不代表生产故障演练。
 - 用包含已确认关系的代表性原生 PostgreSQL 数据评估语义与混合排序；当前真实服务冒烟项目有 7 个已索引实体，但没有已确认关系。
 
 项目关键词、语义向量、可解释一跳图关系混合检索和第一版证据问答均已实现。实体消歧、问答历史、多轮 Agent 和流式响应仍属于后续开发。边界见 [ADR 0011](docs/adr/0011-synchronous-evidence-grounded-questions.zh-CN.md)。
@@ -94,7 +96,7 @@
 
 1. 代表性真实回答验收与检索/提示质量评估。
 2. 将 Java 解析扩展到当前受支持词法块、构造器初始化与有界静态工厂（类型限定、成员或导入）之外，并评估超出当前有界 GraphQL 状态快照、由 Webhook 支持的权威 GitHub Review thread 事件。
-3. 时序演进、治理、实验和部署。
+3. 实验、可选模型辅助治理扩展及部署；人工审核时序演化与规则只读治理已实现。
 
 Markdown 解析、受 Schema 约束的审核和确认候选入图已作为边界清晰的切片完成。
 

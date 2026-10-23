@@ -70,6 +70,30 @@ def sync(client: TestClient, url: str) -> dict:
     return response.json()
 
 
+def test_configured_file_budget_can_expand_without_losing_existing_sources(client, monkeypatch, remote):
+    remote.files(("A.md", "a"), ("B.md", "b"))
+    settings = repository_routes.get_settings().model_copy(update={"github_import_max_files": 1})
+    monkeypatch.setattr(repository_routes, "get_settings", lambda: settings)
+    _, _, url = endpoint(client)
+    first = sync(client, url)
+    assert first["truncated"] and not first["deletion_detection_complete"]
+    assert [item["path"] for item in first["items"]] == ["A.md"]
+    assert remote.blob_requests == ["a"]
+    settings = settings.model_copy(update={"github_import_max_files": 2})
+    second = sync(client, url)
+    assert not second["truncated"] and second["deletion_detection_complete"]
+    assert [item["path"] for item in second["items"]] == ["A.md", "B.md"]
+    assert second["items"][0]["source_id"] == first["items"][0]["source_id"]
+    assert remote.blob_requests == ["a", "b"]
+
+
+@pytest.mark.parametrize("budget", [0, 51])
+def test_github_file_budget_rejects_values_outside_hard_cap(budget):
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, github_import_max_files=budget)
+
+
 def test_same_commit_recovers_byte_budget_then_returns_complete_snapshot(
     client: TestClient, monkeypatch, remote: Remote,
 ) -> None:

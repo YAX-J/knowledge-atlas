@@ -1,4 +1,5 @@
 import { apiRequest } from './client'
+import type { GovernanceResult, KnowledgeChange, KnowledgeChangeInput, KnowledgeChangeList, KnowledgeHistory } from '../types'
 import type { EmbeddingRebuildResult, EntityDetail, KnowledgeCandidate, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, QuestionAnswer, RelationshipDetail, ReviewDecision } from '../types'
 
 export interface ApiProject {
@@ -529,25 +530,49 @@ export function resolveCandidate(decision: ReviewDecision): Promise<KnowledgeCan
   })
 }
 
-export function getProjectGraph(projectId: string, options: { centerId?: string; depth?: number; types?: string } = {}): Promise<ProjectGraphData> {
+export function getProjectGraph(projectId: string, options: { centerId?: string; depth?: number; types?: string; validAt?: string } = {}): Promise<ProjectGraphData> {
   const query = new URLSearchParams({ depth: String(options.depth ?? 1), limit: '100' })
   if (options.centerId) query.set('center_id', options.centerId)
   if (options.types) query.set('types', options.types)
+  if (options.validAt) query.set('valid_at', options.validAt)
   return apiRequest<ProjectGraphData>(`/projects/${projectId}/graph?${query}`)
 }
 
-export function getEntityDetail(id: string): Promise<EntityDetail> {
-  return apiRequest<EntityDetail>(`/knowledge/entities/${id}`)
+export function getEntityDetail(id: string, validAt = ''): Promise<EntityDetail> {
+  const query = validAt ? `?${new URLSearchParams({ valid_at: validAt })}` : ''
+  return apiRequest<EntityDetail>(`/knowledge/entities/${id}${query}`)
 }
 
-export function getRelationshipDetail(id: string): Promise<RelationshipDetail> {
-  return apiRequest<RelationshipDetail>(`/knowledge/relationships/${id}`)
+export function getRelationshipDetail(id: string, validAt = ''): Promise<RelationshipDetail> {
+  const query = validAt ? `?${new URLSearchParams({ valid_at: validAt })}` : ''
+  return apiRequest<RelationshipDetail>(`/knowledge/relationships/${id}${query}`)
 }
 
-export function searchKnowledge(projectId: string, query: string, types = '', mode: KnowledgeSearchMode = 'keyword'): Promise<KnowledgeSearchResult> {
+export function searchKnowledge(projectId: string, query: string, types = '', mode: KnowledgeSearchMode = 'keyword', validAt = ''): Promise<KnowledgeSearchResult> {
   const params = new URLSearchParams({ q: query, mode, top_k: '10' })
   if (types) params.set('types', types)
+  if (validAt) params.set('valid_at', validAt)
   return apiRequest<KnowledgeSearchResult>(`/projects/${projectId}/search?${params}`)
+}
+
+export function listKnowledgeChanges(projectId: string, page = 1): Promise<KnowledgeChangeList> {
+  return apiRequest(`/projects/${projectId}/knowledge-changes?page=${page}&page_size=10`)
+}
+
+export function proposeKnowledgeChange(projectId: string, input: KnowledgeChangeInput): Promise<KnowledgeChange> {
+  return apiRequest(`/projects/${projectId}/knowledge-changes`, { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function resolveKnowledgeChange(projectId: string, id: string, action: 'confirm' | 'reject'): Promise<KnowledgeChange> {
+  return apiRequest(`/projects/${projectId}/knowledge-changes/${id}/resolve`, { method: 'POST', body: JSON.stringify({ action }) })
+}
+
+export function getKnowledgeHistory(projectId: string, entityId: string): Promise<KnowledgeHistory> {
+  return apiRequest(`/projects/${projectId}/knowledge/entities/${entityId}/history`)
+}
+
+export function inspectGovernance(projectId: string): Promise<GovernanceResult> {
+  return apiRequest(`/projects/${projectId}/governance`)
 }
 
 export function rebuildProjectEmbeddings(projectId: string): Promise<EmbeddingRebuildResult> {

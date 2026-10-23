@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     github_graphql_url: str = "https://api.github.com/graphql"
     github_api_version: str = "2026-03-10"
     github_timeout_seconds: float = Field(default=30, ge=5, le=120)
+    github_import_max_files: int = Field(default=50, ge=1, le=50)
 
     @field_validator("github_token", mode="before")
     @classmethod

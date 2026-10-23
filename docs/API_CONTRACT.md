@@ -2,6 +2,19 @@
 
 本文定义第一版前后端协作所需的最小接口。项目、Markdown/Java 来源、任务、健康检查、候选提取、审核、图谱、关键词/语义向量/一跳图关系混合检索及同步证据问答接口已经实现。字段调整时应保持错误结构和分页结构一致。
 
+## 时序演化与只读治理（已实现）
+
+须先应用迁移 `20261023_0015`。以下路径均以 `/api/v1` 开头，限定当前用户及未归档项目，不暴露 `user_id`。
+
+- `POST /projects/{project_id}/knowledge-changes`：JSON 为 `new_entity_id,old_entity_id,evidence_id,kind,reason,effective_at`；`kind` 为 `SUPERSEDES/SUPPLEMENTS/CONFLICTS_WITH`，理由非空且最多 2000 字符，时间须带时区。两端为本项目不同、同类型、`active` 且无截止时间的正式实体；双方保留有效逐字证据，所选证据属于任一端点。时间不早于双方有效起点、不晚于当前时刻。返回 HTTP 200 待审核记录；规范化后相同请求复用 UUID/原状态，不自动确认。
+- `GET /projects/{project_id}/knowledge-changes?review_status=pending&page=1&page_size=20`：可选 `pending/confirmed/rejected`，每页 1–100。返回 `items,total,page,page_size`，按创建时间倒序/UUID 排序。
+- `POST /projects/{project_id}/knowledge-changes/{change_id}/resolve`：`{"action":"confirm"}` 或 `reject`。项目锁内重新校验，同事务记录审核及前后快照。重复同动作幂等，改判 409。确认替代才设置 `old.status=superseded`、`old.valid_to=new.valid_from=effective_at`；补充/冲突仅记录分类，不改有效期。不支持分叉、合并、环或失效端点。
+- 记录字段：`id,project_id,new_entity_id,old_entity_id,evidence_id,new_entity_name,old_entity_name,kind,reason,effective_at,review_status,resolved_at,created_at,before,after,evidence`。快照为不可变双端点状态/有效期，证据沿用正式结构，可跳精确分块。时间统一 UTC，原文不覆盖。
+- `GET /projects/{project_id}/knowledge/entities/{entity_id}/history`：返回 `entities,changes,truncated`。忽略当前有效期，不忽略用户/项目/归档；双向遍历已确认替代，按有效起点/生效时间排序，最多 100 个实体/200 条变化。普通图谱不加入失效端点；演化链与语义关系独立。
+- `GET /projects/{project_id}/governance?limit=200`：只读、无模型、无持久化；最多扫描 1000 个当前实体，默认最多 200 条建议、最大 500。返回 `checked_at,scanned_entity_count,truncated,findings`，每条含稳定 `id`、`kind`（`missing_evidence/duplicate/possible_conflict/orphan`）、`entity_ids,message`。同类型名称经 NFKC/大小写/空白规范化，与组首项比较摘要；不同摘要只是可能冲突，不是语义判定。
+
+作用域缺失 404。`CHANGE_STALE`、`CHANGE_EVIDENCE_INVALID`、`CHANGE_TIME_INVALID`、`CHANGE_ENDPOINTS_INVALID`、`CHANGE_CHAIN_INVALID`、`CHANGE_ALREADY_RESOLVED` 均为 409。结构、枚举、无时区时间或额外字段返回统一 422。历史沿用图谱/详情/搜索/问答的 `valid_at`；有效区间半开 `[valid_from,valid_to)`，不能按当前 `status == active` 排除历史上仍有效的已替代实体。前端图谱和搜索使用同一时间上下文。
+
 ## 实现状态
 
 | 接口 | 状态 |

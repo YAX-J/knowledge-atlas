@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import KnowledgeSearch from './KnowledgeSearch.vue'
 import type { ApiProject } from '../api/knowledgeAtlas'
 import type { EntityDetail, EvidenceLocator, FormalKnowledgeEdge, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail } from '../types'
@@ -23,6 +23,8 @@ const props = defineProps<{
   searchErrorAction: 'search' | 'rebuild'
   searchRebuilding: boolean
   searchNotice: string
+  validAt: string
+  mutationBusy: boolean
 }>()
 const emit = defineEmits<{
   back: []
@@ -41,7 +43,15 @@ const emit = defineEmits<{
   retrySearch: []
   selectSearchEntity: [id: string]
   openEvidence: [locator: EvidenceLocator]
+  time: [value: string]
 }>()
+const localTime = ref('')
+watch(() => props.validAt, value => {
+  if (!value) { localTime.value = ''; return }
+  const date = new Date(value)
+  localTime.value = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 23)
+}, { immediate: true })
+function applyTime() { emit('time', localTime.value ? new Date(localTime.value).toISOString() : '') }
 const labels: Record<string, string> = {
   Project: '项目', CodeFile: '代码文件', CodeEntity: '代码实体', Technology: '技术', Concept: '概念',
   Problem: '问题', Solution: '方案', Decision: '决策', Alternative: '候选方案', Constraint: '约束',
@@ -75,7 +85,7 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
   <main class="project-graph-page" aria-labelledby="project-graph-title">
     <header class="graph-page-heading">
       <div><span class="graph-kicker">项目知识 / 已确认</span><h1 id="project-graph-title">{{ project?.name ?? '项目图谱' }}</h1><p>沿着关系找回原文，让每条知识都有依据。</p></div>
-      <div class="graph-actions"><button type="button" @click="emit('back')">返回资料</button><button type="button" @click="emit('demo')">演示图谱</button><button type="button" :disabled="loading" @click="emit('refresh')">刷新图谱</button></div>
+      <div class="graph-actions"><button type="button" :disabled="mutationBusy" @click="emit('back')">返回资料</button><button type="button" :disabled="mutationBusy" @click="emit('demo')">演示图谱</button><button type="button" :disabled="loading || mutationBusy" @click="emit('refresh')">刷新图谱</button></div>
     </header>
     <KnowledgeSearch :key="project?.id" :result="searchResult" :loading="searchLoading" :error="searchError" :error-action="searchErrorAction" :labels="labels"
       :rebuilding="searchRebuilding" :notice="searchNotice"
@@ -83,6 +93,8 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
       @clear="emit('clearSearch')" @retry="emit('retrySearch')" @select="id => emit('selectSearchEntity', id)" @open-evidence="emit('openEvidence', $event)" />
     <div class="graph-toolbar">
       <span class="graph-real-label">真实项目图谱</span>
+      <form class="time-query" @submit.prevent="applyTime"><label>历史时间 <input v-model="localTime" type="datetime-local" step="0.001" :disabled="loading || mutationBusy" /></label><button type="submit" :disabled="loading || mutationBusy">查询该时刻</button><button v-if="validAt" type="button" :disabled="loading || mutationBusy" @click="emit('time', '')">返回当前知识</button></form>
+      <span v-if="validAt" class="graph-kicker">历史视图 · {{ new Date(validAt).toLocaleString('zh-CN') }}</span>
       <label>知识类型 <select :value="typeFilter" :disabled="loading" @change="filter"><option value="">全部类型</option><option v-for="(label, type) in labels" :key="type" :value="type">{{ label }}</option></select></label>
       <label>邻域深度 <select :value="depth" :disabled="loading || !center" @change="depthChange"><option value="1">一跳</option><option value="2">二跳</option></select></label>
       <button v-if="center" type="button" :disabled="loading" @click="emit('reset')">返回项目总览</button>
@@ -114,7 +126,7 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
           <div v-else-if="detailError" class="graph-error" role="alert"><p>{{ detailError }}</p><button type="button" @click="emit('retryDetail')">重试读取详情</button></div>
           <template v-else-if="selected">
             <span class="graph-kicker">{{ entityDetail ? '知识节点' : '知识关系' }} · {{ labels[selected.type] ?? selected.type }}</span><h2>{{ selected.name }}</h2><p class="formal-summary">{{ selected.summary }}</p>
-            <dl><div><dt>确认状态</dt><dd>已确认</dd></div><div><dt>模型置信度</dt><dd>{{ Math.round(selected.confidence * 100) }}%</dd></div><div><dt>正式写入时间</dt><dd>{{ new Date(selected.valid_from).toLocaleString('zh-CN') }}</dd></div></dl>
+            <dl><div><dt>确认状态</dt><dd>已确认</dd></div><div><dt>知识状态</dt><dd>{{ selected.status === 'superseded' ? '已被替代（历史有效）' : selected.status === 'active' ? '有效' : selected.status }}</dd></div><div><dt>模型置信度</dt><dd>{{ Math.round(selected.confidence * 100) }}%</dd></div><div><dt>有效起点</dt><dd>{{ new Date(selected.valid_from).toLocaleString('zh-CN') }}</dd></div><div v-if="selected.valid_to"><dt>有效截止</dt><dd>{{ new Date(selected.valid_to).toLocaleString('zh-CN') }}</dd></div></dl>
             <button v-if="entityDetail" class="graph-primary" type="button" @click="emit('neighborhood', selected.id)">以此知识为中心</button>
             <div v-if="relationshipDetail" class="graph-actions"><button type="button" @click="emit('neighborhood', relationshipDetail.relationship.source_id)">查看来源节点</button><button type="button" @click="emit('neighborhood', relationshipDetail.relationship.target_id)">查看目标节点</button></div>
             <h3>原文证据 <span>{{ evidence.length }}</span></h3>
@@ -125,10 +137,12 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
         </aside>
       </div>
     </template>
+    <slot name="evolution" />
   </main>
 </template>
 
 <style scoped>
+.time-query { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }.time-query input { min-width: 0; max-width: 100%; min-height: 40px; padding: 6px; border: 1px solid #aabec0; border-radius: 5px; color: var(--ink); background: var(--paper); box-sizing: border-box; }.time-query input:focus-visible { outline: 2px solid var(--rose); outline-offset: 3px; }
 .project-graph-page { height: calc(100% - 86px); overflow: auto; padding: 30px 30px 60px 100px; background: #edf3f3; color: var(--ink); }
 .graph-page-heading { display: flex; justify-content: space-between; gap: 20px; align-items: center; }
 .graph-kicker { color: var(--teal); font-size: 12px; }

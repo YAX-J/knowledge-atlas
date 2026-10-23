@@ -126,10 +126,16 @@ def test_postgresql_migrations_compile_without_a_live_server(monkeypatch) -> Non
     assert "review_threads_included" in sql
     assert "commit_source_id" in sql and "commit_task_id" in sql
     assert "fk_repository_snapshots_commit_source" in sql
+    assert "CREATE TABLE knowledge_changes" in sql
+    assert "fk_changes_new_scope" in sql and "ck_changes_resolution" in sql
     downgrade_output = StringIO()
     config.output_buffer = downgrade_output
     command.downgrade(config, "20261022_0014:20261021_0013", sql=True)
     assert "DROP COLUMN commit_source_id" in downgrade_output.getvalue()
+    change_output = StringIO()
+    config.output_buffer = change_output
+    command.downgrade(config, "20261023_0015:20261022_0014", sql=True)
+    assert "DROP TABLE knowledge_changes" in change_output.getvalue()
 
 
 def test_commit_source_migration_preserves_snapshots_and_sources_on_roundtrip(tmp_path, monkeypatch):

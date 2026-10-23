@@ -101,3 +101,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0036: Infer bounded Java `var` receivers from static factory calls](0036-bounded-java-static-factory-var-receivers.md)
 - [ADR 0037: Resolve unqualified Java factory receivers](0037-unqualified-java-factory-receivers.md)
 - [ADR 0038: Infer Java factory receivers in loop and resource headers](0038-java-header-factory-receivers.md)
+- [ADR 0039: Review cross-source knowledge evolution explicitly](0039-reviewed-knowledge-evolution.md)

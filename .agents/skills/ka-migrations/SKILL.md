@@ -32,7 +32,11 @@ description: Knowledge Atlas 的 SQLAlchemy 模型与 Alembic 迁移。新增/�
 | `20261021_0013` | GitHub PR Review thread 当前状态、解决数量与截断元数据 |
 | `20261022_0014` | 已保存 Commit 快照的可空 Markdown 来源/任务外键与来源索引 |
 
-当前 head 是 `20261022_0014`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
+新增 `20261023_0015`：跨来源知识演化建议、作用域端点外键、正式证据引用及不可变审核快照。
+
+当前 head 是 `20261023_0015`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
+
+原生临时 schema 验收使用 `python -m scripts.verify_native`：Alembic Config 必须设置 `attributes["version_table_schema"]`，`migrations/env.py` 传给在线 context；同时保留 public 以解析 vector。仅设置 `search_path=temp,public` 会回退到业务版本表和业务表，不能作为隔离保证。测试前检查所有核心表确在生成 schema 且初始项目为空；结束只删除自己生成的 schema 并核对业务迁移标记未变。不要对业务 schema 运行验收降级或清理。
 
 ## 规则
 

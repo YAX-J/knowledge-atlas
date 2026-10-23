@@ -26,6 +26,14 @@
 
 ## 环境配置
 
+### 演化审核与原生验收
+
+使用时间/演化/治理面板前先应用 head `20261023_0015`。跨来源建议与抽取候选分离；仅人工确认才可关闭旧有效期并开始新有效期。历史保留证据，治理只读；不能回溯提升前或定时至未来。见 [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.zh-CN.md)。
+
+在 `backend/` 运行 `.\.venv\Scripts\python.exe -m scripts.verify_native`，在临时 schema 验证迁移/API/竞争/Worker。要求配置的原生 PostgreSQL、已在 `public` 安装 pgvector，以及 `CREATE SCHEMA` 权限。脚本显式限定 Alembic 版本表 schema，测试前检查本地表，最后只删除自己生成的 schema。既有业务资料不是测试数据。`--github` 另允许真实只读公开 petclinic 导入/检索/重复/Commit 追溯验收，不调用模型或使用 GitHub 令牌。普通 `pytest` 跳过这些显式验收；不验证模型/嵌入质量或私有令牌。
+
+`GITHUB_IMPORT_MAX_FILES` 设置每次扫描文件预算（1–50，默认 50），可下调以减少匿名 REST 请求。公开验收使用 30 并明确报告截断，不表示完整仓库覆盖。扩大预算后显式同步可恢复同提交未完成快照并复用已下载 blob；兼容的完整缓存仍可直接返回既有元数据，不额外下载 blob。该配置不保证在共享/二级限流下始终可用。
+
 ```bash
 python -m venv .venv
 # Activate the virtual environment for the current shell.
@@ -87,7 +95,7 @@ Java 结构/调用分析 V1 为只读派生能力，限定同仓库最多 100 �
 
 `GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots` 查询已保存元数据，新增可空 `commit_source_id` / `commit_task_id`。在同一路径追加 `/{snapshot_id}/commit-source` 后 `POST`（无请求体），返回 HTTP 200，包含 `snapshot_id`、`source_id`、`task_id`、当前 `status`、`reused` 和规范 `git_url`。它把保存的 SHA、UTC 时间与提交说明渲染为确定性 Markdown，复用仓库范围导入；不请求 GitHub/模型，也不启动解析或抽取。相同字节跨 ref/改名复用来源，不跨仓库复用。沿用大小限制和作用域 404；无效 SHA 返回 409 `SNAPSHOT_COMMIT_INVALID`。提交证据打开 `/commit/{sha}`，不追加 `#L`，本地行号只描述 Markdown，不定位 patch。先应用迁移 `20261022_0014`，见 [ADR 0033](../docs/adr/0033-saved-commit-evidence-sources.zh-CN.md)。
 
-`GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots/{snapshot_id}/files?page=1&page_size=20` 查询保存的逐文件来源（每页 1–100）。只读本地记录，按路径/UUID 排序，包含删除与跳过项；`total` 是记录数，不是完整仓库覆盖率。可空来源/任务跳转会校验作用域和类型，不加载原文正文。文件 URL 固定所选提交并使用当前规范 remote；删除路径不生成该提交中的文件链接，仍可打开保留的本地资料。除现有 head `20261022_0014` 外无需新迁移或供应商请求。见 [ADR 0034](../docs/adr/0034-snapshot-file-provenance.zh-CN.md)。
+`GET /api/v1/projects/{project_id}/repositories/{repository_id}/snapshots/{snapshot_id}/files?page=1&page_size=20` 查询保存的逐文件来源（每页 1–100）。只读本地记录，按路径/UUID 排序，包含删除与跳过项；`total` 是记录数，不是完整仓库覆盖率。可空来源/任务跳转会校验作用域和类型，不加载原文正文。文件 URL 固定所选提交并使用当前规范 remote；删除路径不生成该提交中的文件链接，仍可打开保留的本地资料。除现有快照 schema `20261022_0014` 外无需新迁移或供应商请求。见 [ADR 0034](../docs/adr/0034-snapshot-file-provenance.zh-CN.md)。
 
 ## 自动解析 Worker
 
@@ -121,7 +129,7 @@ Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose 
 
 ## DeepSeek 候选提取与审核
 
-审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261022_0014`。只在后端 `.env` 中配置：
+审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261023_0015`。只在后端 `.env` 中配置：
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key

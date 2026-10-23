@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 class KnowledgeNodeRead(BaseModel):
@@ -17,6 +17,13 @@ class KnowledgeNodeRead(BaseModel):
     valid_from: datetime
     valid_to: datetime | None
     evidence_count: int = 0
+
+    @field_validator("valid_from", "valid_to")
+    @classmethod
+    def utc_validity(cls, value):
+        if value is None:
+            return None
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
 
 
 class KnowledgeEdgeRead(KnowledgeNodeRead):
