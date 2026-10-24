@@ -2,7 +2,9 @@
 
 [简体中文](README.zh-CN.md)
 
-This directory contains the frozen evaluation set shared by the Stage 6 experiments. It versions the corpus, questions, gold answers, and line-exact gold evidence together so keyword, vector RAG, and knowledge-graph hybrid retrieval use the same inputs and scoring rules. The set makes no external model calls and does not claim real DeepSeek or embedding-provider quality acceptance.
+Current delivery also includes a separate [ten-language call gold set](calls/README.md), [112-request real model acceptance](results/2026-10-24-models/REPORT.md), frozen-evidence answer replay, five reproducible charts and a blind grading CSV. Actual human grades remain pending. Retrieval-only results and answer replay must not be conflated with live end-to-end answer accuracy.
+
+This directory contains the frozen evaluation set shared by the Stage 6 experiments. It versions corpus, questions, gold answers and line-exact evidence so keyword, formal-entity vector and knowledge-graph hybrid retrieval share inputs and scoring rules. This is not raw chunk RAG. Dataset validation itself makes no provider calls; real runs and their limited quality conclusions are recorded separately above.
 
 Dataset `1.0.1` fixes time leakage in `temporal-006`: its June 16 query formerly cited a July 18 policy. It now asks only about historical notes retained by the available commit. Do not mix version `1.0.0` fingerprints or scores with this version. Scoring protocol `line-evidence-v2` matches files, inclusive lines and interior text, allowing the outer whitespace trimming performed by the formal evidence schema. Gold source lines still require exact validation.
 

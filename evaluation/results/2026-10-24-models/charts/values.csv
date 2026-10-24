@@ -1,0 +1,64 @@
+figure,series,category,value
+retrieval,keyword,@1,0.0
+retrieval,keyword,@3,0.0
+retrieval,keyword,@5,0.0
+retrieval,vector,@1,0.500925925925926
+retrieval,vector,@3,0.8722222222222222
+retrieval,vector,@5,0.9805555555555555
+retrieval,hybrid,@1,0.3680555555555556
+retrieval,hybrid,@3,0.5643518518518519
+retrieval,hybrid,@5,0.6601851851851852
+calls,static,Exact decision,0.62
+calls,static,Target precision,0.5862068965517241
+calls,static,Target recall,0.8717948717948718
+calls,static,Unresolved accuracy,0.6
+calls,single_step,Exact decision,0.86
+calls,single_step,Target precision,0.8095238095238095
+calls,single_step,Target recall,0.8717948717948718
+calls,single_step,Unresolved accuracy,0.8
+calls,tools,Exact decision,0.9
+calls,tools,Target precision,0.9411764705882353
+calls,tools,Target recall,0.8205128205128205
+calls,tools,Unresolved accuracy,0.95
+languages,static,c,0.8
+languages,static,cpp,0.4
+languages,static,csharp,0.6
+languages,static,go,0.6
+languages,static,java,0.8
+languages,static,javascript,0.6
+languages,static,jsx,0.6
+languages,static,python,0.6
+languages,static,tsx,0.6
+languages,static,typescript,0.6
+languages,single_step,c,0.8
+languages,single_step,cpp,0.6
+languages,single_step,csharp,0.8
+languages,single_step,go,0.8
+languages,single_step,java,0.8
+languages,single_step,javascript,1
+languages,single_step,jsx,1
+languages,single_step,python,0.8
+languages,single_step,tsx,1
+languages,single_step,typescript,1
+languages,tools,c,0.8
+languages,tools,cpp,0.8
+languages,tools,csharp,0.8
+languages,tools,go,0.8
+languages,tools,java,0.8
+languages,tools,javascript,1
+languages,tools,jsx,1
+languages,tools,python,1
+languages,tools,tsx,1
+languages,tools,typescript,1
+answers,keyword,Support/refusal,0.1
+answers,keyword,Citation F1,
+answers,keyword,Required facts,0.0
+answers,vector,Support/refusal,1.0
+answers,vector,Citation F1,0.8148148148148148
+answers,vector,Required facts,0.8842592592592592
+answers,hybrid,Support/refusal,0.8
+answers,hybrid,Citation F1,0.6821705426356589
+answers,hybrid,Required facts,0.7314814814814814
+latency,static,10 repositories,1.6048000000000002
+latency,single_step,10 repositories,1948.5423999999998
+latency,tools,10 repositories,3387.4263

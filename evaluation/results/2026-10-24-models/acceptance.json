@@ -1,0 +1,715 @@
+{
+  "answer_input": "frozen_retrieval_replay",
+  "billing_cost": null,
+  "blind_review_items": 120,
+  "completed_at": "2026-10-24T14:39:23.827056+00:00",
+  "dataset": {
+    "answerable_count": 36,
+    "case_count": 40,
+    "category_counts": {
+      "code_location": 6,
+      "cross_document": 8,
+      "direct_fact": 16,
+      "temporal": 6,
+      "unanswerable": 4
+    },
+    "dataset_id": "knowledge-atlas-eval-v1",
+    "fingerprint_sha256": "bc4b27b3ff83f68063f88223b37b22ac526e29f4cc6f5418620dab1267889563",
+    "source_count": 30,
+    "version": "1.0.1"
+  },
+  "human_review_status": "pending",
+  "manual_grading_coverage": 0,
+  "model": "deepseek-flash",
+  "phases": {
+    "answers-hybrid": "succeeded",
+    "answers-keyword": "succeeded",
+    "answers-vector": "succeeded",
+    "calls-single_step": "succeeded",
+    "calls-static": "succeeded",
+    "calls-tools": "succeeded"
+  },
+  "started_at": "2026-10-24T14:36:48.082362+00:00",
+  "status": "succeeded",
+  "usage": {
+    "attempted": 112,
+    "calls": [
+      {
+        "completion_tokens": 415,
+        "kind": "single_step_agent",
+        "prompt_tokens": 1662,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 408,
+        "kind": "single_step_agent",
+        "prompt_tokens": 1733,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 404,
+        "kind": "single_step_agent",
+        "prompt_tokens": 1795,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 397,
+        "kind": "single_step_agent",
+        "prompt_tokens": 1771,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 401,
+        "kind": "single_step_agent",
+        "prompt_tokens": 1812,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 407,
+        "kind": "single_step_agent",
+        "prompt_tokens": 1750,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 199,
+        "kind": "single_step_agent",
+        "prompt_tokens": 1067,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 310,
+        "kind": "single_step_agent",
+        "prompt_tokens": 1457,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 410,
+        "kind": "single_step_agent",
+        "prompt_tokens": 1743,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 192,
+        "kind": "single_step_agent",
+        "prompt_tokens": 1048,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 230,
+        "kind": "tool_agent",
+        "prompt_tokens": 2593,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 399,
+        "kind": "tool_agent",
+        "prompt_tokens": 3123,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 226,
+        "kind": "tool_agent",
+        "prompt_tokens": 2660,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 427,
+        "kind": "tool_agent",
+        "prompt_tokens": 3166,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 228,
+        "kind": "tool_agent",
+        "prompt_tokens": 2730,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 406,
+        "kind": "tool_agent",
+        "prompt_tokens": 3257,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 226,
+        "kind": "tool_agent",
+        "prompt_tokens": 2701,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 440,
+        "kind": "tool_agent",
+        "prompt_tokens": 3211,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 227,
+        "kind": "tool_agent",
+        "prompt_tokens": 2749,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 428,
+        "kind": "tool_agent",
+        "prompt_tokens": 3274,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 229,
+        "kind": "tool_agent",
+        "prompt_tokens": 2680,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 440,
+        "kind": "tool_agent",
+        "prompt_tokens": 3228,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 181,
+        "kind": "tool_agent",
+        "prompt_tokens": 2002,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 221,
+        "kind": "tool_agent",
+        "prompt_tokens": 2373,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 174,
+        "kind": "tool_agent",
+        "prompt_tokens": 2391,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 300,
+        "kind": "tool_agent",
+        "prompt_tokens": 2824,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 173,
+        "kind": "tool_agent",
+        "prompt_tokens": 2670,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 344,
+        "kind": "tool_agent",
+        "prompt_tokens": 3078,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 176,
+        "kind": "tool_agent",
+        "prompt_tokens": 1978,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 201,
+        "kind": "tool_agent",
+        "prompt_tokens": 2421,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 116,
+        "kind": "answer",
+        "prompt_tokens": 1173,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 66,
+        "kind": "answer",
+        "prompt_tokens": 1396,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 94,
+        "kind": "answer",
+        "prompt_tokens": 863,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 77,
+        "kind": "answer",
+        "prompt_tokens": 773,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 87,
+        "kind": "answer",
+        "prompt_tokens": 1125,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 84,
+        "kind": "answer",
+        "prompt_tokens": 927,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 161,
+        "kind": "answer",
+        "prompt_tokens": 1128,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 73,
+        "kind": "answer",
+        "prompt_tokens": 1362,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 112,
+        "kind": "answer",
+        "prompt_tokens": 1073,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 112,
+        "kind": "answer",
+        "prompt_tokens": 1266,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 67,
+        "kind": "answer",
+        "prompt_tokens": 1138,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 160,
+        "kind": "answer",
+        "prompt_tokens": 1252,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 72,
+        "kind": "answer",
+        "prompt_tokens": 1390,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 72,
+        "kind": "answer",
+        "prompt_tokens": 1224,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 68,
+        "kind": "answer",
+        "prompt_tokens": 1153,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 71,
+        "kind": "answer",
+        "prompt_tokens": 962,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 209,
+        "kind": "answer",
+        "prompt_tokens": 1178,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 227,
+        "kind": "answer",
+        "prompt_tokens": 1023,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 208,
+        "kind": "answer",
+        "prompt_tokens": 1098,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 174,
+        "kind": "answer",
+        "prompt_tokens": 1024,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 207,
+        "kind": "answer",
+        "prompt_tokens": 1261,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 74,
+        "kind": "answer",
+        "prompt_tokens": 1311,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 217,
+        "kind": "answer",
+        "prompt_tokens": 1100,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 259,
+        "kind": "answer",
+        "prompt_tokens": 1401,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 80,
+        "kind": "answer",
+        "prompt_tokens": 1099,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 127,
+        "kind": "answer",
+        "prompt_tokens": 914,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 85,
+        "kind": "answer",
+        "prompt_tokens": 1119,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 111,
+        "kind": "answer",
+        "prompt_tokens": 1178,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 81,
+        "kind": "answer",
+        "prompt_tokens": 963,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 160,
+        "kind": "answer",
+        "prompt_tokens": 1216,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 73,
+        "kind": "answer",
+        "prompt_tokens": 1188,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 84,
+        "kind": "answer",
+        "prompt_tokens": 917,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 82,
+        "kind": "answer",
+        "prompt_tokens": 1212,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 77,
+        "kind": "answer",
+        "prompt_tokens": 1179,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 75,
+        "kind": "answer",
+        "prompt_tokens": 1199,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 76,
+        "kind": "answer",
+        "prompt_tokens": 1106,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 86,
+        "kind": "answer",
+        "prompt_tokens": 1065,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 88,
+        "kind": "answer",
+        "prompt_tokens": 1393,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 65,
+        "kind": "answer",
+        "prompt_tokens": 971,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 97,
+        "kind": "answer",
+        "prompt_tokens": 1178,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 112,
+        "kind": "answer",
+        "prompt_tokens": 1008,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 68,
+        "kind": "answer",
+        "prompt_tokens": 1233,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 108,
+        "kind": "answer",
+        "prompt_tokens": 863,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 78,
+        "kind": "answer",
+        "prompt_tokens": 773,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 87,
+        "kind": "answer",
+        "prompt_tokens": 1030,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 84,
+        "kind": "answer",
+        "prompt_tokens": 927,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 161,
+        "kind": "answer",
+        "prompt_tokens": 1020,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 135,
+        "kind": "answer",
+        "prompt_tokens": 1181,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 71,
+        "kind": "answer",
+        "prompt_tokens": 979,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 110,
+        "kind": "answer",
+        "prompt_tokens": 978,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 111,
+        "kind": "answer",
+        "prompt_tokens": 1148,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 160,
+        "kind": "answer",
+        "prompt_tokens": 1220,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 174,
+        "kind": "answer",
+        "prompt_tokens": 1128,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 74,
+        "kind": "answer",
+        "prompt_tokens": 1304,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 68,
+        "kind": "answer",
+        "prompt_tokens": 864,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 74,
+        "kind": "answer",
+        "prompt_tokens": 1021,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 171,
+        "kind": "answer",
+        "prompt_tokens": 988,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 208,
+        "kind": "answer",
+        "prompt_tokens": 1023,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 238,
+        "kind": "answer",
+        "prompt_tokens": 1038,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 174,
+        "kind": "answer",
+        "prompt_tokens": 1024,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 132,
+        "kind": "answer",
+        "prompt_tokens": 1247,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 167,
+        "kind": "answer",
+        "prompt_tokens": 1010,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 220,
+        "kind": "answer",
+        "prompt_tokens": 1085,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 310,
+        "kind": "answer",
+        "prompt_tokens": 1107,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 92,
+        "kind": "answer",
+        "prompt_tokens": 1099,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 127,
+        "kind": "answer",
+        "prompt_tokens": 917,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 85,
+        "kind": "answer",
+        "prompt_tokens": 1040,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 124,
+        "kind": "answer",
+        "prompt_tokens": 1012,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 178,
+        "kind": "answer",
+        "prompt_tokens": 925,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 126,
+        "kind": "answer",
+        "prompt_tokens": 1245,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 90,
+        "kind": "answer",
+        "prompt_tokens": 927,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 84,
+        "kind": "answer",
+        "prompt_tokens": 927,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 82,
+        "kind": "answer",
+        "prompt_tokens": 1016,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 77,
+        "kind": "answer",
+        "prompt_tokens": 1006,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 75,
+        "kind": "answer",
+        "prompt_tokens": 1008,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 76,
+        "kind": "answer",
+        "prompt_tokens": 1021,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 74,
+        "kind": "answer",
+        "prompt_tokens": 1011,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 72,
+        "kind": "answer",
+        "prompt_tokens": 993,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 65,
+        "kind": "answer",
+        "prompt_tokens": 1015,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 78,
+        "kind": "answer",
+        "prompt_tokens": 1128,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 390,
+        "kind": "extraction",
+        "prompt_tokens": 1273,
+        "usage_reported": true
+      },
+      {
+        "completion_tokens": 1051,
+        "kind": "extraction",
+        "prompt_tokens": 1273,
+        "usage_reported": true
+      }
+    ],
+    "completion_tokens": 19974,
+    "limit": 172,
+    "prompt_tokens": 160480,
+    "usage_reported": 112
+  }
+}

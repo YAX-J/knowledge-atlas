@@ -1,0 +1,58 @@
+{
+  "input_hash_protocol": "utf8-lf-v1",
+  "renderer": {
+    "python": "3.13.13",
+    "matplotlib": "3.11.2"
+  },
+  "inputs": [
+    {
+      "file": "keyword.metrics.json",
+      "sha256": "b7300288d4a45c87d001d68b6d79968533a901c5db2a6b847a16f1cfcec0de19"
+    },
+    {
+      "file": "vector.metrics.json",
+      "sha256": "be241f6bff69f2f8526170ad7c99c8b2fd80e614e5878754c1bf07064c5bf750"
+    },
+    {
+      "file": "hybrid.metrics.json",
+      "sha256": "5d0b239d4d5f161028959a4e3bd53702664d1e784fd0f41755727de238298ad4"
+    },
+    {
+      "file": "calls-static.metrics.json",
+      "sha256": "933eb3d8b4e93a1c063ec7925f66d91e7247267350b1b8b237bf272090027793"
+    },
+    {
+      "file": "calls-single_step.metrics.json",
+      "sha256": "cc1c040ef6919db38aeb67d8c6785c7f7fbd8cbc62a145e39f7a058e81d30481"
+    },
+    {
+      "file": "calls-tools.metrics.json",
+      "sha256": "c20b765b27e3f6eae3fd550fafe222d0ba2617bb3c238d97c2eaa703b1dd0e6b"
+    },
+    {
+      "file": "answers-keyword.metrics.json",
+      "sha256": "fcf241897b51ea88a25505e4d0fc1219037856b0d7226d7683db7cf8fa4e60ab"
+    },
+    {
+      "file": "answers-vector.metrics.json",
+      "sha256": "a47bb7b9abc6e08ca79bf913f767a0fddd22d314ebb6345fd51bfd85becc8d7b"
+    },
+    {
+      "file": "answers-hybrid.metrics.json",
+      "sha256": "d74a77f1f9e68775bab39f477dda3057c2393e0364afdb3f687541a31585c04b"
+    },
+    {
+      "file": "acceptance.json",
+      "sha256": "4340e192028cdac8a7ffb25bade88578607a6afbd64eb6884010fc237463bc07"
+    }
+  ],
+  "figures": [
+    "retrieval",
+    "calls",
+    "languages",
+    "answers",
+    "latency"
+  ],
+  "human_grading": "not included; use import_grades with real reviewer labels",
+  "ablation": "vector (graph off) vs fixed hybrid (graph on); no weight search or new embedding calls"
+}

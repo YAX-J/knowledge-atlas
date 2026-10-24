@@ -1,0 +1,113 @@
+{
+  "dataset": {
+    "case_count": 50,
+    "dataset_id": "ka-cross-file-calls-v1",
+    "fingerprint_sha256": "585eb8fd4629158c76ccd57fc9426a6cde54b7b5144049acc9a6596bc8fca0cf",
+    "languages": {
+      "c": 5,
+      "cpp": 5,
+      "csharp": 5,
+      "go": 5,
+      "java": 5,
+      "javascript": 5,
+      "jsx": 5,
+      "python": 5,
+      "tsx": 5,
+      "typescript": 5
+    },
+    "scenarios": {
+      "closed_dispatch": 10,
+      "external": 10,
+      "open_dispatch": 10,
+      "receiver": 10,
+      "unique": 10
+    },
+    "source_count": 30,
+    "version": "1.0.0"
+  },
+  "metrics": {
+    "by_language": {
+      "c": 0.8,
+      "cpp": 0.4,
+      "csharp": 0.6,
+      "go": 0.6,
+      "java": 0.8,
+      "javascript": 0.6,
+      "jsx": 0.6,
+      "python": 0.6,
+      "tsx": 0.6,
+      "typescript": 0.6
+    },
+    "candidate_coverage": 0.7,
+    "case_count": 50,
+    "exact_decision_accuracy": 0.62,
+    "resolved_precision": 1,
+    "target_f1": 0.7010309278350514,
+    "target_precision": 0.5862068965517241,
+    "target_recall": 0.8717948717948718,
+    "unresolved_accuracy": 0.6
+  },
+  "mode": "static",
+  "runs": [
+    {
+      "language": "python",
+      "latency_ms": 1.986,
+      "provider_calls": 0,
+      "tool_calls": 0
+    },
+    {
+      "language": "javascript",
+      "latency_ms": 1.667,
+      "provider_calls": 0,
+      "tool_calls": 0
+    },
+    {
+      "language": "jsx",
+      "latency_ms": 0.501,
+      "provider_calls": 0,
+      "tool_calls": 0
+    },
+    {
+      "language": "typescript",
+      "latency_ms": 2.184,
+      "provider_calls": 0,
+      "tool_calls": 0
+    },
+    {
+      "language": "tsx",
+      "latency_ms": 0.771,
+      "provider_calls": 0,
+      "tool_calls": 0
+    },
+    {
+      "language": "go",
+      "latency_ms": 1.78,
+      "provider_calls": 0,
+      "tool_calls": 0
+    },
+    {
+      "language": "c",
+      "latency_ms": 1.709,
+      "provider_calls": 0,
+      "tool_calls": 0
+    },
+    {
+      "language": "cpp",
+      "latency_ms": 1.964,
+      "provider_calls": 0,
+      "tool_calls": 0
+    },
+    {
+      "language": "csharp",
+      "latency_ms": 1.67,
+      "provider_calls": 0,
+      "tool_calls": 0
+    },
+    {
+      "language": "java",
+      "latency_ms": 1.816,
+      "provider_calls": 0,
+      "tool_calls": 0
+    }
+  ]
+}

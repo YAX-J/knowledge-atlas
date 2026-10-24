@@ -1,0 +1,16 @@
+[
+  {
+    "all_evidence_exact": true,
+    "entities": 2,
+    "relations": 1,
+    "semantic_human_review": "pending",
+    "source": "corpus/docs/01_project_scope.md"
+  },
+  {
+    "all_evidence_exact": true,
+    "entities": 5,
+    "relations": 5,
+    "semantic_human_review": "pending",
+    "source": "corpus/docs/11_review_policy.md"
+  }
+]

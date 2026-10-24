@@ -1,0 +1,482 @@
+{
+  "review-001": {
+    "case_id": "unknown-002",
+    "mode": "keyword"
+  },
+  "review-002": {
+    "case_id": "cross-004",
+    "mode": "keyword"
+  },
+  "review-003": {
+    "case_id": "cross-008",
+    "mode": "keyword"
+  },
+  "review-004": {
+    "case_id": "direct-014",
+    "mode": "hybrid"
+  },
+  "review-005": {
+    "case_id": "cross-007",
+    "mode": "hybrid"
+  },
+  "review-006": {
+    "case_id": "cross-008",
+    "mode": "hybrid"
+  },
+  "review-007": {
+    "case_id": "code-002",
+    "mode": "keyword"
+  },
+  "review-008": {
+    "case_id": "direct-007",
+    "mode": "keyword"
+  },
+  "review-009": {
+    "case_id": "temporal-004",
+    "mode": "vector"
+  },
+  "review-010": {
+    "case_id": "direct-009",
+    "mode": "hybrid"
+  },
+  "review-011": {
+    "case_id": "code-005",
+    "mode": "keyword"
+  },
+  "review-012": {
+    "case_id": "cross-001",
+    "mode": "vector"
+  },
+  "review-013": {
+    "case_id": "code-005",
+    "mode": "vector"
+  },
+  "review-014": {
+    "case_id": "temporal-004",
+    "mode": "hybrid"
+  },
+  "review-015": {
+    "case_id": "direct-013",
+    "mode": "keyword"
+  },
+  "review-016": {
+    "case_id": "direct-003",
+    "mode": "hybrid"
+  },
+  "review-017": {
+    "case_id": "direct-009",
+    "mode": "keyword"
+  },
+  "review-018": {
+    "case_id": "direct-014",
+    "mode": "keyword"
+  },
+  "review-019": {
+    "case_id": "direct-015",
+    "mode": "keyword"
+  },
+  "review-020": {
+    "case_id": "direct-002",
+    "mode": "vector"
+  },
+  "review-021": {
+    "case_id": "cross-004",
+    "mode": "hybrid"
+  },
+  "review-022": {
+    "case_id": "temporal-003",
+    "mode": "vector"
+  },
+  "review-023": {
+    "case_id": "direct-002",
+    "mode": "keyword"
+  },
+  "review-024": {
+    "case_id": "code-004",
+    "mode": "keyword"
+  },
+  "review-025": {
+    "case_id": "cross-006",
+    "mode": "keyword"
+  },
+  "review-026": {
+    "case_id": "cross-006",
+    "mode": "hybrid"
+  },
+  "review-027": {
+    "case_id": "direct-005",
+    "mode": "hybrid"
+  },
+  "review-028": {
+    "case_id": "cross-002",
+    "mode": "vector"
+  },
+  "review-029": {
+    "case_id": "unknown-002",
+    "mode": "vector"
+  },
+  "review-030": {
+    "case_id": "direct-006",
+    "mode": "hybrid"
+  },
+  "review-031": {
+    "case_id": "unknown-001",
+    "mode": "vector"
+  },
+  "review-032": {
+    "case_id": "direct-015",
+    "mode": "vector"
+  },
+  "review-033": {
+    "case_id": "cross-001",
+    "mode": "keyword"
+  },
+  "review-034": {
+    "case_id": "unknown-003",
+    "mode": "keyword"
+  },
+  "review-035": {
+    "case_id": "temporal-001",
+    "mode": "vector"
+  },
+  "review-036": {
+    "case_id": "code-006",
+    "mode": "keyword"
+  },
+  "review-037": {
+    "case_id": "direct-006",
+    "mode": "vector"
+  },
+  "review-038": {
+    "case_id": "cross-008",
+    "mode": "vector"
+  },
+  "review-039": {
+    "case_id": "direct-013",
+    "mode": "vector"
+  },
+  "review-040": {
+    "case_id": "cross-004",
+    "mode": "vector"
+  },
+  "review-041": {
+    "case_id": "direct-001",
+    "mode": "hybrid"
+  },
+  "review-042": {
+    "case_id": "code-003",
+    "mode": "vector"
+  },
+  "review-043": {
+    "case_id": "code-003",
+    "mode": "keyword"
+  },
+  "review-044": {
+    "case_id": "direct-009",
+    "mode": "vector"
+  },
+  "review-045": {
+    "case_id": "temporal-004",
+    "mode": "keyword"
+  },
+  "review-046": {
+    "case_id": "unknown-002",
+    "mode": "hybrid"
+  },
+  "review-047": {
+    "case_id": "direct-001",
+    "mode": "keyword"
+  },
+  "review-048": {
+    "case_id": "direct-016",
+    "mode": "keyword"
+  },
+  "review-049": {
+    "case_id": "direct-007",
+    "mode": "vector"
+  },
+  "review-050": {
+    "case_id": "direct-011",
+    "mode": "vector"
+  },
+  "review-051": {
+    "case_id": "code-006",
+    "mode": "hybrid"
+  },
+  "review-052": {
+    "case_id": "direct-015",
+    "mode": "hybrid"
+  },
+  "review-053": {
+    "case_id": "direct-011",
+    "mode": "hybrid"
+  },
+  "review-054": {
+    "case_id": "cross-006",
+    "mode": "vector"
+  },
+  "review-055": {
+    "case_id": "direct-007",
+    "mode": "hybrid"
+  },
+  "review-056": {
+    "case_id": "direct-004",
+    "mode": "keyword"
+  },
+  "review-057": {
+    "case_id": "unknown-004",
+    "mode": "hybrid"
+  },
+  "review-058": {
+    "case_id": "temporal-002",
+    "mode": "hybrid"
+  },
+  "review-059": {
+    "case_id": "temporal-006",
+    "mode": "keyword"
+  },
+  "review-060": {
+    "case_id": "direct-010",
+    "mode": "vector"
+  },
+  "review-061": {
+    "case_id": "code-006",
+    "mode": "vector"
+  },
+  "review-062": {
+    "case_id": "direct-012",
+    "mode": "hybrid"
+  },
+  "review-063": {
+    "case_id": "temporal-002",
+    "mode": "keyword"
+  },
+  "review-064": {
+    "case_id": "direct-011",
+    "mode": "keyword"
+  },
+  "review-065": {
+    "case_id": "temporal-003",
+    "mode": "hybrid"
+  },
+  "review-066": {
+    "case_id": "cross-002",
+    "mode": "hybrid"
+  },
+  "review-067": {
+    "case_id": "code-002",
+    "mode": "hybrid"
+  },
+  "review-068": {
+    "case_id": "direct-002",
+    "mode": "hybrid"
+  },
+  "review-069": {
+    "case_id": "cross-003",
+    "mode": "vector"
+  },
+  "review-070": {
+    "case_id": "direct-001",
+    "mode": "vector"
+  },
+  "review-071": {
+    "case_id": "unknown-004",
+    "mode": "vector"
+  },
+  "review-072": {
+    "case_id": "direct-005",
+    "mode": "keyword"
+  },
+  "review-073": {
+    "case_id": "temporal-001",
+    "mode": "keyword"
+  },
+  "review-074": {
+    "case_id": "direct-008",
+    "mode": "hybrid"
+  },
+  "review-075": {
+    "case_id": "code-001",
+    "mode": "hybrid"
+  },
+  "review-076": {
+    "case_id": "direct-010",
+    "mode": "hybrid"
+  },
+  "review-077": {
+    "case_id": "cross-002",
+    "mode": "keyword"
+  },
+  "review-078": {
+    "case_id": "code-004",
+    "mode": "hybrid"
+  },
+  "review-079": {
+    "case_id": "cross-001",
+    "mode": "hybrid"
+  },
+  "review-080": {
+    "case_id": "temporal-006",
+    "mode": "hybrid"
+  },
+  "review-081": {
+    "case_id": "cross-003",
+    "mode": "keyword"
+  },
+  "review-082": {
+    "case_id": "code-005",
+    "mode": "hybrid"
+  },
+  "review-083": {
+    "case_id": "direct-014",
+    "mode": "vector"
+  },
+  "review-084": {
+    "case_id": "direct-006",
+    "mode": "keyword"
+  },
+  "review-085": {
+    "case_id": "unknown-001",
+    "mode": "hybrid"
+  },
+  "review-086": {
+    "case_id": "unknown-001",
+    "mode": "keyword"
+  },
+  "review-087": {
+    "case_id": "direct-003",
+    "mode": "vector"
+  },
+  "review-088": {
+    "case_id": "direct-008",
+    "mode": "vector"
+  },
+  "review-089": {
+    "case_id": "temporal-003",
+    "mode": "keyword"
+  },
+  "review-090": {
+    "case_id": "temporal-005",
+    "mode": "keyword"
+  },
+  "review-091": {
+    "case_id": "temporal-005",
+    "mode": "vector"
+  },
+  "review-092": {
+    "case_id": "cross-007",
+    "mode": "vector"
+  },
+  "review-093": {
+    "case_id": "direct-016",
+    "mode": "vector"
+  },
+  "review-094": {
+    "case_id": "cross-005",
+    "mode": "vector"
+  },
+  "review-095": {
+    "case_id": "unknown-003",
+    "mode": "hybrid"
+  },
+  "review-096": {
+    "case_id": "cross-005",
+    "mode": "keyword"
+  },
+  "review-097": {
+    "case_id": "cross-005",
+    "mode": "hybrid"
+  },
+  "review-098": {
+    "case_id": "direct-012",
+    "mode": "vector"
+  },
+  "review-099": {
+    "case_id": "direct-005",
+    "mode": "vector"
+  },
+  "review-100": {
+    "case_id": "unknown-003",
+    "mode": "vector"
+  },
+  "review-101": {
+    "case_id": "code-001",
+    "mode": "vector"
+  },
+  "review-102": {
+    "case_id": "code-003",
+    "mode": "hybrid"
+  },
+  "review-103": {
+    "case_id": "code-002",
+    "mode": "vector"
+  },
+  "review-104": {
+    "case_id": "direct-004",
+    "mode": "vector"
+  },
+  "review-105": {
+    "case_id": "direct-012",
+    "mode": "keyword"
+  },
+  "review-106": {
+    "case_id": "temporal-002",
+    "mode": "vector"
+  },
+  "review-107": {
+    "case_id": "temporal-005",
+    "mode": "hybrid"
+  },
+  "review-108": {
+    "case_id": "direct-016",
+    "mode": "hybrid"
+  },
+  "review-109": {
+    "case_id": "direct-008",
+    "mode": "keyword"
+  },
+  "review-110": {
+    "case_id": "cross-003",
+    "mode": "hybrid"
+  },
+  "review-111": {
+    "case_id": "temporal-001",
+    "mode": "hybrid"
+  },
+  "review-112": {
+    "case_id": "code-004",
+    "mode": "vector"
+  },
+  "review-113": {
+    "case_id": "code-001",
+    "mode": "keyword"
+  },
+  "review-114": {
+    "case_id": "direct-003",
+    "mode": "keyword"
+  },
+  "review-115": {
+    "case_id": "direct-004",
+    "mode": "hybrid"
+  },
+  "review-116": {
+    "case_id": "unknown-004",
+    "mode": "keyword"
+  },
+  "review-117": {
+    "case_id": "direct-010",
+    "mode": "keyword"
+  },
+  "review-118": {
+    "case_id": "direct-013",
+    "mode": "hybrid"
+  },
+  "review-119": {
+    "case_id": "cross-007",
+    "mode": "keyword"
+  },
+  "review-120": {
+    "case_id": "temporal-006",
+    "mode": "vector"
+  }
+}
