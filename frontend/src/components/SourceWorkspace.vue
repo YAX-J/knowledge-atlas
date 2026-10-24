@@ -38,7 +38,7 @@ const emit = defineEmits<{
   run: []
   refresh: []
   chunksPage: [page: number]
-  analyzeCalls: []
+  analyzeCalls: [strategy: 'single_step' | 'tools']
   graph: []
 }>()
 const name = ref('')
@@ -52,6 +52,7 @@ const folderInput = ref<HTMLInputElement | null>(null)
 const fileError = ref('')
 const selectionNote = ref('')
 const uploadKind = ref<'file' | 'folder' | ''>('')
+const agentStrategy = ref<'single_step' | 'tools'>('single_step')
 const projectPages = computed(() => Math.max(1, Math.ceil((props.projects?.total ?? 0) / (props.projects?.page_size ?? 20))))
 const repositoryPages = computed(() => Math.max(1, Math.ceil((props.repositories?.total ?? 0) / (props.repositories?.page_size ?? 20))))
 const sourcePages = computed(() => Math.max(1, Math.ceil((props.sources?.total ?? 0) / (props.sources?.page_size ?? 20))))
@@ -386,7 +387,13 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                   <div class="source-section-heading">
                     <h3 id="code-structure-title">源码结构</h3>
                     <span v-if="codeStructure" class="muted-copy">{{ codeStructure.symbols.length }} 个符号 · {{ codeStructure.calls.length }} 条同文件调用 · {{ codeStructure.cross_file_calls.length }} 条跨文件调用 · {{ codeStructure.type_relationships.length }} 条跨文件类型关系</span>
-                    <button type="button" class="primary-button" :disabled="locked || loading.structure" @click="emit('analyzeCalls')">{{ loading.agent ? 'Agent 分析中…' : 'Agent 分析跨文件调用' }}</button>
+                    <label class="agent-strategy">分析方式
+                      <select v-model="agentStrategy" :disabled="locked" aria-label="跨文件调用分析方式">
+                        <option value="single_step">单轮候选判断</option>
+                        <option value="tools">工具调用 Agent</option>
+                      </select>
+                    </label>
+                    <button type="button" class="primary-button" :disabled="locked || loading.structure" @click="emit('analyzeCalls', agentStrategy)">{{ loading.agent ? 'Agent 分析中…' : 'Agent 分析跨文件调用' }}</button>
                   </div>
                   <p class="source-upload-hint">结构关系由本地规则推导，不会自动写入已审核的正式知识图谱。</p>
                   <p v-if="source.source_type !== 'java'" class="source-upload-hint">{{ sourceTypeLabel(source.source_type) }} 默认只做语法结构解析；显式运行 Agent 后，才会在同仓库静态候选中分析跨文件调用并产生模型费用。</p>
@@ -434,11 +441,12 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                     <section class="agent-call-analysis" aria-labelledby="agent-call-analysis-title" :aria-busy="loading.agent">
                       <div class="source-section-heading">
                         <h4 id="agent-call-analysis-title">Agent 跨文件分析</h4>
-                        <span v-if="agentCallAnalysis" class="muted-copy">扫描 {{ agentCallAnalysis.scanned_source_count }} 个文件 · {{ agentCallAnalysis.candidate_call_count }} 个候选调用 · {{ agentCallAnalysis.provider_call_count }} 次模型调用</span>
+                        <span v-if="agentCallAnalysis" class="muted-copy">扫描 {{ agentCallAnalysis.scanned_source_count }} 个文件 · {{ agentCallAnalysis.candidate_call_count }} 个候选调用 · {{ agentCallAnalysis.provider_call_count }} 次模型调用 · {{ agentCallAnalysis.tool_call_count }} 次工具调用</span>
                       </div>
                       <p v-if="loading.agent" class="muted-copy" role="status">Agent 正在核对导入、接收者、文件路径和候选声明…</p>
-                      <p v-else-if="errors.agent" class="inline-error" role="alert">{{ errors.agent }} <button type="button" class="text-button" @click="emit('analyzeCalls')">重试分析</button></p>
+                      <p v-else-if="errors.agent" class="inline-error" role="alert">{{ errors.agent }} <button type="button" class="text-button" @click="emit('analyzeCalls', agentStrategy)">重试分析</button></p>
                       <template v-else-if="agentCallAnalysis">
+                        <details v-if="agentCallAnalysis.tool_trace?.length" class="agent-tool-trace"><summary>查看工具执行记录</summary><ol><li v-for="(entry, index) in agentCallAnalysis.tool_trace" :key="index">{{ entry.name }} · {{ entry.status === 'ok' ? '成功' : '参数或范围被拒绝' }} · {{ entry.duration_ms }} ms</li></ol></details>
                         <p v-if="agentCallAnalysis.truncated" class="inline-error">仓库或候选达到分析上限，结果可能不完整。</p>
                         <p v-if="agentCallAnalysis.has_syntax_errors" class="inline-error">扫描范围中存在语法错误，Agent 结果仅作为有界提示。</p>
                         <p v-if="!agentCallAnalysis.calls.length" class="empty-copy">没有找到可交给 Agent 判断的同仓库跨文件候选；本次未调用模型。</p>

@@ -4,7 +4,7 @@
 
 - 上传新增 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，详见[扩展名和边界](MULTILANGUAGE_PARSING.zh-CN.md)。`source_type` 省略时由扩展名推断，显式填写仍须匹配。复用 `code_parsing`，无新迁移。
 - `GET /sources/{source_id}/code-structure` 对全部支持代码有效，返回 `language`、`has_syntax_errors` 与共用 `symbols`（`type/field/method`）。Java 继续返回本地确定性调用关系；其他语言默认不产生跨文件关系。
-- `POST /sources/{source_id}/agent-call-analysis` 显式调用一次受限 Agent，在同仓库静态候选中分析 Java、Python、JavaScript/JSX、TypeScript/TSX、Go、C/C++、C# 跨文件调用。没有候选时不调用模型；结果不持久化、不写正式图谱。
+- `POST /sources/{source_id}/agent-call-analysis?strategy=single_step|tools` 显式分析 Java、Python、JavaScript/JSX、TypeScript/TSX、Go、C/C++、C# 的同仓库跨文件候选。默认单轮，可选有界工具循环。没有候选时不调用模型；结果不持久化、不写正式图谱。
 - `GET /projects/{project_id}/code-symbols` 扫描全部支持代码，命中增加 `language`，响应增加 `has_syntax_errors`。语法错误与 `truncated` 独立，权限/仓库/数量上限不变。
 - GitHub 同步新增可选 `rescan:boolean=false`，例如 `{"ref":"main","rescan":true}`，重读同 Commit tree 以发现旧快照未记录的新语言；复用兼容 blob，仍遵守原预算和历史非破坏规则。默认继续完整同提交缓存。
 
@@ -412,6 +412,8 @@ Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，�
 `related_types` 返回关系目标的稳定类型 ID、来源 ID、相对路径优先的 `source_path`、包限定名和行号；`type_relationships` 返回当前类型符号 ID、目标 ID 列表、源码中的目标名、`extends` / `implements`、声明行及 `resolved` / `ambiguous`。`related_methods` 返回跨文件目标方法的稳定 ID、来源、路径、所属包限定类型、方法限定名和行号；`cross_file_calls` 返回当前调用方 ID、目标方法 ID 列表、接收者、方法名、调用行及解析状态。解析遵循显式导入、同包和通配导入优先级，只返回能匹配同仓库已解析来源的目标；外部库、其他仓库和未解析文件不会伪造关系。同一路径的多个不可变版本若声明相同包限定类型，也会作为多个候选显示为 `ambiguous`。`truncated=true` 表示符号、调用、相关类型/方法、类型关系、跨文件调用或仓库来源至少一类达到上限。
 
 `POST /api/v1/sources/{source_id}/agent-call-analysis`
+
+可选 query `strategy=single_step|tools`，默认 `single_step`，非法值返回 422。`tools` 只在已授权仓库快照上提供 `read_source_range/get_imports/search_symbols/find_references/get_type_members`，最多 4 轮模型、8 次工具、230 秒、累计工具结果 20000 字符、累计输入 240000 字符。单次读取最多 80 行；不开放任意路径、Shell、网络或数据库。首轮要求工具、末轮强制结束；失败不自动重试，初始输入超限返回 413，工具/轮次/累计上下文预算或非法输出返回 502，连接超时/供应商不可用返回 503。项目归档或越界来源返回 404。追加响应字段 `strategy`、`tool_call_count`、`tool_trace`；轨迹项仅含 `name,status,result_characters,duration_ms`，不含源码参数或模型内部推理。`provider_call_count` 是实际模型轮数。详见 [ADR 0043](adr/0043-bounded-read-only-tool-agent.zh-CN.md)。
 
 该接口只接受已解析代码来源，无请求体。它从同仓库兼容语言族中读取最多 99 份 ready 来源和 20 MiB 原文，本地生成调用点及同名方法候选；最多把 100 个调用、每个 20 个目标候选交给配置的 DeepSeek 模型。Agent 必须为每个调用返回一条 `resolved/ambiguous/unresolved` 决定，只能选择服务器给定的目标 UUID。后端验证完整性、目标归属和数量语义，再从原文生成 `call_quote` 与 `related_symbols[].quote`。
 

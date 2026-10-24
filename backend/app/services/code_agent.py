@@ -15,7 +15,8 @@ from app.schemas.code_agent import (
     AgentCrossFileCallRead,
     AgentRelatedSymbolRead,
 )
-from app.services import deepseek, ingestion
+from app.services import deepseek, ingestion, call_tools
+from app.services.projects import get_project
 from app.services.code_source import CodeCallSite, analyze_code
 from app.services.java_source import JavaSourceInput, analyze_java, java_symbols
 from app.services.source_languages import CODE_SOURCE_TYPES
@@ -194,7 +195,6 @@ def _java_candidates(
             content=item.content,
         ) for item in related],
     )
-    source_by_id = {item.id: item for item in related}
     targets: dict[uuid.UUID, _Target] = {}
     for item in related:
         for symbol in java_symbols(item.content, source_id=item.id)[0]:
@@ -222,14 +222,24 @@ def _java_candidates(
 
 def analyze_calls(
     db: Session, *, settings: Settings, user_id: uuid.UUID, source_id: uuid.UUID,
+    strategy: str = "single_step",
 ) -> AgentCallAnalysisRead:
     source = ingestion.get_source(db, user_id=user_id, source_id=source_id)
+    get_project(db, user_id=user_id, project_id=source.project_id)
     if source.source_type not in CODE_SOURCE_TYPES:
         raise AppError(status_code=409, code="CALL_AGENT_UNAVAILABLE", message="当前资料不是支持分析的代码文件")
     if source.status != SourceStatus.READY:
         raise AppError(status_code=409, code="SOURCE_NOT_PARSED", message="请先完成代码资料解析")
 
     related, related_truncated = _related_sources(db, source=source)
+    return analyze_snapshot(source=source, related=related, settings=settings,
+                            strategy=strategy, related_truncated=related_truncated)
+
+
+def analyze_snapshot(*, source, related, settings, strategy="single_step", related_truncated=False):
+    if strategy not in {"single_step", "tools"}:
+        raise AppError(status_code=422, code="CALL_AGENT_STRATEGY_INVALID", message="不支持的 Agent 分析模式")
+    prompt_version = call_tools.PROMPT_VERSION if strategy == "tools" else deepseek.CALL_AGENT_PROMPT_VERSION
     if source.source_type == "java":
         calls, targets, detected, truncated, syntax_errors = _java_candidates(source, related)
     else:
@@ -239,10 +249,11 @@ def analyze_calls(
     if not calls:
         return AgentCallAnalysisRead(
             source_id=source.id, language=source.source_type, model=None,
-            prompt_version=deepseek.CALL_AGENT_PROMPT_VERSION,
+            prompt_version=prompt_version,
             calls=[], related_symbols=[], scanned_source_count=1 + len(related),
             detected_call_count=detected, candidate_call_count=0,
             provider_call_count=0, truncated=truncated, has_syntax_errors=syntax_errors,
+            strategy=strategy,
         )
 
     payload = {
@@ -277,7 +288,11 @@ def analyze_calls(
             message="跨文件候选上下文过大，请缩小文件或仓库范围",
         )
     try:
-        draft = deepseek.analyze_cross_file_calls(settings, payload)
+        if strategy == "tools":
+            draft, provider_count, trace = call_tools.analyze_with_tools(settings, payload, sources=[source, *related], targets=targets)
+        else:
+            draft = deepseek.analyze_cross_file_calls(settings, payload)
+            provider_count, trace = 1, []
     except deepseek.CallAgentError as exc:
         status = 503 if exc.code in {"CALL_AGENT_NOT_CONFIGURED", "CALL_AGENT_PROVIDER_FAILED"} else 502
         raise AppError(status_code=status, code=exc.code, message=exc.message) from exc
@@ -309,7 +324,7 @@ def analyze_calls(
 
     return AgentCallAnalysisRead(
         source_id=source.id, language=source.source_type,
-        model=settings.deepseek_model, prompt_version=deepseek.CALL_AGENT_PROMPT_VERSION,
+        model=settings.deepseek_model, prompt_version=prompt_version,
         calls=result_calls,
         related_symbols=[AgentRelatedSymbolRead(**vars(targets[target_id])) for target_id in sorted(
             visible_targets, key=lambda item: (
@@ -317,6 +332,7 @@ def analyze_calls(
             ),
         )],
         scanned_source_count=1 + len(related), detected_call_count=detected,
-        candidate_call_count=len(calls), provider_call_count=1,
+        candidate_call_count=len(calls), provider_call_count=provider_count,
         truncated=truncated, has_syntax_errors=syntax_errors,
+        strategy=strategy, tool_call_count=len(trace), tool_trace=trace,
     )

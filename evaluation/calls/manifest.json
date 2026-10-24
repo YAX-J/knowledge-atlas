@@ -1,0 +1,21 @@
+{
+  "dataset_id": "ka-cross-file-calls-v1",
+  "version": "1.0.0",
+  "source_count": 30,
+  "case_count": 50,
+  "languages": [
+    "python",
+    "javascript",
+    "jsx",
+    "typescript",
+    "tsx",
+    "go",
+    "c",
+    "cpp",
+    "csharp",
+    "java"
+  ],
+  "corpus_root": "corpus",
+  "cases_file": "cases.jsonl",
+  "scope": "Synthetic partial programs, repository-local possible implementations; not compiler or real-repository acceptance."
+}

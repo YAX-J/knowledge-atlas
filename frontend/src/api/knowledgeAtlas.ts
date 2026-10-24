@@ -156,6 +156,9 @@ export interface AgentCallAnalysis {
   detected_call_count: number
   candidate_call_count: number
   provider_call_count: number
+  strategy: 'single_step' | 'tools'
+  tool_call_count: number
+  tool_trace: { name: string; status: string; result_characters: number; duration_ms: number }[]
   truncated: boolean
   has_syntax_errors: boolean
 }
@@ -531,9 +534,9 @@ export function getJavaCodeStructure(sourceId: string): Promise<JavaCodeStructur
   return apiRequest<JavaCodeStructure>(`/sources/${sourceId}/code-structure`)
 }
 
-export function analyzeAgentCalls(sourceId: string): Promise<AgentCallAnalysis> {
-  return apiRequest<AgentCallAnalysis>(`/sources/${sourceId}/agent-call-analysis`, {
-    method: 'POST', signal: AbortSignal.timeout(240000),
+export function analyzeAgentCalls(sourceId: string, strategy: 'single_step' | 'tools' = 'single_step'): Promise<AgentCallAnalysis> {
+  return apiRequest<AgentCallAnalysis>(`/sources/${sourceId}/agent-call-analysis?strategy=${strategy}`, {
+    method: 'POST', signal: AbortSignal.timeout(300000),
   })
 }
 

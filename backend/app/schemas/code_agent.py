@@ -1,10 +1,11 @@
 import uuid
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class AgentCallDecisionDraft(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     call_id: uuid.UUID
     target_ids: list[uuid.UUID] = Field(max_length=20)
     resolution: Literal["resolved", "ambiguous", "unresolved"]
@@ -26,6 +27,7 @@ class AgentCallDecisionDraft(BaseModel):
 
 
 class AgentCallAnalysisDraft(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     decisions: list[AgentCallDecisionDraft] = Field(max_length=200)
 
 
@@ -68,3 +70,6 @@ class AgentCallAnalysisRead(BaseModel):
     provider_call_count: int
     truncated: bool
     has_syntax_errors: bool
+    strategy: Literal["single_step", "tools"] = "single_step"
+    tool_call_count: int = 0
+    tool_trace: list[dict] = Field(default_factory=list)

@@ -105,3 +105,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0040: Parse multiple code languages without changing knowledge authority](0040-multilanguage-source-parsing.md)
 - [ADR 0041: Run bounded multi-language cross-file call analysis through an Agent](0041-bounded-multilanguage-agent-call-analysis.md)
 - [ADR 0042: Replay curated synthetic evaluation projects through review services](0042-reproducible-curated-evaluation-projects.md)
+- [ADR 0043: Bounded read-only repository tools](0043-bounded-read-only-tool-agent.md)

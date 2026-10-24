@@ -111,7 +111,7 @@ response = client.post(f"/api/v1/sources/{source['source_id']}/extract")
 
 ## 多语言调用 Agent 边界
 
-- `POST /sources/{source_id}/agent-call-analysis` 是显式、同步、非持久化的一轮结构化 Agent 操作；提示版本为 `deepseek.CALL_AGENT_PROMPT_VERSION`。
+- `POST /sources/{source_id}/agent-call-analysis` 默认是显式、同步、非持久化的 single_step；可选 tools 使用 call_tools.PROMPT_VERSION 和授权快照只读工具，最多 4 轮模型、8 次工具、累计工具结果 20000 字符、累计输入 240000 字符及轮间 230 秒检查。最终使用同一严格 Schema 与证据校验（ADR 0043）。
 - 本地语法分析先提供调用 ID、同仓库兼容语言族的声明候选 ID、路径和精确原文行；模型不能访问数据库、扩展候选或写正式图谱。
 - 每个输入调用必须且只能返回一条决定；目标只能来自该调用的候选集合，`resolved/ambiguous/unresolved` 与目标数量必须一致。后端拒绝缺项、重复和伪造 ID。
 - 没有候选时不调用模型。最多 99 份相关来源/20 MiB、100 个候选调用、每调用 20 个候选，并遵守 `extraction_max_input_chars`。

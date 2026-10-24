@@ -856,7 +856,7 @@ async function loadCodeStructure() {
   }
 }
 
-async function runAgentCallAnalysis() {
+async function runAgentCallAnalysis(strategy: 'single_step' | 'tools' = 'single_step') {
   const sourceId = selectedSourceId.value
   if (!sourceId || loading.agent || source.value?.status !== 'ready') return
   const request = ++agentCallRequest
@@ -864,7 +864,7 @@ async function runAgentCallAnalysis() {
   errors.agent = ''
   agentCallAnalysis.value = null
   try {
-    const result = await analyzeAgentCalls(sourceId)
+    const result = await analyzeAgentCalls(sourceId, strategy)
     if (request === agentCallRequest && sourceId === selectedSourceId.value) {
       agentCallAnalysis.value = result
     }
