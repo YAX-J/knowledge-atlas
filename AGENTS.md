@@ -49,7 +49,7 @@ Index: `.agents/skills/README.md`. Skills describe procedures; the rules in this
 - `.agents/skills/`: repository-local agent skills for task procedures.
 - `compose.yaml`: local PostgreSQL/pgvector, API, and parsing-worker services.
 - `backend/app/worker.py`: independent database-backed parsing consumer; shares backend models and services.
-- Planned but not yet created: prompt assets and experiment datasets.
+- `evaluation/`: frozen synthetic corpus, gold cases, corpus-only reviewed annotations and versioned experiment results; standalone preparation/baseline commands live under `backend/scripts/` (ADR 0042). Prompt-asset extraction remains future work.
 
 ## Non-negotiable domain rules
 

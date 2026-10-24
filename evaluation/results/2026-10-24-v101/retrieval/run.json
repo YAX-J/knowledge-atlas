@@ -1,0 +1,69 @@
+{
+  "completed_at": "2026-10-24T12:31:28.283211+00:00",
+  "dataset": {
+    "answerable_count": 36,
+    "case_count": 40,
+    "category_counts": {
+      "code_location": 6,
+      "cross_document": 8,
+      "direct_fact": 16,
+      "temporal": 6,
+      "unanswerable": 4
+    },
+    "dataset_id": "knowledge-atlas-eval-v1",
+    "fingerprint_sha256": "bc4b27b3ff83f68063f88223b37b22ac526e29f4cc6f5418620dab1267889563",
+    "source_count": 30,
+    "version": "1.0.1"
+  },
+  "models": {
+    "answer": null,
+    "embedding": "qwen3.7-text-embedding-flash"
+  },
+  "modes": [
+    "keyword",
+    "vector",
+    "hybrid"
+  ],
+  "outputs": {
+    "hybrid": {
+      "case_count": 40,
+      "diagnostics": "hybrid.diagnostics.jsonl",
+      "metrics": "hybrid.metrics.json",
+      "predictions": "hybrid.jsonl"
+    },
+    "keyword": {
+      "case_count": 40,
+      "diagnostics": "keyword.diagnostics.jsonl",
+      "metrics": "keyword.metrics.json",
+      "predictions": "keyword.jsonl"
+    },
+    "vector": {
+      "case_count": 40,
+      "diagnostics": "vector.diagnostics.jsonl",
+      "metrics": "vector.metrics.json",
+      "predictions": "vector.jsonl"
+    }
+  },
+  "project_id": "7636fcc4-9b57-4f55-bc3e-9cc55d53a358",
+  "project_snapshot": {
+    "index_sha256": "48df73ab4580e169fc19ad763fa409b75503c6324c8ab6925b6b17db253fd650",
+    "indexed_entity_count": 44,
+    "knowledge_sha256": "07cb0d81ebd417ef30563b9413208d79480104a60ca821e0b5399dcb3ca267f5",
+    "record_count": 175
+  },
+  "provider_authorization": {
+    "answer_calls": false,
+    "embedding_calls": true
+  },
+  "run_id": "121ce527-0886-4bfe-9b81-454d60709f94",
+  "scoring_protocol": "line-evidence-v2",
+  "started_at": "2026-10-24T12:31:09.679891+00:00",
+  "status": "succeeded",
+  "successful_provider_call_counts": {
+    "answer": 0,
+    "embedding": 80
+  },
+  "timing_scope": "retrieval_only",
+  "top_k_entities": 5,
+  "with_answers": false
+}

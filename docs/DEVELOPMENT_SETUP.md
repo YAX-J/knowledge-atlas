@@ -1,5 +1,7 @@
 # Knowledge Atlas Development Setup
 
+For reproducible Stage 6 projects and three retrieval baselines, follow [evaluation setup](../evaluation/README.md). The standalone commands reuse the migrated native PostgreSQL database, create only new `[EVAL]` projects and require explicit fixture acceptance/embedding-call flags. Run `--validate-only` without database access. No new migration or frontend configuration is required.
+
 Multi-language parsing requires the pinned Tree-sitter/language wheels. From `backend`, run `.\.venv\Scripts\python.exe -m pip install -e ".[dev]"`. No additional service/migration is required; parsing is offline after installation. See [language scope](MULTILANGUAGE_PARSING.md).
 
 [简体中文](DEVELOPMENT_SETUP.zh-CN.md)

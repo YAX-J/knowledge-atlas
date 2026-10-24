@@ -1,0 +1,81 @@
+{
+  "answer_calls": 0,
+  "billing_cost": null,
+  "billing_tokens": null,
+  "comparison": [
+    {
+      "answer_evaluation_coverage": 0.0,
+      "evidence_recall_at_1": 0.0,
+      "evidence_recall_at_3": 0.0,
+      "evidence_recall_at_5": 0.0,
+      "mean_latency_ms": 7.67,
+      "mode": "keyword",
+      "p95_latency_ms": 22.29,
+      "positive_graph_hits": 0
+    },
+    {
+      "answer_evaluation_coverage": 0.0,
+      "evidence_recall_at_1": 0.500925925925926,
+      "evidence_recall_at_3": 0.8722222222222222,
+      "evidence_recall_at_5": 0.9805555555555555,
+      "mean_latency_ms": 218.7703,
+      "mode": "vector",
+      "p95_latency_ms": 238.911,
+      "positive_graph_hits": 0
+    },
+    {
+      "answer_evaluation_coverage": 0.0,
+      "evidence_recall_at_1": 0.3680555555555556,
+      "evidence_recall_at_3": 0.5643518518518519,
+      "evidence_recall_at_5": 0.6601851851851852,
+      "mean_latency_ms": 232.77332500000003,
+      "mode": "hybrid",
+      "p95_latency_ms": 250.387,
+      "positive_graph_hits": 182
+    }
+  ],
+  "completed_at": "2026-10-24T12:31:28.287034+00:00",
+  "dataset": {
+    "answerable_count": 36,
+    "case_count": 40,
+    "category_counts": {
+      "code_location": 6,
+      "cross_document": 8,
+      "direct_fact": 16,
+      "temporal": 6,
+      "unanswerable": 4
+    },
+    "dataset_id": "knowledge-atlas-eval-v1",
+    "fingerprint_sha256": "bc4b27b3ff83f68063f88223b37b22ac526e29f4cc6f5418620dab1267889563",
+    "source_count": 30,
+    "version": "1.0.1"
+  },
+  "dimensions": 1024,
+  "elapsed_seconds": 20.339,
+  "embedding_batch_size": 10,
+  "embedding_calls": {
+    "attempted": 85,
+    "failed": 0,
+    "input_characters": 7777,
+    "successful": 85,
+    "texts": 124
+  },
+  "embedding_model": "qwen3.7-text-embedding-flash",
+  "fixture_fingerprint_sha256": "41f4e8a7ae861a4fad1926c50de1415e0c45d9cafd4ef4af9c350b19d245ca39",
+  "index": {
+    "dimensions": 1024,
+    "eligible_count": 44,
+    "model": "qwen3.7-text-embedding-flash",
+    "reused_count": 0,
+    "updated_count": 44
+  },
+  "project_id": "7636fcc4-9b57-4f55-bc3e-9cc55d53a358",
+  "project_snapshot": {
+    "index_sha256": "48df73ab4580e169fc19ad763fa409b75503c6324c8ab6925b6b17db253fd650",
+    "indexed_entity_count": 44,
+    "knowledge_sha256": "07cb0d81ebd417ef30563b9413208d79480104a60ca821e0b5399dcb3ca267f5",
+    "record_count": 175
+  },
+  "started_at": "2026-10-24T12:31:07.947106+00:00",
+  "status": "succeeded"
+}

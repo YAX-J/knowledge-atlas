@@ -51,7 +51,7 @@ Knowledge Atlas 是面向单人开发者的毕业设计项目。它将技术笔�
 - `.agents/skills/`：仓库级代理技能，记录具体任务流程。
 - `compose.yaml`：本地 PostgreSQL/pgvector、API 和解析 Worker 服务。
 - `backend/app/worker.py`：独立的数据库解析消费者，复用后端模型和服务。
-- 尚未创建的规划内容：提示词资源和实验数据集。
+- `evaluation/`：冻结合成语料、金标准问题、仅依据语料的审核标注和版本化实验结果；独立初始化/基线命令位于 `backend/scripts/`（ADR 0042）。提示词资源整理仍待后续。
 
 ## 必须遵守的领域规则
 

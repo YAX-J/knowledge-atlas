@@ -4,6 +4,10 @@
 
 本目录提供阶段六实验共用的冻结测评集。它把测试语料、问题、标准答案和可逐字核验的标准证据一起纳入版本控制，使关键词、向量 RAG 和知识图谱混合检索使用相同的输入和评分口径。测评集不调用外部模型，也不代表真实 DeepSeek 或嵌入服务已经完成质量验收。
 
+当前数据版本为 `1.0.1`：修正 `temporal-006` 在 2026-06-16 引用 2026-07-18 文档的时间泄漏，改为只问当时提交中明确保留的历史说明。版本 `1.0.0` 的指纹和分数不能与本版混报。评分协议 `line-evidence-v2` 匹配相同文件、行号与内部文字，允许正式引用 Schema 对外侧空白的裁剪；金标准原文仍按整行逐字校验。
+
+首轮真实嵌入的完整预测、得分诊断、运行清单及局限见[2026-10-24实验记录](results/2026-10-24-v101/README.zh-CN.md)。
+
 ## 数据集范围
 
 - 30 个完全合成、无隐私信息的来源：20 篇项目文档、6 个多语言代码文件、4 条 Git 活动记录。
@@ -21,6 +25,7 @@ evaluation/
 ├─ case.schema.json         # 单条金标准问题的 JSON Schema
 ├─ prediction.schema.json   # 单条预测记录的 JSON Schema
 ├─ cases.jsonl              # 40 条问题、答案和证据
+├─ reviewed_graph.json      # 独立于问题/答案的合成语料标注和历史时间轴
 └─ corpus/
    ├─ docs/                 # 项目文档
    ├─ code/                 # Python、TypeScript、Java 和 Go 代码
@@ -49,7 +54,7 @@ evaluation/
 
 ## 准备实验项目
 
-每个实验组应使用独立的空项目和相同语料，避免已有知识影响结果。
+推荐在一个全新实验项目上依次执行三种模式，固定图谱和索引，避免已有知识影响结果。也可使用多个初始化副本，但须核对实际知识与索引指纹，而不能只比较语料指纹。
 
 1. 按 `corpus/` 下的相对路径上传全部 30 个来源并完成解析。
 2. 对三组实验使用同一份人工确认的正式实体、关系、证据和时序替代记录。模型抽取结果不能未经审核直接作为金标准。
@@ -57,7 +62,33 @@ evaluation/
 4. 时序题必须按 `cases.jsonl` 的 `valid_at` 发起查询。
 5. 每次运行保存模式、模型名称、参数、开始时间、数据集版本和指纹。密钥、完整模型响应及私有内容不得写入结果。
 
-本目录暂不提供自动写入正式图谱的夹具加载器，因为正式知识必须经过审核。可以通过现有界面或 API 完成导入、抽取和确认；三组实验准备完成后再批量记录预测。
+现提供独立命令，通过正常导入、解析、候选确认和演化审核服务重放 `reviewed_graph.json`，不会直接创建正式图谱记录。该夹具的名称、摘要和关系只取自语料；不会把测评问题或标准答案当作知识。操作者必须显式接受合成标注，不能把合成审核称为真实用户审核或抽取模型质量。
+
+从 `backend/` 运行：
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.prepare_evaluation --dataset ..\evaluation --validate-only
+.\.venv\Scripts\python.exe -m scripts.prepare_evaluation `
+  --dataset ..\evaluation `
+  --output-dir ..\output\evaluation\preparation-v101 `
+  --accept-curated-fixture
+```
+
+前置条件：数据库已迁移到 `20261023_0015`，环境为 `development/test/evaluation`。初始化器总是新建 `[EVAL]` 项目；可用 `--project-id` 指定未使用的 UUID，已有项目或已有输出目录一律拒绝。所有服务提交被包在同一外层事务中，失败整批回滚。共生成 30 个来源、109 个分块、60 个任务、44 个实体、10 条语义关系、90 条证据、54 条审核记录和一条替代链。报告 `preparation.json` 保存项目、映射、语料/标注/实际知识指纹及 `synthetic_history=true`，不保存密钥。
+
+合成时钟仅在这个独立命令的正式提升调用内重放已标注时间，作用域结束后恢复；不得在 API/Worker 进程中调用初始化器。应用没有新增回填历史时间的接口。人工界面准备仍可用，但普通审核的当前时间不能自动满足测评中的历史时间点。
+
+按用户授权开启真实嵌入后，可以一条命令构建索引并运行三组纯检索实验：
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.run_baselines `
+  --dataset ..\evaluation `
+  --preparation-report ..\output\evaluation\preparation-v101\preparation.json `
+  --output-dir ..\output\evaluation\baselines-v101 `
+  --allow-embedding-calls --embedding-batch-size 10
+```
+
+首次完整运行最多 5 次索引批量请求、80 次查询嵌入请求，回答模型调用为零。批次只影响本次命令，不覆盖 `.env`。`baselines.json` 记录成功/失败请求数、文本数和字符数；供应商账单 Token 与费用没有从服务取得时保持 `null`。`comparison.csv/md` 提供召回率、平均/P95 延迟与非零图关系命中数。运行失败保留状态和已完成的预测，不自动重试或覆盖旧目录。
 
 ## 运行三组实验
 
@@ -88,9 +119,12 @@ evaluation/
 - `run.json`：数据集版本/指纹、项目、模式、Top K、模型名称、显式供应商授权、成功完成的供应商调用次数和运行状态；
 - `<mode>.jsonl`：完整预测记录；
 - `<mode>.metrics.json`：该模式的即时评分；
+- `<mode>.diagnostics.jsonl`：逐题命中及关键词/向量/图关系/混合得分和图关系信号数；
 - `<mode>.partial.jsonl`：仅在中途失败时保留的已完成样本。
 
 运行清单不会保存密钥、数据库地址或完整供应商响应。`latency_ms` 在纯检索运行中表示检索耗时；开启回答时表示检索与回答的总耗时。
+
+清单另存实际正式知识与向量索引指纹；每组结束时重新核对，数据中途改变即将运行标记为失败。诊断文件也采用 `.partial.jsonl` 保留未完成组。合成、人工标注图谱上的纯检索结果不代表真实仓库、自动抽取或答案正确率；当前关键词实现按空白切词，中文完整问题可能零命中，必须如实报告该基线限制。
 
 ## 预测文件
 

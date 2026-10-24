@@ -1,8 +1,9 @@
 from pathlib import Path
+import json
 
 import pytest
 
-from scripts.evaluate_dataset import DatasetError, score_predictions, validate_dataset
+from scripts.evaluate_dataset import DatasetError, read_jsonl, score_predictions, validate_dataset
 
 
 DATASET_ROOT = Path(__file__).resolve().parents[2] / "evaluation"
@@ -98,3 +99,31 @@ def test_retrieval_only_predictions_leave_answer_metrics_unscored():
     assert metrics["answers"]["supported_or_refusal_accuracy"] is None
     assert metrics["answers"]["required_fact_coverage"] is None
     assert metrics["answers"]["automatic_evaluation_coverage"] == 0.0
+
+
+def test_evidence_scoring_accepts_formal_quote_trimming_but_not_other_line_or_text():
+    _, cases, _ = validate_dataset(DATASET_ROOT)
+    case = next(item for item in cases if item["id"] == "code-003")
+    quote = case["gold_evidence"][0]
+
+    def score(evidence):
+        return score_predictions([case], [{"id": case["id"], "retrieved_evidence": [evidence],
+                                          "citations": [], "answer": None, "supported": None,
+                                          "latency_ms": 0}])["retrieval"]["evidence_recall_at_1"]
+
+    assert score({**quote, "quote": quote["quote"].strip()}) == 1.0
+    assert score({**quote, "quote": "vector:0.4,"}) == 0.0
+    assert score({**quote, "start_line": 2, "end_line": 2}) == 0.0
+
+
+def test_recorded_real_embedding_results_rescore_offline():
+    _, cases, summary = validate_dataset(DATASET_ROOT)
+    root = DATASET_ROOT / "results" / "2026-10-24-v101"
+    run = json.loads((root / "retrieval" / "run.json").read_text(encoding="utf-8"))
+    assert run["dataset"] == summary
+    assert run["with_answers"] is False and run["status"] == "succeeded"
+    for mode in ("keyword", "vector", "hybrid"):
+        predictions = read_jsonl(root / "retrieval" / f"{mode}.jsonl")
+        recorded = json.loads((root / "retrieval" / f"{mode}.metrics.json").read_text(encoding="utf-8"))
+        assert score_predictions(cases, predictions) == recorded
+        assert len(read_jsonl(root / "retrieval" / f"{mode}.diagnostics.jsonl")) == len(cases)

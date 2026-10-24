@@ -4,6 +4,10 @@
 
 This directory contains the frozen evaluation set shared by the Stage 6 experiments. It versions the corpus, questions, gold answers, and line-exact gold evidence together so keyword, vector RAG, and knowledge-graph hybrid retrieval use the same inputs and scoring rules. The set makes no external model calls and does not claim real DeepSeek or embedding-provider quality acceptance.
 
+Dataset `1.0.1` fixes time leakage in `temporal-006`: its June 16 query formerly cited a July 18 policy. It now asks only about historical notes retained by the available commit. Do not mix version `1.0.0` fingerprints or scores with this version. Scoring protocol `line-evidence-v2` matches files, inclusive lines and interior text, allowing the outer whitespace trimming performed by the formal evidence schema. Gold source lines still require exact validation.
+
+The first real-embedding run retains complete predictions, diagnostics, manifests and limitations in [the 2026-10-24 record](results/2026-10-24-v101/README.md).
+
 ## Dataset scope
 
 - 30 fully synthetic, privacy-safe sources: 20 project notes, 6 multi-language code files, and 4 Git activity records.
@@ -21,6 +25,7 @@ evaluation/
 ├─ case.schema.json         # JSON Schema for one gold case
 ├─ prediction.schema.json   # JSON Schema for one prediction
 ├─ cases.jsonl              # 40 questions, answers, and evidence records
+├─ reviewed_graph.json      # Corpus-only synthetic annotations and replay timeline
 └─ corpus/
    ├─ docs/                 # Project notes
    ├─ code/                 # Python, TypeScript, Java, and Go code
@@ -41,7 +46,7 @@ The validator checks manifest counts, unique IDs, field and timestamp constraint
 
 ## Prepare an experiment project
 
-Use a separate empty project per experiment group so existing knowledge cannot affect the result.
+Prefer all three modes on one newly prepared project with a frozen graph/index. Separate initialized copies are also supported, but compare actual knowledge and index fingerprints rather than corpus identity alone.
 
 1. Upload and parse all 30 sources while preserving paths under `corpus/`.
 2. Reuse the same human-confirmed entities, relationships, evidence, and temporal replacement records in all groups. Unreviewed extraction output is not gold knowledge.
@@ -49,7 +54,33 @@ Use a separate empty project per experiment group so existing knowledge cannot a
 4. Send temporal cases with the exact `valid_at` value from `cases.jsonl`.
 5. Record mode, model names, parameters, start time, dataset version, and fingerprint. Never store secrets, full raw model responses, or private source bodies in result files.
 
-There is intentionally no fixture loader that writes directly to the formal graph because formal knowledge must pass review. Use the existing UI or API to import, extract, and confirm the shared experiment project before collecting predictions.
+A standalone initializer replays `reviewed_graph.json` through ordinary ingestion, parsing, candidate confirmation and evolution review services. It never directly creates formal graph records. Names, summaries and relationships come only from the corpus, not evaluation questions or answers. The operator explicitly accepts the synthetic annotations; these replayed decisions are not real-user review history or extraction-model quality evidence.
+
+Run from `backend/`:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.prepare_evaluation --dataset ..\evaluation --validate-only
+.\.venv\Scripts\python.exe -m scripts.prepare_evaluation `
+  --dataset ..\evaluation `
+  --output-dir ..\output\evaluation\preparation-v101 `
+  --accept-curated-fixture
+```
+
+Prerequisites: migration `20261023_0015` and a `development/test/evaluation` environment. The initializer creates a new `[EVAL]` project; `--project-id` may specify an unused UUID. Existing projects and output directories are always refused. An outer transaction encloses service savepoints and rolls back all new data on failure. Expected counts: 30 sources, 109 chunks, 60 tasks, 44 entities, 10 semantic relationships, 90 evidence records, 54 review events and one evolution change. `preparation.json` records project/mappings, dataset/annotation/actual-knowledge fingerprints and `synthetic_history=true` without credentials.
+
+The synthetic clock is scoped to formal promotion in this standalone process and restored afterward. Never invoke the initializer inside an API/Worker process. No application backdating API is introduced. UI preparation remains available, but ordinary current-time reviews cannot automatically satisfy historical evaluation dates.
+
+After explicitly authorizing real embedding calls, build the index and run all three retrieval-only groups:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.run_baselines `
+  --dataset ..\evaluation `
+  --preparation-report ..\output\evaluation\preparation-v101\preparation.json `
+  --output-dir ..\output\evaluation\baselines-v101 `
+  --allow-embedding-calls --embedding-batch-size 10
+```
+
+A first complete run makes at most five index requests and 80 query embedding requests, with zero answer calls. Batch size applies only to the command, without changing `.env`. `baselines.json` records successful/failed calls, texts and characters; billing tokens/cost stay `null` when unavailable. `comparison.csv/md` reports evidence recall, mean/P95 latency and positive graph hits. Failures retain status/partial predictions; the command never automatically retries or overwrites an existing directory.
 
 ## Run the experiment groups
 
@@ -76,6 +107,8 @@ Vector and hybrid modes call the embedding provider once per question and theref
 Only `--with-answers` authorizes DeepSeek calls when retrieved evidence exists. A complete three-mode answer run can make up to 80 query-embedding calls and 120 answer calls; evidence-empty cases do not call the answer provider. Run the three retrieval experiments first, inspect cost and output, and enable answers separately.
 
 Preflight requires exactly the 30 frozen files, matching names and SHA-256 hashes, all in `ready` state. Vector and hybrid runs additionally require every visible formal entity to be indexed. Evidence outside the corpus fails the run. A new output directory contains `run.json`, one `<mode>.jsonl` prediction file and `<mode>.metrics.json` report per completed mode, plus `<mode>.partial.jsonl` only after an interrupted mode. The manifest records dataset identity, modes, Top K, model names, explicit provider authorization, successfully completed provider-call counts, and status without credentials, database URLs, or raw provider responses. `latency_ms` covers retrieval alone unless answers are enabled, in which case it covers retrieval plus answering.
+
+Each mode also saves `<mode>.diagnostics.jsonl` with hit-level keyword/vector/graph/hybrid scores and graph-signal counts; incomplete diagnostics retain `.partial.jsonl`. Actual graph and vector-index fingerprints are captured and rechecked after each mode; data changes fail the run. Synthetic curated-graph retrieval results do not establish real-repository, extraction or answer quality. The current keyword baseline splits on whitespace and can return no hit for a complete Chinese question; report this limitation transparently.
 
 ## Prediction contract
 

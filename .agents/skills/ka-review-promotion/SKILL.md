@@ -75,6 +75,8 @@ description: Knowledge Atlas 的候选审核与正式图谱写入。确认/拒�
 
 ## 跨来源演化审核（阶段五）
 
+阶段六独立 `scripts.prepare_evaluation` 可显式重放仅依据合成语料编写的标注；操作者须接受夹具，只建全新实验项目。仍经 `resolve_review/promote_candidate` 和演化服务写正式记录，外层事务包含服务保存点，失败整批回滚。合成提升时钟只用于独立进程，不新增生产回填 API，不得在 API/Worker 内运行；候选/报告标记 `synthetic_history` 与夹具指纹。后续比较实际图谱与索引指纹，不能把夹具审核称为真实用户审核或抽取质量，见 ADR 0042。
+
 `services/evolution.py` 管理独立 `knowledge_changes`，不放松抽取关系同来源/同任务端点约束。创建 `SUPERSEDES/SUPPLEMENTS/CONFLICTS_WITH` 建议须有同项目同类型两个有效正式实体、理由、生效时间和可核验正式证据；不调用模型。规范化后相同请求 UUID 幂等。确认时先锁项目，重读建议/端点并重校验证据、有效状态与时间，再由 `graph.apply_reviewed_change` 原子保存审核快照及状态/有效期。它是 `promote_candidate` 之外唯一获准的正式有效期/状态修改边界，不创建无证据语义对象。
 
 替代方向新→旧；旧截止和新起点同为 effective_at。区间半开，不早于双方有效起点、不允许未来、不分叉/合并/环；补充/冲突仅记录分类。历史 API 只遍历已确认替代，最多 100 实体/200 变化，仍校验项目/用户/归档。治理只读最多 1000 当前实体，输出证据缺失、同名重复/可能冲突、孤立建议，不自动写入。测试加入 `tests/test_evolution.py`；原生并发通过 `python -m scripts.verify_native` 的临时 schema 验证，见 ADR 0039。

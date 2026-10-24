@@ -150,6 +150,8 @@ npm run build
 
 ## 环境说明
 
+- 阶段六初始化/基线：先运行 `python -m scripts.prepare_evaluation --dataset ../evaluation --validate-only`；聚焦 `tests/test_prepare_evaluation.py tests/test_run_baselines.py tests/test_run_evaluation.py tests/test_evaluation_dataset.py`。正常单测模拟供应商；真实 `scripts.run_baselines --allow-embedding-calls` 需沿用用户明确的本轮授权。默认每批10条，44实体首次索引5请求，40题向量/混合80请求，回答为零。失败报告不覆盖，账单未知保持 null。`scripts.verify_native` 现包含新项目初始化验收并清理临时 schema。
+
 - `python -m scripts.verify_native` 在随机 schema 做原生迁移、时序/仓库集成、独立会话竞争与 Worker fencing；显式指定 Alembic 版本表 schema 并检查全部本地表，不能只设 search_path。`--github` 仅在用户明确允许公开 GitHub 只读验收时运行，不用令牌/模型，普通 pytest 跳过原生/外网用例。
 
 - 默认验收路径是用户本机原生 PostgreSQL 17 + pgvector；Docker Compose 可选，不是前提。

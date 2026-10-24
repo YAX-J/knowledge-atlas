@@ -1,5 +1,7 @@
 # Knowledge Atlas Backend
 
+Stage 6 provides `python -m scripts.prepare_evaluation --dataset ../evaluation --validate-only`, followed by `--output-dir ../output/evaluation/preparation --accept-curated-fixture` to create a new synthetic experiment project through normal parsing/review services. `python -m scripts.run_baselines` explicitly builds the index and compares keyword/vector/hybrid retrieval without answer calls. Existing projects/outputs are refused and actual graph/index fingerprints are recorded. Requires migration `20261023_0015`; full flags, annotations and limits: [evaluation instructions](../evaluation/README.md), ADR 0042.
+
 Multi-language V1 extends the existing Markdown/Java pipeline to Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: single-file/folder/GitHub imports, Worker, exact chunks, outlines and symbol search. Parsing remains syntax-only and makes no model call. `POST /sources/{source_id}/agent-call-analysis` is an explicit bounded model action over same-repository server-curated candidates; output IDs and exact source lines are validated and never written to the formal graph. See [supported extensions and limits](../docs/MULTILANGUAGE_PARSING.md).
 
 [简体中文](README.zh-CN.md)

@@ -1,0 +1,42 @@
+{
+  "fixture_id": "pulseboard-curated-graph-v1",
+  "version": "1.0.0",
+  "dataset_id": "knowledge-atlas-eval-v1",
+  "dataset_fingerprint_sha256": "bc4b27b3ff83f68063f88223b37b22ac526e29f4cc6f5418620dab1267889563",
+  "provenance": "Corpus-only synthetic annotations, accepted explicitly by the experiment operator; not model extraction results or a real-user review history.",
+  "sources": [
+    {"source":"corpus/docs/01_project_scope.md","available_at":"2026-01-08T00:00:00Z","entities":[{"id":"project","type":"Project","name":"PulseBoard","lines":[5,7]}]},
+    {"source":"corpus/docs/02_storage_decision_2025.md","available_at":"2025-01-20T00:00:00Z","entities":[{"id":"storage-old","type":"Decision","name":"2025 存储决策","lines":[5,7]}]},
+    {"source":"corpus/docs/03_storage_decision_2026.md","available_at":"2026-06-15T00:00:00Z","entities":[{"id":"storage-new","type":"Decision","name":"2026 存储决策","lines":[5,7]},{"id":"storage-postgres","type":"Technology","name":"PostgreSQL 17 与 pgvector","lines":[5]}],"relations":[{"id":"storage-uses","type":"USES","source":"storage-new","target":"storage-postgres","lines":[5]}]},
+    {"source":"corpus/docs/04_cache_incident.md","available_at":"2026-07-02T00:00:00Z","entities":[{"id":"cache-incident","type":"Problem","name":"缓存陈旧事故","lines":[5,7]}]},
+    {"source":"corpus/docs/05_cache_fix.md","available_at":"2026-07-03T00:00:00Z","entities":[{"id":"cache-fix","type":"Solution","name":"缓存修复方案","lines":[5,7]},{"id":"cache-key","type":"Concept","name":"搜索缓存键","lines":[5]}],"relations":[{"id":"cache-uses","type":"USES","source":"cache-fix","target":"cache-key","lines":[5]}]},
+    {"source":"corpus/docs/06_auth_design.md","available_at":"2026-02-11T00:00:00Z","entities":[{"id":"auth","type":"Constraint","name":"认证边界","lines":[5,7]}]},
+    {"source":"corpus/docs/07_upload_limits.md","available_at":"2026-04-18T00:00:00Z","entities":[{"id":"budget","type":"Constraint","name":"导入预算","lines":[5,7]},{"id":"github-snapshot","type":"Concept","name":"GitHub 快照","lines":[5,7]}],"relations":[{"id":"snapshot-budget","type":"CONSTRAINED_BY","source":"github-snapshot","target":"budget","lines":[5,7]}]},
+    {"source":"corpus/docs/08_worker_policy.md","available_at":"2026-05-09T00:00:00Z","entities":[{"id":"worker","type":"Concept","name":"解析 Worker","lines":[5,7]},{"id":"execution-id","type":"CodeEntity","name":"execution_id","lines":[5,7]}],"relations":[{"id":"worker-uses","type":"USES","source":"worker","target":"execution-id","lines":[5]}]},
+    {"source":"corpus/docs/09_search_weights.md","available_at":"2026-08-01T00:00:00Z","entities":[{"id":"hybrid","type":"Concept","name":"混合检索","lines":[5,7]},{"id":"graph-signal","type":"Concept","name":"图关系检索信号","lines":[5]}],"relations":[{"id":"hybrid-uses","type":"USES","source":"hybrid","target":"graph-signal","lines":[5]}]},
+    {"source":"corpus/docs/10_search_measurement.md","available_at":"2026-08-04T00:00:00Z","entities":[{"id":"measurement","type":"Concept","name":"检索实验","lines":[5,7]}]},
+    {"source":"corpus/docs/11_review_policy.md","available_at":"2026-03-12T00:00:00Z","entities":[{"id":"candidate","type":"Concept","name":"模型候选知识","lines":[5]},{"id":"review","type":"Constraint","name":"知识审核","lines":[7]}]},
+    {"source":"corpus/docs/12_deployment.md","available_at":"2026-06-20T00:00:00Z","entities":[{"id":"deployment","type":"Technology","name":"PostgreSQL 本地部署","lines":[5,7]}]},
+    {"source":"corpus/docs/13_rate_limit_incident.md","available_at":"2026-08-10T00:00:00Z","entities":[{"id":"rate-incident","type":"Problem","name":"嵌入服务限流事故","lines":[5,7]}]},
+    {"source":"corpus/docs/14_rate_limit_fix.md","available_at":"2026-08-11T00:00:00Z","entities":[{"id":"rate-fix","type":"Solution","name":"嵌入服务重试方案","lines":[5,7]},{"id":"backoff","type":"Technology","name":"带抖动的指数退避","lines":[5]}],"relations":[{"id":"retry-uses","type":"USES","source":"rate-fix","target":"backoff","lines":[5]}]},
+    {"source":"corpus/docs/15_observability.md","available_at":"2026-03-25T00:00:00Z","entities":[{"id":"request-id","type":"CodeEntity","name":"request_id","lines":[5]},{"id":"logging","type":"Constraint","name":"日志策略","lines":[7]}]},
+    {"source":"corpus/docs/16_temporal_model.md","available_at":"2026-07-18T00:00:00Z","entities":[{"id":"validity","type":"Concept","name":"知识有效期","lines":[5,7]}]},
+    {"source":"corpus/docs/17_embedding_index.md","available_at":"2026-08-02T00:00:00Z","entities":[{"id":"embedding","type":"Concept","name":"向量索引","lines":[5,7]}]},
+    {"source":"corpus/docs/18_question_policy.md","available_at":"2026-08-06T00:00:00Z","entities":[{"id":"question","type":"Concept","name":"证据问答","lines":[5,7]}]},
+    {"source":"corpus/docs/19_privacy_logging.md","available_at":"2026-03-26T00:00:00Z","entities":[{"id":"privacy","type":"Constraint","name":"隐私与日志","lines":[5,7]}]},
+    {"source":"corpus/docs/20_architecture.md","available_at":"2026-06-16T00:00:00Z","entities":[{"id":"storage","type":"Technology","name":"PostgreSQL 存储架构","lines":[5]},{"id":"neo4j","type":"Technology","name":"Neo4j","lines":[7]}]},
+    {"source":"corpus/code/settings.py","available_at":"2026-04-18T00:00:00Z","entities":[{"id":"settings","type":"CodeFile","name":"settings.py","lines":[1,2]},{"id":"max-files","type":"CodeEntity","name":"MAX_IMPORT_FILES","lines":[1]},{"id":"max-bytes","type":"CodeEntity","name":"MAX_GITHUB_BYTES","lines":[2]}],"relations":[{"id":"settings-contains","type":"CONTAINS","source":"settings","target":"max-files","lines":[1]}]},
+    {"source":"corpus/code/worker.py","available_at":"2026-05-09T00:00:00Z","entities":[{"id":"worker-code","type":"CodeFile","name":"worker.py","lines":[1,2,5]},{"id":"attempts","type":"CodeEntity","name":"MAX_ATTEMPTS","lines":[2]}],"relations":[{"id":"worker-contains","type":"CONTAINS","source":"worker-code","target":"attempts","lines":[2]}]},
+    {"source":"corpus/code/searchWeights.ts","available_at":"2026-08-01T00:00:00Z","entities":[{"id":"weights-file","type":"CodeFile","name":"searchWeights.ts","lines":[2,3,4]},{"id":"weights","type":"CodeEntity","name":"SEARCH_WEIGHTS","lines":[1,2,3,4]}],"relations":[{"id":"weights-contains","type":"CONTAINS","source":"weights-file","target":"weights","lines":[1]}]},
+    {"source":"corpus/code/EvidenceGuard.java","available_at":"2026-03-12T00:00:00Z","entities":[{"id":"guard","type":"CodeEntity","name":"EvidenceGuard.isExactQuote","lines":[4,5]}]},
+    {"source":"corpus/code/retry.go","available_at":"2026-08-11T00:00:00Z","entities":[{"id":"retry-constant","type":"CodeEntity","name":"maxRetries","lines":[3]}]},
+    {"source":"corpus/code/questionPolicy.ts","available_at":"2026-08-06T00:00:00Z","entities":[{"id":"question-file","type":"CodeFile","name":"questionPolicy.ts","lines":[1,2,3]},{"id":"should-call","type":"CodeEntity","name":"shouldCallModel","lines":[5,6]}],"relations":[{"id":"question-contains","type":"CONTAINS","source":"question-file","target":"should-call","lines":[5]}]},
+    {"source":"corpus/git/27_commit_storage.md","available_at":"2026-06-15T09:30:00Z","entities":[{"id":"commit","type":"Concept","name":"Commit 8f4c2a1","lines":[5,7]}]},
+    {"source":"corpus/git/28_issue_cache.md","available_at":"2026-07-02T02:10:00Z","entities":[{"id":"issue-cache","type":"Problem","name":"Issue 184 搜索结果串项目","lines":[5,7]}]},
+    {"source":"corpus/git/29_pr_worker_fencing.md","available_at":"2026-05-10T11:00:00Z","entities":[{"id":"worker-pr","type":"Solution","name":"Worker fencing","lines":[5,7]}]},
+    {"source":"corpus/git/30_review_evidence.md","available_at":"2026-08-07T06:20:00Z","entities":[{"id":"evidence-review","type":"Constraint","name":"引用评审","lines":[5,7]}]}
+  ],
+  "changes": [
+    {"new":"storage-new","old":"storage-old","effective_at":"2026-06-15T00:00:00Z","evidence_line":7,"reason":"语料明确说明 2026 存储决策替代 2025 SQLite 原型方案。"}
+  ]
+}

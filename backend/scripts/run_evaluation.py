@@ -34,10 +34,12 @@ from app.services.projects import get_project
 from app.services.search import search_knowledge
 from scripts.evaluate_dataset import (
     DatasetError,
+    SCORING_PROTOCOL,
     SUPPORTED_CORPUS_SUFFIXES,
     score_predictions,
     validate_dataset,
 )
+from scripts.evaluation_snapshot import project_snapshot
 
 
 Mode = Literal["keyword", "vector", "hybrid"]
@@ -202,6 +204,7 @@ def build_prediction(
     source_paths: dict[uuid.UUID, str],
     search_fn: Callable[..., SearchRead] = search_knowledge,
     answer_fn: Callable[[Settings, str, list[dict[str, Any]]], AnswerDraft] = deepseek.answer_question,
+    diagnostics: dict | None = None,
 ) -> tuple[dict[str, Any], bool]:
     started = time.perf_counter()
     result = search_fn(
@@ -237,6 +240,15 @@ def build_prediction(
             answer_fn=answer_fn,
         )
     elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
+    if diagnostics is not None:
+        diagnostics.update(
+            id=case["id"], truncated=result.truncated,
+            indexed_count=result.indexed_count, eligible_count=result.eligible_count,
+            hits=[{"entity_id": str(hit.entity.id), "name": hit.entity.name,
+                   "keyword_score": hit.keyword_score, "vector_score": hit.vector_score,
+                   "graph_score": hit.graph_score, "hybrid_score": hit.hybrid_score,
+                   "graph_signal_count": len(hit.graph_connections)} for hit in result.items],
+        )
     return ({
         "id": case["id"],
         "retrieved_evidence": retrieved,
@@ -260,6 +272,7 @@ def run_evaluation(
     allow_embedding_calls: bool,
     settings: Settings,
     user_id: uuid.UUID = DEVELOPMENT_USER_ID,
+    session_factory=None,
 ) -> dict[str, Any]:
     manifest, cases, dataset_summary = validate_dataset(dataset_root)
     if len(modes) != len(set(modes)):
@@ -281,6 +294,7 @@ def run_evaluation(
         "started_at": utc_iso(),
         "completed_at": None,
         "dataset": dataset_summary,
+        "scoring_protocol": SCORING_PROTOCOL,
         "project_id": str(project_id),
         "modes": modes,
         "top_k_entities": top_k,
@@ -301,7 +315,7 @@ def run_evaluation(
     _write_json(manifest_path, run_manifest)
 
     try:
-        with SessionLocal() as db:
+        with (session_factory or SessionLocal)() as db:
             source_paths = map_project_sources(
                 db,
                 dataset_root=dataset_root,
@@ -309,11 +323,17 @@ def run_evaluation(
                 project_id=project_id,
                 user_id=user_id,
             )
+            baseline_snapshot = project_snapshot(db, user_id=user_id, project_id=project_id)
+            run_manifest["project_snapshot"] = baseline_snapshot
+            _write_json(manifest_path, run_manifest)
             for mode in modes:
                 partial_path = output_dir / f"{mode}.partial.jsonl"
                 final_path = output_dir / f"{mode}.jsonl"
+                diagnostics_partial = output_dir / f"{mode}.diagnostics.partial.jsonl"
+                diagnostics_final = output_dir / f"{mode}.diagnostics.jsonl"
                 predictions = []
                 for case in cases:
+                    diagnostics = {}
                     prediction, answer_called = build_prediction(
                         db=db,
                         settings=settings,
@@ -324,19 +344,26 @@ def run_evaluation(
                         top_k=top_k,
                         with_answers=with_answers,
                         source_paths=source_paths,
+                        diagnostics=diagnostics,
                     )
                     predictions.append(prediction)
                     _append_jsonl(partial_path, prediction)
+                    _append_jsonl(diagnostics_partial, diagnostics)
                     if mode in {"vector", "hybrid"}:
                         run_manifest["successful_provider_call_counts"]["embedding"] += 1
                     if answer_called:
                         run_manifest["successful_provider_call_counts"]["answer"] += 1
+                db.expire_all()
+                if project_snapshot(db, user_id=user_id, project_id=project_id) != baseline_snapshot:
+                    raise EvaluationRunError("Project graph or index changed during the experiment; discard this run")
                 partial_path.replace(final_path)
+                diagnostics_partial.replace(diagnostics_final)
                 metrics_path = output_dir / f"{mode}.metrics.json"
                 _write_json(metrics_path, score_predictions(cases, predictions))
                 run_manifest["outputs"][mode] = {
                     "predictions": final_path.name,
                     "metrics": metrics_path.name,
+                    "diagnostics": diagnostics_final.name,
                     "case_count": len(predictions),
                 }
                 _write_json(manifest_path, run_manifest)

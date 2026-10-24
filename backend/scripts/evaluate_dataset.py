@@ -25,6 +25,7 @@ CATEGORIES = {
     "temporal",
     "unanswerable",
 }
+SCORING_PROTOCOL = "line-evidence-v2"
 CASE_FIELDS = {
     "id",
     "category",
@@ -134,7 +135,9 @@ def _validate_evidence_shape(item: Any, case_id: str) -> dict[str, Any]:
 
 
 def _evidence_key(item: dict[str, Any]) -> tuple[str, int, int, str]:
-    return item["source"], item["start_line"], item["end_line"], item["quote"]
+    # Formal EvidenceDraft strips outer whitespace. Keep exact file/line and
+    # interior text equality while avoiding false negatives on code indentation.
+    return item["source"], item["start_line"], item["end_line"], item["quote"].strip()
 
 
 def _validate_case(case: dict[str, Any], dataset_root: Path) -> None:
@@ -381,6 +384,7 @@ def score_predictions(cases: list[dict[str, Any]], predictions: list[dict[str, A
 
     return {
         "case_count": len(cases),
+        "scoring_protocol": SCORING_PROTOCOL,
         "retrieval": {f"evidence_recall_at_{k}": _mean(values) for k, values in recall_by_k.items()},
         "citations": {
             "precision": citation_precision,

@@ -1,5 +1,7 @@
 # Knowledge Atlas 开发环境配置
 
+阶段六可复现实验项目和三组检索基线见[实验环境说明](../evaluation/README.zh-CN.md)。独立命令复用已迁移的本机 PostgreSQL，仅创建新 `[EVAL]` 项目，分别要求接受夹具和允许嵌入调用；`--validate-only` 无需数据库。不新增迁移或前端配置。
+
 多语言解析新增固定 Tree-sitter/语言 wheel。在 `backend` 运行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev]"` 更新依赖；不新增服务或迁移，安装后离线解析。详见[语言范围](MULTILANGUAGE_PARSING.zh-CN.md)。
 
 [English](DEVELOPMENT_SETUP.md)

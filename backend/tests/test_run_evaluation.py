@@ -1,10 +1,15 @@
 import uuid
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from app.core.config import Settings
 from app.schemas.questions import AnswerDraft
+from sqlalchemy.orm import sessionmaker
+from scripts.prepare_evaluation import prepare_project
+from scripts import run_evaluation as runner
 from scripts.run_evaluation import EvaluationRunError, answer_from_result, build_prediction
 
 
@@ -137,3 +142,51 @@ def test_vector_prediction_requires_complete_index():
             source_paths={source_id: "corpus/docs/source.md"},
             search_fn=lambda *_args, **_kwargs: result,
         )
+
+
+def test_prepared_project_runs_all_keyword_cases_without_providers(db_session, tmp_path, monkeypatch):
+    dataset = Path(__file__).resolve().parents[2] / "evaluation"
+    engine = db_session.get_bind()
+    project_id = uuid.uuid4()
+    prepared = prepare_project(engine=engine, dataset_root=dataset, project_id=project_id,
+                               settings=Settings(_env_file=None), accept_curated_fixture=True)
+    monkeypatch.setattr(runner, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    result = runner.run_evaluation(dataset_root=dataset, project_id=project_id, output_dir=tmp_path / "run",
+                                   modes=["keyword"], top_k=5, with_answers=False,
+                                   allow_embedding_calls=False, settings=Settings(_env_file=None))
+    assert result["status"] == "succeeded"
+    assert result["outputs"]["keyword"]["case_count"] == 40
+    assert result["successful_provider_call_counts"] == {"embedding": 0, "answer": 0}
+    assert result["project_snapshot"] == prepared["snapshot"]
+    predictions = (tmp_path / "run" / "keyword.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(predictions) == 40
+    assert all(json.loads(item)["answer"] is None for item in predictions)
+
+
+def test_runner_rejects_graph_drift_and_retains_partial_results(db_session, tmp_path, monkeypatch):
+    dataset = Path(__file__).resolve().parents[2] / "evaluation"
+    engine = db_session.get_bind()
+    project_id = uuid.uuid4()
+    prepare_project(engine=engine, dataset_root=dataset, project_id=project_id,
+                    settings=Settings(_env_file=None), accept_curated_fixture=True)
+    monkeypatch.setattr(runner, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    real_snapshot = runner.project_snapshot
+    snapshots = 0
+
+    def changed_snapshot(*args, **kwargs):
+        nonlocal snapshots
+        snapshots += 1
+        value = real_snapshot(*args, **kwargs)
+        if snapshots > 1:
+            value["knowledge_sha256"] = "changed"
+        return value
+
+    monkeypatch.setattr(runner, "project_snapshot", changed_snapshot)
+    output = tmp_path / "drift"
+    with pytest.raises(EvaluationRunError, match="changed during"):
+        runner.run_evaluation(dataset_root=dataset, project_id=project_id, output_dir=output,
+                               modes=["keyword"], top_k=5, with_answers=False,
+                               allow_embedding_calls=False, settings=Settings(_env_file=None))
+    assert json.loads((output / "run.json").read_text())["status"] == "failed"
+    assert (output / "keyword.partial.jsonl").is_file()
+    assert not (output / "keyword.jsonl").exists()

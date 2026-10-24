@@ -1,0 +1,4 @@
+mode,evidence_recall_at_1,evidence_recall_at_3,evidence_recall_at_5,mean_latency_ms,p95_latency_ms,positive_graph_hits,answer_evaluation_coverage
+keyword,0.0,0.0,0.0,7.67,22.29,0,0.0
+vector,0.500925925925926,0.8722222222222222,0.9805555555555555,218.7703,238.911,0,0.0
+hybrid,0.3680555555555556,0.5643518518518519,0.6601851851851852,232.77332500000003,250.387,182,0.0

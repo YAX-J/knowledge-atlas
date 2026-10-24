@@ -193,6 +193,8 @@ sequenceDiagram
 
 ## 数据一致性
 
+阶段六使用独立 CLI `scripts.prepare_evaluation` 重放仅由合成语料整理的标注；正常导入/解析、待审核候选确认与演化审核仍由既有服务完成。独立进程中的合成提升时钟用于重现历史查询，没有生产回填 API。外层事务和保存点包裹服务提交，初始化失败整批回滚，只接受全新项目。`scripts.run_baselines` 显式建索引再跑三组纯检索；实际图谱/证据/演化与索引分别计算指纹，运行期间改变即失败。报告不把合成标注当作模型抽取或真实人工审核质量，见 [ADR 0042](adr/0042-reproducible-curated-evaluation-projects.zh-CN.md)。
+
 GitHub 快照缓存按来源类型与兼容解析任务复用，校验快照、来源和任务的用户/项目/仓库归属及任务来源关联。连续相同 Commit 只有完整且引用有效的快照可以短路；截断/大小跳过或引用缺失、不兼容时，下一次显式同步重新尝试并保存独立快照，保留已成功来源与历史。tree/文件集合不完整时不猜测重命名，Markdown/Java 类型变化不共享错误解析任务。该调整不增加自动轮询、破坏性来源失效或迁移，见 [ADR 0031](adr/0031-recoverable-typed-github-snapshots.zh-CN.md)。
 
 - 所有业务对象使用稳定 UUID，不通过 API 暴露数据库内部 ID。

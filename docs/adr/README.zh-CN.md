@@ -104,3 +104,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0039：显式审核跨来源知识演化](0039-reviewed-knowledge-evolution.zh-CN.md)
 - [ADR 0040：扩展代码多语言解析而不改变知识权威边界](0040-multilanguage-source-parsing.zh-CN.md)
 - [ADR 0041：通过 Agent 执行有界多语言跨文件调用分析](0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)
+- [ADR 0042：通过审核服务重放可复现的合成实验项目](0042-reproducible-curated-evaluation-projects.zh-CN.md)
