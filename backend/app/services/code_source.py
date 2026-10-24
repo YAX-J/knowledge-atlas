@@ -17,6 +17,7 @@ from app.services.java_source import JavaChunk, JavaSymbol
 
 
 MAX_SYMBOLS = 200
+MAX_CALL_SITES = 200
 MAX_VISITS = 100_000
 MAX_CHUNK_LINES = 120
 GRAMMARS = {
@@ -50,8 +51,34 @@ FIELD_NODES = frozenset({
 class CodeAnalysis:
     symbols: list[JavaSymbol]
     chunks: list[JavaChunk]
+    call_sites: list["CodeCallSite"]
     truncated: bool
     has_syntax_errors: bool
+
+
+@dataclass(frozen=True)
+class CodeCallSite:
+    id: uuid.UUID
+    caller_id: uuid.UUID | None
+    expression: str
+    receiver: str | None
+    callee_name: str
+    line: int
+    column: int
+    quote: str
+
+
+CALL_NODES = {
+    "python": frozenset({"call"}),
+    "javascript": frozenset({"call_expression", "new_expression"}),
+    "jsx": frozenset({"call_expression", "new_expression"}),
+    "typescript": frozenset({"call_expression", "new_expression"}),
+    "tsx": frozenset({"call_expression", "new_expression"}),
+    "go": frozenset({"call_expression"}),
+    "c": frozenset({"call_expression"}),
+    "cpp": frozenset({"call_expression"}),
+    "csharp": frozenset({"invocation_expression", "object_creation_expression"}),
+}
 
 
 @lru_cache(maxsize=len(GRAMMARS))
@@ -143,6 +170,31 @@ def _declarations(node: Node, raw: bytes, language: str) -> list[tuple[str, str]
     return []
 
 
+def _call_expression(node: Node, raw: bytes) -> str:
+    expression = (
+        node.child_by_field_name("function")
+        or node.child_by_field_name("expression")
+        or node.child_by_field_name("constructor")
+        or node.child_by_field_name("type")
+    )
+    if expression is None and node.named_children:
+        expression = node.named_children[0]
+    return _text(expression, raw).strip()
+
+
+def _call_parts(expression: str) -> tuple[str | None, str]:
+    normalized = expression.replace("?.", ".").replace("->", ".").replace("::", ".")
+    parts = [part.strip() for part in normalized.split(".") if part.strip()]
+    if not parts:
+        return None, ""
+    callee = parts[-1]
+    # Generic/type arguments are useful context but are not part of a declared symbol name.
+    if "<" in callee:
+        callee = callee.split("<", 1)[0]
+    receiver = ".".join(parts[:-1]) or None
+    return receiver, callee
+
+
 def analyze_code(content: str, *, source_id: uuid.UUID, language: str) -> CodeAnalysis:
     raw = content.encode("utf-8")
     # A parser belongs to one invocation; only immutable Language objects cache.
@@ -152,6 +204,7 @@ def analyze_code(content: str, *, source_id: uuid.UUID, language: str) -> CodeAn
     for line in lines:
         offsets.append(offsets[-1] + len(line.encode("utf-8")))
     symbols: list[JavaSymbol] = []
+    raw_calls: list[tuple[uuid.UUID, tuple[str, ...], str, str | None, str, int, int, str]] = []
     records: list[tuple[int, int, str, list[str]]] = []
     truncated = False
     visits = 0
@@ -202,6 +255,20 @@ def analyze_code(content: str, *, source_id: uuid.UUID, language: str) -> CodeAn
             name = _text(node.child_by_field_name("name"), raw)
             if name:
                 scopes.append((depth, (*scope, name)))
+        if node.type in CALL_NODES[language] and len(raw_calls) < MAX_CALL_SITES:
+            expression = _call_expression(node, raw)
+            receiver, callee = _call_parts(expression)
+            if callee:
+                line = node.start_point.row + 1
+                column = node.start_point.column + 1
+                quote = lines[line - 1].rstrip("\r\n") if line <= len(lines) else ""
+                call_id = uuid.uuid5(
+                    source_id,
+                    f"{language}:call:{node.start_byte}:{node.end_byte}:{expression}",
+                )
+                raw_calls.append((call_id, scope, expression, receiver, callee, line, column, quote))
+        elif node.type in CALL_NODES[language]:
+            truncated = True
         if cursor.goto_first_child():
             depth += 1
             continue
@@ -211,11 +278,39 @@ def analyze_code(content: str, *, source_id: uuid.UUID, language: str) -> CodeAn
             if cursor.goto_next_sibling():
                 break
             if not cursor.goto_parent():
-                return CodeAnalysis(symbols[:MAX_SYMBOLS], _chunks(lines, records, source_id, language),
-                                    truncated, tree.root_node.has_error)
+                return CodeAnalysis(
+                    symbols[:MAX_SYMBOLS], _chunks(lines, records, source_id, language),
+                    _materialize_calls(raw_calls, symbols), truncated, tree.root_node.has_error,
+                )
             depth -= 1
-    return CodeAnalysis(symbols[:MAX_SYMBOLS], _chunks(lines, records[:MAX_SYMBOLS], source_id, language),
-                        truncated, tree.root_node.has_error)
+    return CodeAnalysis(
+        symbols[:MAX_SYMBOLS], _chunks(lines, records[:MAX_SYMBOLS], source_id, language),
+        _materialize_calls(raw_calls, symbols), truncated, tree.root_node.has_error,
+    )
+
+
+def _materialize_calls(
+    raw_calls: list[tuple[uuid.UUID, tuple[str, ...], str, str | None, str, int, int, str]],
+    symbols: list[JavaSymbol],
+) -> list[CodeCallSite]:
+    methods = {item.qualified_name: item.id for item in symbols if item.kind == "method"}
+    return [
+        CodeCallSite(
+            id=call_id,
+            caller_id=next(
+                (methods[".".join(scope[:index])] for index in range(len(scope), 0, -1)
+                 if ".".join(scope[:index]) in methods),
+                None,
+            ),
+            expression=expression,
+            receiver=receiver,
+            callee_name=callee,
+            line=line,
+            column=column,
+            quote=quote,
+        )
+        for call_id, scope, expression, receiver, callee, line, column, quote in raw_calls
+    ]
 
 
 def _chunks(lines, records, source_id, language) -> list[JavaChunk]:

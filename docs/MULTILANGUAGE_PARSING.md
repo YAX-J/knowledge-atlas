@@ -24,7 +24,7 @@ Extensions are case-insensitive. `.h` deterministically means C; use `.hpp/.hh/.
 
 ## Evidence, outlines and search
 
-- New languages use pinned Tree-sitter and official language wheels installed with dependencies. Parsing never downloads grammars, executes source, loads project dependencies or calls models.
+- New languages use pinned Tree-sitter and official language wheels installed with dependencies. Parsing never downloads grammars, executes source, loads project dependencies or calls models. The separate explicit Agent action may call the configured model after parsing.
 - Every original line, including whitespace/error text, belongs to exactly one ordered whole-line chunk, at most 120 lines each. Type/function boundaries take priority; long functions may span chunks. Hashes and UUIDs are deterministic.
 - Outlines and symbol search share UUIDs and line ranges. Existing `type/field/method` kinds mean types, fields/properties and functions/methods. Hits add `language`; structure adds `language` and `has_syntax_errors`.
 - Each file is bounded to 200 symbols and 100,000 syntax-node visits, with `truncated` when exceeded. Search retains its 100-source/20 MiB budget and default 50/maximum 100 hits.
@@ -37,9 +37,9 @@ Default complete-same-commit caching is preserved. Old complete snapshots may om
 
 ## Limits and verification
 
-New languages do not resolve cross-file calls/import targets, infer types, expand macros, instantiate generics or model runtime behavior. Anonymous/computed members and complex declarations may be omitted. Java keeps its separate bounded analysis. All structure remains derived source data, not authoritative knowledge, and cannot bypass review.
+Default parsing for new languages does not resolve cross-file calls/import targets, infer types, expand macros, instantiate generics or model runtime behavior. An explicit Agent action can compare locally extracted calls with exact-name declarations in ready sources from the same repository and compatible language family. The backend limits and validates every candidate ID and returns exact call/declaration lines; it still does not provide compiler semantics, external dependencies, dynamic dispatch or persistent relationships. Java keeps its deterministic bounded analysis. All structure and Agent output remain derived source data, not authoritative knowledge, and cannot bypass review. See [ADR 0041](adr/0041-bounded-multilanguage-agent-call-analysis.md).
 
-Focused tests: `cd backend; .\.venv\Scripts\python.exe -m pytest tests/test_multilanguage.py`. SQLite and simulated GitHub tests do not establish native PostgreSQL or real-provider/model quality. Install/update dependencies in `backend` with `.\.venv\Scripts\python.exe -m pip install -e ".[dev]"`.
+Focused tests: `cd backend; .\.venv\Scripts\python.exe -m pytest tests/test_multilanguage.py tests/test_code_agent.py`. SQLite, simulated GitHub, and mocked Agent output do not establish native PostgreSQL or real-provider/model quality. Install/update dependencies in `backend` with `.\.venv\Scripts\python.exe -m pip install -e ".[dev]"`.
 
 ### Verification on 2026-10-23
 

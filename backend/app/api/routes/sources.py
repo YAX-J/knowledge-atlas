@@ -23,7 +23,8 @@ from app.schemas.sources import (
     SourceListItem,
     SourceUploadResponse,
 )
-from app.services import code_search, ingestion, parsing
+from app.schemas.code_agent import AgentCallAnalysisRead
+from app.services import code_agent, code_search, ingestion, parsing
 from app.services.java_source import JavaSourceInput, analyze_java
 from app.services.code_source import analyze_code
 from app.services.source_languages import CODE_SOURCE_TYPES
@@ -234,5 +235,22 @@ def get_code_structure(
             for item in structure.cross_file_calls
         ],
         truncated=structure.truncated,
+    )
+
+
+@router.post(
+    "/sources/{source_id}/agent-call-analysis",
+    response_model=AgentCallAnalysisRead,
+)
+def run_agent_call_analysis(
+    source_id: uuid.UUID,
+    db: DatabaseSession,
+    user_id: CurrentUserId,
+) -> AgentCallAnalysisRead:
+    return code_agent.analyze_calls(
+        db,
+        settings=get_settings(),
+        user_id=user_id,
+        source_id=source_id,
     )
 

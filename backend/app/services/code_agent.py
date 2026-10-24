@@ -1,0 +1,322 @@
+"""Bounded, evidence-validated Agent assistance for repository-local calls."""
+
+import json
+import uuid
+from dataclasses import dataclass
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.config import Settings
+from app.core.errors import AppError
+from app.models.domain import SourceDocument, SourceStatus
+from app.schemas.code_agent import (
+    AgentCallAnalysisRead,
+    AgentCrossFileCallRead,
+    AgentRelatedSymbolRead,
+)
+from app.services import deepseek, ingestion
+from app.services.code_source import CodeCallSite, analyze_code
+from app.services.java_source import JavaSourceInput, analyze_java, java_symbols
+from app.services.source_languages import CODE_SOURCE_TYPES
+
+
+MAX_RELATED_SOURCES = 99
+MAX_RELATED_BYTES = 20 * 1024 * 1024
+MAX_AGENT_CALLS = 100
+MAX_CANDIDATES_PER_CALL = 20
+MAX_EXCERPT_CHARS = 20_000
+
+LANGUAGE_FAMILIES = {
+    "java": frozenset({"java"}),
+    "python": frozenset({"python"}),
+    "javascript": frozenset({"javascript", "jsx", "typescript", "tsx"}),
+    "jsx": frozenset({"javascript", "jsx", "typescript", "tsx"}),
+    "typescript": frozenset({"javascript", "jsx", "typescript", "tsx"}),
+    "tsx": frozenset({"javascript", "jsx", "typescript", "tsx"}),
+    "go": frozenset({"go"}),
+    "c": frozenset({"c", "cpp"}),
+    "cpp": frozenset({"c", "cpp"}),
+    "csharp": frozenset({"csharp"}),
+}
+
+
+@dataclass(frozen=True)
+class _Target:
+    id: uuid.UUID
+    source_id: uuid.UUID
+    source_path: str
+    language: str
+    name: str
+    qualified_name: str
+    start_line: int
+    end_line: int
+    quote: str
+
+
+@dataclass(frozen=True)
+class _Call:
+    id: uuid.UUID
+    caller_id: uuid.UUID | None
+    receiver: str | None
+    callee_name: str
+    expression: str
+    line: int
+    column: int
+    quote: str
+    candidate_ids: tuple[uuid.UUID, ...]
+
+
+def _line(content: str, number: int) -> str:
+    lines = content.splitlines()
+    return lines[number - 1] if 1 <= number <= len(lines) else ""
+
+
+def _excerpt(content: str, call_lines: set[int]) -> str:
+    lines = content.splitlines()
+    selected = set(range(1, min(len(lines), 120) + 1))
+    for line in call_lines:
+        selected.update(range(max(1, line - 3), min(len(lines), line + 3) + 1))
+    rendered = "\n".join(f"{line}: {lines[line - 1]}" for line in sorted(selected))
+    return rendered[:MAX_EXCERPT_CHARS]
+
+
+def _related_sources(
+    db: Session, *, source: SourceDocument,
+) -> tuple[list[SourceDocument], bool]:
+    repository_filter = (
+        SourceDocument.repository_id == source.repository_id
+        if source.repository_id is not None
+        else SourceDocument.repository_id.is_(None)
+    )
+    compatible = LANGUAGE_FAMILIES[source.source_type]
+    metadata = list(db.execute(
+        select(SourceDocument.id, SourceDocument.size_bytes).where(
+            SourceDocument.user_id == source.user_id,
+            SourceDocument.project_id == source.project_id,
+            SourceDocument.source_type.in_(tuple(compatible)),
+            SourceDocument.status == SourceStatus.READY,
+            SourceDocument.id != source.id,
+            repository_filter,
+        ).order_by(SourceDocument.created_at, SourceDocument.id).limit(MAX_RELATED_SOURCES + 1)
+    ))
+    truncated = len(metadata) > MAX_RELATED_SOURCES
+    selected: list[uuid.UUID] = []
+    size = 0
+    for source_id, source_size in metadata[:MAX_RELATED_SOURCES]:
+        if size + source_size > MAX_RELATED_BYTES:
+            truncated = True
+            break
+        selected.append(source_id)
+        size += source_size
+    if not selected:
+        return [], truncated
+    by_id = {
+        item.id: item
+        for item in db.scalars(select(SourceDocument).where(SourceDocument.id.in_(selected)))
+    }
+    return [by_id[source_id] for source_id in selected], truncated
+
+
+def _target(source: SourceDocument, symbol) -> _Target:
+    return _Target(
+        id=symbol.id,
+        source_id=source.id,
+        source_path=source.relative_path or source.original_name,
+        language=source.source_type,
+        name=symbol.name,
+        qualified_name=symbol.qualified_name,
+        start_line=symbol.start_line,
+        end_line=symbol.end_line,
+        quote=_line(source.content, symbol.start_line),
+    )
+
+
+def _non_java_candidates(
+    source: SourceDocument, related: list[SourceDocument],
+) -> tuple[list[_Call], dict[uuid.UUID, _Target], int, bool, bool]:
+    current = analyze_code(source.content, source_id=source.id, language=source.source_type)
+    targets: dict[uuid.UUID, _Target] = {}
+    by_name: dict[str, list[_Target]] = {}
+    truncated = current.truncated
+    has_syntax_errors = current.has_syntax_errors
+    for item in related:
+        analysis = analyze_code(item.content, source_id=item.id, language=item.source_type)
+        truncated |= analysis.truncated
+        has_syntax_errors |= analysis.has_syntax_errors
+        for symbol in analysis.symbols:
+            if symbol.kind != "method":
+                continue
+            candidate = _target(item, symbol)
+            targets[candidate.id] = candidate
+            by_name.setdefault(candidate.name, []).append(candidate)
+    calls: list[_Call] = []
+    for call in current.call_sites:
+        candidates = sorted(by_name.get(call.callee_name, []), key=lambda item: (
+            item.source_path.casefold(), item.start_line, str(item.id),
+        ))
+        if not candidates:
+            continue
+        if len(candidates) > MAX_CANDIDATES_PER_CALL:
+            candidates = candidates[:MAX_CANDIDATES_PER_CALL]
+            truncated = True
+        calls.append(_from_call_site(call, tuple(item.id for item in candidates)))
+        if len(calls) >= MAX_AGENT_CALLS:
+            truncated |= len(current.call_sites) > len(calls)
+            break
+    return calls, targets, len(current.call_sites), truncated, has_syntax_errors
+
+
+def _from_call_site(call: CodeCallSite, candidate_ids: tuple[uuid.UUID, ...]) -> _Call:
+    return _Call(
+        id=call.id,
+        caller_id=call.caller_id,
+        receiver=call.receiver,
+        callee_name=call.callee_name,
+        expression=call.expression,
+        line=call.line,
+        column=call.column,
+        quote=call.quote,
+        candidate_ids=candidate_ids,
+    )
+
+
+def _java_candidates(
+    source: SourceDocument, related: list[SourceDocument],
+) -> tuple[list[_Call], dict[uuid.UUID, _Target], int, bool, bool]:
+    structure = analyze_java(
+        source.content,
+        source_id=source.id,
+        source_path=source.relative_path or source.original_name,
+        related_sources=[JavaSourceInput(
+            source_id=item.id,
+            source_path=item.relative_path or item.original_name,
+            content=item.content,
+        ) for item in related],
+    )
+    source_by_id = {item.id: item for item in related}
+    targets: dict[uuid.UUID, _Target] = {}
+    for item in related:
+        for symbol in java_symbols(item.content, source_id=item.id)[0]:
+            if symbol.kind == "method":
+                candidate = _target(item, symbol)
+                targets[candidate.id] = candidate
+    calls = []
+    for call in structure.cross_file_calls[:MAX_AGENT_CALLS]:
+        valid_targets = tuple(target_id for target_id in call.target_ids if target_id in targets)
+        if not valid_targets:
+            continue
+        calls.append(_Call(
+            id=call.id,
+            caller_id=call.caller_id,
+            receiver=call.receiver,
+            callee_name=call.callee_name,
+            expression=f"{call.receiver}.{call.callee_name}",
+            line=call.line,
+            column=1,
+            quote=_line(source.content, call.line),
+            candidate_ids=valid_targets,
+        ))
+    return calls, targets, len(structure.cross_file_calls), structure.truncated, False
+
+
+def analyze_calls(
+    db: Session, *, settings: Settings, user_id: uuid.UUID, source_id: uuid.UUID,
+) -> AgentCallAnalysisRead:
+    source = ingestion.get_source(db, user_id=user_id, source_id=source_id)
+    if source.source_type not in CODE_SOURCE_TYPES:
+        raise AppError(status_code=409, code="CALL_AGENT_UNAVAILABLE", message="当前资料不是支持分析的代码文件")
+    if source.status != SourceStatus.READY:
+        raise AppError(status_code=409, code="SOURCE_NOT_PARSED", message="请先完成代码资料解析")
+
+    related, related_truncated = _related_sources(db, source=source)
+    if source.source_type == "java":
+        calls, targets, detected, truncated, syntax_errors = _java_candidates(source, related)
+    else:
+        calls, targets, detected, truncated, syntax_errors = _non_java_candidates(source, related)
+    truncated |= related_truncated
+
+    if not calls:
+        return AgentCallAnalysisRead(
+            source_id=source.id, language=source.source_type, model=None,
+            prompt_version=deepseek.CALL_AGENT_PROMPT_VERSION,
+            calls=[], related_symbols=[], scanned_source_count=1 + len(related),
+            detected_call_count=detected, candidate_call_count=0,
+            provider_call_count=0, truncated=truncated, has_syntax_errors=syntax_errors,
+        )
+
+    payload = {
+        "language": source.source_type,
+        "source": {
+            "id": str(source.id),
+            "path": source.relative_path or source.original_name,
+            "excerpt": _excerpt(source.content, {call.line for call in calls}),
+        },
+        "calls": [{
+            "id": str(call.id),
+            "caller_id": str(call.caller_id) if call.caller_id else None,
+            "expression": call.expression,
+            "receiver": call.receiver,
+            "callee_name": call.callee_name,
+            "line": call.line,
+            "quote": call.quote,
+            "candidates": [{
+                "id": str(target_id),
+                "source_id": str(targets[target_id].source_id),
+                "path": targets[target_id].source_path,
+                "language": targets[target_id].language,
+                "qualified_name": targets[target_id].qualified_name,
+                "line": targets[target_id].start_line,
+                "quote": targets[target_id].quote,
+            } for target_id in call.candidate_ids],
+        } for call in calls],
+    }
+    if len(json.dumps(payload, ensure_ascii=False)) > settings.extraction_max_input_chars:
+        raise AppError(
+            status_code=413, code="CALL_AGENT_INPUT_TOO_LARGE",
+            message="跨文件候选上下文过大，请缩小文件或仓库范围",
+        )
+    try:
+        draft = deepseek.analyze_cross_file_calls(settings, payload)
+    except deepseek.CallAgentError as exc:
+        status = 503 if exc.code in {"CALL_AGENT_NOT_CONFIGURED", "CALL_AGENT_PROVIDER_FAILED"} else 502
+        raise AppError(status_code=status, code=exc.code, message=exc.message) from exc
+
+    call_by_id = {call.id: call for call in calls}
+    decision_by_id = {item.call_id: item for item in draft.decisions}
+    if len(decision_by_id) != len(draft.decisions) or set(decision_by_id) != set(call_by_id):
+        raise AppError(
+            status_code=502, code="CALL_AGENT_OUTPUT_INVALID",
+            message="Agent 未完整返回当前调用候选，请重试",
+        )
+    result_calls: list[AgentCrossFileCallRead] = []
+    visible_targets: set[uuid.UUID] = set()
+    for call in calls:
+        decision = decision_by_id[call.id]
+        if not set(decision.target_ids).issubset(call.candidate_ids):
+            raise AppError(
+                status_code=502, code="CALL_AGENT_EVIDENCE_INVALID",
+                message="Agent 返回了候选范围之外的调用目标，本次结果已拒绝",
+            )
+        visible_targets.update(decision.target_ids)
+        result_calls.append(AgentCrossFileCallRead(
+            id=call.id, caller_id=call.caller_id, target_ids=decision.target_ids,
+            receiver=call.receiver, callee_name=call.callee_name,
+            line=call.line, column=call.column, call_quote=call.quote,
+            resolution=decision.resolution, confidence=decision.confidence,
+            resolution_basis=decision.resolution_basis,
+        ))
+
+    return AgentCallAnalysisRead(
+        source_id=source.id, language=source.source_type,
+        model=settings.deepseek_model, prompt_version=deepseek.CALL_AGENT_PROMPT_VERSION,
+        calls=result_calls,
+        related_symbols=[AgentRelatedSymbolRead(**vars(targets[target_id])) for target_id in sorted(
+            visible_targets, key=lambda item: (
+                targets[item].source_path.casefold(), targets[item].start_line, str(item),
+            ),
+        )],
+        scanned_source_count=1 + len(related), detected_call_count=detected,
+        candidate_call_count=len(calls), provider_call_count=1,
+        truncated=truncated, has_syntax_errors=syntax_errors,
+    )

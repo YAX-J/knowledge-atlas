@@ -109,6 +109,15 @@ response = client.post(f"/api/v1/sources/{source['source_id']}/extract")
 - 没有检索证据时不调用回答模型。不得记录问题、提示词、回答正文或完整证据。
 - 回答提示词当前没有任务复用语义，不使用候选抽取的 `PROMPT_VERSION`；修改输出结构时同步 `tests/test_questions.py`、API 契约与 ADR 0011。
 
+## 多语言调用 Agent 边界
+
+- `POST /sources/{source_id}/agent-call-analysis` 是显式、同步、非持久化的一轮结构化 Agent 操作；提示版本为 `deepseek.CALL_AGENT_PROMPT_VERSION`。
+- 本地语法分析先提供调用 ID、同仓库兼容语言族的声明候选 ID、路径和精确原文行；模型不能访问数据库、扩展候选或写正式图谱。
+- 每个输入调用必须且只能返回一条决定；目标只能来自该调用的候选集合，`resolved/ambiguous/unresolved` 与目标数量必须一致。后端拒绝缺项、重复和伪造 ID。
+- 没有候选时不调用模型。最多 99 份相关来源/20 MiB、100 个候选调用、每调用 20 个候选，并遵守 `extraction_max_input_chars`。
+- 不记录提示词、完整源码或模型原始响应；前端只展示精确行证据、置信度和简短 `resolution_basis`，不展示思维过程。
+- 测试使用 `tests/test_code_agent.py` 的模拟输出；真实质量、成本、延迟和提示注入验收必须单独注明。
+
 ## 常见失败
 
 | 错误码 | 常见原因 | 处理 |

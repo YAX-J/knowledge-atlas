@@ -1,6 +1,6 @@
 # Knowledge Atlas
 
-多语言解析 V1 已将原 Markdown/多语言代码 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。新语言仅做语法结构，不扩展 Java 的跨文件语义；语法错误显式提示，不执行代码或自动入图。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。无新迁移，重新安装后端 `.[dev]` 获取固定解析依赖。 See [语言范围与限制](docs/MULTILANGUAGE_PARSING.zh-CN.md).
+多语言解析 V1 已将原 Markdown/多语言代码导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。默认解析不调用模型；用户可在源码结构区显式运行受限 Agent，从同仓库静态候选中分析多语言跨文件调用。结果带原文行证据且不持久化、不自动入图。见[语言范围与限制](docs/MULTILANGUAGE_PARSING.zh-CN.md)及 [ADR 0041](docs/adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。
 
 面向个人开发者的时序知识图谱与可追溯 AI 问答平台。
 

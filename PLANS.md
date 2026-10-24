@@ -1,6 +1,6 @@
 # Knowledge Atlas Implementation Plan
 
-Multi-language V1 extends the existing Markdown/Java pipeline to Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: single-file/folder/GitHub imports, Worker, exact chunks, outlines and symbol search. New languages are syntax-only, with explicit syntax warnings, no execution, cross-file semantics or automatic graph writes. Explicit `rescan=true` discovers newly supported files in old complete same-commit snapshots. No migration; reinstall backend `.[dev]` for pinned parser dependencies. See [ADR 0040](docs/adr/0040-multilanguage-source-parsing.md).
+Multi-language V1 extends the existing Markdown/Java pipeline to Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: single-file/folder/GitHub imports, Worker, exact chunks, outlines and symbol search. Default parsing is syntax-only and makes no model call. An explicit bounded Agent action now compares repository-local call sites with server-curated declaration candidates across compatible language families; every returned ID and exact source line is validated, and results remain ephemeral outside the formal graph. See [ADR 0040](docs/adr/0040-multilanguage-source-parsing.md) and [ADR 0041](docs/adr/0041-bounded-multilanguage-agent-call-analysis.md).
 
 [简体中文](PLANS.zh-CN.md)
 
@@ -31,6 +31,7 @@ Completed:
 - Explainable hybrid retrieval with fixed keyword/vector/one-hop graph weights, bounded candidates, visible-relationship filtering, and per-hit score composition.
 - Synchronous evidence-grounded questions with bounded hybrid retrieval, strict DeepSeek output, application-validated citation UUIDs, and a real frontend workspace.
 - A frozen Stage 6 evaluation set with 30 synthetic sources and 40 direct, cross-document, code-location, temporal, and unanswerable questions; every answerable case has line-exact gold evidence, a gold answer, deterministic validation, and prediction scoring for retrieval, citations, answer review, latency, and explainability.
+- Explicit bounded Agent-assisted cross-file call analysis across every supported code language. Static parsing supplies same-repository candidate IDs and exact source lines; the model may only classify those candidates, and output remains non-persistent derived code structure. Real-provider quality and C/C++ build-context accuracy remain pending.
 - Local UTF-8 Java source upload with deterministic `code`/`comment`/`type`/`method` chunks, exact source lines, and reuse of the existing parsing worker and evidence pipeline.
 - Separate desktop single-file and folder-upload entry points; folders contribute up to 50 supported Markdown/Java files, uploaded sequentially with persisted relative paths, per-file deduplication, and partial-success retention.
 - Bounded repository-scoped Java `extends`/`implements` resolution across ready sources using package and import rules, shown with target paths and lines outside the formal graph.

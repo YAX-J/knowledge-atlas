@@ -103,3 +103,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0038: Infer Java factory receivers in loop and resource headers](0038-java-header-factory-receivers.md)
 - [ADR 0039: Review cross-source knowledge evolution explicitly](0039-reviewed-knowledge-evolution.md)
 - [ADR 0040: Parse multiple code languages without changing knowledge authority](0040-multilanguage-source-parsing.md)
+- [ADR 0041: Run bounded multi-language cross-file call analysis through an Agent](0041-bounded-multilanguage-agent-call-analysis.md)

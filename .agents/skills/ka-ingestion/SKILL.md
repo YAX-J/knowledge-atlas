@@ -7,7 +7,7 @@ description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块
 
 ## 多语言 V1 扩展（ADR 0040）
 
-下述 Markdown/Java 通用链路现同时接受 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#；完整扩展名以 `services/source_languages.py` 和 `docs/MULTILANGUAGE_PARSING.zh-CN.md` 为准。Worker/手动解析使用该注册表的任务兼容关系，新语言复用 `code_parsing`。`services/code_source.py` 用固定 Tree-sitter wheel 生成整行精确分区（每块最多 120 行）、最多 200 符号/100,000 节点访问；截断与语法错误分开，原文始终保留。`code-structure` 增加 `language/has_syntax_errors`；符号检索扩展全部代码、命中增加 `language`。仅 Java 保持原有调用分析，新语言相关数组为空，不执行代码/导入工程/联网加载语法/自动入图，无迁移。旧完整 GitHub 同提交快照可显式 `rescan=true` 重读 tree，仍复用兼容 blob 并保留预算；默认缓存不变。测试增加 `tests/test_multilanguage.py`。安装依赖后再验收，不用语言伪装 Markdown，也不跨来源类型复用任务。
+下述 Markdown/Java 通用链路现同时接受 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#；完整扩展名以 `services/source_languages.py` 和 `docs/MULTILANGUAGE_PARSING.zh-CN.md` 为准。Worker/手动解析使用该注册表的任务兼容关系，新语言复用 `code_parsing`。`services/code_source.py` 用固定 Tree-sitter wheel 生成整行精确分区（每块最多 120 行）、最多 200 符号/100,000 节点访问，并额外派生最多 200 个本地调用点；截断与语法错误分开，原文始终保留。`code-structure` 增加 `language/has_syntax_errors`；符号检索扩展全部代码、命中增加 `language`。默认结构读取仍不调用模型；`POST /sources/{source_id}/agent-call-analysis` 是独立显式操作，只从同仓库兼容语言族的 ready 来源建立候选，输出不持久化、不自动入图。旧完整 GitHub 同提交快照可显式 `rescan=true` 重读 tree，仍复用兼容 blob 并保留预算；默认缓存不变。测试增加 `tests/test_multilanguage.py` 与 `tests/test_code_agent.py`。安装依赖后再验收，不用语言伪装 Markdown，也不跨来源类型复用任务。
 
 这条链路负责把 Markdown 和 Java 源码变成“可引用、带行号”的原文分块。实现：`services/ingestion.py`、`services/markdown.py`、`services/java_source.py`、`services/parsing.py`、`app/worker.py`。
 

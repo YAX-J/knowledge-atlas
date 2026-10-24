@@ -1,6 +1,6 @@
 # Knowledge Atlas 后端
 
-多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。新语言仅做语法结构，不扩展 Java 的跨文件语义；语法错误显式提示，不执行代码或自动入图。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。无新迁移，重新安装后端 `.[dev]` 获取固定解析依赖。 见[扩展名和边界](../docs/MULTILANGUAGE_PARSING.zh-CN.md)。
+多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#。默认解析只做语法结构且不调用模型；`POST /sources/{source_id}/agent-call-analysis` 是显式有界模型操作，只能从同仓库后端候选中选择目标，返回 ID 与精确源码行会再次校验，且不写正式图谱。见[扩展名和边界](../docs/MULTILANGUAGE_PARSING.zh-CN.md)。
 
 [English](README.md)
 
@@ -19,6 +19,7 @@
 - 同一用户项目、可空仓库和来源类型内，相同字节的上传复用原来源/任务，即使文件名不同。
 - 分页查询分块，安全地重复执行已完成任务或重试失败任务。
 - 派生有界只读 Java 大纲，提供稳定的类型/字段/方法符号、未限定名或 `this.` 同文件调用提示，以及依据包与导入解析的仓库内跨文件 `extends`/`implements` 目标和显式类型的直接类型、字段、参数、直属局部变量接收者方法调用；派生结构不会提升到正式图谱。
+- 可为 Java、Python、JavaScript/JSX、TypeScript/TSX、Go、C/C++ 或 C# 显式运行一轮有界 Agent 调用分析，只处理同仓库声明候选。候选 ID 与精确源码行证据由后端校验；空候选不调用供应商，全部结果均不持久化。
 - 持久化项目、来源、任务和候选知识记录。
 - 确认候选时在审核事务内写入受限的 PostgreSQL 实体、关系和证据，支持稳定 UUID、端点提升、幂等重复和旧确认重放。
 - 提供只读项目图谱、实体详情和关系详情接口，按用户/项目/时间过滤，限制节点与边数量，并返回后端计算的行号。

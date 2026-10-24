@@ -24,7 +24,7 @@
 
 ## 原文、结构与检索
 
-- 新语言使用固定版本的 Tree-sitter 与官方语言 wheel，语法随依赖安装，不在解析时下载、执行用户代码、加载工程依赖或调用模型。
+- 新语言使用固定版本的 Tree-sitter 与官方语言 wheel，语法随依赖安装；解析过程不下载语法、不执行用户代码、不加载工程依赖，也不调用模型。解析后的独立显式 Agent 操作可以调用已配置模型。
 - 所有原始行（包括空白和错误代码）按顺序完整分区；每块最多 120 行，内容是原文整行切片，SHA-256/UUID 确定。类型/函数边界优先，长函数可以分为多块。
 - 大纲与代码符号检索共用 UUID 和行号；`type/field/method` 分别表示类型、字段/属性、函数/方法，保持旧接口兼容。检索命中携带 `language`，结构响应增加 `language` 与 `has_syntax_errors`。
 - 每文件最多 200 符号、遍历最多 100,000 个语法节点，达到上限标记 `truncated`；检索仍最多扫描 100 份来源/20 MiB，默认返回 50、最多 100 个命中。
@@ -37,9 +37,9 @@
 
 ## 限制与验证
 
-新语言不解析跨文件调用、导入目标、类型推断、宏展开、泛型实例化或运行时行为；匿名/计算成员、复杂声明等可能省略。Java 保持独立的原有有界分析。所有结构均是派生资料，不是正式知识，也不会绕过人工审核。
+新语言的默认解析不解析跨文件调用/导入目标，也不进行类型推断、宏展开、泛型实例化或运行时行为建模。显式 Agent 操作可以把本地调用点与同仓库、兼容语言族 ready 来源中的精确同名声明比较；后端限制并校验全部候选 ID，返回精确调用行与声明行，但仍不提供编译器语义、外部依赖、动态分派或持久化关系。Java 保留原有确定性有界分析。所有结构与 Agent 输出都是派生资料，不是正式知识，也不会绕过人工审核，见 [ADR 0041](adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。
 
-新增聚焦测试：`cd backend; .\.venv\Scripts\python.exe -m pytest tests/test_multilanguage.py`。测试使用 SQLite 与模拟 GitHub；不代表真实 GitHub/模型质量或原生 PostgreSQL 专项验收。安装/升级依赖：在 `backend` 运行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev]"`。
+新增聚焦测试：`cd backend; .\.venv\Scripts\python.exe -m pytest tests/test_multilanguage.py tests/test_code_agent.py`。测试使用 SQLite、模拟 GitHub 与模拟 Agent 输出；不代表真实 GitHub/模型质量或原生 PostgreSQL 专项验收。安装/升级依赖：在 `backend` 运行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev]"`。
 
 ### 2026-10-23 本轮结果
 

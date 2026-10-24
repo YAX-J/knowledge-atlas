@@ -1,6 +1,6 @@
 # Knowledge Atlas 实施计划
 
-多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。新语言仅做语法结构，不扩展 Java 的跨文件语义；语法错误显式提示，不执行代码或自动入图。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。无新迁移，重新安装后端 `.[dev]` 获取固定解析依赖。 见 [ADR 0040](docs/adr/0040-multilanguage-source-parsing.zh-CN.md)。
+多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。默认解析只做语法结构且不调用模型；新增显式有界 Agent 操作，可在兼容语言族的同仓库静态声明候选中分析跨文件调用。后端校验每个目标 ID 与精确源码行，结果保持临时派生且不进入正式图谱。见 [ADR 0040](docs/adr/0040-multilanguage-source-parsing.zh-CN.md) 与 [ADR 0041](docs/adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。
 
 [English](PLANS.md)
 
@@ -31,6 +31,7 @@
 - 实现固定权重的关键词/向量/一跳图关系可解释混合检索，限制候选规模、过滤不可见关系并返回组成得分。
 - 实现同步证据问答：有界混合检索、严格 DeepSeek 输出、应用层引用 UUID 校验及真实前端工作台。
 - 完成冻结的阶段六 V1 测评集：30 个合成来源与 40 个直接事实、跨文档、代码定位、时序和不可回答问题；每个可回答问题都包含精确到行的标准证据与标准答案，并提供确定性校验和覆盖检索、引用、人工答案评分、延迟及可解释性的预测评分器。
+- 全部受支持代码语言均可显式运行有界 Agent 辅助跨文件调用分析。静态解析提供同仓库候选 ID 与精确源码行，模型只能对这些候选分类，输出保持非持久化派生代码结构；真实供应商质量和 C/C++ 构建上下文准确率仍待验收。
 - 实现本地 UTF-8 Java 源文件上传及确定性的 `code`/`comment`/`type`/`method` 分块，保留精确源码行并复用现有解析 Worker 与证据链路。
 - 实现桌面端独立的单文件与文件夹上传入口；文件夹最多提取 50 份支持的 Markdown/Java 文件，逐份上传、持久化相对路径，并保留部分成功结果与原有单文件去重语义。
 - 在同仓库已解析来源间，按包与导入规则有界解析 Java `extends`/`implements`，在正式图谱之外展示目标路径和行号。

@@ -1,8 +1,8 @@
 # Knowledge Atlas 系统架构
 
-多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。新语言仅做语法结构，不扩展 Java 的跨文件语义；语法错误显式提示，不执行代码或自动入图。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。无新迁移，重新安装后端 `.[dev]` 获取固定解析依赖。 复用来源/任务/分块模型；仅缓存不可变语法 Language，每次解析独立 Parser，见 [ADR 0040](adr/0040-multilanguage-source-parsing.zh-CN.md)。
+多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。默认解析只做语法结构，不执行代码、不调用模型也不自动入图；独立显式 Agent 操作可在后端静态候选范围内分析跨文件调用。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。复用来源/任务/分块模型；仅缓存不可变语法 Language，每次解析独立 Parser，见 [ADR 0040](adr/0040-multilanguage-source-parsing.zh-CN.md) 与 [ADR 0041](adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。
 
-本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Markdown 与本地 Java 源码导入、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、项目图谱、关键词/显式索引语义向量/一跳图关系混合检索，以及同步、非持久化的证据问答；实体消歧、完整代码语义和多轮 Agent 仍属于后续阶段。当前只使用 PostgreSQL/pgvector，暂缓引入 Neo4j，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。
+本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Markdown 与多语言源码导入、显式有界的单轮 Agent 辅助跨文件调用分析、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、项目图谱、关键词/显式索引语义向量/一跳图关系混合检索，以及同步、非持久化的证据问答；实体消歧、完整代码语义和多轮规划 Agent 仍属于后续阶段。当前只使用 PostgreSQL/pgvector，暂缓引入 Neo4j，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。
 
 ## 架构目标
 
@@ -100,6 +100,8 @@ flowchart TB
 PR Review 活动与基础工作项分开版本化。显式活动导入为每个入选 PR 读取各最多 20 条 Review 和行级 Review Comment；配置令牌时，再通过 GraphQL 读取最多 20 个 Review thread 及每个 thread 20 个评论标识，保存当前解决状态、解决者、位置与过期状态。结果渲染成独立 Markdown，并在 `github_pull_review_versions` 中以 provider PR ID 与内容 SHA-256 保存映射，同时记录 thread 数量、已解决数量、是否纳入和截断元数据。这样 Review 内容或 thread 状态变化无需依赖 PR `updated_at`；行级评论的 `in_reply_to_id` 与有界 thread 成员关系会保留，但查询快照不声称拥有权威解决事件时间。Review 来源继续复用相同解析、证据和规范 PR URL 流程，见 [ADR 0023](adr/0023-versioned-github-pull-reviews.zh-CN.md) 与 [ADR 0024](adr/0024-bounded-github-review-thread-state.zh-CN.md)。
 
 Java 结构/调用分析 V1 在既有原文上按需派生，不引入新库、持久化表或正式知识。接收者词法范围统一覆盖普通块、分支/while、异常、带花括号的 for 与资源 try；头部调用省略，仅把声明绑定送入主体。方法候选共用参数数量/可变参数筛选及有界继承查找，保留覆盖签名、菱形去重、重复版本歧义与原方法 ID。继承环/单次 256 状态预算会报告截断，而不是无限遍历。`resolved` 是唯一静态候选，不是运行时分派保证；外部 classpath、完整 AST/类型检查及动态推断仍不属于 V1，详见 [能力与验收边界](JAVA_ANALYSIS_V1.zh-CN.md) 和 [ADR 0029](adr/0029-java-analysis-v1.zh-CN.md)。
+
+多语言 Agent 调用分析是独立的显式同步操作，不属于解析 Worker。后端先从当前来源提取调用点，只在同仓库兼容语言族的 ready 来源中按名称建立有界声明候选，再把稳定 ID、路径和精确源码行交给模型分类。模型不能搜索数据库或生成候选外目标；后端拒绝缺项、伪造 ID 和结构矛盾结果。返回值不持久化、不进入正式图谱，也不代表编译器或运行时分派结论，见 [ADR 0041](adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。
 
 代码符号搜索为 API 的只读派生查询，不由 Worker 消费：按项目及可选仓库读取最多 100 份 ready Java 来源、20 MiB 原文，复用与单文件大纲相同的符号生成函数，每份最多 200 符号；按名称/路径字面匹配并保留版本、原 ID/行号与分块位置。前端据此跳转原文，不持久化第二套索引或绕过知识审核，见 [ADR 0032](adr/0032-bounded-code-symbol-search.zh-CN.md)。
 

@@ -123,6 +123,43 @@ export interface JavaCodeStructure {
   truncated: boolean
 }
 
+export interface AgentCallAnalysis {
+  source_id: string
+  language: string
+  model: string | null
+  prompt_version: string
+  calls: {
+    id: string
+    caller_id: string | null
+    target_ids: string[]
+    receiver: string | null
+    callee_name: string
+    line: number
+    column: number
+    call_quote: string
+    resolution: 'resolved' | 'ambiguous' | 'unresolved'
+    confidence: number
+    resolution_basis: string
+  }[]
+  related_symbols: {
+    id: string
+    source_id: string
+    source_path: string
+    language: string
+    name: string
+    qualified_name: string
+    start_line: number
+    end_line: number
+    quote: string
+  }[]
+  scanned_source_count: number
+  detected_call_count: number
+  candidate_call_count: number
+  provider_call_count: number
+  truncated: boolean
+  has_syntax_errors: boolean
+}
+
 export type CodeSymbolHit = JavaCodeStructure['symbols'][number] & {
   language: string
   source_id: string
@@ -492,6 +529,12 @@ export function listSourceChunks(
 
 export function getJavaCodeStructure(sourceId: string): Promise<JavaCodeStructure> {
   return apiRequest<JavaCodeStructure>(`/sources/${sourceId}/code-structure`)
+}
+
+export function analyzeAgentCalls(sourceId: string): Promise<AgentCallAnalysis> {
+  return apiRequest<AgentCallAnalysis>(`/sources/${sourceId}/agent-call-analysis`, {
+    method: 'POST', signal: AbortSignal.timeout(240000),
+  })
 }
 
 export function searchCodeSymbols(projectId: string, input: CodeSymbolSearchInput): Promise<CodeSymbolSearchResult> {

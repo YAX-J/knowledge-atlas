@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { isCodeSource, sourceFileAccept, sourceLanguageHint, sourceTypeForFile, sourceTypeLabel } from '../sourceLanguages'
 import type {
-  ApiProject, ApiProjectList, ApiSource, JavaCodeStructure, ProcessingTask, SourceChunkList, SourceList, SourceListItem, SourceRepository, SourceRepositoryList,
+  AgentCallAnalysis, ApiProject, ApiProjectList, ApiSource, JavaCodeStructure, ProcessingTask, SourceChunkList, SourceList, SourceListItem, SourceRepository, SourceRepositoryList,
 } from '../api/knowledgeAtlas'
 import type { IngestionErrors, IngestionLoading } from '../types'
 
@@ -17,6 +17,7 @@ const props = defineProps<{
   task: ProcessingTask | null
   chunks: SourceChunkList | null
   codeStructure: JavaCodeStructure | null
+  agentCallAnalysis: AgentCallAnalysis | null
   focusedChunkId?: string
   loading: IngestionLoading
   errors: IngestionErrors
@@ -37,6 +38,7 @@ const emit = defineEmits<{
   run: []
   refresh: []
   chunksPage: [page: number]
+  analyzeCalls: []
   graph: []
 }>()
 const name = ref('')
@@ -57,10 +59,11 @@ const chunkPages = computed(() => Math.max(1, Math.ceil((props.chunks?.total ?? 
 const codeSymbolsById = computed(() => new Map((props.codeStructure?.symbols ?? []).map(item => [item.id, item])))
 const relatedTypesById = computed(() => new Map((props.codeStructure?.related_types ?? []).map(item => [item.id, item])))
 const relatedMethodsById = computed(() => new Map((props.codeStructure?.related_methods ?? []).map(item => [item.id, item])))
+const agentTargetsById = computed(() => new Map((props.agentCallAnalysis?.related_symbols ?? []).map(item => [item.id, item])))
 const linkableLocalRepositories = computed(() => (
   props.repositories?.items.filter(item => item.kind === 'local_folder' && !item.remote_url) ?? []
 ))
-const locked = computed(() => props.loading.create || props.loading.upload || props.loading.task || props.loading.remote || props.loading.sync || props.loading.activity || props.loading.commit)
+const locked = computed(() => props.loading.create || props.loading.upload || props.loading.task || props.loading.remote || props.loading.sync || props.loading.activity || props.loading.commit || props.loading.agent)
 const statusLabels: Record<string, string> = {
   uploaded: '待解析', processing: '解析中', ready: '已解析', failed: '解析失败',
   queued: '待解析', running: '解析中', succeeded: '已解析', cancelled: '已取消',
@@ -185,6 +188,19 @@ function relatedMethodLocations(call: JavaCodeStructure['cross_file_calls'][numb
   return call.target_ids
     .map(id => relatedMethodsById.value.get(id))
     .filter((item): item is JavaCodeStructure['related_methods'][number] => Boolean(item))
+    .map(item => `${item.source_path} · 第 ${item.start_line}–${item.end_line} 行`)
+    .join('；')
+}
+function agentTargetName(call: AgentCallAnalysis['calls'][number]) {
+  if (!call.target_ids.length) return '未解析目标'
+  return call.target_ids
+    .map(id => agentTargetsById.value.get(id)?.qualified_name ?? '未知候选')
+    .join(' / ')
+}
+function agentTargetLocations(call: AgentCallAnalysis['calls'][number]) {
+  return call.target_ids
+    .map(id => agentTargetsById.value.get(id))
+    .filter((item): item is AgentCallAnalysis['related_symbols'][number] => Boolean(item))
     .map(item => `${item.source_path} · 第 ${item.start_line}–${item.end_line} 行`)
     .join('；')
 }
@@ -344,7 +360,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
             <button type="button" :disabled="loading.sources || locked || (sources?.page ?? 1) >= sourcePages" @click="emit('sourcesPage', (sources?.page ?? 1) + 1)">下一页</button>
           </nav>
 
-          <section v-if="selectedSourceId" id="source-reader" class="source-reader" tabindex="-1" aria-label="原文与解析结果" :aria-busy="loading.detail || loading.task || loading.chunks || loading.structure">
+          <section v-if="selectedSourceId" id="source-reader" class="source-reader" tabindex="-1" aria-label="原文与解析结果" :aria-busy="loading.detail || loading.task || loading.chunks || loading.structure || loading.agent">
             <div class="source-section-heading reader-heading">
               <div><h3>{{ source ? sourceName(source) : '资料详情' }}</h3><p v-if="source" class="muted-copy">{{ source.repository_name ? `仓库 · ${source.repository_name} · ` : '' }}{{ source.line_count }} 行原文 · {{ formatSize(source.size_bytes) }}</p><a v-if="source?.git_url" class="source-git-link" :href="source.git_url" target="_blank" rel="noopener noreferrer">在 GitHub 查看来源 ↗</a></div>
               <button class="text-button" type="button" :disabled="loading.detail || locked || loading.chunks" @click="emit('refresh')">刷新状态</button>
@@ -370,9 +386,11 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                   <div class="source-section-heading">
                     <h3 id="code-structure-title">源码结构</h3>
                     <span v-if="codeStructure" class="muted-copy">{{ codeStructure.symbols.length }} 个符号 · {{ codeStructure.calls.length }} 条同文件调用 · {{ codeStructure.cross_file_calls.length }} 条跨文件调用 · {{ codeStructure.type_relationships.length }} 条跨文件类型关系</span>
+                    <button type="button" class="primary-button" :disabled="locked || loading.structure" @click="emit('analyzeCalls')">{{ loading.agent ? 'Agent 分析中…' : 'Agent 分析跨文件调用' }}</button>
                   </div>
                   <p class="source-upload-hint">结构关系由本地规则推导，不会自动写入已审核的正式知识图谱。</p>
-                  <p v-if="source.source_type !== 'java'" class="source-upload-hint">{{ sourceTypeLabel(source.source_type) }} 使用语法结构解析；当前仅提供符号与原文分块，不推断跨文件调用。</p>
+                  <p v-if="source.source_type !== 'java'" class="source-upload-hint">{{ sourceTypeLabel(source.source_type) }} 默认只做语法结构解析；显式运行 Agent 后，才会在同仓库静态候选中分析跨文件调用并产生模型费用。</p>
+                  <p v-else class="source-upload-hint">Java 保留本地确定性调用提示；显式运行 Agent 可对已有仓库内候选进一步消歧。</p>
                   <p v-if="loading.structure" class="muted-copy" role="status">正在读取源码结构…</p>
                   <p v-else-if="errors.structure" class="inline-error" role="alert">{{ errors.structure }} 请刷新状态重试。</p>
                   <template v-else-if="codeStructure">
@@ -413,6 +431,29 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                         <small>调用第 {{ call.line }} 行 · 接收者 {{ call.receiver }} · {{ relatedMethodLocations(call) }}<span v-if="call.resolution === 'ambiguous'"> · {{ call.target_ids.length }} 个同名候选</span></small>
                       </p>
                     </div>
+                    <section class="agent-call-analysis" aria-labelledby="agent-call-analysis-title" :aria-busy="loading.agent">
+                      <div class="source-section-heading">
+                        <h4 id="agent-call-analysis-title">Agent 跨文件分析</h4>
+                        <span v-if="agentCallAnalysis" class="muted-copy">扫描 {{ agentCallAnalysis.scanned_source_count }} 个文件 · {{ agentCallAnalysis.candidate_call_count }} 个候选调用 · {{ agentCallAnalysis.provider_call_count }} 次模型调用</span>
+                      </div>
+                      <p v-if="loading.agent" class="muted-copy" role="status">Agent 正在核对导入、接收者、文件路径和候选声明…</p>
+                      <p v-else-if="errors.agent" class="inline-error" role="alert">{{ errors.agent }} <button type="button" class="text-button" @click="emit('analyzeCalls')">重试分析</button></p>
+                      <template v-else-if="agentCallAnalysis">
+                        <p v-if="agentCallAnalysis.truncated" class="inline-error">仓库或候选达到分析上限，结果可能不完整。</p>
+                        <p v-if="agentCallAnalysis.has_syntax_errors" class="inline-error">扫描范围中存在语法错误，Agent 结果仅作为有界提示。</p>
+                        <p v-if="!agentCallAnalysis.calls.length" class="empty-copy">没有找到可交给 Agent 判断的同仓库跨文件候选；本次未调用模型。</p>
+                        <div v-else class="code-call-list code-agent-calls">
+                          <p v-for="call in agentCallAnalysis.calls" :key="call.id">
+                            <strong>{{ call.caller_id ? callerName(call.caller_id) : '文件顶层' }}</strong>
+                            <span aria-hidden="true">→</span>
+                            <strong>{{ agentTargetName(call) }}</strong>
+                            <small>调用第 {{ call.line }} 行 · {{ call.resolution }} · 置信度 {{ Math.round(call.confidence * 100) }}%<span v-if="agentTargetLocations(call)"> · {{ agentTargetLocations(call) }}</span></small>
+                            <small>{{ call.resolution_basis }}</small>
+                            <code>{{ call.call_quote }}</code>
+                          </p>
+                        </div>
+                      </template>
+                    </section>
                   </template>
                 </section>
                 <div class="source-section-heading"><h3>原文分块 <span v-if="chunks">{{ chunks.total }}</span></h3><span class="muted-copy">行号对应上传原文</span></div>

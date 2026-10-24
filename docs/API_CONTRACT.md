@@ -3,7 +3,8 @@
 ## 多语言代码解析（已实现）
 
 - 上传新增 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，详见[扩展名和边界](MULTILANGUAGE_PARSING.zh-CN.md)。`source_type` 省略时由扩展名推断，显式填写仍须匹配。复用 `code_parsing`，无新迁移。
-- `GET /sources/{source_id}/code-structure` 对全部支持代码有效，新增 `language` 与 `has_syntax_errors`。新语言共用 `symbols`（`type/field/method`），调用/相关目标数组为空；Java 分析不变。
+- `GET /sources/{source_id}/code-structure` 对全部支持代码有效，返回 `language`、`has_syntax_errors` 与共用 `symbols`（`type/field/method`）。Java 继续返回本地确定性调用关系；其他语言默认不产生跨文件关系。
+- `POST /sources/{source_id}/agent-call-analysis` 显式调用一次受限 Agent，在同仓库静态候选中分析 Java、Python、JavaScript/JSX、TypeScript/TSX、Go、C/C++、C# 跨文件调用。没有候选时不调用模型；结果不持久化、不写正式图谱。
 - `GET /projects/{project_id}/code-symbols` 扫描全部支持代码，命中增加 `language`，响应增加 `has_syntax_errors`。语法错误与 `truncated` 独立，权限/仓库/数量上限不变。
 - GitHub 同步新增可选 `rescan:boolean=false`，例如 `{"ref":"main","rescan":true}`，重读同 Commit tree 以发现旧快照未记录的新语言；复用兼容 blob，仍遵守原预算和历史非破坏规则。默认继续完整同提交缓存。
 
@@ -45,6 +46,7 @@
 | `POST /api/v1/tasks/{task_id}/run` | 已实现，同步执行 Markdown/Java 解析 |
 | `GET /api/v1/sources/{source_id}/chunks` | 已实现，分页查询原文分块 |
 | `GET /api/v1/sources/{source_id}/code-structure` | 已实现，派生 Java 符号、同文件调用及有界跨文件类型/方法关系 |
+| `POST /api/v1/sources/{source_id}/agent-call-analysis` | 已实现，显式执行有界多语言 Agent 跨文件候选分析与证据校验 |
 | `GET /api/v1/projects/{project_id}/code-symbols` | 已实现，按名称/路径与仓库/类型检索已解析多语言代码符号 |
 | `GET /api/v1/sources/{source_id}/extraction` | 已实现，读取候选提取任务状态 |
 | `POST /api/v1/sources/{source_id}/extract` | 已实现，显式 DeepSeek 候选提取 |
@@ -408,6 +410,12 @@ Markdown 当前解析 ATX/Setext 标题、段落、列表和围栏代码块，�
 适用于状态为 `ready` 的支持代码来源。新语言返回 `language/has_syntax_errors/symbols`，关系数组为空；以下调用能力仅适用于 Java。返回最多 200 个 `type` / `field` / `method` 符号、最多 500 条同文件方法调用，并在同仓库最多 100 份已解析 Java 来源中返回有界跨文件类型关系、最多 500 个相关方法和 500 条跨文件调用；相关来源原文累计最多读取 20 MiB。未归属仓库的旧来源只在同项目的未归属集合中解析。每个符号包含稳定 `id`、名称、限定名、所属类型和包含式行号。同文件调用包含调用方、候选被调方法 ID、名称、行号及 `resolved` / `ambiguous` 状态。
 
 `related_types` 返回关系目标的稳定类型 ID、来源 ID、相对路径优先的 `source_path`、包限定名和行号；`type_relationships` 返回当前类型符号 ID、目标 ID 列表、源码中的目标名、`extends` / `implements`、声明行及 `resolved` / `ambiguous`。`related_methods` 返回跨文件目标方法的稳定 ID、来源、路径、所属包限定类型、方法限定名和行号；`cross_file_calls` 返回当前调用方 ID、目标方法 ID 列表、接收者、方法名、调用行及解析状态。解析遵循显式导入、同包和通配导入优先级，只返回能匹配同仓库已解析来源的目标；外部库、其他仓库和未解析文件不会伪造关系。同一路径的多个不可变版本若声明相同包限定类型，也会作为多个候选显示为 `ambiguous`。`truncated=true` 表示符号、调用、相关类型/方法、类型关系、跨文件调用或仓库来源至少一类达到上限。
+
+`POST /api/v1/sources/{source_id}/agent-call-analysis`
+
+该接口只接受已解析代码来源，无请求体。它从同仓库兼容语言族中读取最多 99 份 ready 来源和 20 MiB 原文，本地生成调用点及同名方法候选；最多把 100 个调用、每个 20 个目标候选交给配置的 DeepSeek 模型。Agent 必须为每个调用返回一条 `resolved/ambiguous/unresolved` 决定，只能选择服务器给定的目标 UUID。后端验证完整性、目标归属和数量语义，再从原文生成 `call_quote` 与 `related_symbols[].quote`。
+
+响应包含 `source_id,language,model,prompt_version,calls,related_symbols,scanned_source_count,detected_call_count,candidate_call_count,provider_call_count,truncated,has_syntax_errors`。每条调用包含可空 `caller_id`、目标 ID、接收者、名称、行列、精确调用行、解析状态、置信度和简短依据。没有候选时 `provider_call_count=0`、`model=null`。未配置返回 503 `CALL_AGENT_NOT_CONFIGURED`；供应商失败返回 503；非法/伪造输出返回 502；输入超过配置上限返回 413。结果同步且不持久化，不表示编译器认证或运行时动态分派，也不进入正式知识图谱。边界见 [ADR 0041](adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。
 
 Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同文件调用和跨文件候选共用作用域与实参数量筛选：支持普通块/if/else/while/try/catch/finally、带花括号的增强/传统 for 与资源 try。显式类型、构造器初始化 `var`、返回类型一致且可访问的仓库内静态工厂初始化 `var`、参数/字段及头部变量按词法范围解析；未知绑定阻止字段/类型回退。工厂支持完整 `Type.factory(...)` 及未限定名 `factory(...)`，后者优先当前/继承成员，再使用显式/通配静态导入；成员名称即使参数数量不符也阻止导入回退。精确当前类型的私有静态成员可由未限定名调用；所选导入所有者缺失、成员查找截断、类型限定名被受支持变量遮蔽或方法类型参数返回时保持未知。头部调用省略，循环/资源变量不会泄漏到块外或 catch/finally。
 

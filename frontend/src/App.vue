@@ -22,13 +22,14 @@ import {
   getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
   getKnowledgeHistory, inspectGovernance, listKnowledgeChanges, proposeKnowledgeChange, resolveKnowledgeChange,
   getJavaCodeStructure, getProjectSourceChunk,
+  analyzeAgentCalls,
   searchCodeSymbols,
   listRepositorySnapshots, listSnapshotFiles, importSnapshotCommit,
   importGithubWorkItems, listRepositories, resolveGithubRepository, resolveLocalRepository, syncGithubRepository,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
-  CandidateList, ExtractionResult, JavaCodeStructure, SourceRepositoryList, SourceUploadResult,
+  AgentCallAnalysis, CandidateList, ExtractionResult, JavaCodeStructure, SourceRepositoryList, SourceUploadResult,
   CodeSymbolHit, CodeSymbolSearchInput, CodeSymbolSearchResult,
   RepositorySnapshotList, RepositorySnapshotFileList, RepositorySnapshotFile, SourceRepository,
 } from './api/knowledgeAtlas'
@@ -179,6 +180,7 @@ const source = ref<ApiSource | null>(null)
 const task = ref<ProcessingTask | null>(null)
 const chunks = ref<SourceChunkList | null>(null)
 const codeStructure = ref<JavaCodeStructure | null>(null)
+const agentCallAnalysis = ref<AgentCallAnalysis | null>(null)
 const codeSearchResult = ref<CodeSymbolSearchResult | null>(null)
 const codeSearchLoading = ref(false)
 const codeSearchError = ref('')
@@ -302,14 +304,15 @@ async function openCodeSymbol(hit: CodeSymbolHit) {
   target?.scrollIntoView({ block: 'center', behavior: 'instant' })
 }
 const notice = ref('')
-const loading = reactive<IngestionLoading>({ projects: false, create: false, repositories: false, remote: false, sync: false, activity: false, commit: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false })
-const errors = reactive<IngestionErrors>({ projects: '', create: '', repositories: '', remote: '', sync: '', activity: '', commit: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '' })
+const loading = reactive<IngestionLoading>({ projects: false, create: false, repositories: false, remote: false, sync: false, activity: false, commit: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false, agent: false })
+const errors = reactive<IngestionErrors>({ projects: '', create: '', repositories: '', remote: '', sync: '', activity: '', commit: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '', agent: '' })
 let projectsRequest = 0
 let repositoriesRequest = 0
 let sourcesRequest = 0
 let detailRequest = 0
 let chunksRequest = 0
 let structureRequest = 0
+let agentCallRequest = 0
 let reviewsRequest = 0
 let reviewAction = 0
 const candidates = ref<CandidateList | null>(null)
@@ -564,14 +567,16 @@ function clearSourceSelection() {
   detailRequest++
   chunksRequest++
   structureRequest++
+  agentCallRequest++
   selectedSourceId.value = ''
   selectedTaskId.value = null
   source.value = null
   task.value = null
   chunks.value = null
   codeStructure.value = null
-  errors.detail = errors.task = errors.chunks = errors.structure = ''
-  loading.detail = loading.chunks = loading.structure = false
+  agentCallAnalysis.value = null
+  errors.detail = errors.task = errors.chunks = errors.structure = errors.agent = ''
+  loading.detail = loading.chunks = loading.structure = loading.agent = false
 }
 
 async function loadProjects(page = 1) {
@@ -848,6 +853,25 @@ async function loadCodeStructure() {
     if (request === structureRequest) errors.structure = errorMessage(error)
   } finally {
     if (request === structureRequest) loading.structure = false
+  }
+}
+
+async function runAgentCallAnalysis() {
+  const sourceId = selectedSourceId.value
+  if (!sourceId || loading.agent || source.value?.status !== 'ready') return
+  const request = ++agentCallRequest
+  loading.agent = true
+  errors.agent = ''
+  agentCallAnalysis.value = null
+  try {
+    const result = await analyzeAgentCalls(sourceId)
+    if (request === agentCallRequest && sourceId === selectedSourceId.value) {
+      agentCallAnalysis.value = result
+    }
+  } catch (error) {
+    if (request === agentCallRequest) errors.agent = errorMessage(error)
+  } finally {
+    if (request === agentCallRequest) loading.agent = false
   }
 }
 
@@ -1152,6 +1176,7 @@ function setTimeline(value: number) {
       :view="activeNav" :projects="projects" :project="project" :repositories="repositories" :sources="sources"
       :selected-source-id="selectedSourceId" :source="source" :task="task" :chunks="chunks"
       :code-structure="codeStructure"
+      :agent-call-analysis="agentCallAnalysis"
       :focused-chunk-id="focusedChunkId"
       :loading="loading" :errors="errors" :notice="notice"
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
@@ -1159,6 +1184,7 @@ function setTimeline(value: number) {
       @snapshots="loadSnapshots"
       @sources-page="loadSources" @select-source="selectSource" @upload="uploadFiles"
       @run="parseSource" @refresh="refreshSource" @chunks-page="loadChunks"
+      @analyze-calls="runAgentCallAnalysis"
       @graph="openProjectGraph"
     >
       <template #evidence-navigation>

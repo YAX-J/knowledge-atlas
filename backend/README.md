@@ -1,6 +1,6 @@
 # Knowledge Atlas Backend
 
-Multi-language V1 extends the existing Markdown/Java pipeline to Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: single-file/folder/GitHub imports, Worker, exact chunks, outlines and symbol search. New languages are syntax-only, with explicit syntax warnings, no execution, cross-file semantics or automatic graph writes. Explicit `rescan=true` discovers newly supported files in old complete same-commit snapshots. No migration; reinstall backend `.[dev]` for pinned parser dependencies. See [supported extensions and limits](../docs/MULTILANGUAGE_PARSING.md).
+Multi-language V1 extends the existing Markdown/Java pipeline to Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: single-file/folder/GitHub imports, Worker, exact chunks, outlines and symbol search. Parsing remains syntax-only and makes no model call. `POST /sources/{source_id}/agent-call-analysis` is an explicit bounded model action over same-repository server-curated candidates; output IDs and exact source lines are validated and never written to the formal graph. See [supported extensions and limits](../docs/MULTILANGUAGE_PARSING.md).
 
 [简体中文](README.zh-CN.md)
 
@@ -19,6 +19,7 @@ FastAPI service for Knowledge Atlas persistence, Markdown/Java ingestion, eviden
 - Reuse the original source/task on identical-byte uploads within a user's project, nullable repository, and source type, even if the filename changes.
 - Paginate stored chunks and safely repeat completed tasks or retry failed tasks.
 - Derive a bounded read-only Java outline with stable type/field/method symbols, unqualified or `this.` same-file call hints, repository-scoped cross-file `extends`/`implements` targets, and method calls through explicitly typed direct type, field, parameter, and method-local receivers; derived structure is not promoted into the formal graph.
+- Explicitly run one bounded Agent step over Java, Python, JavaScript/JSX, TypeScript/TSX, Go, C/C++, or C# call sites and same-repository declaration candidates. Candidate IDs and exact source-line evidence are server validated; empty candidate sets skip the provider and all results remain non-persistent.
 - Persist project, source, task, and candidate-knowledge records.
 - Promote confirmed candidates into scoped PostgreSQL entities, relationships, and evidence within the review transaction, with stable UUIDs, endpoint promotion, idempotent repeats, and legacy-confirmation replay.
 - Serve read-only project graph, entity-detail, and relationship-detail views with user/project/time scoping, node/edge limits, and server-calculated evidence lines.
