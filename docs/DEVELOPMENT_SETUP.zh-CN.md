@@ -1,5 +1,7 @@
 # Knowledge Atlas 开发环境配置
 
+完整 Windows 原生启动器、可选 nginx/API/Worker/pgvector Compose 及 CI 命令见[演示说明](DEMO.zh-CN.md)。前端 `npm ci` 安装锁定测试工具链，`npm run test:coverage` 运行组件/API 回归。后端 `pip install -e ".[dev,evaluation]"` 增加覆盖率与离线图表；这些检查不需供应商密钥，真实模型验收必须显式授权，且与人工评分分开记录。
+
 阶段六可复现实验项目和三组检索基线见[实验环境说明](../evaluation/README.zh-CN.md)。独立命令复用已迁移的本机 PostgreSQL，仅创建新 `[EVAL]` 项目，分别要求接受夹具和允许嵌入调用；`--validate-only` 无需数据库。不新增迁移或前端配置。
 
 多语言解析新增固定 Tree-sitter/语言 wheel。在 `backend` 运行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev]"` 更新依赖；不新增服务或迁移，安装后离线解析。详见[语言范围](MULTILANGUAGE_PARSING.zh-CN.md)。
@@ -13,7 +15,7 @@
 当前需要：
 
 - Git。
-- Node.js 20 或更高版本。
+- Node.js 22.12 或更高版本（建议 24 LTS）。
 - npm 10 或更高版本。
 - Python 3.12 或更高版本。
 - 本机原生安装的 PostgreSQL 和 pgvector。
@@ -50,7 +52,7 @@ npm run dev
 | `npm run build` | 执行 Vue TypeScript 检查并构建生产资源 |
 | `npm run preview` | 预览最近一次生产构建 |
 
-默认的演示图谱和问答使用本地 Mock 数据，不需要数据库或模型凭据。项目/资料导航、候选审核和项目图谱使用真实 API。需要修改 `VITE_API_BASE_URL` 时，将 `frontend/.env.example` 复制为 `frontend/.env`；设置 `VITE_DATA_SOURCE=api` 可默认打开资料工作台。修改环境变量后重启 Vite。这不会将演示图谱或问答切换为真实数据。
+演示图谱及其中的节点追问使用本地 Mock，不需凭据；项目/资料、候选审核、项目图谱和独立证据问答使用真实 API。配置 `VITE_API_BASE_URL` 时可将 `frontend/.env.example` 复制为 `frontend/.env`；`VITE_DATA_SOURCE=api` 默认打开资料页。环境变量变化后重启 Vite；此配置不会把演示图谱及节点追问转换为真实数据。
 
 ## 后端环境
 
@@ -127,7 +129,7 @@ npm run build
 - 候选提取、审核和旧确认补写。
 - 项目图谱加载、筛选、一跳/二跳邻域、详情证据，以及空数据和截断状态。
 - 关键词/语义模式切换、索引更新、未配置嵌入服务错误和索引覆盖数量。
-- 桌面和手机布局。
+- 桌面布局（不要求手机浏览器验收）。
 - 键盘焦点和面板滚动。
 
 ## 后端验证
@@ -148,7 +150,7 @@ python -m pytest
 | 服务 | 默认端口 | 用途 |
 | --- | --- | --- |
 | 前端 | `5173` | Vite 开发服务器 |
-| FastAPI | `8000` | REST 与流式 API |
+| FastAPI | `8000` | REST API（尚无流式响应） |
 | PostgreSQL | `5432` | 业务数据和 pgvector |
 
 上述端口是本机服务的默认值；已有数据库使用其他端口时，按实际值配置。API、Worker 和前端分别在本地终端运行。根目录 `compose.yaml` 仍作为可选容器方案保留，后端连接配置可通过环境变量覆盖。

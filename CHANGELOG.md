@@ -10,6 +10,10 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Optional bounded read-only tool Agent with validated function arguments, scoped source snapshots, execution traces and the compatible single-step default; ten-language, 50-case call gold set.
+- Approved real synthetic DeepSeek acceptance (112 requests), frozen-evidence answers, usage records, human blind-review packet/import and five reproducible scientific figures. Human semantic grades remain pending.
+- Fifteen Vue/API regression tests, coverage reporting, CI jobs, a native Windows demo launcher and an optional full frontend/API/Worker/pgvector Compose stack. Docker builds and hosted CI remain unverified locally.
+
 - Reproducible synthetic evaluation-project preparation through ordinary ingestion, parsing, audited confirmation and temporal review, with explicit annotation acceptance, new-project guards, all-or-nothing transactions and dataset/fixture/actual-graph fingerprints. Three-baseline orchestration explicitly builds embeddings, records provider attempts and per-hit graph diagnostics, and writes comparison tables without invoking an answer model. Dataset 1.0.1 fixes future evidence in a historical case; scoring protocol line-evidence-v2 accommodates formal quote trimming. See ADR 0042.
 
 - Explicit bounded Agent-assisted cross-file call analysis for Java, Python, JavaScript/JSX, TypeScript/TSX, Go, C/C++, and C#. The backend extracts same-repository call/declaration candidates, accepts only candidate IDs in strict model output, returns exact source-line evidence, skips the provider when no candidate exists, and never persists or promotes derived edges; the desktop workspace exposes loading, empty, error, retry, syntax-warning, and truncation states. See ADR 0041.

@@ -1,5 +1,7 @@
 # Knowledge Atlas
 
+毕业补强清单第 3—8 项已落地：10 种语言/50 题跨文件金标集、可选只读工具 Agent、112 次真实 DeepSeek 验收、5 组可复现图表、双语交付说明，以及前端测试/CI/完整本地启动环境。真实结果与限制见[实验报告](evaluation/results/2026-10-24-models/REPORT.zh-CN.md)，启动见[演示说明](docs/DEMO.zh-CN.md)。人工盲评仍待真实评审；Docker 构建与远端 CI 未在本机执行，不计作已验收。
+
 多语言解析 V1 已将原 Markdown/多语言代码导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。默认解析不调用模型；用户可在源码结构区显式运行受限 Agent，从同仓库静态候选中分析多语言跨文件调用。结果带原文行证据且不持久化、不自动入图。见[语言范围与限制](docs/MULTILANGUAGE_PARSING.zh-CN.md)及 [ADR 0041](docs/adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。
 
 面向个人开发者的时序知识图谱与可追溯 AI 问答平台。
@@ -94,7 +96,7 @@ Knowledge Atlas 将技术笔记、代码、项目文档和 Git 记录组织成�
 
 ### 前端
 
-环境要求：Node.js 20 或更高版本，npm 10 或更高版本。
+环境要求：Node.js 22.12 或更高版本（建议 24 LTS），npm 10 或更高版本。
 
 ```bash
 cd frontend
@@ -165,9 +167,9 @@ flowchart LR
 | --- | --- | --- |
 | 前端 | Vue 3、TypeScript、Vite、Element Plus | 图谱、证据、问答和时间视图 |
 | 后端 | FastAPI | 用户、项目、资料、知识和查询接口 |
-| 任务处理 | Python Worker | 文档解析、向量生成和知识抽取 |
-| Agent | LangGraph | 问题分类、检索规划、证据核验和回答 |
-| 业务、图谱与向量 | PostgreSQL、pgvector | 原文、分块、任务、审核、实体、关系与证据；规划中的历史演化和向量索引 |
+| 任务处理 | Python Worker | Markdown/代码语法解析与精确分块；模型与索引由独立显式操作触发 |
+| Agent | Python 有界 function-calling 循环 | 已授权快照上的只读工具调查与跨文件候选判定；不引入 LangGraph |
+| 业务、图谱与向量 | PostgreSQL、pgvector | 原文、任务、审核、实体、关系、证据、历史演化与显式向量索引均已实现 |
 | 运行环境 | 本机 PostgreSQL 与 Python/Node.js 进程；可选 Docker Compose | 本地开发与毕业设计演示环境 |
 
 当前不需要 Neo4j。节点、关系和证据已存储在 PostgreSQL；只有实际查询需求证明有必要时再评估独立图数据库，见 [ADR 0005](docs/adr/0005-postgresql-only-storage.zh-CN.md)。
@@ -254,4 +256,4 @@ knowledge-atlas/
 
 ## 项目状态说明
 
-本仓库目前处于“第一版证据问答”阶段。项目、资料、候选审核、项目图谱、三路混合检索和同步证据问答均已接入真实接口；演示图谱中的追问仍是 Mock。问答只使用检索到的正式证据并校验引用，当前不保存历史，也未引入 LangGraph。实体消歧、多轮 Agent、代表性真实问答质量、含非零关系得分的数据、PostgreSQL 并发/租约故障注入仍待专项验收。验收不依赖 Docker。
+本仓库处于毕业设计实验与交付阶段。项目、资料、审核、时序图谱、三路检索、同步证据问答和可选只读工具 Agent 已实现；演示图谱追问仍是 Mock。合成语料真实嵌入、冻结证据真实回答、跨语言 Agent 对比及原生 PostgreSQL 竞争/租约验收有独立记录。人工评分、代表性真实仓库模型质量、完整编译语义、实体消歧和多轮会话记忆尚未完成；不引入 LangGraph，不依赖 Docker 验收。

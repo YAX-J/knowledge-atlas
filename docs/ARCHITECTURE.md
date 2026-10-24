@@ -2,7 +2,7 @@
 
 多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。默认解析只做语法结构，不执行代码、不调用模型也不自动入图；独立显式 Agent 操作可在后端静态候选范围内分析跨文件调用。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。复用来源/任务/分块模型；仅缓存不可变语法 Language，每次解析独立 Parser，见 [ADR 0040](adr/0040-multilanguage-source-parsing.zh-CN.md) 与 [ADR 0041](adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。
 
-本文描述 Knowledge Atlas 的目标架构、组件边界和关键数据流。当前仓库已实现 Markdown 与多语言源码导入、显式有界的单轮 Agent 辅助跨文件调用分析、DeepSeek 候选抽取/审核、PostgreSQL 正式图谱、项目图谱、关键词/显式索引语义向量/一跳图关系混合检索，以及同步、非持久化的证据问答；实体消歧、完整代码语义和多轮规划 Agent 仍属于后续阶段。当前只使用 PostgreSQL/pgvector，暂缓引入 Neo4j，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。
+本文描述 Knowledge Atlas 的当前架构、组件边界和关键数据流。已实现多语言导入、显式单轮或有界只读工具 Agent、候选抽取/人工审核、PostgreSQL 图谱、关键词/向量/一跳混合检索与同步证据问答。实体消歧、完整代码语义、通用规划和多轮会话记忆尚未实现。当前只使用 PostgreSQL/pgvector，不引入 Neo4j 或 LangGraph，见 ADR 0005、[ADR 0043](adr/0043-bounded-read-only-tool-agent.zh-CN.md)。
 
 ## 架构目标
 
@@ -20,7 +20,7 @@
 ```mermaid
 flowchart TB
     subgraph Sources[开发知识来源]
-        S1[Markdown 与本地 Java 源码]
+        S1[Markdown 与多语言源码]
         S2[代码文件]
         S3[GitHub Repository]
         S4[Commit Issue Pull Request]
@@ -31,7 +31,7 @@ flowchart TB
         P2[代码结构分析]
         P3[LLM 实体关系抽取]
         P4[JSON Schema 校验]
-        P5[实体规范化与消歧]
+        P5[精确证据与候选校验]
         P6[人工确认]
     end
 
@@ -43,8 +43,9 @@ flowchart TB
     subgraph Services[应用服务]
         A1[FastAPI]
         A2[混合检索服务]
-        A3[LangGraph Agent]
-        A4[知识治理任务]
+        A3[同步证据回答]
+        A4[显式只读治理]
+        A5[独立有界工具 Agent]
     end
 
     subgraph Client[用户端]
@@ -59,16 +60,18 @@ flowchart TB
     S3 --> P1
     S4 --> P1
     S2 --> P2
-    P1 --> P3
-    P2 --> P3
+    P2 --> A5
+    P1 -->|用户显式抽取| P3
     P3 --> P4 --> P5 --> P6
     P6 --> DB1
-    P6 --> DB2
+    DB1 --> IDX[用户显式更新向量索引]
+    IDX --> DB2
     DB1 --> A2
     DB2 --> A2
     A2 --> A3
     A1 --> Client
     A3 --> A1
+    A5 --> A1
     DB1 --> A4
     DB1 --> A1
 ```
@@ -113,12 +116,7 @@ Java 结构/调用分析 V1 在既有原文上按需派生，不引入新库、�
 
 ### Worker
 
-耗时任务与 API 请求解耦执行。
-
-- 文本解析、代码结构提取和内容分块。
-- 内容哈希与增量更新判断。
-- 向量生成和索引更新。
-- LLM 抽取、实体消歧和治理检测。
+当前 Worker 仅执行排队的 Markdown/代码语法解析和原文分块。向量索引、LLM 抽取、只读治理和工具 Agent 均由独立显式 API 操作触发，不由解析 Worker 消费。实体消歧尚未实现。
 
 当前实现为 `backend/app/worker.py` 独立进程，轮询数据库中的 Markdown 与 Java 解析任务，不引入消息代理。查询限定用户及有效项目，并校验来源的用户/项目边界。租约过期后可重新认领，成功与失败写入都必须匹配当前执行 UUID，因此旧进程无法覆盖新执行结果。过期任务达到尝试次数上限后转为失败。租约固定、尚无心跳；超长任务可能计算重叠，但持久化结果有执行标识保护。向量和模型抽取不由解析 Worker 消费。
 
@@ -172,10 +170,12 @@ sequenceDiagram
     API-->>User: 返回 task_id
     Worker->>DB: 读取待处理任务
     Worker->>Worker: 解析 分块 计算哈希
-    Worker->>LLM: 请求结构化抽取
-    LLM-->>Worker: 返回候选实体与关系
-    Worker->>Worker: Schema 校验与实体消歧
-    Worker->>DB: 保存候选结果
+    Worker->>DB: 保存精确分块并完成解析任务
+    User->>API: 显式请求候选抽取
+    API->>LLM: 发送有界分块与固定输出协议
+    LLM-->>API: 返回候选实体与关系
+    API->>API: Schema 与逐字证据校验
+    API->>DB: 保存待审核候选
     User->>API: 确认或修正候选知识
     API->>DB: 同一事务提交正式节点、关系、证据与审核状态
 ```
@@ -224,7 +224,7 @@ GitHub 快照缓存按来源类型与兼容解析任务复用，校验快照、�
 ## 待确认的架构决策
 
 - 后续长耗时抽取任务的心跳、取消和队列扩展策略（当前数据库轮询 Worker 见 ADR 0004）。
-- 代码解析使用 Tree-sitter 还是按语言分别实现。
+- 已选定 Java 保守专用分析与其他语言 Tree-sitter 语法解析；后续是否引入构建上下文/语言服务另做决策。
 - 在线模型与 Ollama 的统一适配接口。
 - PostgreSQL 图关系表的索引、递归查询与实际数据下的性能边界。
 - 混合检索固定权重的实验评估与调优策略。

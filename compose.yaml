@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: knowledge_atlas
       POSTGRES_PASSWORD: knowledge_atlas
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${KA_POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -26,13 +26,19 @@ services:
       CORS_ORIGINS: '["http://localhost:5173"]'
       TASK_LEASE_SECONDS: "300"
       TASK_MAX_ATTEMPTS: "3"
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
     command: >-
       sh -c "alembic upgrade head &&
       uvicorn app.main:app --host 0.0.0.0 --port 8000"
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${KA_API_PORT:-8000}:8000"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/live', timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=2)"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -55,6 +61,36 @@ services:
       api:
         condition: service_healthy
     stop_grace_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "127.0.0.1:${KA_FRONTEND_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  demo-init:
+    profiles: ["demo"]
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://knowledge_atlas:knowledge_atlas@postgres:5432/knowledge_atlas
+    command: >-
+      python -m scripts.prepare_evaluation --dataset /evaluation
+      --output-dir /reports/preparation --accept-curated-fixture
+    volumes:
+      - ./evaluation:/evaluation:ro
+      - ./output/demo:/reports
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   postgres-data:

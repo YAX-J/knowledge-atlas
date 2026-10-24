@@ -1,5 +1,7 @@
 # Knowledge Atlas 后端
 
+毕业补强清单 3—8 新增 `POST /sources/{source_id}/agent-call-analysis?strategy=tools`，默认兼容 `single_step`。只读快照工具最多 4 轮模型/8 次工具，结果继续校验且不持久化，见 [ADR 0043](../docs/adr/0043-bounded-read-only-tool-agent.zh-CN.md)。覆盖率与图表安装 `.[dev,evaluation]`；`scripts.model_acceptance` 需显式模型授权，`scripts.render_experiments` 与 `scripts.import_grades` 离线运行。真实合成结果与待人工评分见[报告](../evaluation/results/2026-10-24-models/REPORT.zh-CN.md)，原生/可选 Compose 完整演示与 CI 见[交付说明](../docs/DEMO.zh-CN.md)。
+
 阶段六可运行 `python -m scripts.prepare_evaluation --dataset ../evaluation --validate-only`，再添加 `--output-dir ../output/evaluation/preparation --accept-curated-fixture`，经普通解析/审核服务新建合成实验项目。`python -m scripts.run_baselines` 显式建立索引并对比关键词/向量/混合纯检索，不调用回答模型。拒绝已有项目/输出，记录实际图谱/索引指纹。前置迁移 `20261023_0015`，完整参数、标注与边界见[实验说明](../evaluation/README.zh-CN.md)和 ADR 0042。
 
 多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#。默认解析只做语法结构且不调用模型；`POST /sources/{source_id}/agent-call-analysis` 是显式有界模型操作，只能从同仓库后端候选中选择目标，返回 ID 与精确源码行会再次校验，且不写正式图谱。见[扩展名和边界](../docs/MULTILANGUAGE_PARSING.zh-CN.md)。

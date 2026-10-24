@@ -1,5 +1,7 @@
 # Knowledge Atlas 开发路线与验收标准
 
+2026-10-24 最新交付检查点：毕业补强清单 3—8 的代码、真实模型自动验收、图表、文档、测试与本地演示已交付；人工盲评仍待真实评审，Docker/远端 CI 待对应环境验证。完整范围见 [PLANS](../PLANS.zh-CN.md)、[真实实验报告](../evaluation/results/2026-10-24-models/REPORT.zh-CN.md)和[演示](DEMO.zh-CN.md)。下文旧检查点的“暂缓模型”仅是历史记录；本轮授权不延伸到后续无限调用。
+
 多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。默认解析不调用模型；用户可显式运行有界 Agent，在同仓库静态候选中分析跨文件调用，后端校验候选 ID 与精确源码行，结果不持久化、不自动入图。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。详见[多语言说明](MULTILANGUAGE_PARSING.zh-CN.md)与 [ADR 0041](adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。不代表真实模型或毕业实验已验收。
 
 路线以先完成端到端闭环、再扩展数据源和高级能力为原则。用户批准的阶段四有界代码/GitHub 核心与阶段五人工时序/只读治理已实现并完成本轮功能验收：40 文件集成、公开 petclinic 的 30 文件截断导入、原生 PostgreSQL 竞争/恢复和桌面走查通过。真实模型/嵌入按用户选择暂缓，完整 Java 编译语义、私有授权、Webhook 和论文实验不算完成。实际证据及限制见[核心功能验收](CORE_ACCEPTANCE.zh-CN.md)。

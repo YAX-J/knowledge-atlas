@@ -120,7 +120,7 @@ Token：
 - `npm run build` 必须通过。
 - 浏览器仅桌面宽度走查：加载、空、错误、重试、分页、长文本、键盘焦点、面板滚动；按仓库 AGENTS.md，不要求手机验收。
 - 涉及真实接口时启动后端；涉及抽取时说明用的是模拟响应还是真实模型。
-- 当前没有组件单测和端到端脚本；不要声称有自动化 UI 测试。
+- 现有 Vitest/jsdom + Vue Test Utils 组件/API 单测，运行 `npm run test:coverage`；覆盖范围见 vitest.config.ts，不冒称全站端到端回归。
 
 ## 不要做
 
