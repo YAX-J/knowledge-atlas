@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://knowledge-atlas.local/evaluation/prediction.schema.json",
+  "title": "Knowledge Atlas evaluation prediction",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "retrieved_evidence", "citations", "answer", "supported", "latency_ms"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "retrieved_evidence": {"$ref": "#/$defs/evidenceList"},
+    "citations": {"$ref": "#/$defs/evidenceList"},
+    "answer": {"type": ["string", "null"]},
+    "supported": {"type": ["boolean", "null"]},
+    "latency_ms": {"type": "number", "minimum": 0},
+    "answer_correct": {"type": ["boolean", "null"]},
+    "explainability_score": {"type": ["number", "null"], "minimum": 1, "maximum": 5}
+  },
+  "$defs": {
+    "evidenceList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "start_line", "end_line", "quote"],
+        "properties": {
+          "source": {"type": "string", "pattern": "^corpus/"},
+          "start_line": {"type": "integer", "minimum": 1},
+          "end_line": {"type": "integer", "minimum": 1},
+          "quote": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

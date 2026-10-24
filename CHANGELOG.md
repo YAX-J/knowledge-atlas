@@ -10,6 +10,9 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- A frozen Stage 6 V1 evaluation set with 30 synthetic document/code/Git sources and 40 stratified Chinese questions covering direct facts, cross-document reasoning, code location, temporal history, and grounded refusal. Line-exact gold evidence, answers, schemas, fingerprints, deterministic validation, prediction scoring, manual grading coverage, and bilingual experiment instructions are included; no provider call or real-quality claim is made.
+- A guarded experiment runner for keyword, vector, and hybrid modes. It requires an exact isolated corpus snapshot, complete vector coverage, explicit provider authorization, and corpus-bounded evidence; it writes non-overwriting run manifests, complete or partial predictions, immediate metrics, latency, and provider-call counts without secrets or raw provider responses.
+
 - Multi-language upload/folder/GitHub/Worker parsing for Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: lossless bounded chunks, deterministic outlines/search, language badges and syntax warnings. Optional GitHub `rescan` discovers new extensions in old complete snapshots while reusing blobs. Java analysis and review authority stay unchanged; see ADR 0040.
 
 - Configurable GitHub scan file budget (`GITHUB_IMPORT_MAX_FILES`, 1–50, default unchanged at 50), with explicit truncation and same-commit recovery when increased, reducing anonymous-request pressure without requiring a token.

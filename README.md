@@ -188,6 +188,7 @@ knowledge-atlas/
 │  ├─ src/components/       # 搜索、图谱、侧栏和时间轴组件
 │  ├─ src/mock/             # 本地演示数据
 │  └─ src/types.ts          # 前端领域类型
+├─ evaluation/               # 阶段六冻结语料、金标准问题/证据/答案及评分说明
 ├─ docs/
 │  ├─ adr/                  # 重要技术决策记录
 │  ├─ ARCHITECTURE.md       # 目标架构与关键数据流
@@ -218,6 +219,7 @@ knowledge-atlas/
 - [开发者知识模型](docs/KNOWLEDGE_MODEL.md)
 - [前后端接口草案](docs/API_CONTRACT.md)
 - [开发路线与验收标准](docs/ROADMAP.md)
+- [阶段六测评集与实验运行](evaluation/README.zh-CN.md) · [English](evaluation/README.md)
 - [当前实施计划](PLANS.zh-CN.md) · [English](PLANS.md)
 - [贡献与协作规范](CONTRIBUTING.zh-CN.md) · [English](CONTRIBUTING.md)
 - [版本变化记录](CHANGELOG.zh-CN.md) · [English](CHANGELOG.md)

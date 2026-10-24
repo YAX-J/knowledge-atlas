@@ -30,6 +30,7 @@ Completed:
 - Explicit 1024-dimensional formal-entity semantic indexing, pgvector cosine retrieval, content-hash reuse, and frontend keyword/vector mode switching.
 - Explainable hybrid retrieval with fixed keyword/vector/one-hop graph weights, bounded candidates, visible-relationship filtering, and per-hit score composition.
 - Synchronous evidence-grounded questions with bounded hybrid retrieval, strict DeepSeek output, application-validated citation UUIDs, and a real frontend workspace.
+- A frozen Stage 6 evaluation set with 30 synthetic sources and 40 direct, cross-document, code-location, temporal, and unanswerable questions; every answerable case has line-exact gold evidence, a gold answer, deterministic validation, and prediction scoring for retrieval, citations, answer review, latency, and explainability.
 - Local UTF-8 Java source upload with deterministic `code`/`comment`/`type`/`method` chunks, exact source lines, and reuse of the existing parsing worker and evidence pipeline.
 - Separate desktop single-file and folder-upload entry points; folders contribute up to 50 supported Markdown/Java files, uploaded sequentially with persisted relative paths, per-file deduplication, and partial-success retention.
 - Bounded repository-scoped Java `extends`/`implements` resolution across ready sources using package and import rules, shown with target paths and lines outside the formal graph.
@@ -47,6 +48,8 @@ Completed:
 - Repository-local Java structure/call analysis V1 bundles lexical/header scopes (classic for and resource try included), inherited candidates, and conservative arity filtering. See [V1 acceptance scope](docs/JAVA_ANALYSIS_V1.md) and [ADR 0029](docs/adr/0029-java-analysis-v1.md). This does not complete all Stage 4 GitHub/semantic work.
 
 ## Active phase
+
+Stage 6 evaluation-set construction is complete as a reproducible synthetic V1. The corpus and gold cases are under `evaluation/`; `python -m scripts.evaluate_dataset` validates exact evidence and scores complete prediction exports. A guarded experiment runner now prepares keyword, vector and hybrid prediction/metric artifacts from one exact 30-source project snapshot, requiring explicit provider-call flags and refusing incomplete vector indexes or evidence outside the corpus. Real-service runs, human grading, experiment charts, and real-provider quality conclusions remain pending and must use the frozen dataset version and fingerprint.
 
 User-approved completion scope (2026-10-23): finish Stage 4 code/GitHub core, Stage 5 temporal/governance, then integrated acceptance. Reviewed cross-source evolution, temporal graph/search UI and read-only governance are now implemented (ADR 0039, head `20261023_0015`). A 40-file synthetic repository integration and isolated native PostgreSQL contention/lease checks are available. Real public petclinic acceptance passed with a 30-file truncated budget; private-token and model/embedding-quality acceptance remain deferred. See [core acceptance](docs/CORE_ACCEPTANCE.md). The following paragraphs record the Stage 4 implementation baseline, not additional mandatory Java/compiler scope.
 

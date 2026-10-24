@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://knowledge-atlas.local/evaluation/case.schema.json",
+  "title": "Knowledge Atlas evaluation case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "category",
+    "question",
+    "answerable",
+    "valid_at",
+    "gold_answer",
+    "required_facts",
+    "gold_evidence",
+    "expected_entities",
+    "expected_relations"
+  ],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z]+-[0-9]{3}$"},
+    "category": {
+      "enum": ["direct_fact", "cross_document", "code_location", "temporal", "unanswerable"]
+    },
+    "question": {"type": "string", "minLength": 1, "maxLength": 200},
+    "answerable": {"type": "boolean"},
+    "valid_at": {"type": ["string", "null"], "format": "date-time"},
+    "gold_answer": {"type": "string", "minLength": 1},
+    "required_facts": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "gold_evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "start_line", "end_line", "quote"],
+        "properties": {
+          "source": {"type": "string", "pattern": "^corpus/"},
+          "start_line": {"type": "integer", "minimum": 1},
+          "end_line": {"type": "integer", "minimum": 1},
+          "quote": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "expected_entities": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "expected_relations": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    }
+  }
+}

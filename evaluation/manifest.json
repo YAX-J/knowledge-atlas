@@ -1,0 +1,18 @@
+{
+  "dataset_id": "knowledge-atlas-eval-v1",
+  "version": "1.0.0",
+  "language": "zh-CN",
+  "created_at": "2026-10-24",
+  "source_count": 30,
+  "case_count": 40,
+  "category_counts": {
+    "direct_fact": 16,
+    "cross_document": 8,
+    "code_location": 6,
+    "temporal": 6,
+    "unanswerable": 4
+  },
+  "corpus_root": "corpus",
+  "cases_file": "cases.jsonl",
+  "license": "Synthetic repository-local evaluation material"
+}
