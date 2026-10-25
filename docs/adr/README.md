@@ -117,3 +117,9 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [0048: Relation review dependency visibility](0048-review-endpoint-visibility.md)
 
 - [0049: Filtered source discovery and recoverable pagination](0049-source-discovery-filters.md)
+
+- [0050: Durable index rebuilds and uncertain outcomes](0050-durable-index-rebuilds.md)
+
+- [0051: Optional source-aware lexical retrieval](0051-source-aware-lexical-retrieval.md)
+
+- [0052: Verified native backup and guarded restore](0052-verified-native-backups.md)

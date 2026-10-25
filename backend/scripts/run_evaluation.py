@@ -42,7 +42,7 @@ from scripts.evaluate_dataset import (
 from scripts.evaluation_snapshot import project_snapshot
 
 
-Mode = Literal["keyword", "bm25", "vector", "hybrid", "rrf"]
+Mode = Literal["keyword", "bm25", "bm25_source", "vector", "hybrid", "rrf"]
 MAX_ANSWER_EVIDENCE = 12
 
 
@@ -279,7 +279,7 @@ def run_evaluation(
     manifest, cases, dataset_summary = validate_dataset(dataset_root)
     if len(modes) != len(set(modes)):
         raise EvaluationRunError("Modes must not contain duplicates")
-    if not modes or set(modes) - {'keyword', 'bm25', 'vector', 'hybrid', 'rrf'}:
+    if not modes or set(modes) - {'keyword', 'bm25', 'bm25_source', 'vector', 'hybrid', 'rrf'}:
         raise EvaluationRunError("Choose at least one supported retrieval mode")
     uses_embeddings = any(mode in {"vector", "hybrid", "rrf"} for mode in modes)
     if uses_embeddings and not allow_embedding_calls:
@@ -313,7 +313,7 @@ def run_evaluation(
             "answer": settings.deepseek_model if with_answers else None,
         },
         "successful_provider_call_counts": {"embedding": 0, "answer": 0},
-        "retrieval_protocols": {mode: lexical.PROTOCOL if mode == 'bm25' else 'bm25-vector-rrf-v1' if mode == 'rrf' else 'legacy-v1' for mode in modes},
+        "retrieval_protocols": {mode: 'mixed-bm25-source-v1' if mode == 'bm25_source' else lexical.PROTOCOL if mode == 'bm25' else 'bm25-vector-rrf-v1' if mode == 'rrf' else 'legacy-v1' for mode in modes},
         "outputs": {},
     }
     manifest_path = output_dir / "run.json"
@@ -394,7 +394,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--modes",
         nargs="+",
-        choices=("keyword", "bm25", "vector", "hybrid", "rrf"),
+        choices=("keyword", "bm25", "bm25_source", "vector", "hybrid", "rrf"),
         default=["keyword"],
         help="Experiment modes; default keyword makes no provider calls",
     )

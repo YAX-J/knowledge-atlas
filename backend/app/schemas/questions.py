@@ -18,7 +18,7 @@ class StrictModel(BaseModel):
 class QuestionCreate(StrictModel):
     question: QuestionText
     valid_at: AwareDatetime | None = None
-    retrieval_mode: Literal['hybrid', 'rrf', 'vector', 'bm25'] = 'hybrid'
+    retrieval_mode: Literal['hybrid', 'rrf', 'vector', 'bm25', 'bm25_source'] = 'hybrid'
 
 
 class AnswerDraft(StrictModel):
@@ -56,7 +56,7 @@ class RetrievalSummary(BaseModel):
     graph_hits: int
     indexed_count: int
     eligible_count: int
-    mode: Literal['hybrid', 'rrf', 'vector', 'bm25'] = 'hybrid'
+    mode: Literal['hybrid', 'rrf', 'vector', 'bm25', 'bm25_source'] = 'hybrid'
     bm25_hits: int = 0
     unique_evidence_count: int = 0
     duplicate_evidence_count: int = 0

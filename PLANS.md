@@ -1,5 +1,7 @@
 # Knowledge Atlas Implementation Plan
 
+Optimization items 1–3 are implemented: durable index-operation ownership/recovery, opt-in source-aware lexical retrieval with separate diagnostics, and verified native backup/schema recovery. Migration head is `20261025_0016`. Full fresh-database restore requires privileges absent from the current role; see [acceptance](docs/RELIABILITY_RETRIEVAL_RECOVERY_20261025.md).
+
 Source discovery filters and recoverable source pagination are implemented (ADR 0049), preserving opened originals and provider-free reads. See [acceptance](docs/SOURCE_FILTERS_20261025.md).
 
 Relation review dependency snapshots and pre-submit guidance are implemented (ADR 0048), preserving explicit batch selection and backend final validation. See [acceptance](docs/REVIEW_DEPENDENCIES_20261025.md).

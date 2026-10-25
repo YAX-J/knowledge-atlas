@@ -44,6 +44,17 @@ describe('evidence questions', () => {
 })
 
 describe('knowledge search', () => {
+  it('uses explicit interrupted rebuild recovery and supports source-aware BM25', async () => {
+    const wrapper = mount(KnowledgeSearch, { props: { ...searchProps, embeddingJob: {
+      id: 'job', project_id: project.id, status: 'running', interrupted: true, started_at: project.created_at,
+      lease_expires_at: project.created_at, completed_at: null, result: null, error: null } } })
+    await wrapper.findAll('button').find(button => button.text() === '明确重新更新索引')!.trigger('click')
+    expect(wrapper.emitted('rebuild')).toEqual([[true]])
+    await wrapper.get('input').setValue('src/InvoiceStore.py')
+    await wrapper.get('#project-search-mode').setValue('bm25_source')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('search')).toEqual([['src/InvoiceStore.py', '', 'bm25_source']])
+  })
   it('shows stale content despite full index coverage and refreshes without rebuilding', async () => {
     const wrapper = mount(KnowledgeSearch, { props: { ...searchProps, indexStatus: {
       model: 'test-model', dimensions: 1024, configured: true, checked_at: project.created_at,

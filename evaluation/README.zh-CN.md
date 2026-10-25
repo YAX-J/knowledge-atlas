@@ -189,3 +189,7 @@ evaluation/
 - 平均可解释性评分及评分覆盖率。
 
 评分器要求预测文件覆盖全部 40 个问题，防止通过漏交困难样本抬高结果。纯检索文件的答案指标为 `null` 且覆盖率为 0；必要事实覆盖率只是确定性辅助指标，不能替代人工答案正确率。
+
+## 可选来源位置模式
+
+`scripts.run_evaluation --modes bm25 bm25_source` 可在新输出目录进行零供应商比较，默认值和旧协议不变。见[诊断](results/2026-10-25-source-mode/README.zh-CN.md)与[新增功能案例](regressions/source-location-v1/README.zh-CN.md)，均不提供真实人工回答质量评分。

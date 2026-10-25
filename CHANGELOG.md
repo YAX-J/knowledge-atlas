@@ -10,6 +10,9 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Persisted server-side index rebuild ownership, refresh recovery and explicit interrupted retry, with uncertain-result transport errors and bounded model request budgets.
+- Optional source-aware BM25 plus new regression/diagnostic artifacts; verified PostgreSQL snapshot backup and guarded fresh-target recovery tools.
+
 - Source filename/path, language and parsing-state filters apply before pagination; filtering preserves the opened original source and explains when it is absent from the current results. Failed source pages retry their requested page, and disappeared pages recover to the last valid page.
 
 - Relation review cards display scoped endpoint names/statuses across filtering and pagination, with entity-list navigation and named batch dependency explanations before final confirmation.

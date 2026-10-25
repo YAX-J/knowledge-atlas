@@ -6,17 +6,19 @@ const props = defineProps<{
   result: KnowledgeSearchResult | null
   loading: boolean
   error: string
-  errorAction: 'search' | 'rebuild'
+  errorAction: 'search' | 'rebuild' | 'inspect'
   labels: Record<string, string>
   rebuilding: boolean
   notice: string
   indexStatus?: EmbeddingIndexStatus | null
   indexStatusLoading?: boolean
   indexStatusError?: string
+  embeddingJob?: import('../types').EmbeddingJob | null
+  embeddingJobError?: string
 }>()
 const emit = defineEmits<{
   search: [query: string, types: string, mode: KnowledgeSearchMode]
-  rebuild: []
+  rebuild: [retryInterrupted?: boolean]
   clear: []
   retry: []
   select: [id: string]
@@ -26,8 +28,8 @@ const emit = defineEmits<{
 const query = ref('')
 const type = ref('')
 const mode = ref<KnowledgeSearchMode>('keyword')
-const fields = { name: '名称', summary: '摘要', evidence: '原文证据' }
-const modeLabels: Record<KnowledgeSearchMode, string> = { keyword: '关键词检索', bm25: 'BM25 词法检索 · 无需模型', vector: '语义检索', hybrid: '混合检索', rrf: 'BM25 + 向量融合' }
+const fields = { name: '名称', summary: '摘要', evidence: '原文证据', provenance: '来源位置' }
+const modeLabels: Record<KnowledgeSearchMode, string> = { keyword: '关键词检索', bm25: 'BM25 词法检索 · 无需模型', bm25_source: 'BM25 + 来源位置 · 无需模型', vector: '语义检索', hybrid: '混合检索', rrf: 'BM25 + 向量融合' }
 function submit() { if (!props.loading && !props.rebuilding && query.value.trim()) emit('search', query.value.trim(), type.value, mode.value) }
 function clear() { query.value = type.value = ''; mode.value = 'keyword'; emit('clear') }
 </script>
@@ -38,14 +40,22 @@ function clear() { query.value = type.value = ''; mode.value = 'keyword'; emit('
     <p class="search-hint">关键词模式按空格分词精确匹配；BM25 支持中英混合问题，无需模型或语义索引。语义与混合模式需要配置嵌入服务、先更新索引；混合结果包含一跳关系得分；BM25 + 向量融合按两路排名组合，不扩展图邻居。</p>
     <form class="knowledge-search-form" @submit.prevent="submit">
       <label class="query-label" for="project-knowledge-query">{{ mode === 'keyword' ? '关键词' : '问题或描述' }}<input id="project-knowledge-query" v-model="query" type="search" name="q" maxlength="200" required :placeholder="mode === 'keyword' ? '例如：PostgreSQL 存储' : '例如：如何保存并检索个人技术知识？'" /></label>
-      <label for="project-search-mode">检索方式<select id="project-search-mode" v-model="mode"><option value="keyword">关键词</option><option value="bm25">BM25 · 无需模型</option><option value="vector">语义向量</option><option value="hybrid">混合 + 图关系</option><option value="rrf">BM25 + 向量融合</option></select></label>
+      <label for="project-search-mode">检索方式<select id="project-search-mode" v-model="mode"><option value="keyword">关键词</option><option value="bm25">BM25 · 无需模型</option><option value="bm25_source">BM25 + 来源位置</option><option value="vector">语义向量</option><option value="hybrid">混合 + 图关系</option><option value="rrf">BM25 + 向量融合</option></select></label>
       <label for="project-search-type">知识类型<select id="project-search-type" v-model="type"><option value="">全部类型</option><option v-for="(label, value) in labels" :key="value" :value="value">{{ label }}</option></select></label>
       <button type="submit" :disabled="loading || rebuilding || !query.trim()">{{ loading ? '搜索中…' : '搜索知识' }}</button>
-      <button type="button" :disabled="loading || rebuilding" @click="emit('rebuild')">{{ rebuilding ? '更新索引中…' : '更新语义索引' }}</button>
+      <button type="button" :disabled="loading || rebuilding || embeddingJob?.interrupted" @click="emit('rebuild')">{{ rebuilding ? '更新索引中…' : '更新语义索引' }}</button>
       <button type="button" @click="clear">清空搜索</button>
     </form>
     <section class="index-status" aria-label="语义索引状态">
-      <button type="button" :disabled="indexStatusLoading || rebuilding" @click="emit('inspectIndex')">{{ indexStatusLoading ? '检查索引中…' : '刷新索引状态' }}</button>
+      <button type="button" :disabled="indexStatusLoading" @click="emit('inspectIndex')">{{ indexStatusLoading ? '检查索引中…' : '刷新索引状态' }}</button>
+      <p v-if="embeddingJobError" role="alert">更新状态暂不可读：{{ embeddingJobError }} 请先刷新状态再决定是否重新更新。</p>
+      <template v-if="embeddingJob">
+        <p v-if="embeddingJob.interrupted" role="status">上次更新已中断或失去联系。已有索引会保留；重新更新可能再次产生嵌入调用。</p>
+        <p v-else-if="embeddingJob.status === 'running'" role="status">服务端仍在更新索引，刷新页面不会取消。可刷新状态查看结果。</p>
+        <p v-else-if="embeddingJob.status === 'succeeded'" role="status">上次索引更新已完成：新增或刷新 {{ embeddingJob.result?.updated_count ?? 0 }} 条。</p>
+        <p v-else role="status">上次索引更新未完成：{{ embeddingJob.error?.message }}</p>
+        <button v-if="embeddingJob.interrupted" type="button" :disabled="rebuilding || loading" @click="emit('rebuild', true)">明确重新更新索引</button>
+      </template>
       <p v-if="indexStatusError" role="alert">{{ indexStatusError }} 请刷新索引状态重试。</p>
       <template v-else-if="indexStatus && !indexStatusLoading">
         <p role="status">当前项目与时间范围：已索引 {{ indexStatus.indexed_count }}/{{ indexStatus.eligible_count }} 条，缺失 {{ indexStatus.missing_count }} 条；已检查 {{ indexStatus.scanned_count }} 条，发现 {{ indexStatus.stale_count }} 条内容过期。<span v-if="indexStatus.truncated">检查达到 {{ indexStatus.scan_limit }} 条上限，尚有知识未检查。</span></p>
@@ -57,7 +67,7 @@ function clear() { query.value = type.value = ''; mode.value = 'keyword'; emit('
     </section>
     <p v-if="notice" class="search-notice" role="status">{{ notice }}</p>
     <p v-if="loading" class="search-hint" role="status">正在检索当前项目…</p>
-    <div v-else-if="error" class="search-error" role="alert"><p>{{ error }}</p><button type="button" @click="errorAction === 'rebuild' ? emit('rebuild') : emit('retry')">{{ errorAction === 'rebuild' ? '重试更新索引' : '重试搜索' }}</button></div>
+    <div v-else-if="error" class="search-error" role="alert"><p>{{ error }}</p><button type="button" @click="errorAction === 'inspect' ? emit('inspectIndex') : errorAction === 'rebuild' ? emit('rebuild') : emit('retry')">{{ errorAction === 'inspect' ? '查看更新状态' : errorAction === 'rebuild' ? '重试更新索引' : '重试搜索' }}</button></div>
     <template v-else-if="result">
       <p class="search-hint" role="status">“{{ result.query }}”：显示 {{ result.items.length }} 条知识<span v-if="result.truncated">，结果或扫描范围已截断，请补充条件</span><span v-if="result.mode === 'vector' || result.mode === 'hybrid' || result.mode === 'rrf'">；已索引 {{ result.indexed_count }}/{{ result.eligible_count }} 条</span>。</p>
       <p v-if="result.lexical" class="search-hint">本地词法扫描 {{ result.lexical.scanned_count }}/{{ result.eligible_count }} 条正式知识；最多 {{ result.lexical.entity_limit }} 条，每条排序文本最多 {{ result.lexical.text_limit_per_entity }} 字符。BM25 得分不是置信度；支持性答案仍需核对证据。<span v-if="result.lexical.truncated_reasons.length"> 部分排序文本或候选未参与计算。</span></p>
@@ -67,7 +77,7 @@ function clear() { query.value = type.value = ''; mode.value = 'keyword'; emit('
           <div class="hit-heading"><button type="button" @click="emit('select', hit.entity.id)">{{ hit.entity.name }}</button><span>{{ labels[hit.entity.type] ?? hit.entity.type }}</span></div>
           <p class="hit-summary">{{ hit.entity.summary }}</p>
           <p v-if="result.mode === 'keyword'" class="hit-meta">命中：{{ hit.matched_fields.map(field => fields[field]).join('、') }} · 关键词得分 {{ hit.keyword_score }}</p>
-          <p v-else-if="result.mode === 'bm25'" class="hit-meta">命中：{{ hit.matched_fields.map(field => fields[field]).join('、') }} · BM25 得分 {{ (hit.bm25_score ?? 0).toFixed(3) }}</p>
+          <p v-else-if="(result.mode === 'bm25' || result.mode === 'bm25_source')" class="hit-meta">命中：{{ hit.matched_fields.map(field => fields[field]).join('、') }} · BM25 得分 {{ (hit.bm25_score ?? 0).toFixed(3) }}</p>
           <p v-else-if="result.mode === 'vector'" class="hit-meta">向量相似度 {{ ((hit.vector_score ?? 0) * 100).toFixed(1) }}%</p>
           <p v-else-if="result.mode === 'rrf'" class="hit-meta">融合得分 {{ hit.rrf_score?.toFixed(5) }} · 词法排名 {{ hit.lexical_rank ?? '未命中' }} · 向量排名 {{ hit.vector_rank ?? '未命中' }}。排名不表示答案可信度。</p>
           <p v-else class="hit-meta">融合得分 {{ ((hit.hybrid_score ?? 0) * 100).toFixed(1) }} · 关键词 {{ ((hit.keyword_component ?? 0) * 100).toFixed(1) }}% · 向量 {{ ((hit.vector_component ?? 0) * 100).toFixed(1) }}% · 图关系 {{ ((hit.graph_score ?? 0) * 100).toFixed(1) }}%</p>

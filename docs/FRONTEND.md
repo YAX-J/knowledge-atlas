@@ -1,5 +1,7 @@
 # Knowledge Atlas 前端开发说明
 
+搜索模块读取持久化更新任务，跨页面刷新恢复 running/succeeded/failed/interrupted 显示，状态读取期间保留运行锁。ApiError 区分 READ_UNAVAILABLE 与 REQUEST_RESULT_UNKNOWN；未知更新结果转向状态查询，过期任务有明确重新更新按钮。向量检索/问答/单步 Agent/工具 Agent 等待为 240/420/240/900 秒。新增 bm25_source 选项与来源位置命中解释，仍只导航正式证据。
+
 SourceWorkspace 使用父级 SourceFilters 显式筛选文件名/路径、语言与资料状态，语言选项复用 sourceLanguages 注册表。App 保留已打开原文、独立记录 sourcesRequestedPage、隔离迟到响应并在页数收缩时回最后有效页；切换项目重置筛选。重试发出失败目标页，不使用旧响应页码。无结果与空项目分开提示，当前打开资料不在本页时明确说明。见 [ADR 0049](adr/0049-source-discovery-filters.zh-CN.md)。
 
 CandidateReview 展示关系起点/终点名称与审核状态；单项确认要求两端已确认，整批确认允许本页明确选中的待审核端点，依赖不足显示具名提示并阻止最终提交，拒绝仍可用。“查看本资料实体候选”发出筛选意图，不自动选择/审核。App 在筛选加载后校验上下文并聚焦可定位的审核标题，清空隐藏选择。见 [ADR 0048](adr/0048-review-endpoint-visibility.zh-CN.md)。

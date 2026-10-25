@@ -14,7 +14,7 @@ import type { EmbeddingIndexStatus, EmbeddingRebuildResult, EntityDetail, Knowle
 vi.mock('../src/api/knowledgeAtlas', async importOriginal => {
   const original = await importOriginal<typeof api>()
   return { ...original, listProjects: vi.fn(), listSources: vi.fn(), listRepositories: vi.fn(), askQuestion: vi.fn(),
-    getEmbeddingStatus: vi.fn(), getProjectGraph: vi.fn(), listKnowledgeChanges: vi.fn(), getEntityDetail: vi.fn(),
+    getEmbeddingStatus: vi.fn(), getEmbeddingJob: vi.fn(), getProjectGraph: vi.fn(), listKnowledgeChanges: vi.fn(), getEntityDetail: vi.fn(),
     getSource: vi.fn(), listSourceChunks: vi.fn(), listCandidates: vi.fn(), getExtraction: vi.fn(),
     searchKnowledge: vi.fn(), rebuildProjectEmbeddings: vi.fn() }
 })
@@ -48,7 +48,7 @@ it('keeps index status scoped to the selected project when an older inspection f
   expect(wrapper.getComponent(ProjectGraph).props('indexStatus')).toEqual(current)
 })
 enableAutoUnmount(afterEach)
-beforeEach(() => vi.resetAllMocks())
+beforeEach(() => { vi.resetAllMocks(); vi.mocked(api.getEmbeddingJob).mockResolvedValue(null) })
 
 async function openSearchGraph() {
   vi.mocked(api.listProjects).mockResolvedValue({ items: [project], total: 1, page: 1, page_size: 20 })

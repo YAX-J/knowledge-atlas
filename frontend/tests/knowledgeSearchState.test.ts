@@ -3,9 +3,10 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { useKnowledgeSearch } from '../src/composables/useKnowledgeSearch'
 import * as api from '../src/api/knowledgeAtlas'
 import type { EmbeddingIndexStatus, EmbeddingRebuildResult, KnowledgeSearchResult } from '../src/types'
+import { ApiError } from '../src/api/client'
 
 vi.mock('../src/api/knowledgeAtlas', () => ({
-  searchKnowledge: vi.fn(), getEmbeddingStatus: vi.fn(), rebuildProjectEmbeddings: vi.fn(),
+  searchKnowledge: vi.fn(), getEmbeddingStatus: vi.fn(), getEmbeddingJob: vi.fn(), rebuildProjectEmbeddings: vi.fn(),
 }))
 
 const scopes: ReturnType<typeof effectScope>[] = []
@@ -31,6 +32,7 @@ const status: EmbeddingIndexStatus = { model: 'test', dimensions: 1024, configur
 
 beforeEach(() => {
   vi.resetAllMocks()
+  vi.mocked(api.getEmbeddingJob).mockResolvedValue(null)
   vi.mocked(api.getEmbeddingStatus).mockResolvedValue(status)
   vi.mocked(api.rebuildProjectEmbeddings).mockResolvedValue(rebuilt)
   vi.mocked(api.searchKnowledge).mockResolvedValue(result)
@@ -218,4 +220,21 @@ it('does not call providers without a project, for empty queries or after dispos
   expect(api.getEmbeddingStatus).not.toHaveBeenCalled()
   expect(api.rebuildProjectEmbeddings).toHaveBeenCalledTimes(1)
   expect(state.searchError.value).toBe('')
+})
+
+it('restores a running server rebuild after a new page instance and checks status instead of retrying a write', async () => {
+  const { state } = setup()
+  const job = { id: 'execution', project_id: 'first', status: 'running' as const, interrupted: false,
+    started_at: status.checked_at, lease_expires_at: status.checked_at, completed_at: null, result: null, error: null }
+  vi.mocked(api.getEmbeddingJob).mockResolvedValue(job)
+  await state.loadIndexStatus()
+  expect(state.searchRebuilding.value).toBe(true)
+  await state.rebuildSemanticIndex()
+  expect(api.rebuildProjectEmbeddings).not.toHaveBeenCalled()
+  vi.mocked(api.getEmbeddingJob).mockResolvedValue(null)
+  await state.loadIndexStatus()
+  vi.mocked(api.rebuildProjectEmbeddings).mockRejectedValueOnce(new ApiError(0, {error:{code:'REQUEST_RESULT_UNKNOWN',message:'Unknown'}}))
+  await state.rebuildSemanticIndex()
+  expect(state.searchErrorAction.value).toBe('inspect')
+  expect(api.rebuildProjectEmbeddings).toHaveBeenCalledTimes(1)
 })

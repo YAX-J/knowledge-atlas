@@ -17,6 +17,8 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
+from app.db.base import Base
+from app import models
 
 from app.core import config as app_config
 
@@ -61,6 +63,8 @@ def main():
                                               "AND table_name IN ('projects','knowledge_entities','knowledge_changes','source_documents','alembic_version')"),
                                          {"schema": schema}) == 5
                 assert connection.scalar(text(f'SELECT count(*) FROM "{schema}".projects')) == 0
+                owned = set(connection.scalars(text('SELECT table_name FROM information_schema.tables WHERE table_schema=:schema'), {'schema':schema}))
+                assert set(Base.metadata.tables).issubset(owned), 'All business tables must physically belong to the disposable schema'
         finally:
             schema_engine.dispose()
         command.downgrade(config, "20261022_0014")
@@ -71,7 +75,7 @@ def main():
                  "tests/test_prepare_evaluation.py", "tests/test_lexical_search.py",
                  "tests/test_retrieval_optimization.py", "tests/test_maintenance_optimization.py",
                  "tests/test_batch_reviews.py", "tests/test_embedding_status.py", "tests/test_knowledge_discovery.py",
-                 "tests/test_source_filters.py"]
+                 "tests/test_source_filters.py", "tests/test_embedding_jobs.py", "tests/test_source_retrieval.py"]
         if args.github:
             env["KA_GITHUB_ACCEPTANCE"] = "1"
             report = root.parent / "output" / "native-acceptance" / f"github-{uuid.uuid4().hex}.json"

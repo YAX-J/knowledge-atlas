@@ -1,5 +1,7 @@
 # Knowledge Atlas 后端
 
+新增持久化更新状态/显式中断重试（迁移 `20261025_0016`）、可选 `bm25_source` 检索/问答，以及 `python -m scripts.database_backup` 备份恢复工具。见[操作指南](../docs/BACKUP_RESTORE.zh-CN.md)及 ADR 0050–0052。执行 `alembic upgrade head`，已运行的 API 重启后加载新接口。
+
 资料列表支持可选 `q`（文件名/路径字面子串，最多 200 字符）、已注册 `source_type` 和 `source_status`。先筛选再计数/分页，保留作用域、任务引用与溯源；状态指资料记录。不触发解析、供应商或迁移（ADR 0049）。
 
 候选列表新增关系 `endpoints` 快照（id/name/review_status），独立于列表筛选和分页；一次有界读取校验实体类别及用户/项目/资料/任务，缺失端点省略。审核动作响应默认快照为空，提升与事务规则不变（ADR 0048）。
@@ -47,7 +49,7 @@
 
 ### 演化审核与原生验收
 
-使用时间/演化/治理面板前先应用 head `20261023_0015`。跨来源建议与抽取候选分离；仅人工确认才可关闭旧有效期并开始新有效期。历史保留证据，治理只读；不能回溯提升前或定时至未来。见 [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.zh-CN.md)。
+使用时间/演化/治理面板前先应用 head `20261025_0016`。跨来源建议与抽取候选分离；仅人工确认才可关闭旧有效期并开始新有效期。历史保留证据，治理只读；不能回溯提升前或定时至未来。见 [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.zh-CN.md)。
 
 在 `backend/` 运行 `.\.venv\Scripts\python.exe -m scripts.verify_native`，在临时 schema 验证迁移/API/竞争/Worker。要求配置的原生 PostgreSQL、已在 `public` 安装 pgvector，以及 `CREATE SCHEMA` 权限。脚本显式限定 Alembic 版本表 schema，测试前检查本地表，最后只删除自己生成的 schema。既有业务资料不是测试数据。`--github` 另允许真实只读公开 petclinic 导入/检索/重复/Commit 追溯验收，不调用模型或使用 GitHub 令牌。普通 `pytest` 跳过这些显式验收；不验证模型/嵌入质量或私有令牌。
 
@@ -148,7 +150,7 @@ Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose 
 
 ## DeepSeek 候选提取与审核
 
-审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261023_0015`。只在后端 `.env` 中配置：
+审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261025_0016`。只在后端 `.env` 中配置：
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key

@@ -144,3 +144,7 @@ response = client.post(f"/api/v1/sources/{source['source_id']}/extract")
 ## Question passage attribution (ADR 0047)
 
 Exact source/chunk/line/quote deduplication retains related_entities from retrieved candidates and supplies entity_names in answer context. Preserve the canonical citation ID, primary entity_id/entity_name and response entity_ids attribution rules. Never merge stored evidence or collapse distinct sources/versions. Verify attribution and single-passage display with tests/test_knowledge_discovery.py and frontend/tests/discovery.test.ts; provider quality remains separate.
+
+## Question source-aware mode and uncertain outcomes
+
+Question retrieval accepts bm25_source without embeddings, but supported answer generation still requires explicit provider use. Retain citation UUID and evidence/support validation. New misleading-overlap refusal cases use stub answers and are not real model-quality grades. Questions and call analysis remain non-persistent; durable embedding_jobs does not create question history or resume Agents. Client writes with lost results are uncertain and must never be described as rolled back.

@@ -1,0 +1,84 @@
+[
+  {
+    "id": "java-file",
+    "filename": "OrderRepository.java",
+    "path": "src/orders/OrderRepository.java",
+    "heading": "Storage",
+    "query": "OrderRepository.java",
+    "quote": "return store.persist(value);",
+    "answerable": true
+  },
+  {
+    "id": "python-path",
+    "filename": "invoice_store.py",
+    "path": "src/billing/invoice_store.py",
+    "heading": "Storage",
+    "query": "billing/invoice_store.py",
+    "quote": "return storage.persist(record)",
+    "answerable": true
+  },
+  {
+    "id": "typescript-file",
+    "filename": "RetryPolicy.ts",
+    "path": "src/network/RetryPolicy.ts",
+    "heading": "Policy",
+    "query": "RetryPolicy.ts",
+    "quote": "return policy.apply(request);",
+    "answerable": true
+  },
+  {
+    "id": "chinese-heading",
+    "filename": "operations.md",
+    "path": "notes/operations.md",
+    "heading": "故障恢复流程",
+    "query": "故障恢复流程",
+    "quote": "Use a durable checkpoint before committing.",
+    "answerable": true
+  },
+  {
+    "id": "direct",
+    "filename": "database.md",
+    "path": "notes/database.md",
+    "heading": "Database",
+    "query": "PostgreSQL",
+    "quote": "PostgreSQL stores the application records.",
+    "answerable": true
+  },
+  {
+    "id": "cross-document-location",
+    "filename": "consumer.py",
+    "path": "src/events/consumer.py",
+    "heading": "Events",
+    "query": "events/consumer.py",
+    "quote": "Acknowledge only after storage commits.",
+    "answerable": true
+  },
+  {
+    "id": "absent-code",
+    "filename": "queue.py",
+    "path": "src/events/queue.py",
+    "heading": "Events",
+    "query": "QuantumLedgerReconciler",
+    "quote": "Queue messages are acknowledged after persistence.",
+    "answerable": false
+  },
+  {
+    "id": "absent-chinese",
+    "filename": "local.md",
+    "path": "notes/local.md",
+    "heading": "Local",
+    "query": "量子纠缠支付网关",
+    "quote": "Store local notes as UTF-8 files.",
+    "answerable": false
+  },
+  {
+    "id": "misleading-overlap",
+    "filename": "database.md",
+    "path": "notes/database.md",
+    "heading": "Database",
+    "query": "PostgreSQL 量子支付网关",
+    "quote": "PostgreSQL stores local notes.",
+    "answerable": false,
+    "retrieval_match": true
+  }
+]

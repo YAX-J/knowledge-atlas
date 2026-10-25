@@ -1,5 +1,7 @@
 # Knowledge Atlas Backend
 
+Added durable rebuild status/explicit interrupted retry (migration `20261025_0016`), opt-in `bm25_source` search/questions, and `python -m scripts.database_backup` backup/restore tools. See [operations](../docs/BACKUP_RESTORE.md) and ADR 0050–0052. Apply `alembic upgrade head` and restart a running API to load the new routes.
+
 Source listing accepts optional `q` (literal filename/path substring, max 200), registered `source_type` and `source_status`. Filters precede count/pagination and preserve scope, task links and provenance; status refers to the source record. No parsing, provider call or migration (ADR 0049).
 
 Review listing includes scoped relation `endpoints` snapshots (id/name/review_status), independent of list filters and pages. One bounded lookup checks entity kind and exact user/project/source/task; missing endpoints are omitted. Resolve responses default to an empty snapshot. Promotion and transaction rules remain unchanged (ADR 0048).
@@ -47,7 +49,7 @@ Explicit DeepSeek extraction, review, formal graph promotion, project keyword/ve
 
 ### Reviewed evolution and native acceptance
 
-Apply head `20261023_0015` before using the time/evolution/governance panels. Cross-source proposals are separate from extraction candidates; only human confirmation can close the old interval and start the new one. History retains evidence, governance is read-only, and dates cannot precede promotion or be scheduled in the future. See [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.md).
+Apply head `20261025_0016` before using the time/evolution/governance panels. Cross-source proposals are separate from extraction candidates; only human confirmation can close the old interval and start the new one. History retains evidence, governance is read-only, and dates cannot precede promotion or be scheduled in the future. See [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.md).
 
 From `backend/`, run `.\.venv\Scripts\python.exe -m scripts.verify_native` for disposable-schema migration/API/contention/Worker checks. Requires configured native PostgreSQL, pgvector already in `public`, and `CREATE SCHEMA` permission. It explicitly qualifies the Alembic version schema, verifies local tables before tests and removes only its generated schema. Existing business data is not test data. `--github` additionally permits real read-only public petclinic import/search/repeat/commit-provenance acceptance; it never calls models or uses a GitHub token. Ordinary `pytest` skips these opt-in checks. Model/embedding quality and private-token acceptance are not covered.
 
@@ -148,7 +150,7 @@ Docker Compose is an optional alternative: from the repository root, `docker com
 
 ## DeepSeek candidate extraction and review
 
-Apply `alembic upgrade head` (expected `20261023_0015`) before review or semantic-index operations. Configure only the backend `.env`:
+Apply `alembic upgrade head` (expected `20261025_0016`) before review or semantic-index operations. Configure only the backend `.env`:
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key

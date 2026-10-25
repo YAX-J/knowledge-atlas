@@ -138,3 +138,7 @@ An answer is manually correct only when it covers every `required_facts` item, a
 ```
 
 The report includes macro evidence Recall@1/3/5, citation precision/recall/F1 and evaluation coverage, supported-or-refusal accuracy, required-fact coverage, manually graded answer accuracy and coverage, cross-document and temporal accuracy, mean/P95 latency, and explainability mean/coverage. Predictions must cover all 40 cases. Retrieval-only reports keep answer metrics null with zero coverage. Deterministic required-fact coverage is an aid, not a substitute for manual answer grading.
+
+## Optional source-location mode
+
+`scripts.run_evaluation --modes bm25 bm25_source` supports a provider-free comparison in a new output directory. Defaults and old protocol remain unchanged. See [diagnostic](results/2026-10-25-source-mode/README.md) and [new functional cases](regressions/source-location-v1/README.md); neither provides human answer-quality grades.

@@ -129,7 +129,7 @@ def project_embedding_status(db: Session, *, user_id: uuid.UUID, project_id: uui
 
 
 def rebuild_project_embeddings(
-    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, settings: Settings,
+    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, settings: Settings, checkpoint=None,
 ) -> dict:
     get_project(db, user_id=user_id, project_id=project_id)
     try:
@@ -165,11 +165,15 @@ def rebuild_project_embeddings(
     vectors: list[list[float]] = []
     try:
         for offset in range(0, len(pending), settings.embedding_batch_size):
+            if checkpoint:
+                checkpoint(True)
             batch = pending[offset:offset + settings.embedding_batch_size]
             vectors.extend(embed_texts(settings, [item[1] for item in batch]))
     except EmbeddingError as exc:
         raise AppError(status_code=503, code=exc.code, message=exc.message) from exc
 
+    if checkpoint:
+        checkpoint(False)
     if pending:
         project = db.scalar(select(Project).where(
             Project.id == project_id, Project.user_id == user_id, Project.archived_at.is_(None),

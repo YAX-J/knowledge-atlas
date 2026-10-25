@@ -1,5 +1,7 @@
 # Knowledge Atlas 实施计划
 
+优化 1–3 已实现：持久化索引执行归属/恢复、可选来源位置词法检索及独立诊断、可校验原生备份/schema 恢复。当前迁移 `20261025_0016`；完整新库恢复所需权限当前角色不具备，详见[验收记录](docs/RELIABILITY_RETRIEVAL_RECOVERY_20261025.zh-CN.md)。
+
 资料组合筛选与分页恢复已实现（ADR 0049），保留已打开原文且不调用供应商，见[验收记录](docs/SOURCE_FILTERS_20261025.zh-CN.md)。
 
 关系审核依赖快照与提交前提示已实现（ADR 0048），保留显式批量选择及后端最终校验，见[验收记录](docs/REVIEW_DEPENDENCIES_20261025.zh-CN.md)。

@@ -1,9 +1,29 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, apiRequest } from '../src/api/client'
-import { analyzeAgentCalls, listSources } from '../src/api/knowledgeAtlas'
+import { analyzeAgentCalls, askQuestion, listSources, searchKnowledge } from '../src/api/knowledgeAtlas'
 
 afterEach(() => vi.unstubAllGlobals())
 describe('API transport', () => {
+  it('uses longer bounded budgets for vector search, answers and multi-turn analysis', async () => {
+    const budgets: number[] = []
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockImplementation(milliseconds => {
+      budgets.push(milliseconds)
+      return new AbortController().signal
+    })
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response('{}'))))
+    try {
+      await searchKnowledge('project', 'query', '', 'bm25')
+      await searchKnowledge('project', 'query', '', 'vector')
+      await askQuestion('project', 'query', 'bm25_source')
+      await analyzeAgentCalls('source', 'tools')
+      expect(budgets).toEqual([30_000, 240_000, 420_000, 900_000])
+    } finally { timeout.mockRestore() }
+  })
+  it('distinguishes uncertain writes from retryable read failures', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('Timed out', 'TimeoutError')))
+    await expect(apiRequest('/write', { method: 'POST' })).rejects.toMatchObject({ code: 'REQUEST_RESULT_UNKNOWN' })
+    await expect(apiRequest('/read')).rejects.toMatchObject({ code: 'READ_UNAVAILABLE' })
+  })
   it('encodes source filters without treating query punctuation as URL syntax', async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response('{}'))
     vi.stubGlobal('fetch', fetcher)

@@ -27,6 +27,14 @@ export class ApiError extends Error {
   }
 }
 
+function unavailable(init: RequestInit) {
+  const write = !['GET', 'HEAD'].includes((init.method ?? 'GET').toUpperCase())
+  return new ApiError(0, { error: {
+    code: write ? 'REQUEST_RESULT_UNKNOWN' : 'READ_UNAVAILABLE',
+    message: write ? '未能确认处理结果，服务端可能仍在执行。请先刷新状态，避免重复提交。' : '读取超时或网络不可用，请重试读取。',
+  } })
+}
+
 export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
@@ -36,9 +44,15 @@ export async function apiRequest<T>(
     headers.set('Content-Type', 'application/json')
   }
 
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    ...init, headers, signal: init.signal ?? AbortSignal.timeout(30000),
-  })
+  let response: Response
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      ...init, headers, signal: init.signal ?? AbortSignal.timeout(30000),
+    })
+  } catch (cause) {
+    if (init.signal?.aborted && init.signal.reason?.name === 'AbortError') throw cause
+    throw unavailable(init)
+  }
   if (!response.ok) {
     let payload: ApiErrorEnvelope = {}
     try {
@@ -49,6 +63,10 @@ export async function apiRequest<T>(
     throw new ApiError(response.status, payload)
   }
 
-  return (await response.json()) as T
+  try {
+    return (await response.json()) as T
+  } catch {
+    throw unavailable(init)
+  }
 }
 

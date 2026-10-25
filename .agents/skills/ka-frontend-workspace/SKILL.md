@@ -155,3 +155,7 @@ CandidateReview uses list endpoint snapshots to show both endpoint names/statuse
 ## Source filtering and page recovery (ADR 0049)
 
 SourceWorkspace emits explicit SourceFilters and uses the upload registry for language options. App keeps the opened source independently of filtered pages, resets filters on project switch and fences responses/focus by current context. Keep sourcesRequestedPage separately so retries target the failed page, and recover from a no-longer-valid page. Explain empty matches and a hidden opened source; lock filtering while existing operations run. Regressions: tests/workspaces.test.ts, tests/appRequests.test.ts, tests/client.test.ts.
+
+## Durable rebuild recovery and source-aware search
+
+useKnowledgeSearch reads getEmbeddingJob with request fencing, retaining known running state while status refreshes. Unknown rebuild outcomes offer inspection, not automatic POST retry; interrupted retry must emit an explicit true flag. A page reload reads server state and cannot cancel provider work. ApiError separates READ_UNAVAILABLE/REQUEST_RESULT_UNKNOWN, including invalid success bodies. Budgets: vector search/rebuild wait 240s, question 420s, analysis single/tools 240s/900s. bm25_source is opt-in, provider-free and displays provenance fields; keep all defaults unchanged.

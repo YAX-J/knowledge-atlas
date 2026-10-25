@@ -1,6 +1,7 @@
 import { computed, onScopeDispose, reactive, ref, watch } from 'vue'
-import { getEmbeddingStatus, rebuildProjectEmbeddings, searchKnowledge } from '../api/knowledgeAtlas'
-import type { EmbeddingIndexStatus, KnowledgeSearchMode, KnowledgeSearchResult } from '../types'
+import { getEmbeddingJob, getEmbeddingStatus, rebuildProjectEmbeddings, searchKnowledge } from '../api/knowledgeAtlas'
+import { ApiError } from '../api/client'
+import type { EmbeddingIndexStatus, EmbeddingJob, KnowledgeSearchMode, KnowledgeSearchResult } from '../types'
 import { useLatestRequest } from './useLatestRequest'
 
 interface SearchContext { projectId: string | undefined; validAt: string }
@@ -10,11 +11,14 @@ interface SearchInput { query: string; types: string; mode: KnowledgeSearchMode 
 export function useKnowledgeSearch(context: () => SearchContext, describeError: (error: unknown) => string) {
   const search = useLatestRequest<KnowledgeSearchResult>(describeError)
   const index = useLatestRequest<EmbeddingIndexStatus>(describeError)
-  const searchErrorAction = ref<'search' | 'rebuild'>('search')
+  const jobs = useLatestRequest<EmbeddingJob | null>(describeError)
+  const knownJob = ref<EmbeddingJob | null>(null)
+  const searchErrorAction = ref<'search' | 'rebuild' | 'inspect'>('search')
   const searchNotice = ref('')
   // Clearing visible state cannot cancel an index write already sent to the server.
   const pendingRebuilds = reactive(new Set<string>())
-  const searchRebuilding = computed(() => pendingRebuilds.has(context().projectId ?? ''))
+  const searchRebuilding = computed(() => pendingRebuilds.has(context().projectId ?? '') ||
+    (knownJob.value?.status === 'running' && !knownJob.value.interrupted))
   let input: SearchInput | null = null
   let generation = 0
   let disposed = false
@@ -36,7 +40,13 @@ export function useKnowledgeSearch(context: () => SearchContext, describeError: 
     const captured = context()
     const projectId = captured.projectId
     if (disposed || !projectId) return
-    await index.run(() => getEmbeddingStatus(projectId, captured.validAt), () => sameContext(captured))
+    await Promise.all([
+      index.run(() => getEmbeddingStatus(projectId, captured.validAt), () => sameContext(captured)),
+      (async () => {
+        await jobs.run(() => getEmbeddingJob(projectId), () => sameContext(captured))
+        if (sameContext(captured) && !jobs.loading.value && !jobs.error.value) knownJob.value = jobs.result.value
+      })(),
+    ])
   }
 
   async function runSearch(query: string, types: string, mode: KnowledgeSearchMode) {
@@ -53,10 +63,10 @@ export function useKnowledgeSearch(context: () => SearchContext, describeError: 
     if (input) await runSearch(input.query, input.types, input.mode)
   }
 
-  async function rebuildSemanticIndex() {
+  async function rebuildSemanticIndex(retryInterrupted = false) {
     const captured = context()
     const projectId = captured.projectId
-    if (disposed || !projectId || pendingRebuilds.has(projectId)) return
+    if (disposed || !projectId || searchRebuilding.value) return
     const request = generation
     const current = () => request === generation && sameContext(captured)
     pendingRebuilds.add(projectId)
@@ -67,13 +77,19 @@ export function useKnowledgeSearch(context: () => SearchContext, describeError: 
     searchNotice.value = ''
     let refreshed = false
     try {
-      const result = await rebuildProjectEmbeddings(projectId)
+      const result = retryInterrupted ? await rebuildProjectEmbeddings(projectId, true) : await rebuildProjectEmbeddings(projectId)
       if (!current()) return
       searchNotice.value = `语义索引已更新：新增或刷新 ${result.updated_count} 条，复用 ${result.reused_count} 条。`
       await loadIndexStatus()
       refreshed = current()
     } catch (error) {
-      if (current()) search.error.value = describeError(error)
+      if (current()) {
+        search.error.value = describeError(error)
+        if (error instanceof ApiError && ['REQUEST_RESULT_UNKNOWN', 'EMBEDDING_REBUILD_RUNNING', 'EMBEDDING_REBUILD_INTERRUPTED'].includes(error.code)) {
+          searchErrorAction.value = 'inspect'
+          await loadIndexStatus()
+        }
+      }
     } finally {
       pendingRebuilds.delete(projectId)
     }
@@ -83,13 +99,16 @@ export function useKnowledgeSearch(context: () => SearchContext, describeError: 
   watch(() => [context().projectId, context().validAt], () => {
     clearSearch()
     index.clear()
+    jobs.clear()
+    knownJob.value = null
   }, { flush: 'sync' })
-  onScopeDispose(() => { disposed = true; clearSearch(); index.clear() })
+  onScopeDispose(() => { disposed = true; clearSearch(); index.clear(); jobs.clear(); knownJob.value = null })
 
   return {
     searchResult: search.result, searchLoading: search.loading, searchError: search.error,
     searchRebuilding, searchErrorAction, searchNotice,
     indexStatus: index.result, indexStatusLoading: index.loading, indexStatusError: index.error,
+    embeddingJob: knownJob, embeddingJobError: jobs.error,
     runSearch, retrySearch, clearSearch, loadIndexStatus, clearIndexStatus: index.clear, rebuildSemanticIndex,
   }
 }

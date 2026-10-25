@@ -13,8 +13,10 @@ from app.models.domain import (
 )
 from app.models.graph import KnowledgeEmbedding, KnowledgeEntity, KnowledgeEvidence, KnowledgeRelationship
 from app.models.evolution import KnowledgeChange
+from app.models.embedding_job import EmbeddingJob
 
 __all__ = [
+    "EmbeddingJob",
     "CandidateKnowledge",
     "GithubPullReviewVersion",
     "GithubWorkItemVersion",

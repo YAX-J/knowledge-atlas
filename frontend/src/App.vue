@@ -470,6 +470,7 @@ let graphDetailRequest = 0
 const {
   searchResult, searchLoading, searchError, searchRebuilding, searchErrorAction, searchNotice,
   indexStatus, indexStatusLoading, indexStatusError, loadIndexStatus, clearIndexStatus,
+  embeddingJob, embeddingJobError,
   clearSearch, runSearch, retrySearch, rebuildSemanticIndex,
 } = useKnowledgeSearch(() => ({ projectId: project.value?.id, validAt: graphValidAt.value }), errorMessage)
 const questionState = useLatestRequest<QuestionAnswer>(errorMessage)
@@ -1253,6 +1254,7 @@ function setTimeline(value: number) {
       :search-result="searchResult" :search-loading="searchLoading" :search-error="searchError"
       :search-rebuilding="searchRebuilding" :search-notice="searchNotice" :search-error-action="searchErrorAction"
       :index-status="indexStatus" :index-status-loading="indexStatusLoading" :index-status-error="indexStatusError" @inspect-index="loadIndexStatus"
+      :embedding-job="embeddingJob" :embedding-job-error="embeddingJobError"
       @search="runSearch" @rebuild-search="rebuildSemanticIndex" @clear-search="clearSearch" @retry-search="retrySearch" @select-search-entity="openSearchEntity"
       :entity-detail="realEntityDetail" :relationship-detail="realRelationshipDetail"
       :loading="graphLoading" :detail-loading="graphDetailLoading" :error="graphError" :detail-error="graphDetailError"

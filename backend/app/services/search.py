@@ -115,7 +115,7 @@ def _keyword_search(
 
 def _bm25_search(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, query: str,
-    types: list[str], valid_at: datetime | None, top_k: int,
+    types: list[str], valid_at: datetime | None, top_k: int, provenance: bool = False,
 ) -> SearchRead:
     normalized = ' '.join(query.split())
     if not lexical.tokenize(normalized):
@@ -128,11 +128,14 @@ def _bm25_search(
     reasons = {'entity_limit'} if eligible > len(entities) else set()
     ids = [entity.id for entity in entities]
     quotes: dict[uuid.UUID, list[str]] = {}
+    locations: dict[uuid.UUID, list[str]] = {}
     if ids:
         rows = db.execute(select(
             KnowledgeEvidence.entity_id,
             func.substr(KnowledgeEvidence.quote, 1, BM25_QUOTE_LIMIT),
             func.length(KnowledgeEvidence.quote),
+            SourceDocument.original_name, SourceDocument.relative_path,
+            SourceChunk.heading_path,
         ).join(SourceDocument, SourceDocument.id == KnowledgeEvidence.source_id).join(
             SourceChunk, SourceChunk.id == KnowledgeEvidence.chunk_id,
         ).where(
@@ -146,16 +149,24 @@ def _bm25_search(
         )).all()
         if len(rows) > BM25_EVIDENCE_LIMIT:
             reasons.add('evidence_limit')
-        for owner, quote, length in rows[:BM25_EVIDENCE_LIMIT]:
+        for owner, quote, length, filename, path, headings in rows[:BM25_EVIDENCE_LIMIT]:
             quotes.setdefault(owner, []).append(quote)
+            if provenance:
+                heading_text = ' '.join(headings)
+                if len(heading_text) > 512:
+                    reasons.add('text_limit')
+                locations.setdefault(owner, []).append(' '.join(value for value in (filename, path, heading_text[:512]) if value))
             if length > BM25_QUOTE_LIMIT:
                 reasons.add('text_limit')
     documents = []
     for entity in entities:
         document = {}
         remaining = BM25_TEXT_LIMIT
-        for key, value in (('name', entity.name), ('summary', entity.summary),
-                           ('evidence', '\n'.join(quotes.get(entity.id, [])))):
+        fields = [('name', entity.name), ('summary', entity.summary)]
+        if provenance:
+            fields.append(('provenance', '\n'.join(dict.fromkeys(locations.get(entity.id, [])))))
+        fields.append(('evidence', '\n'.join(quotes.get(entity.id, []))))
+        for key, value in fields:
             document[key] = value[:remaining]
             if len(value) > remaining:
                 reasons.add('text_limit')
@@ -170,10 +181,11 @@ def _bm25_search(
     items = []
     for (entity, score, fields), read in zip(ranked, reads, strict=True):
         evidence = graph._evidence_read(db, entity)
-        evidence.sort(key=lambda item: (-len(set(lexical.tokenize(item.quote)) & set(terms)), item.start_line, str(item.id)))
+        evidence.sort(key=lambda item: (-len(set(lexical.tokenize(item.quote +
+            (' ' + item.title + ' ' + ' '.join(item.heading_path) if provenance else ''))) & set(terms)), item.start_line, str(item.id)))
         items.append(SearchHit(entity=read, bm25_score=round(score, 6), matched_fields=fields, evidence=evidence[:3]))
-    return SearchRead(query=normalized, mode='bm25', items=items, truncated=truncated, eligible_count=eligible,
-                      lexical=LexicalSearchInfo(query_terms=terms, scanned_count=len(entities),
+    return SearchRead(query=normalized, mode='bm25_source' if provenance else 'bm25', items=items, truncated=truncated, eligible_count=eligible,
+                      lexical=LexicalSearchInfo(protocol='mixed-bm25-source-v1' if provenance else 'mixed-bm25-v1', query_terms=terms, scanned_count=len(entities),
                           entity_limit=BM25_ENTITY_LIMIT, text_limit_per_entity=BM25_TEXT_LIMIT,
                           truncated_reasons=sorted(reasons)))
 
@@ -377,9 +389,9 @@ def search_knowledge(
         from app.services.fusion import reciprocal_rank_search
         return reciprocal_rank_search(db, user_id=user_id, project_id=project_id, query=query,
                                       types=types, valid_at=valid_at, top_k=top_k, settings=settings)
-    if mode == 'bm25':
+    if mode in {'bm25', 'bm25_source'}:
         return _bm25_search(db, user_id=user_id, project_id=project_id, query=query,
-                            types=types, valid_at=valid_at, top_k=top_k)
+                            types=types, valid_at=valid_at, top_k=top_k, provenance=mode == 'bm25_source')
     if mode == 'hybrid':
         return _hybrid_search(
             db, user_id=user_id, project_id=project_id, query=query, types=types,

@@ -135,3 +135,7 @@ Apply candidate status/kind/literal name-summary filters before count and pagina
 ## Relation dependency snapshots (ADR 0048)
 
 List reviews enriches relation endpoints in one bounded query, independently of outer filters/pages. Match user/project/source/successful task/entity kind; omit missing or incompatible endpoints and deduplicate self-links. Resolve responses default to an empty snapshot. Never trust this read-time metadata for promotion: preserve project locking, final dependency/evidence checks and batch atomicity. Native acceptance includes tests/test_knowledge_discovery.py scope regressions.
+
+## Source-aware lexical retrieval (ADR 0051)
+
+Optional bm25_source/mixed-bm25-source-v1 adds filename/path/heading metadata only through scoped formal evidence. Preserve v1 ranking/defaults, canonical evidence IDs, type/time/user/project visibility and budgets; source metadata is location context, not semantic support. Independent development regressions live under evaluation/regressions/source-location-v1; the separate old-40 diagnostic has equal Recall@5 and must not be reported as general improvement or held-out quality.

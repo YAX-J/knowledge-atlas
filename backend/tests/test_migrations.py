@@ -30,6 +30,27 @@ def migration_config() -> Config:
     return config
 
 
+def test_embedding_job_migration_is_additive_and_reversible(tmp_path, monkeypatch):
+    url = f"sqlite+pysqlite:///{(tmp_path / 'jobs.db').as_posix()}"
+    monkeypatch.setattr(app_config, 'get_settings', lambda: SimpleNamespace(database_url=url))
+    config = migration_config()
+    command.upgrade(config, '20261023_0015')
+    engine = create_engine(url)
+    with Session(engine) as db:
+        project = Project(user_id=uuid.uuid4(), name='Preserve business data')
+        db.add(project)
+        db.commit()
+        project_id = project.id
+    command.upgrade(config, 'head')
+    assert 'embedding_jobs' in inspect(engine).get_table_names()
+    command.downgrade(config, '20261023_0015')
+    assert 'embedding_jobs' not in inspect(engine).get_table_names()
+    with Session(engine) as db:
+        assert db.get(Project, project_id).name == 'Preserve business data'
+    command.upgrade(config, 'head')
+    engine.dispose()
+
+
 def insert_legacy_source(
     db: Session,
     *,

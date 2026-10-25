@@ -117,3 +117,9 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [0048: 关系审核依赖可见性](0048-review-endpoint-visibility.zh-CN.md)
 
 - [0049: 资料组合筛选与分页恢复](0049-source-discovery-filters.zh-CN.md)
+
+- [0050: 持久化索引更新与未知结果](0050-durable-index-rebuilds.zh-CN.md)
+
+- [0051: 可选来源位置词法检索](0051-source-aware-lexical-retrieval.zh-CN.md)
+
+- [0052: 可验证原生备份与受控恢复](0052-verified-native-backups.zh-CN.md)

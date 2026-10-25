@@ -710,3 +710,13 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 `GET /api/v1/projects/{project_id}/sources` 新增可选 `q`（最多 200 字符）、`source_type`、`source_status`。q 规范化空白后对 original_name/relative_path 作字面、不区分大小写的子串匹配，%/_ 不作通配符；不匹配原文全文或仓库名称。source_type 接受上传注册表的 markdown/java/python/javascript/jsx/typescript/tsx/go/c/cpp/csharp。source_status 接受 uploaded/processing/ready/failed，针对资料记录，非 task_status。非法值或超长 q 返回 422。
 
 全部条件在同用户、有效项目范围内共同作用于 total 和分页之前；不传条件保持既有结果。响应结构、最新解析任务 task_id/task_status、repository_name/git_url 与分页上限不变。读取不触发解析、抽取、模型调用或正式知识写入；跨用户或归档项目仍返回 404。
+
+## 持久化索引更新、来源位置检索（ADR 0050–0051）
+
+`GET /api/v1/projects/{project_id}/embeddings/rebuild-status` 返回 null 或 `{id,project_id,status,interrupted,started_at,lease_expires_at,completed_at,result,error}`。status 为 running/succeeded/failed，id 是最近 execution UUID；result 为既有索引更新结果，error 为脱敏 code/message。零供应商读取，仍校验当前用户和有效项目，不受图谱历史时间影响。
+
+`POST .../embeddings/rebuild` 仍同步返回原结果，在项目锁内持久化认领。运行中重复请求返回 409 EMBEDDING_REBUILD_RUNNING；900 秒租约过期的运行记录返回 interrupted=true，普通 POST 返回 409 EMBEDDING_REBUILD_INTERRUPTED，只有明确 `?retry_interrupted=true` 可接手。每批续租、落库前校验执行 UUID；旧执行返回 409 EMBEDDING_REBUILD_REPLACED，不覆盖新归属。不自动重试，不承诺供应商计费严格一次。
+
+搜索 mode 和问答 retrieval_mode 新增可选 bm25_source，LexicalSearchInfo.protocol 为 mixed-bm25-source-v1，matched_fields 可含 provenance。只把正式证据对应的 original_name/relative_path/heading_path 纳入既有有界词法预算；不扩展未审核来源、正式对象、问答历史或引用 ID。旧默认和旧模式协议不变。
+
+客户端网络/等待失败对读取报告 READ_UNAVAILABLE，对写入报告 REQUEST_RESULT_UNKNOWN；后者不能视为服务端回滚。索引更新以状态查询恢复，问答/调用分析仍非持久化。备份恢复仅提供本机 CLI，不新增恢复 API。

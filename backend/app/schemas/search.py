@@ -34,13 +34,13 @@ class SearchHit(BaseModel):
     rrf_score: float | None = None
     lexical_rank: int | None = None
     vector_rank: int | None = None
-    matched_fields: list[Literal['name', 'summary', 'evidence']]
+    matched_fields: list[Literal['name', 'summary', 'evidence', 'provenance']]
     graph_connections: list[GraphSearchSignal] = Field(default_factory=list)
     evidence: list[FormalEvidenceRead]
 
 
 class LexicalSearchInfo(BaseModel):
-    protocol: Literal['mixed-bm25-v1'] = 'mixed-bm25-v1'
+    protocol: Literal['mixed-bm25-v1', 'mixed-bm25-source-v1'] = 'mixed-bm25-v1'
     query_terms: list[str]
     scanned_count: int
     entity_limit: int
@@ -50,7 +50,7 @@ class LexicalSearchInfo(BaseModel):
 
 class SearchRead(BaseModel):
     query: str
-    mode: Literal['keyword', 'bm25', 'vector', 'hybrid', 'rrf'] = 'keyword'
+    mode: Literal['keyword', 'bm25', 'bm25_source', 'vector', 'hybrid', 'rrf'] = 'keyword'
     items: list[SearchHit]
     truncated: bool
     indexed_count: int | None = None
@@ -80,3 +80,15 @@ class EmbeddingStatusRead(BaseModel):
     scanned_count: int
     scan_limit: int
     truncated: bool
+
+
+class EmbeddingJobRead(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    status: Literal['running', 'succeeded', 'failed']
+    interrupted: bool
+    started_at: datetime
+    lease_expires_at: datetime
+    completed_at: datetime | None
+    result: EmbeddingRebuildRead | None
+    error: dict[str, str] | None

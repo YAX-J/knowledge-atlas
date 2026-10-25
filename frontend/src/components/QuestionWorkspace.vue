@@ -26,7 +26,7 @@ const mode = ref<QuestionRetrievalMode>('hybrid')
 const remaining = computed(() => 200 - question.value.length)
 const coverage = computed(() => {
   const result = props.result
-  if (result?.retrieval.mode === 'bm25') return '无需索引'
+  if (['bm25', 'bm25_source'].includes(result?.retrieval.mode ?? '')) return '无需索引'
   if (!result?.retrieval.eligible_count) return '0%'
   return `${Math.round(result.retrieval.indexed_count / result.retrieval.eligible_count * 100)}%`
 })
@@ -69,7 +69,7 @@ function submit() {
         <label for="question-retrieval-mode">证据检索方式</label>
         <select id="question-retrieval-mode" v-model="mode" :disabled="loading">
           <option value="hybrid">混合 + 图关系</option><option value="rrf">BM25 + 向量融合</option>
-          <option value="vector">语义向量</option><option value="bm25">BM25 · 检索无需嵌入</option>
+          <option value="vector">语义向量</option><option value="bm25">BM25 · 检索无需嵌入</option><option value="bm25_source">BM25 + 来源位置</option>
         </select>
         <p class="retrieval-hint">BM25 可直接检索已确认知识；向量相关方式需要配置嵌入服务并更新索引。生成回答仍需调用模型。</p>
         <div class="ask-footer">

@@ -64,6 +64,33 @@ def race(function, values):
         return list(pool.map(run, values))
 
 
+def test_native_rebuild_job_serializes_duplicate_requests_and_persists_status(monkeypatch):
+    from app.services import embedding_jobs
+    entered, release = threading.Event(), threading.Event()
+    calls = []
+    def rebuild(db, **kwargs):
+        calls.append(1)
+        entered.set()
+        assert release.wait(10)
+        kwargs['checkpoint'](False)
+        return dict(model='stub', dimensions=1024, eligible_count=0, updated_count=0, reused_count=0)
+    monkeypatch.setattr(embedding_jobs, 'rebuild_project_embeddings', rebuild)
+    with independent_client() as (client, engine):
+        project = create_project(client)
+        url = f'/api/v1/projects/{project}/embeddings'
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(client.post, url + '/rebuild')
+            try:
+                assert entered.wait(10)
+                assert client.post(url + '/rebuild').status_code == 409
+                assert client.get(url + '/rebuild-status').json()['status'] == 'running'
+            finally:
+                release.set()
+            assert future.result(timeout=10).status_code == 200
+        assert len(calls) == 1
+        assert client.get(url + '/rebuild-status').json()['status'] == 'succeeded'
+
+
 def test_native_concurrent_upload_and_replacement_are_idempotent(configured, monkeypatch):
     with independent_client() as (client, engine):
         project = create_project(client)

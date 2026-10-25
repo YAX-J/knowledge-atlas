@@ -539,7 +539,7 @@ export function getJavaCodeStructure(sourceId: string): Promise<JavaCodeStructur
 
 export function analyzeAgentCalls(sourceId: string, strategy: 'single_step' | 'tools' = 'single_step'): Promise<AgentCallAnalysis> {
   return apiRequest<AgentCallAnalysis>(`/sources/${sourceId}/agent-call-analysis?strategy=${strategy}`, {
-    method: 'POST', signal: AbortSignal.timeout(300000),
+    method: 'POST', signal: AbortSignal.timeout(strategy === 'tools' ? 900_000 : 240_000),
   })
 }
 
@@ -620,7 +620,9 @@ export function searchKnowledge(projectId: string, query: string, types = '', mo
   const params = new URLSearchParams({ q: query, mode, top_k: '10' })
   if (types) params.set('types', types)
   if (validAt) params.set('valid_at', validAt)
-  return apiRequest<KnowledgeSearchResult>(`/projects/${projectId}/search?${params}`)
+  return apiRequest<KnowledgeSearchResult>(`/projects/${projectId}/search?${params}`, {
+    signal: AbortSignal.timeout(['vector', 'hybrid', 'rrf'].includes(mode) ? 240_000 : 30_000),
+  })
 }
 
 export function listKnowledgeChanges(projectId: string, page = 1): Promise<KnowledgeChangeList> {
@@ -643,8 +645,12 @@ export function inspectGovernance(projectId: string, kind: import('../types').Go
   return apiRequest(`/projects/${projectId}/governance${kind ? `?${new URLSearchParams({ kind })}` : ''}`)
 }
 
-export function rebuildProjectEmbeddings(projectId: string): Promise<EmbeddingRebuildResult> {
-  return apiRequest<EmbeddingRebuildResult>(`/projects/${projectId}/embeddings/rebuild`, {
+export function getEmbeddingJob(projectId: string) {
+  return apiRequest<import('../types').EmbeddingJob | null>(`/projects/${projectId}/embeddings/rebuild-status`)
+}
+
+export function rebuildProjectEmbeddings(projectId: string, retryInterrupted = false): Promise<EmbeddingRebuildResult> {
+  return apiRequest<EmbeddingRebuildResult>(`/projects/${projectId}/embeddings/rebuild${retryInterrupted ? '?retry_interrupted=true' : ''}`, {
     method: 'POST', signal: AbortSignal.timeout(240_000),
   })
 }
@@ -653,6 +659,6 @@ export function askQuestion(projectId: string, question: string, retrievalMode: 
   return apiRequest<QuestionAnswer>(`/projects/${projectId}/questions`, {
     method: 'POST',
     body: JSON.stringify({ question, retrieval_mode: retrievalMode }),
-    signal: AbortSignal.timeout(240_000),
+    signal: AbortSignal.timeout(420_000),
   })
 }

@@ -194,7 +194,7 @@ export interface RelationshipDetail {
   evidence: FormalEvidence[]
 }
 
-export type KnowledgeSearchMode = 'keyword' | 'bm25' | 'vector' | 'hybrid' | 'rrf'
+export type KnowledgeSearchMode = 'keyword' | 'bm25' | 'bm25_source' | 'vector' | 'hybrid' | 'rrf'
 export type QuestionRetrievalMode = Exclude<KnowledgeSearchMode, 'keyword'>
 
 export interface KnowledgeSearchResult {
@@ -212,7 +212,7 @@ export interface KnowledgeSearchResult {
     vector_component: number | null
     graph_score: number | null
     hybrid_score: number | null
-    matched_fields: ('name' | 'summary' | 'evidence')[]
+    matched_fields: ('name' | 'summary' | 'evidence' | 'provenance')[]
     graph_connections: {
       relationship_id: string
       relationship_type: string
@@ -228,7 +228,7 @@ export interface KnowledgeSearchResult {
   eligible_count: number | null
   weights: { keyword: number; vector: number; graph: number } | null
   lexical?: {
-    protocol: 'mixed-bm25-v1'
+    protocol: 'mixed-bm25-v1' | 'mixed-bm25-source-v1'
     query_terms: string[]
     scanned_count: number
     entity_limit: number
@@ -243,6 +243,18 @@ export interface EmbeddingRebuildResult {
   eligible_count: number
   updated_count: number
   reused_count: number
+}
+
+export interface EmbeddingJob {
+  id: string
+  project_id: string
+  status: 'running' | 'succeeded' | 'failed'
+  interrupted: boolean
+  started_at: string
+  lease_expires_at: string
+  completed_at: string | null
+  result: EmbeddingRebuildResult | null
+  error: { code: string; message: string } | null
 }
 
 export interface EmbeddingIndexStatus {

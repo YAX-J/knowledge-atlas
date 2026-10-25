@@ -183,3 +183,7 @@ Focus tests/test_knowledge_discovery.py tests/test_batch_reviews.py tests/test_k
 ## Source discovery acceptance (ADR 0049)
 
 Focus tests/test_source_filters.py tests/test_sources.py plus frontend workspace/App/client regressions. Native acceptance includes the source filter suite. Desktop: combine literal path punctuation/language/source status, verify zero-match guidance with original preserved, reset, and simulate one second-page read failure to confirm retry reaches page two. Confirm list heading focus and no horizontal clipping. Continue physical private-table ownership checks before fixture writes and recorded-schema cleanup; providers remain stubbed.
+
+## Optimization items 1–3 verification
+
+Focus tests/test_embedding_jobs.py tests/test_source_retrieval.py tests/test_database_backup.py tests/test_migrations.py tests/test_run_evaluation.py. Native includes job concurrency/fencing, migration 0016 and source cases; verify every metadata table physically belongs to its disposable schema. Frontend covers recovered busy state, explicit interrupted retry, uncertain-result inspection and model budgets. Desktop reload during a blocked local stub, release it, inspect completion, then simulate lost success response with exactly one POST. Backup rehearsal must compare complete data/type/constraint/index/extension fingerprints, verify no foreign keys to public, and clean only owned targets. Record CREATE DATABASE permission failures separately from successful schema rehearsal; never grant privileges or report full DB restore without acceptance.

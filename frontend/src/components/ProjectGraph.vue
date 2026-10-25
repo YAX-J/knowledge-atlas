@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import KnowledgeSearch from './KnowledgeSearch.vue'
 import type { ApiProject } from '../api/knowledgeAtlas'
-import type { EmbeddingIndexStatus, EntityDetail, EvidenceLocator, FormalKnowledgeEdge, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail } from '../types'
+import type { EmbeddingJob, EmbeddingIndexStatus, EntityDetail, EvidenceLocator, FormalKnowledgeEdge, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail } from '../types'
 
 const props = defineProps<{
   project: ApiProject | null
@@ -20,7 +20,7 @@ const props = defineProps<{
   searchResult: KnowledgeSearchResult | null
   searchLoading: boolean
   searchError: string
-  searchErrorAction: 'search' | 'rebuild'
+  searchErrorAction: 'search' | 'rebuild' | 'inspect'
   searchRebuilding: boolean
   searchNotice: string
   validAt: string
@@ -28,6 +28,8 @@ const props = defineProps<{
   indexStatus?: EmbeddingIndexStatus | null
   indexStatusLoading?: boolean
   indexStatusError?: string
+  embeddingJob?: EmbeddingJob | null
+  embeddingJobError?: string
 }>()
 const emit = defineEmits<{
   back: []
@@ -41,7 +43,7 @@ const emit = defineEmits<{
   filterType: [value: string]
   depth: [value: number]
   search: [query: string, types: string, mode: KnowledgeSearchMode]
-  rebuildSearch: []
+  rebuildSearch: [retryInterrupted?: boolean]
   clearSearch: []
   retrySearch: []
   selectSearchEntity: [id: string]
@@ -94,7 +96,8 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
     <KnowledgeSearch :key="project?.id" :result="searchResult" :loading="searchLoading" :error="searchError" :error-action="searchErrorAction" :labels="labels"
       :rebuilding="searchRebuilding" :notice="searchNotice"
       :index-status="indexStatus" :index-status-loading="indexStatusLoading" :index-status-error="indexStatusError" @inspect-index="emit('inspectIndex')"
-      @search="(query, types, mode) => emit('search', query, types, mode)" @rebuild="emit('rebuildSearch')"
+      :embedding-job="embeddingJob" :embedding-job-error="embeddingJobError"
+      @search="(query, types, mode) => emit('search', query, types, mode)" @rebuild="retry => emit('rebuildSearch', retry)"
       @clear="emit('clearSearch')" @retry="emit('retrySearch')" @select="id => emit('selectSearchEntity', id)" @open-evidence="emit('openEvidence', $event)" />
     <div class="graph-toolbar">
       <span class="graph-real-label">真实项目图谱</span>
