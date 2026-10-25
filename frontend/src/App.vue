@@ -921,11 +921,19 @@ async function parseSource() {
   }
 }
 
-function applyReviewFilters(filters: ReviewFilters) {
+async function applyReviewFilters(filters: ReviewFilters) {
   if (reviewBusy.value) return
+  const projectId = project.value?.id
+  const sourceId = selectedSourceId.value
   reviewFilters.value = { ...filters }
+  const applied = reviewFilters.value
   candidates.value = null
-  void loadReviews(1)
+  await loadReviews(1)
+  await nextTick()
+  if (project.value?.id !== projectId || selectedSourceId.value !== sourceId || reviewFilters.value !== applied) return
+  const heading = document.getElementById('candidate-title')
+  heading?.focus({ preventScroll: true })
+  heading?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
 }
 
 async function loadReviews(page = candidates.value?.page ?? 1) {

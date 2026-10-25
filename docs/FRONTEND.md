@@ -1,5 +1,7 @@
 # Knowledge Atlas 前端开发说明
 
+CandidateReview 展示关系起点/终点名称与审核状态；单项确认要求两端已确认，整批确认允许本页明确选中的待审核端点，依赖不足显示具名提示并阻止最终提交，拒绝仍可用。“查看本资料实体候选”发出筛选意图，不自动选择/审核。App 在筛选加载后校验上下文并聚焦可定位的审核标题，清空隐藏选择。见 [ADR 0048](adr/0048-review-endpoint-visibility.zh-CN.md)。
+
 搜索与索引请求现由 `composables/useKnowledgeSearch.ts` 管理，App 保留项目、导航、图谱和原文定位编排。模块同步监听项目/有效时间，清理结果与重试参数，防止离开再返回同一上下文时旧请求复活。索引更新按项目记录在途请求，清空搜索不解除更新锁、不代表取消服务端写入；完成后只在原上下文仍有效时刷新状态和向量相关搜索，BM25 结果保留且不自动重跑。验收见[搜索状态优化记录](SEARCH_STATE_OPTIMIZATION_20261025.zh-CN.md)。
 
 CandidateReview 使用父级 ReviewFilters，对状态、实体/关系和文字应用服务端筛选；切条件回首屏并清空批量选择，整份统计独立。KnowledgeEvolution 可筛问题类别并调用 KnowledgeComparison 并排读取两条知识；App 校验项目/ID，关闭及上下文变化使迟到结果失效。QuestionWorkspace 展示去重片段的其他关联实体，原文仅展示一次。

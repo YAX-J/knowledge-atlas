@@ -72,6 +72,12 @@ class EvidenceRead(BaseModel):
     heading_path: list[str]
 
 
+class ReviewEndpointRead(BaseModel):
+    id: uuid.UUID
+    name: str
+    review_status: ReviewStatus
+
+
 class ReviewRead(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
@@ -87,6 +93,7 @@ class ReviewRead(BaseModel):
     evidence: list[EvidenceRead]
     source_candidate_id: uuid.UUID | None = None
     target_candidate_id: uuid.UUID | None = None
+    endpoints: list[ReviewEndpointRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 

@@ -14,7 +14,7 @@ from app.models.domain import (
     CandidateKnowledge, ProcessingTask, Project, ReviewEvent, ReviewStatus,
     SourceChunk, SourceDocument, SourceStatus, TaskStatus, utc_now,
 )
-from app.schemas.knowledge import ExtractionRead, RelationDraft, ReviewBatchRead, ReviewBatchResolve, ReviewRead, ReviewResolve
+from app.schemas.knowledge import ExtractionRead, RelationDraft, ReviewBatchRead, ReviewBatchResolve, ReviewEndpointRead, ReviewRead, ReviewResolve
 from app.schemas.tasks import TaskRead
 from app.services import deepseek, graph
 from app.services.ingestion import get_source
@@ -245,7 +245,24 @@ def list_reviews(
         CandidateKnowledge.created_at, CandidateKnowledge.id,
     ).offset((page - 1) * page_size).limit(page_size)))
     ids = graph.knowledge_ids(db, items)
-    return [read_review(item, ids.get(item.id)) for item in items], total
+    result = [read_review(item, ids.get(item.id)) for item in items]
+    # Fetch at most two endpoint IDs per listed relation, independent of list filters.
+    endpoint_ids = {endpoint for item in result if item.kind == 'relation'
+                    for endpoint in (item.source_candidate_id, item.target_candidate_id) if endpoint is not None}
+    endpoints = {}
+    if endpoint_ids:
+        endpoints = {(item.task_id, item.source_id, item.id): item for item in db.scalars(
+            _review_query(user_id).where(CandidateKnowledge.project_id == project_id,
+                                        CandidateKnowledge.id.in_(endpoint_ids),
+                                        CandidateKnowledge.payload['kind'].as_string() == 'entity'))}
+    for item in result:
+        if item.kind != 'relation':
+            continue
+        for endpoint_id in dict.fromkeys((item.source_candidate_id, item.target_candidate_id)):
+            endpoint = endpoints.get((item.task_id, item.source_id, endpoint_id))
+            if endpoint is not None:
+                item.endpoints.append(ReviewEndpointRead(id=endpoint.id, name=endpoint.name, review_status=endpoint.review_status))
+    return result, total
 
 
 def resolve_review(

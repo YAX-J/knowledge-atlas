@@ -147,3 +147,7 @@ Submit review filters explicitly; changing filters resets page/hidden selections
 ## Search orchestration extraction
 
 Search/retry/index reads/rebuilds now live in composables/useKnowledgeSearch.ts; App retains project, graph and evidence navigation. Project/time watches invalidate synchronously, including context round trips. Keep per-project pending rebuilds until the actual promise settles; clearing search is not server cancellation. Preserve BM25 results without rerunning lexical search after rebuild. Test lifecycle boundaries with tests/knowledgeSearchState.test.ts and actual App graph events in tests/appRequests.test.ts before further extraction.
+
+## Relation review guidance (ADR 0048)
+
+CandidateReview uses list endpoint snapshots to show both endpoint names/statuses. Block single/edit-confirm unless both are confirmed; batch confirmation may also use explicitly selected current-page pending entities, never auto-select dependencies. Show named missing/rejected/unselected reasons; rejection remains available. Entity-list intent resets filters and selections, and App fences post-load heading focus by project/source/applied-filter identity. Test relation-only filters, batch submit guards and safe endpoint text in tests/review.test.ts.

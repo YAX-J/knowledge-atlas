@@ -175,3 +175,7 @@ Include tests/test_knowledge_discovery.py in focused and native acceptance. Desk
 ## Search lifecycle verification
 
 For search/index composable changes, focus frontend/tests/knowledgeSearchState.test.ts and frontend/tests/appRequests.test.ts, then run full frontend coverage and build. Coverage now includes useKnowledgeSearch.ts; report its scoped denominator accurately. Browser response-delay checks may hold a local rebuild response: clearing must keep the rebuild control disabled until settlement, suppress old notices and avoid another request. Normal rebuild must retain BM25 results without another lexical request. Provider stubs and native fixture persistence are separate from full native migration/contention acceptance.
+
+## Relation dependency acceptance (ADR 0048)
+
+Focus tests/test_knowledge_discovery.py tests/test_batch_reviews.py tests/test_knowledge.py and frontend/tests/review.test.ts tests/appRequests.test.ts. Native includes the discovery file. Desktop acceptance: filter to relations while endpoints are pending, verify disabled confirmation and named batch warnings, navigate to entities with cleared selection/preview and heading focus, explicitly confirm entities then the relation. Keep no-real-provider and temporary-schema ownership/cleanup rules.

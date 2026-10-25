@@ -113,3 +113,5 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [0046: Atomic batch review and read-only index status](0046-atomic-batch-review-index-status.md)
 
 - [0047: Filtered discovery and passage attribution](0047-filtered-discovery-evidence-attribution.md)
+
+- [0048: Relation review dependency visibility](0048-review-endpoint-visibility.md)

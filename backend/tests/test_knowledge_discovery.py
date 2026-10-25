@@ -1,9 +1,11 @@
 import uuid
+import copy
 
 import pytest
 
 from app.api.dependencies import get_current_user_id
 from app.main import app
+from app.models.domain import CandidateKnowledge, ProcessingTask, ReviewStatus, TaskStatus
 from app.schemas.questions import AnswerDraft
 from app.services import deepseek
 from tests.test_evolution import reviewed_decision
@@ -11,6 +13,8 @@ from tests.test_graph import confirm, extracted
 from tests.test_knowledge import configured
 from tests.test_questions import prepared_project
 from tests.test_sources import create_project
+from tests.test_parsing import upload
+from app.schemas.knowledge import ExtractionDraft
 
 
 def test_review_filters_combine_literal_text_kind_status_and_pagination(client, configured, monkeypatch):
@@ -90,3 +94,77 @@ def test_deduplicated_question_evidence_retains_all_entity_attributions(client, 
     assert {entity['name'] for entity in evidence['related_entities']} == {'PostgreSQL', 'Store knowledge'}
     assert evidence['entity_id'] == evidence['related_entities'][0]['id']
     assert data['retrieval']['duplicate_evidence_count'] == 1
+
+
+def test_relation_endpoints_are_available_outside_filters_and_pages(client, configured, monkeypatch):
+    project, source, items = extracted(client, monkeypatch)
+    entities = [item for item in items if item['kind'] == 'entity']
+    relation = next(item for item in items if item['kind'] == 'relation')
+    confirm(client, entities[0])
+    client.post(f"/api/v1/reviews/{entities[1]['id']}/resolve", json={'action': 'reject'})
+    monkeypatch.setattr(deepseek, 'extract_candidates', lambda *_: pytest.fail('Listing must not call models'))
+    response = client.get(f'/api/v1/projects/{project}/reviews', params={
+        'source_id': source['source_id'], 'kind': 'relation', 'review_status': 'pending',
+        'q': relation['summary'], 'page_size': 1})
+    assert response.status_code == 200
+    data = response.json()
+    assert data['total'] == 1
+    endpoints = {item['id']: item for item in data['items'][0]['endpoints']}
+    assert endpoints == {entities[0]['id']: {'id': entities[0]['id'], 'name': entities[0]['name'], 'review_status': 'confirmed'},
+                         entities[1]['id']: {'id': entities[1]['id'], 'name': entities[1]['name'], 'review_status': 'rejected'}}
+    assert client.post(f"/api/v1/reviews/{relation['id']}/resolve", json={'action': 'confirm'}).status_code == 409
+    assert client.get(f"/api/v1/sources/{source['source_id']}/extraction").json()['review_counts'] == {
+        'pending': 1, 'confirmed': 1, 'rejected': 1}
+
+
+@pytest.mark.parametrize('scope', ['project', 'source', 'task', 'kind'])
+def test_relation_endpoint_metadata_never_crosses_scope(client, db_session, configured, monkeypatch, scope):
+    project, source, items = extracted(client, monkeypatch)
+    relation = next(item for item in items if item['kind'] == 'relation')
+    record = db_session.get(CandidateKnowledge, uuid.UUID(relation['id']))
+    if scope == 'project':
+        _, _, foreign = extracted(client, monkeypatch)
+        endpoint_id = next(item['id'] for item in foreign if item['kind'] == 'entity')
+    elif scope == 'source':
+        other = upload(client, project, content=b'# Other\n\nPrivate endpoint conclusion.\n')
+        client.post(f"/api/v1/tasks/{other['task_id']}/run")
+        chunk = client.get(f"/api/v1/sources/{other['source_id']}/chunks").json()['items'][1]
+        draft = {'entities': [{'local_id': 'other', 'type': 'Concept', 'name': 'Private endpoint',
+                 'summary': 'Different source', 'confidence': .8,
+                 'evidence': [{'chunk_id': chunk['id'], 'quote': 'Private endpoint conclusion.'}]}], 'relations': []}
+        monkeypatch.setattr(deepseek, 'extract_candidates', lambda *_: ExtractionDraft.model_validate(draft))
+        client.post(f"/api/v1/sources/{other['source_id']}/extract")
+        endpoint_id = client.get(f'/api/v1/projects/{project}/reviews', params={'source_id': other['source_id']}).json()['items'][0]['id']
+    elif scope == 'task':
+        original = db_session.get(ProcessingTask, record.task_id)
+        task = ProcessingTask(user_id=original.user_id, project_id=original.project_id,
+                              source_id=original.source_id, type=original.type, status=TaskStatus.SUCCEEDED)
+        db_session.add(task)
+        db_session.flush()
+        entity = db_session.get(CandidateKnowledge, uuid.UUID(relation['source_candidate_id']))
+        entity.task_id = task.id
+        endpoint_id = str(entity.id)
+    else:
+        endpoint_id = relation['id']
+    record.payload = {**record.payload, 'source_candidate_id': endpoint_id}
+    db_session.commit()
+    response = client.get(f'/api/v1/projects/{project}/reviews', params={'kind': 'relation'})
+    assert response.status_code == 200
+    endpoints = response.json()['items'][0]['endpoints']
+    assert endpoint_id not in {item['id'] for item in endpoints}
+    assert relation['target_candidate_id'] in {item['id'] for item in endpoints}
+
+
+def test_self_relation_endpoint_is_deduplicated_and_listing_is_read_only(client, db_session, configured, monkeypatch):
+    def self_relation(draft):
+        draft = copy.deepcopy(draft)
+        draft['relations'][0]['target'] = draft['relations'][0]['source']
+        return draft
+    project, _, items = extracted(client, monkeypatch, self_relation)
+    relation = next(item for item in items if item['kind'] == 'relation')
+    before = [(item.id, item.review_status, item.updated_at) for item in db_session.query(CandidateKnowledge).all()]
+    data = client.get(f'/api/v1/projects/{project}/reviews', params={'kind': 'relation'}).json()
+    assert len(data['items'][0]['endpoints']) == 1
+    assert data['items'][0]['endpoints'][0]['id'] == relation['source_candidate_id']
+    assert data['items'][0]['endpoints'][0]['review_status'] == ReviewStatus.PENDING.value
+    assert before == [(item.id, item.review_status, item.updated_at) for item in db_session.query(CandidateKnowledge).all()]

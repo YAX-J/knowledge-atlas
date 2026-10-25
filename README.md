@@ -1,5 +1,7 @@
 # Knowledge Atlas
 
+关系候选现展示两端实体名称和审核状态，单项/批量确认前提示未满足的依赖；可返回实体候选继续审核。见 [ADR 0048](docs/adr/0048-review-endpoint-visibility.zh-CN.md) 与[验收记录](docs/REVIEW_DEPENDENCIES_20261025.zh-CN.md)。
+
 新增候选状态/实体关系/文字组合筛选；治理类别由后端先筛选再截断，并可将两条知识的原文并排核对。问答证据去重后保留其他关联实体入口。见 [ADR 0047](docs/adr/0047-filtered-discovery-evidence-attribution.zh-CN.md) 与[验收记录](docs/DISCOVERY_OPTIMIZATION_20261025.zh-CN.md)。
 
 新增批量审核与语义索引状态：当前页候选可多选、核对名称预览后整批确认/拒绝，失败整批回滚；审核期间锁住上下文。检索区可免费刷新索引缺失/过期状态，内容哈希检查最多 1000 个实体，显式更新后刷新。见 [ADR 0046](docs/adr/0046-atomic-batch-review-index-status.zh-CN.md)。

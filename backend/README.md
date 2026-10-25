@@ -1,5 +1,7 @@
 # Knowledge Atlas Backend
 
+Review listing includes scoped relation `endpoints` snapshots (id/name/review_status), independent of list filters and pages. One bounded lookup checks entity kind and exact user/project/source/task; missing endpoints are omitted. Resolve responses default to an empty snapshot. Promotion and transaction rules remain unchanged (ADR 0048).
+
 Review listing accepts optional kind=entity|relation and literal q filters. Governance accepts kind and returns category counts before limiting results. Question passages expose related_entities and provide entity_names to the answer model while retaining canonical citation IDs. No migration (ADR 0047).
 
 Added atomic `POST /projects/{id}/reviews/resolve-batch` (same source, 1–100 unique IDs, confirm/reject) and provider-free `GET /projects/{id}/embeddings/status?valid_at=...`. Index counts cover the complete effective scope; hash freshness is inspected for at most 1000 entities. No migration or new provider configuration.

@@ -131,3 +131,7 @@ ADR 0045 adds opt-in `rrf` with two 100-entity pools and `sum(1/(60+rank))`; pre
 ## Filtered discovery (ADR 0047)
 
 Apply candidate status/kind/literal name-summary filters before count and pagination within the existing user/project/source scope; whole-source review_counts remain unfiltered. Governance kind filtering precedes the result limit; counts_by_kind describes only the bounded scan. Comparison is read-only and never merges entities or changes review decisions. Regressions: tests/test_knowledge_discovery.py.
+
+## Relation dependency snapshots (ADR 0048)
+
+List reviews enriches relation endpoints in one bounded query, independently of outer filters/pages. Match user/project/source/successful task/entity kind; omit missing or incompatible endpoints and deduplicate self-links. Resolve responses default to an empty snapshot. Never trust this read-time metadata for promotion: preserve project locking, final dependency/evidence checks and batch atomicity. Native acceptance includes tests/test_knowledge_discovery.py scope regressions.

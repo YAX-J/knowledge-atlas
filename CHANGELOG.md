@@ -10,6 +10,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Relation review cards display scoped endpoint names/statuses across filtering and pagination, with entity-list navigation and named batch dependency explanations before final confirmation.
+
 - Search/index lifecycle and App integration regressions cover context round trips, retries and clearing during rebuild. Search state is now isolated in a tested composable.
 
 - Server-side candidate status/kind/text filtering with page recovery and selection invalidation. Governance filters categories before result limits and reports bounded-scan counts.

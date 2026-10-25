@@ -73,6 +73,7 @@ export interface KnowledgeCandidate {
   evidence: CandidateEvidence[]
   source_candidate_id: string | null
   target_candidate_id: string | null
+  endpoints?: { id: string; name: string; review_status: 'pending' | 'confirmed' | 'rejected' }[]
   created_at: string
   updated_at: string
 }

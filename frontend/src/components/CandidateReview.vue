@@ -30,6 +30,21 @@ const selected = ref<string[]>([])
 const batchAction = ref<'confirm' | 'reject' | ''>('')
 const pending = computed(() => props.candidates?.items.filter(item => item.review_status === 'pending') ?? [])
 const batchDisabled = computed(() => busy.value || props.loading || !!editing.value)
+function relationEndpoints(item: KnowledgeCandidate) {
+  return [{ role: '起点', id: item.source_candidate_id }, { role: '终点', id: item.target_candidate_id }]
+    .map(endpoint => ({ ...endpoint, candidate: item.endpoints?.find(value => value.id === endpoint.id) }))
+}
+function dependencyProblem(item: KnowledgeCandidate, withSelection = false) {
+  if (item.kind !== 'relation') return ''
+  const blocked = relationEndpoints(item).filter(endpoint => {
+    const candidate = endpoint.candidate
+    return !candidate || (candidate.review_status !== 'confirmed' && !(withSelection && candidate.review_status === 'pending' &&
+      selected.value.includes(candidate.id) && pending.value.some(value => value.id === candidate.id && value.kind === 'entity')))
+  })
+  return blocked.map(endpoint => `${endpoint.candidate?.name ?? endpoint.role}（${endpoint.candidate?.review_status === 'rejected' ? '已拒绝，无法确认关系' : endpoint.candidate ? '待确认' : '状态不可用，请刷新候选'}）`).join('、')
+}
+const batchProblems = computed(() => pending.value.filter(item => selected.value.includes(item.id))
+  .map(item => ({ id: item.id, name: item.name, problem: dependencyProblem(item, true) })).filter(item => item.problem))
 const filterStatus = ref<ReviewFilters['status']>('')
 const filterKind = ref<ReviewFilters['kind']>('')
 const filterQuery = ref('')
@@ -56,6 +71,7 @@ function selectPage() {
 }
 function submitBatch() {
   if (batchDisabled.value || !batchAction.value || !selected.value.length) return
+  if (batchAction.value === 'confirm' && batchProblems.value.length) return
   emit('resolveBatch', [...selected.value], batchAction.value)
 }
 const counts = computed(() => props.extraction?.review_counts)
@@ -81,6 +97,7 @@ const labels: Record<string, string> = {
   EVIDENCED_BY: '证据', EXTRACTED_FROM: '来源', LEARNED_FROM: '经验', SUPERSEDES: '替代',
 }
 async function edit(item: KnowledgeCandidate) {
+  if (busy.value || props.loading || dependencyProblem(item)) return
   editing.value = item.id
   name.value = item.name
   summary.value = item.summary
@@ -95,6 +112,8 @@ watch(() => props.resolving, async (current, previous) => {
 })
 function confirm(id: string) {
   if (busy.value || props.loading) return
+  const item = props.candidates?.items.find(value => value.id === id)
+  if (!item || dependencyProblem(item)) return
   emit('resolve', { id, action: 'confirm', changes: { name: name.value.trim(), summary: summary.value.trim() } })
 }
 </script>
@@ -102,7 +121,7 @@ function confirm(id: string) {
 <template>
   <section class="candidate-review" aria-labelledby="candidate-title" :aria-busy="loading || busy">
     <div class="source-section-heading">
-      <h3 id="candidate-title">候选知识 <span v-if="candidates">{{ candidates.total }}</span></h3>
+      <h3 id="candidate-title" tabindex="-1">候选知识 <span v-if="candidates">{{ candidates.total }}</span></h3>
       <button class="text-button" type="button" :disabled="loading || busy" @click="emit('refresh')">刷新候选</button>
     </div>
     <p class="source-upload-hint">提取时会将本篇资料的原文分块发送至 DeepSeek。核对证据并确认后，知识会写入项目图谱；关系两端的实体需要先确认。</p>
@@ -138,8 +157,12 @@ function confirm(id: string) {
       <form v-if="batchAction" class="batch-preview" @submit.prevent="submitBatch">
         <p>将{{ batchAction === 'confirm' ? '确认并写入图谱' : '拒绝' }}以下 {{ selected.length }} 条候选：</p>
         <ul><li v-for="item in pending.filter(item => selected.includes(item.id))" :key="item.id">{{ item.kind === 'entity' ? '实体' : '关系' }}：{{ item.name }}</li></ul>
+        <div v-if="batchAction === 'confirm' && batchProblems.length" class="dependency-warning" role="status">
+          <p>以下关系尚不能确认，请先审核依赖实体，或明确选中本页对应的待审核实体：</p>
+          <ul><li v-for="item in batchProblems" :key="item.id">{{ item.name }}：{{ item.problem }}</li></ul>
+        </div>
         <p>任意一项无法处理时整批不生效。处理后暂不支持撤销。</p>
-        <button class="primary-button" type="submit" :disabled="batchDisabled">{{ batchAction === 'confirm' ? '确认所选并入图' : '确认拒绝所选' }}</button>
+        <button class="primary-button" type="submit" :disabled="batchDisabled || (batchAction === 'confirm' && !!batchProblems.length)">{{ batchAction === 'confirm' ? '确认所选并入图' : '确认拒绝所选' }}</button>
         <button class="text-button" type="button" :disabled="batchDisabled" @click="batchAction = ''">取消批量操作</button>
       </form>
     </section>
@@ -152,6 +175,11 @@ function confirm(id: string) {
       </header>
       <h4 :id="`candidate-${item.id}`" tabindex="-1">{{ item.name }}</h4>
       <p class="candidate-summary">{{ item.summary }}</p>
+      <section v-if="item.kind === 'relation'" class="relation-dependencies" :aria-label="`${item.name} 的关系端点`">
+        <p v-for="endpoint in relationEndpoints(item)" :key="endpoint.role">{{ endpoint.role }}：{{ endpoint.candidate?.name ?? '不可访问的实体候选' }} · {{ endpoint.candidate ? labels[endpoint.candidate.review_status] : '状态不可用' }}</p>
+        <p v-if="item.review_status === 'pending' && dependencyProblem(item)" class="dependency-warning">确认前需处理：{{ dependencyProblem(item) }}</p>
+        <button class="text-button" type="button" :disabled="batchDisabled" @click="emit('filter', { status: '', kind: 'entity', query: '' })">查看本资料实体候选</button>
+      </section>
       <small class="muted-copy">模型置信度 {{ Math.round(item.confidence * 100) }}% · 请以原文证据为准</small>
       <blockquote v-for="(evidence, index) in item.evidence" :key="index">
         <cite>原文第 {{ evidence.start_line }}–{{ evidence.end_line }} 行 · {{ evidence.heading_path.join(' / ') || '文档开头' }}</cite>
@@ -169,11 +197,10 @@ function confirm(id: string) {
           </div>
         </form>
         <div v-else class="candidate-actions">
-          <button class="primary-button" type="button" :disabled="busy || loading" @click="emit('resolve', { id: item.id, action: 'confirm' })">{{ resolving === item.id ? '正在处理…' : '确认' }}</button>
-          <button class="text-button" type="button" :disabled="busy || loading" @click="edit(item)">修改后确认</button>
+          <button class="primary-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)" @click="emit('resolve', { id: item.id, action: 'confirm' })">{{ resolving === item.id ? '正在处理…' : '确认' }}</button>
+          <button class="text-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)" @click="edit(item)">修改后确认</button>
           <button class="text-button" type="button" :disabled="busy || loading" @click="emit('resolve', { id: item.id, action: 'reject' })">拒绝</button>
         </div>
-        <p v-if="item.kind === 'relation'" class="muted-copy">请先确认关系两端的实体。</p>
       </template>
       <div v-else-if="item.review_status === 'confirmed' && !item.knowledge_id" class="candidate-actions">
         <span class="muted-copy">这条旧候选已通过审核，尚未写入正式图谱。</span>
@@ -189,6 +216,8 @@ function confirm(id: string) {
 </template>
 
 <style scoped>
+.relation-dependencies { margin: 12px 0; padding: 12px; border-left: 2px solid var(--teal); background: #edf5f3; overflow-wrap: anywhere; font-size: 12px; line-height: 1.8; }
+.dependency-warning { color: #7b3850; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
 .review-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
 .review-filters label { display: grid; gap: 6px; font-size: 12px; }
 .review-filters input, .review-filters select { min-height: 40px; max-width: 100%; border: 1px solid #aabec0; border-radius: 5px; padding: 8px; color: var(--ink); background: var(--paper); }
