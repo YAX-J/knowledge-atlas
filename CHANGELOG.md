@@ -10,6 +10,9 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Bounded provider-free BM25 Chinese/English search with terms, scope-aware corpus statistics, scan limits and UI explanations; a separate 40-question development diagnostic preserves failures and old baselines (ADR 0044).
+- Semantic queries skip embedding requests for empty matching indexes while preserving configuration errors; search forms now guard busy submissions. Added lexical/native regressions and three component cases (18 frontend tests total).
+
 - Optional bounded read-only tool Agent with validated function arguments, scoped source snapshots, execution traces and the compatible single-step default; ten-language, 50-case call gold set.
 - Approved real synthetic DeepSeek acceptance (112 requests), frozen-evidence answers, usage records, human blind-review packet/import and five reproducible scientific figures. Human semantic grades remain pending.
 - Fifteen Vue/API regression tests, coverage reporting, CI jobs, a native Windows demo launcher and an optional full frontend/API/Worker/pgvector Compose stack. Docker builds and hosted CI remain unverified locally.

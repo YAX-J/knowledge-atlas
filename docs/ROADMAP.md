@@ -1,5 +1,7 @@
 # Knowledge Atlas 开发路线与验收标准
 
+2026-10-25：按[优化复盘](OPTIMIZATION_REVIEW.zh-CN.md)补充零模型 BM25、空索引调用保护、搜索解释和独立版本开发诊断。新结果不作为独立盲测；下一优先级为真实人工评分、独立语料与受控融合实验，而不是直接替换旧权重。
+
 2026-10-24 最新交付检查点：毕业补强清单 3—8 的代码、真实模型自动验收、图表、文档、测试与本地演示已交付；人工盲评仍待真实评审，Docker/远端 CI 待对应环境验证。完整范围见 [PLANS](../PLANS.zh-CN.md)、[真实实验报告](../evaluation/results/2026-10-24-models/REPORT.zh-CN.md)和[演示](DEMO.zh-CN.md)。下文旧检查点的“暂缓模型”仅是历史记录；本轮授权不延伸到后续无限调用。
 
 多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。默认解析不调用模型；用户可显式运行有界 Agent，在同仓库静态候选中分析跨文件调用，后端校验候选 ID 与精确源码行，结果不持久化、不自动入图。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。详见[多语言说明](MULTILANGUAGE_PARSING.zh-CN.md)与 [ADR 0041](adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。不代表真实模型或毕业实验已验收。

@@ -1,5 +1,7 @@
 # Knowledge Atlas 仓库代理规范
 
+离线词法检索新增显式 `mode=bm25`（ADR 0044），与默认字面关键词、固定混合模式分开。必须保留用户/项目/类型/时间隔离及扫描/文本上限，返回截断信息，不把分数当作可回答性。语义空索引在本地配置校验后跳过查询嵌入。新实验单独版本化，2026-10-25 结果是开发诊断，不是独立盲测或人工质量分。
+
 多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。默认解析只做语法结构，显式提示语法错误，不执行代码、不调用模型也不自动入图；独立显式 Agent 操作可按 ADR 0041 对后端给出的同仓库跨文件调用候选分类。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。修改时读 `docs/MULTILANGUAGE_PARSING.zh-CN.md`、ADR 0040 与 ADR 0041；注册表 `services/source_languages.py`，语法解析器 `services/code_source.py`；下文 Java 确定性规则仍仅适用 Java。
 
 [English](AGENTS.md)

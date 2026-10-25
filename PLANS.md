@@ -50,6 +50,8 @@ Completed:
 
 ## Active phase
 
+2026-10-25 optimization checkpoint: bounded provider-free BM25 search/UI and runner support are implemented; empty matching vector indexes skip query embedding while configuration errors remain explicit. The same frozen corpus/graph/index gives development Recall@5 74.49% versus literal keyword 0%, with zero provider requests; all six code-location cases still miss and four unanswerable cases retrieve text. Historical defaults/reports remain unchanged. See [review and next priorities](docs/OPTIMIZATION_REVIEW.md) and [diagnostic](evaluation/results/2026-10-25-bm25/README.md). Independent data/human review precede further fusion selection.
+
 Current checkpoint (2026-10-24, supersedes the earlier deferral below): the user authorized delivery items 3–8 and a bounded real DeepSeek run. Item 3: 30 source snippets / 50 line-exact call cases / ten languages. Item 4: optional read-only tool Agent, at most four provider turns. Item 5: 112 real requests, 120 blind-review rows and two extraction evidence checks; actual human grades remain pending. Item 6: five PNG/SVG figures, source hashes and a limited vector-versus-fixed-hybrid component comparison. Item 7: architecture/API/status and bilingual delivery docs synchronized. Item 8: frontend component tests, coverage, CI definition, native launcher and optional full Compose stack. Native checks/builds are recorded separately; Docker builds and hosted CI have not run here. See [experiment report](evaluation/results/2026-10-24-models/REPORT.md) and [demo](docs/DEMO.md). The next required external action is real human grading, not more unapproved provider calls.
 
 Earlier checkpoint (before this round's authorization):

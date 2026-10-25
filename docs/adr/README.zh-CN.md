@@ -106,3 +106,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0041：通过 Agent 执行有界多语言跨文件调用分析](0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)
 - [ADR 0042：通过审核服务重放可复现的合成实验项目](0042-reproducible-curated-evaluation-projects.zh-CN.md)
 - [ADR 0043：有界只读仓库工具 Agent](0043-bounded-read-only-tool-agent.zh-CN.md)
+- [ADR 0044：新增有界离线词法检索基线](0044-bounded-offline-bm25-search.zh-CN.md)

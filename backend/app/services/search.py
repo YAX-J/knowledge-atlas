@@ -10,15 +10,20 @@ from app.core.config import Settings
 from app.core.errors import AppError
 from app.models.domain import SourceChunk, SourceDocument, utc_now
 from app.models.graph import KnowledgeEmbedding, KnowledgeEntity, KnowledgeEvidence, KnowledgeRelationship
-from app.schemas.search import GraphSearchSignal, SearchHit, SearchRead, SearchWeights
+from app.schemas.search import GraphSearchSignal, LexicalSearchInfo, SearchHit, SearchRead, SearchWeights
 from app.services import embeddings as embedding_service
 from app.services import graph
+from app.services import lexical
 from app.services.projects import get_project
 
 
 HYBRID_POOL_LIMIT = 100
 HYBRID_EDGE_LIMIT = 500
 HYBRID_WEIGHTS = SearchWeights(keyword=0.3, vector=0.4, graph=0.3)
+BM25_ENTITY_LIMIT = 1000
+BM25_EVIDENCE_LIMIT = 5000
+BM25_TEXT_LIMIT = 4000
+BM25_QUOTE_LIMIT = 2000
 
 
 @dataclass
@@ -108,6 +113,71 @@ def _keyword_search(
     return SearchRead(query=normalized, mode='keyword', items=items, truncated=truncated)
 
 
+def _bm25_search(
+    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, query: str,
+    types: list[str], valid_at: datetime | None, top_k: int,
+) -> SearchRead:
+    normalized = ' '.join(query.split())
+    if not lexical.tokenize(normalized):
+        raise AppError(status_code=422, code='SEARCH_QUERY_INVALID', message='请输入包含文字或标识符的问题；符号精确匹配请使用关键词模式')
+    conditions = _base_conditions(user_id, project_id, valid_at or utc_now(), types)
+    eligible = db.scalar(select(func.count()).select_from(KnowledgeEntity).where(*conditions)) or 0
+    entities = list(db.scalars(select(KnowledgeEntity).where(*conditions).order_by(
+        KnowledgeEntity.name, KnowledgeEntity.id,
+    ).limit(BM25_ENTITY_LIMIT)))
+    reasons = {'entity_limit'} if eligible > len(entities) else set()
+    ids = [entity.id for entity in entities]
+    quotes: dict[uuid.UUID, list[str]] = {}
+    if ids:
+        rows = db.execute(select(
+            KnowledgeEvidence.entity_id,
+            func.substr(KnowledgeEvidence.quote, 1, BM25_QUOTE_LIMIT),
+            func.length(KnowledgeEvidence.quote),
+        ).join(SourceDocument, SourceDocument.id == KnowledgeEvidence.source_id).join(
+            SourceChunk, SourceChunk.id == KnowledgeEvidence.chunk_id,
+        ).where(
+            KnowledgeEvidence.entity_id.in_(ids),
+            KnowledgeEvidence.user_id == user_id, KnowledgeEvidence.project_id == project_id,
+            SourceDocument.user_id == user_id, SourceDocument.project_id == project_id,
+            SourceChunk.user_id == user_id, SourceChunk.project_id == project_id,
+            SourceChunk.source_id == KnowledgeEvidence.source_id,
+        ).order_by(KnowledgeEvidence.entity_id, KnowledgeEvidence.start_line, KnowledgeEvidence.id).limit(
+            BM25_EVIDENCE_LIMIT + 1,
+        )).all()
+        if len(rows) > BM25_EVIDENCE_LIMIT:
+            reasons.add('evidence_limit')
+        for owner, quote, length in rows[:BM25_EVIDENCE_LIMIT]:
+            quotes.setdefault(owner, []).append(quote)
+            if length > BM25_QUOTE_LIMIT:
+                reasons.add('text_limit')
+    documents = []
+    for entity in entities:
+        document = {}
+        remaining = BM25_TEXT_LIMIT
+        for key, value in (('name', entity.name), ('summary', entity.summary),
+                           ('evidence', '\n'.join(quotes.get(entity.id, [])))):
+            document[key] = value[:remaining]
+            if len(value) > remaining:
+                reasons.add('text_limit')
+            remaining = max(0, remaining - len(value))
+        documents.append(document)
+    terms, scores = lexical.rank_fields(documents, normalized)
+    ranked = sorted(((entity, score, fields) for entity, (score, fields) in zip(entities, scores, strict=True) if score > 0),
+                    key=lambda item: (-item[1], item[0].name, str(item[0].id)))
+    truncated = bool(reasons) or len(ranked) > top_k
+    ranked = ranked[:top_k]
+    reads = graph._reads(db, [item[0] for item in ranked])
+    items = []
+    for (entity, score, fields), read in zip(ranked, reads, strict=True):
+        evidence = graph._evidence_read(db, entity)
+        evidence.sort(key=lambda item: (-len(set(lexical.tokenize(item.quote)) & set(terms)), item.start_line, str(item.id)))
+        items.append(SearchHit(entity=read, bm25_score=round(score, 6), matched_fields=fields, evidence=evidence[:3]))
+    return SearchRead(query=normalized, mode='bm25', items=items, truncated=truncated, eligible_count=eligible,
+                      lexical=LexicalSearchInfo(query_terms=terms, scanned_count=len(entities),
+                          entity_limit=BM25_ENTITY_LIMIT, text_limit_per_entity=BM25_TEXT_LIMIT,
+                          truncated_reasons=sorted(reasons)))
+
+
 def _cosine(left: list[float], right: list[float]) -> float:
     numerator = sum(a * b for a, b in zip(left, right, strict=True))
     left_norm = math.sqrt(sum(value * value for value in left))
@@ -122,11 +192,6 @@ def _vector_ranked(
     normalized = ' '.join(query.split())
     if not normalized:
         raise AppError(status_code=422, code='SEARCH_QUERY_INVALID', message='请输入要检索的问题或描述')
-    try:
-        query_vector = embedding_service.embed_texts(settings, [normalized])[0]
-    except embedding_service.EmbeddingError as exc:
-        raise AppError(status_code=503, code=exc.code, message=exc.message) from exc
-
     conditions = _base_conditions(user_id, project_id, at, types)
     eligible_count = db.scalar(select(func.count()).select_from(KnowledgeEntity).where(*conditions)) or 0
     joined = select(KnowledgeEntity, KnowledgeEmbedding).join(
@@ -139,6 +204,14 @@ def _vector_ranked(
         KnowledgeEmbedding.dimensions == settings.embedding_dimensions,
     )
     indexed_count = db.scalar(select(func.count()).select_from(joined.subquery())) or 0
+    try:
+        # Preserve configuration errors, but never pay to query an empty index.
+        embedding_service._require_configuration(settings)
+        if not indexed_count:
+            return normalized, [], 0, eligible_count
+        query_vector = embedding_service.embed_texts(settings, [normalized])[0]
+    except embedding_service.EmbeddingError as exc:
+        raise AppError(status_code=503, code=exc.code, message=exc.message) from exc
     if db.get_bind().dialect.name == 'postgresql':
         distance = KnowledgeEmbedding.embedding.cosine_distance(query_vector)
         rows = db.execute(joined.add_columns(distance.label('distance')).order_by(
@@ -300,6 +373,9 @@ def search_knowledge(
     settings: Settings,
 ) -> SearchRead:
     get_project(db, user_id=user_id, project_id=project_id)
+    if mode == 'bm25':
+        return _bm25_search(db, user_id=user_id, project_id=project_id, query=query,
+                            types=types, valid_at=valid_at, top_k=top_k)
     if mode == 'hybrid':
         return _hybrid_search(
             db, user_id=user_id, project_id=project_id, query=query, types=types,

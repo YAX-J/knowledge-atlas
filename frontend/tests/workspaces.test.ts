@@ -44,6 +44,28 @@ describe('evidence questions', () => {
 })
 
 describe('knowledge search', () => {
+  it('submits explicit BM25 mode without requesting a semantic index', async () => {
+    const wrapper = mount(KnowledgeSearch, { props: searchProps })
+    await wrapper.get('input').setValue('中文资料如何检索？')
+    await wrapper.get('#project-search-mode').setValue('bm25')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('search')).toEqual([['中文资料如何检索？', '', 'bm25']])
+    expect(wrapper.emitted('rebuild')).toBeUndefined()
+    await wrapper.setProps({ result: { query: '中文资料如何检索？', mode: 'bm25', items: [],
+      truncated: true, indexed_count: null, eligible_count: 2, weights: null,
+      lexical: { protocol: 'mixed-bm25-v1', query_terms: ['中文'], scanned_count: 1,
+        entity_limit: 1, text_limit_per_entity: 4000, truncated_reasons: ['entity_limit'] } } })
+    expect(wrapper.text()).toContain('本地词法扫描 1/2')
+    expect(wrapper.text()).toContain('部分排序文本或候选未参与计算')
+    expect(wrapper.text()).not.toContain('语义索引尚未覆盖')
+    expect(wrapper.text()).not.toContain('已索引')
+  })
+  it.each(['loading', 'rebuilding'] as const)('blocks form submission during %s', async busy => {
+    const wrapper = mount(KnowledgeSearch, { props: { ...searchProps, [busy]: true } })
+    await wrapper.get('input').setValue('query')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('search')).toBeUndefined()
+  })
   it('emits trimmed query, type and explicit retrieval mode; clear resets all', async () => {
     const wrapper = mount(KnowledgeSearch, { props: searchProps })
     await wrapper.get('input').setValue('  PostgreSQL  ')

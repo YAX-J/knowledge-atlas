@@ -1,5 +1,7 @@
 # Knowledge Atlas 前端开发说明
 
+检索新增 `bm25`（“BM25 · 无需模型”），显示词法扫描规模、截断与非置信度说明；仅 `vector/hybrid` 显示语义索引覆盖。空 BM25 结果不提示重建向量索引，提交函数直接检查 loading/rebuilding，防止忙碌时重复提交。App 的请求序号隔离不变；组件/API 回归现为 18 项，仍非全站端到端覆盖。
+
 当前新增 Vitest/jsdom + Vue Test Utils 测试基础，`npm run test:coverage` 覆盖 API 客户端与四个关键组件；不是全站端到端测试。源码区选择 `single_step/tools`，由 App 继续维护请求序号与上下文锁；展示工具脱敏轨迹，不展示推理。生产 nginx 同源代理与原生一键演示见[演示文档](DEMO.zh-CN.md)。
 
 多语言 V1：单文件/文件夹选择共用 `sourceLanguages.ts`；上传由后端推断来源类型，全部代码读取原结构接口。展示语言标签、函数/方法、字段/属性及独立的语法错误/截断警告，分页原文聚焦保持不变。仓库卡片可勾选“重新扫描”，`rescan` 经 App 编排传到同步接口。新语言默认不提供调用关系；源码结构区可显式运行 Agent，在同仓库后端候选中分析跨文件调用，并展示费用边界、证据、置信度、加载/空/错误/重试与截断状态。下文 Java 专项仍仅适用 Java，通用上传/检索与 Agent 候选覆盖[全部支持语言](MULTILANGUAGE_PARSING.zh-CN.md)。

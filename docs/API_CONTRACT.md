@@ -534,12 +534,16 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 查询参数：
 
 - `q`：必填，1–200 字符。`keyword` 模式按空白切分为 1–8 个词；`hybrid` 的关键词分支最多使用前 8 个不同词，两者都要求所用词在名称、摘要或证据摘录中命中，重复词只计分一次。`vector` 与 `hybrid` 的向量分支把规范化后的完整文本作为查询。
-- `mode`：`keyword`（默认）、`vector` 或 `hybrid`。
+- `mode`：`keyword`（默认）、`bm25`、`vector` 或 `hybrid`。新增 `bm25` 是离线中英混合词法排序，不依赖模型或向量索引；不会改变旧关键词/混合语义。
 - `types`：可选，逗号分隔的实体类型。
 - `valid_at`：可选带时区时间，沿用图谱的有效区间和归档过滤。
 - `top_k`：1–50，默认 10。
 
 返回 `{ "query": "规范化空白后的查询", "mode": "keyword", "items": [...], "truncated": false }`。每条 `items` 包含 `entity`、相关模式的分数字段、`matched_fields`、`graph_connections` 及最多 3 条 `evidence`。向量和混合模式还返回 `indexed_count` 与 `eligible_count`；混合模式另返回 `weights`。结果仅含正式实体，不含待审核/拒绝候选或关系。
+
+`bm25` 使用 Han 单字/相邻二字片段、casefold Unicode 单词及标识符/部分，允许多词软匹配，不套用旧模式 8 词 AND 规则。纯标点查询返回 422 `SEARCH_QUERY_INVALID`（符号精确检索可用 `keyword`）。每项新增可空 `bm25_score`；顶层 `lexical` 包含 `protocol=mixed-bm25-v1`、`query_terms`、`scanned_count`、`entity_limit=1000`、`text_limit_per_entity=4000`、`truncated_reasons`（`entity_limit/evidence_limit/text_limit`）。仅在作用域/有效时间内的正式实体上统计；最多 5000 条排序证据、每条最多 2000 字符。语料、证据或排序文本省略也使 `truncated=true`，不能把它只解释为 Top K 截断。`eligible_count` 是可见实体总数，`indexed_count=null`，并非“语义索引未完成”。返回证据仍是精确原文，BM25 不写图谱、不调用外部服务。详见 [ADR 0044](adr/0044-bounded-offline-bm25-search.zh-CN.md)。
+
+向量分支先本地校验嵌入配置、统计同模型/维度的可见索引，为零则直接返回空向量结果，避免空项目/空索引仍付费请求查询嵌入。混合的字面/图分支仍可返回命中。未配置、错误维度、供应商故障的错误语义保留，不静默回退；有匹配索引时仍正常调用查询嵌入。
 
 关键词得分规则：名称与完整查询忽略大小写完全相同加 50，每个不同词在名称/摘要/证据中命中分别加 10/3/1，不按重复引用计分。向量模式使用同模型的余弦相似度，PostgreSQL 执行 pgvector 精确距离排序。混合模式各取最多 100 个关键词/向量种子，并读取最多 500 条可见一跳关系；关键词按候选池最高分归一，向量贡献截断到 `0..1`，图得分为相邻种子最强归一化信号乘关系置信度，最终为 `0.3 * keyword_component + 0.4 * vector_component + 0.3 * graph_score`。`graph_connections` 最多给出 3 条关系依据。图扩展可召回原本未被关键词/向量命中的邻居。
 

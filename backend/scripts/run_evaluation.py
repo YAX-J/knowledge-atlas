@@ -29,7 +29,7 @@ from app.db.session import SessionLocal
 from app.models.domain import SourceDocument, SourceStatus
 from app.schemas.questions import AnswerDraft
 from app.schemas.search import SearchRead
-from app.services import deepseek
+from app.services import deepseek, lexical
 from app.services.projects import get_project
 from app.services.search import search_knowledge
 from scripts.evaluate_dataset import (
@@ -42,7 +42,7 @@ from scripts.evaluate_dataset import (
 from scripts.evaluation_snapshot import project_snapshot
 
 
-Mode = Literal["keyword", "vector", "hybrid"]
+Mode = Literal["keyword", "bm25", "vector", "hybrid"]
 MAX_ANSWER_EVIDENCE = 12
 
 
@@ -244,8 +244,9 @@ def build_prediction(
         diagnostics.update(
             id=case["id"], truncated=result.truncated,
             indexed_count=result.indexed_count, eligible_count=result.eligible_count,
+            lexical=result.lexical.model_dump() if result.lexical else None,
             hits=[{"entity_id": str(hit.entity.id), "name": hit.entity.name,
-                   "keyword_score": hit.keyword_score, "vector_score": hit.vector_score,
+                   "keyword_score": hit.keyword_score, "bm25_score": hit.bm25_score, "vector_score": hit.vector_score,
                    "graph_score": hit.graph_score, "hybrid_score": hit.hybrid_score,
                    "graph_signal_count": len(hit.graph_connections)} for hit in result.items],
         )
@@ -277,6 +278,8 @@ def run_evaluation(
     manifest, cases, dataset_summary = validate_dataset(dataset_root)
     if len(modes) != len(set(modes)):
         raise EvaluationRunError("Modes must not contain duplicates")
+    if not modes or set(modes) - {'keyword', 'bm25', 'vector', 'hybrid'}:
+        raise EvaluationRunError("Choose at least one supported retrieval mode")
     uses_embeddings = any(mode in {"vector", "hybrid"} for mode in modes)
     if uses_embeddings and not allow_embedding_calls:
         raise EvaluationRunError("Vector and hybrid modes require --allow-embedding-calls")
@@ -309,6 +312,7 @@ def run_evaluation(
             "answer": settings.deepseek_model if with_answers else None,
         },
         "successful_provider_call_counts": {"embedding": 0, "answer": 0},
+        "retrieval_protocols": {mode: lexical.PROTOCOL if mode == 'bm25' else 'legacy-v1' for mode in modes},
         "outputs": {},
     }
     manifest_path = output_dir / "run.json"
@@ -389,7 +393,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--modes",
         nargs="+",
-        choices=("keyword", "vector", "hybrid"),
+        choices=("keyword", "bm25", "vector", "hybrid"),
         default=["keyword"],
         help="Experiment modes; default keyword makes no provider calls",
     )

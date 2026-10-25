@@ -1,5 +1,7 @@
 # Knowledge Atlas Repository Instructions
 
+Offline lexical search now includes explicit `mode=bm25` (ADR 0044), separate from the default literal keyword and fixed hybrid modes. Preserve tenant/project/type/time scope and scan/text limits, return truncation metadata, and never imply its scores establish answerability. Empty semantic indexes skip query embedding after local configuration validation. New experiments belong in separate versioned result directories; the 2026-10-25 results are development diagnostics, not held-out human-quality scores.
+
 Multi-language V1 extends the existing Markdown/Java pipeline to Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: single-file/folder/GitHub imports, Worker, exact chunks, outlines and symbol search. Default parsing is syntax-only, with explicit syntax warnings, no execution, model calls or automatic graph writes. A separate explicit Agent action may classify server-curated same-repository cross-file call candidates under ADR 0041. Explicit `rescan=true` discovers newly supported files in old complete same-commit snapshots. Read `docs/MULTILANGUAGE_PARSING.md`, ADR 0040 and ADR 0041; registry `services/source_languages.py`, syntax parser `services/code_source.py`. Java-specific deterministic rules below still apply only to Java.
 
 [简体中文](AGENTS.zh-CN.md)

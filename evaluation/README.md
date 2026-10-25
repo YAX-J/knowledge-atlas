@@ -2,6 +2,8 @@
 
 [简体中文](README.zh-CN.md)
 
+The new [provider-free BM25 development diagnostic](results/2026-10-25-bm25/README.md) uses the same frozen corpus/graph/index without overwriting prior runs. Use `scripts.run_evaluation --modes keyword bm25` without provider flags. BM25 Recall@5 is 74.49% here, but code-location recall is zero and unanswerable queries still retrieve text; this is not held-out or answer-quality acceptance.
+
 Current delivery also includes a separate [ten-language call gold set](calls/README.md), [112-request real model acceptance](results/2026-10-24-models/REPORT.md), frozen-evidence answer replay, five reproducible charts and a blind grading CSV. Actual human grades remain pending. Retrieval-only results and answer replay must not be conflated with live end-to-end answer accuracy.
 
 This directory contains the frozen evaluation set shared by the Stage 6 experiments. It versions corpus, questions, gold answers and line-exact evidence so keyword, formal-entity vector and knowledge-graph hybrid retrieval share inputs and scoring rules. This is not raw chunk RAG. Dataset validation itself makes no provider calls; real runs and their limited quality conclusions are recorded separately above.

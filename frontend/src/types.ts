@@ -177,7 +177,7 @@ export interface RelationshipDetail {
   evidence: FormalEvidence[]
 }
 
-export type KnowledgeSearchMode = 'keyword' | 'vector' | 'hybrid'
+export type KnowledgeSearchMode = 'keyword' | 'bm25' | 'vector' | 'hybrid'
 
 export interface KnowledgeSearchResult {
   query: string
@@ -185,6 +185,7 @@ export interface KnowledgeSearchResult {
   items: {
     entity: FormalKnowledgeNode
     keyword_score: number | null
+    bm25_score?: number | null
     vector_score: number | null
     keyword_component: number | null
     vector_component: number | null
@@ -205,6 +206,14 @@ export interface KnowledgeSearchResult {
   indexed_count: number | null
   eligible_count: number | null
   weights: { keyword: number; vector: number; graph: number } | null
+  lexical?: {
+    protocol: 'mixed-bm25-v1'
+    query_terms: string[]
+    scanned_count: number
+    entity_limit: number
+    text_limit_per_entity: number
+    truncated_reasons: ('entity_limit' | 'evidence_limit' | 'text_limit')[]
+  } | null
 }
 
 export interface EmbeddingRebuildResult {

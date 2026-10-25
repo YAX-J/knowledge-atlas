@@ -71,6 +71,8 @@ description: Knowledge Atlas 的候选审核与正式图谱写入。确认/拒�
 
 ## 项目检索
 
+新增 `mode=bm25`（ADR 0044）为纯本地软匹配，不改变原 keyword/hybrid 默认。分词/公式位于 `services/lexical.py`；只统计当前作用域/有效时间内正式实体和可访问证据，必须保留 1000 实体/5000 排序证据/单摘录 2000 字符/单实体 4000 字符预算及 lexical 截断原因。不能写图谱或调用模型。聚焦加入 `tests/test_lexical_search.py`，原生验证通过 `scripts.verify_native`；空的匹配向量索引先本地配置校验再返回，不生成查询嵌入。
+
 关键词/语义/混合检索：`GET /api/v1/projects/{project_id}/search` 只返回正式实体，沿用图谱 `visible` 与项目校验。关键词搜索名称、摘要和同作用域证据；语义模式只读查询显式构建的 1024 维索引；混合模式按 ADR 0010 以固定权重融合关键词、向量和可见一跳关系，并返回关系解释。修改时追加 `tests/test_search.py`，并同步 ADR 0008/0009/0010 和 API 文档。
 
 ## 跨来源演化审核（阶段五）

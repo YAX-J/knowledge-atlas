@@ -55,6 +55,8 @@ npm run preview
 
 ## 状态与请求
 
+BM25 词法模式无需语义索引或模型，使用 `KnowledgeSearchMode='bm25'` 和可空 lexical 元数据，展示扫描规模/截断、BM25 分数非置信度。仅 vector/hybrid 显示语义索引统计，空 BM25 不提示更新索引；提交函数直接拦截 loading/rebuilding。App 请求序号与清空/切项目迟到响应隔离不变。回归 `npm run test:coverage`。
+
 - 图谱/知识搜索/问答的本地原文按钮发出 `EvidenceLocator`，由 `App.vue` 的 `evidenceNavigationRequest` 调用项目范围单分块查询，按 position 翻页，聚焦/高亮原 UUID。定位加载/失败提示支持取消/重试；`clearSourceSelection`、项目切换或离开资料页使旧响应失效。`refreshSource` 接收初始分块页，不扫描全部页面、不自动解析/抽取，不把失败回退为同名或近似内容。见 ADR 0035。
 
 - 快照文件面板使用 `snapshotFilesRequest` 与失败页号保存重试目标；切仓库、历史页、项目或关闭时清空并使旧响应失效。文件每页 20 项、有界滚动，保持文本插值；打开面板/原文与关闭返回按钮均管理焦点。删除项可读保留来源，不显示删除后文件 URL；详情沿用普通来源定位，不伪装成 Git diff。见 ADR 0034。

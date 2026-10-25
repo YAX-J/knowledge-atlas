@@ -150,6 +150,8 @@ npm run build
 
 ## 环境说明
 
+- BM25/空索引优化：聚焦 `tests/test_lexical_search.py tests/test_search.py tests/test_run_evaluation.py tests/test_questions.py`，前端 `npm run test:coverage` 与 build；原生临时 schema 现包含词法/截断/空索引零调用。`scripts.run_evaluation --modes keyword bm25` 对准备项目只读执行，不加供应商标志，不跑回答；新结果必须单独保存，不能覆盖旧三组基线或把开发集成绩当盲测。
+
 - 阶段六初始化/基线：先运行 `python -m scripts.prepare_evaluation --dataset ../evaluation --validate-only`；聚焦 `tests/test_prepare_evaluation.py tests/test_run_baselines.py tests/test_run_evaluation.py tests/test_evaluation_dataset.py`。正常单测模拟供应商；真实 `scripts.run_baselines --allow-embedding-calls` 需沿用用户明确的本轮授权。默认每批10条，44实体首次索引5请求，40题向量/混合80请求，回答为零。失败报告不覆盖，账单未知保持 null。`scripts.verify_native` 现包含新项目初始化验收并清理临时 schema。
 
 - `python -m scripts.verify_native` 在随机 schema 做原生迁移、时序/仓库集成、独立会话竞争与 Worker fencing；显式指定 Alembic 版本表 schema 并检查全部本地表，不能只设 search_path。`--github` 仅在用户明确允许公开 GitHub 只读验收时运行，不用令牌/模型，普通 pytest 跳过原生/外网用例。

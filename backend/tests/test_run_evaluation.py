@@ -144,7 +144,8 @@ def test_vector_prediction_requires_complete_index():
         )
 
 
-def test_prepared_project_runs_all_keyword_cases_without_providers(db_session, tmp_path, monkeypatch):
+@pytest.mark.parametrize('mode', ['keyword', 'bm25'])
+def test_prepared_project_runs_all_keyword_cases_without_providers(db_session, tmp_path, monkeypatch, mode):
     dataset = Path(__file__).resolve().parents[2] / "evaluation"
     engine = db_session.get_bind()
     project_id = uuid.uuid4()
@@ -152,13 +153,13 @@ def test_prepared_project_runs_all_keyword_cases_without_providers(db_session, t
                                settings=Settings(_env_file=None), accept_curated_fixture=True)
     monkeypatch.setattr(runner, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
     result = runner.run_evaluation(dataset_root=dataset, project_id=project_id, output_dir=tmp_path / "run",
-                                   modes=["keyword"], top_k=5, with_answers=False,
+                                   modes=[mode], top_k=5, with_answers=False,
                                    allow_embedding_calls=False, settings=Settings(_env_file=None))
     assert result["status"] == "succeeded"
-    assert result["outputs"]["keyword"]["case_count"] == 40
+    assert result["outputs"][mode]["case_count"] == 40
     assert result["successful_provider_call_counts"] == {"embedding": 0, "answer": 0}
     assert result["project_snapshot"] == prepared["snapshot"]
-    predictions = (tmp_path / "run" / "keyword.jsonl").read_text(encoding="utf-8").splitlines()
+    predictions = (tmp_path / "run" / f"{mode}.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(predictions) == 40
     assert all(json.loads(item)["answer"] is None for item in predictions)
 

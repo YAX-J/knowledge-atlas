@@ -24,6 +24,7 @@ class SearchWeights(BaseModel):
 class SearchHit(BaseModel):
     entity: KnowledgeNodeRead
     keyword_score: int | None = None
+    bm25_score: float | None = None
     vector_score: float | None = None
     keyword_component: float | None = None
     vector_component: float | None = None
@@ -34,14 +35,24 @@ class SearchHit(BaseModel):
     evidence: list[FormalEvidenceRead]
 
 
+class LexicalSearchInfo(BaseModel):
+    protocol: Literal['mixed-bm25-v1'] = 'mixed-bm25-v1'
+    query_terms: list[str]
+    scanned_count: int
+    entity_limit: int
+    text_limit_per_entity: int
+    truncated_reasons: list[Literal['entity_limit', 'evidence_limit', 'text_limit']]
+
+
 class SearchRead(BaseModel):
     query: str
-    mode: Literal['keyword', 'vector', 'hybrid'] = 'keyword'
+    mode: Literal['keyword', 'bm25', 'vector', 'hybrid'] = 'keyword'
     items: list[SearchHit]
     truncated: bool
     indexed_count: int | None = None
     eligible_count: int | None = None
     weights: SearchWeights | None = None
+    lexical: LexicalSearchInfo | None = None
 
 
 class EmbeddingRebuildRead(BaseModel):
