@@ -109,3 +109,5 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0044: Add a bounded offline lexical baseline](0044-bounded-offline-bm25-search.md)
 
 - [0045: Opt-in rank fusion and online evidence allocation](0045-opt-in-rank-fusion.md)
+
+- [0046: Atomic batch review and read-only index status](0046-atomic-batch-review-index-status.md)

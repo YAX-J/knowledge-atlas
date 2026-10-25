@@ -8,8 +8,8 @@ from app.api.dependencies import CurrentUserId, DatabaseSession
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.schemas.knowledge import EntityType
-from app.schemas.search import EmbeddingRebuildRead, SearchRead
-from app.services.embeddings import rebuild_project_embeddings
+from app.schemas.search import EmbeddingRebuildRead, EmbeddingStatusRead, SearchRead
+from app.services.embeddings import project_embedding_status, rebuild_project_embeddings
 from app.services.search import search_knowledge
 
 
@@ -36,3 +36,10 @@ def rebuild_embeddings(project_id: uuid.UUID, db: DatabaseSession, user_id: Curr
     return rebuild_project_embeddings(
         db, user_id=user_id, project_id=project_id, settings=get_settings()
     )
+
+
+@router.get('/projects/{project_id}/embeddings/status', response_model=EmbeddingStatusRead)
+def embedding_status(project_id: uuid.UUID, db: DatabaseSession, user_id: CurrentUserId,
+                     valid_at: AwareDatetime | None = None):
+    return project_embedding_status(db, user_id=user_id, project_id=project_id,
+                                    settings=get_settings(), valid_at=valid_at)

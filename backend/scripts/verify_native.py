@@ -69,7 +69,8 @@ def main():
         env = {**os.environ, "DATABASE_URL": rendered, "KA_ACCEPTANCE_SCHEMA": schema}
         tests = ["tests/test_evolution.py", "tests/test_stage_four_workflow.py", "tests/test_native_acceptance.py",
                  "tests/test_prepare_evaluation.py", "tests/test_lexical_search.py",
-                 "tests/test_retrieval_optimization.py", "tests/test_maintenance_optimization.py"]
+                 "tests/test_retrieval_optimization.py", "tests/test_maintenance_optimization.py",
+                 "tests/test_batch_reviews.py", "tests/test_embedding_status.py"]
         if args.github:
             env["KA_GITHUB_ACCEPTANCE"] = "1"
             report = root.parent / "output" / "native-acceptance" / f"github-{uuid.uuid4().hex}.json"

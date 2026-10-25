@@ -5,14 +5,15 @@ import math
 import uuid
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.errors import AppError
-from app.models.domain import Project
+from app.models.domain import Project, utc_now
 from app.models.graph import KnowledgeEmbedding, KnowledgeEntity, KnowledgeEvidence
 from app.services.projects import get_project
+from app.schemas.search import EmbeddingStatusRead
 
 
 class EmbeddingError(Exception):
@@ -77,6 +78,56 @@ def entity_text(entity: KnowledgeEntity, quotes: list[str]) -> str:
     return "\n".join(part.strip() for part in parts if part.strip())
 
 
+INDEX_STATUS_SCAN_LIMIT = 1000
+
+
+def project_embedding_status(db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID,
+                             settings: Settings, valid_at=None) -> EmbeddingStatusRead:
+    from app.services.graph import visible
+    get_project(db, user_id=user_id, project_id=project_id)
+    at = valid_at or utc_now()
+    query = select(KnowledgeEntity).where(*visible(KnowledgeEntity, user_id, project_id, at))
+    eligible = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+    joined = query.join(KnowledgeEmbedding, KnowledgeEmbedding.entity_id == KnowledgeEntity.id).where(
+        KnowledgeEmbedding.user_id == user_id, KnowledgeEmbedding.project_id == project_id,
+        KnowledgeEmbedding.model == settings.embedding_model,
+        KnowledgeEmbedding.dimensions == settings.embedding_dimensions,
+    )
+    indexed = db.scalar(select(func.count()).select_from(joined.subquery())) or 0
+    entities = list(db.scalars(query.order_by(KnowledgeEntity.id).limit(INDEX_STATUS_SCAN_LIMIT)))
+    ids = [entity.id for entity in entities]
+    existing = {item.entity_id: item for item in db.scalars(select(KnowledgeEmbedding).where(
+        KnowledgeEmbedding.entity_id.in_(ids), KnowledgeEmbedding.user_id == user_id,
+        KnowledgeEmbedding.project_id == project_id, KnowledgeEmbedding.model == settings.embedding_model,
+        KnowledgeEmbedding.dimensions == settings.embedding_dimensions,
+    ))} if ids else {}
+    quotes = {}
+    if existing:
+        for owner, quote in db.execute(select(KnowledgeEvidence.entity_id, KnowledgeEvidence.quote).where(
+            KnowledgeEvidence.entity_id.in_(existing), KnowledgeEvidence.user_id == user_id,
+            KnowledgeEvidence.project_id == project_id,
+        ).order_by(KnowledgeEvidence.id)):
+            quotes.setdefault(owner, []).append(quote)
+    current = stale = 0
+    for entity in entities:
+        embedding = existing.get(entity.id)
+        if embedding is not None:
+            digest = hashlib.sha256(entity_text(entity, quotes.get(entity.id, [])).encode('utf-8')).hexdigest()
+            if digest == embedding.content_sha256:
+                current += 1
+            else:
+                stale += 1
+    try:
+        _require_configuration(settings)
+        configured = True
+    except EmbeddingError:
+        configured = False
+    return EmbeddingStatusRead(model=settings.embedding_model, dimensions=settings.embedding_dimensions,
+        configured=configured, checked_at=utc_now(), eligible_count=eligible, indexed_count=indexed,
+        missing_count=eligible-indexed, stale_count=stale, current_count=current,
+        scanned_count=len(entities), scan_limit=INDEX_STATUS_SCAN_LIMIT, truncated=eligible > len(entities))
+
+
 def rebuild_project_embeddings(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, settings: Settings,
 ) -> dict:
@@ -105,7 +156,7 @@ def rebuild_project_embeddings(
         text = entity_text(entity, quotes)
         digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
         current = existing.get(entity.id)
-        if not current or current.model != settings.embedding_model or current.content_sha256 != digest:
+        if not current or current.model != settings.embedding_model or current.dimensions != settings.embedding_dimensions or current.content_sha256 != digest:
             pending.append((entity, text, digest))
 
     # Release the read transaction before the external request. Persistence is

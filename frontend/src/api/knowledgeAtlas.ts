@@ -581,6 +581,17 @@ export function resolveCandidate(decision: ReviewDecision): Promise<KnowledgeCan
   })
 }
 
+export function resolveCandidatesBatch(projectId: string, sourceId: string, reviewIds: string[], action: 'confirm' | 'reject') {
+  return apiRequest<{ items: KnowledgeCandidate[]; processed_count: number }>(`/projects/${projectId}/reviews/resolve-batch`, {
+    method: 'POST', body: JSON.stringify({ source_id: sourceId, review_ids: reviewIds, action }),
+  })
+}
+
+export function getEmbeddingStatus(projectId: string, validAt = '') {
+  const query = validAt ? `?${new URLSearchParams({ valid_at: validAt })}` : ''
+  return apiRequest<import('../types').EmbeddingIndexStatus>(`/projects/${projectId}/embeddings/status${query}`)
+}
+
 export function getProjectGraph(projectId: string, options: { centerId?: string; depth?: number; types?: string; validAt?: string } = {}): Promise<ProjectGraphData> {
   const query = new URLSearchParams({ depth: String(options.depth ?? 1), limit: '100' })
   if (options.centerId) query.set('center_id', options.centerId)

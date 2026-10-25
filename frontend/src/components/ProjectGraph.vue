@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import KnowledgeSearch from './KnowledgeSearch.vue'
 import type { ApiProject } from '../api/knowledgeAtlas'
-import type { EntityDetail, EvidenceLocator, FormalKnowledgeEdge, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail } from '../types'
+import type { EmbeddingIndexStatus, EntityDetail, EvidenceLocator, FormalKnowledgeEdge, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail } from '../types'
 
 const props = defineProps<{
   project: ApiProject | null
@@ -25,6 +25,9 @@ const props = defineProps<{
   searchNotice: string
   validAt: string
   mutationBusy: boolean
+  indexStatus?: EmbeddingIndexStatus | null
+  indexStatusLoading?: boolean
+  indexStatusError?: string
 }>()
 const emit = defineEmits<{
   back: []
@@ -44,6 +47,7 @@ const emit = defineEmits<{
   selectSearchEntity: [id: string]
   openEvidence: [locator: EvidenceLocator]
   time: [value: string]
+  inspectIndex: []
 }>()
 const localTime = ref('')
 watch(() => props.validAt, value => {
@@ -89,6 +93,7 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
     </header>
     <KnowledgeSearch :key="project?.id" :result="searchResult" :loading="searchLoading" :error="searchError" :error-action="searchErrorAction" :labels="labels"
       :rebuilding="searchRebuilding" :notice="searchNotice"
+      :index-status="indexStatus" :index-status-loading="indexStatusLoading" :index-status-error="indexStatusError" @inspect-index="emit('inspectIndex')"
       @search="(query, types, mode) => emit('search', query, types, mode)" @rebuild="emit('rebuildSearch')"
       @clear="emit('clearSearch')" @retry="emit('retrySearch')" @select="id => emit('selectSearchEntity', id)" @open-evidence="emit('openEvidence', $event)" />
     <div class="graph-toolbar">

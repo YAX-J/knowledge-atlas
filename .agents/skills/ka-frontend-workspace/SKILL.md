@@ -135,3 +135,7 @@ Token：
 ## 2026-10-25 request and workflow updates
 
 Search/question requests now share `composables/useLatestRequest.ts`; App retains orchestration and context checks. Preserve clear/project/time/unmount invalidation and retry mode. Question stop-wait discards the browser result, without claiming server cancellation. Selectable hybrid/rrf/vector/bm25 question retrieval preserves hybrid default; BM25 still needs a model to generate supported answers. Show whole-source backend `review_counts`, not current-page progress. Governance entity context must work outside the visible canvas and open real entity evidence. App-level regressions live in `tests/appRequests.test.ts`, with request races and component workflow tests alongside.
+
+## Batch review and index inspection (ADR 0046)
+
+CandidateReview supports current-page pending selections, named preview and final confirm/reject; discard hidden selections on page change and block bulk actions while editing. App/SourceWorkspace lock project/source/navigation during extraction or review without labeling review as parsing. Index status is provider-free, effective-time scoped and request-fenced, with missing/stale/truncated states; rebuilding stays explicit. Regressions include component selection and App late index-status isolation.

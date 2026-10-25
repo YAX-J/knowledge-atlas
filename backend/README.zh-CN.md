@@ -1,5 +1,7 @@
 # Knowledge Atlas 后端
 
+新增同来源、1–100 个不同候选的原子 `POST /projects/{id}/reviews/resolve-batch`（confirm/reject），及零供应商 `GET /projects/{id}/embeddings/status?valid_at=...`。索引数量覆盖整个有效范围，哈希新鲜度最多检查 1000 个实体；不新增迁移或供应商配置。
+
 新增 `search?mode=rrf` 和问答 `retrieval_mode=hybrid|rrf|vector|bm25`（默认 hybrid）。问答去重保留精确来源/位置，返回实际证据预算统计。抽取状态新增整份资料 `review_counts`，治理建议新增 `entities` 摘要。无迁移；新融合排序未进行真实供应商质量实验。
 
 新增 `GET /projects/{id}/search?mode=bm25` 的有界中英离线词法检索，无需供应商配置或迁移。空的匹配向量索引不再请求查询嵌入，配置错误仍保留。已准备语料项目可通过 `scripts.run_evaluation --modes keyword bm25` 零供应商授权测评。公式、隔离与上限见 [ADR 0044](../docs/adr/0044-bounded-offline-bm25-search.zh-CN.md)，[开发结果与失败案例](../evaluation/results/2026-10-25-bm25/README.zh-CN.md)单独保存。

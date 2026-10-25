@@ -123,3 +123,7 @@ python -m pytest tests/test_graph.py tests/test_knowledge.py
 ## 2026-10-25 workflow optimization
 
 ADR 0045 adds opt-in `rrf` with two 100-entity pools and `sum(1/(60+rank))`; preserve existing defaults, all scope/time boundaries and provider errors. Online question evidence uses exact source/chunk/line/quote deduplication and round-robin allocation; never merge formal evidence. Extraction status reports whole-source live `review_counts`. Governance groups duplicate summaries within each type/name, prioritizes missing evidence and duplicate findings, and returns entity context for manual inspection; it still never merges or rewrites knowledge. Regressions: `tests/test_retrieval_optimization.py`, `tests/test_maintenance_optimization.py`; both run in native acceptance.
+
+## Atomic batch review (ADR 0046)
+
+`resolve_reviews_batch` validates 1–100 unique IDs within one user/project/source, holds the project lock and reuses `_resolve_review(commit=False)` in entity-first order. It commits once or rolls back candidate/audit/formal writes together. Never implicitly add relation endpoints, change confirmed decisions or bypass promotion. Regressions: `tests/test_batch_reviews.py`; native acceptance includes them.

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { EvidenceLocator, KnowledgeSearchMode, KnowledgeSearchResult } from '../types'
+import type { EmbeddingIndexStatus, EvidenceLocator, KnowledgeSearchMode, KnowledgeSearchResult } from '../types'
 
 const props = defineProps<{
   result: KnowledgeSearchResult | null
@@ -10,6 +10,9 @@ const props = defineProps<{
   labels: Record<string, string>
   rebuilding: boolean
   notice: string
+  indexStatus?: EmbeddingIndexStatus | null
+  indexStatusLoading?: boolean
+  indexStatusError?: string
 }>()
 const emit = defineEmits<{
   search: [query: string, types: string, mode: KnowledgeSearchMode]
@@ -18,6 +21,7 @@ const emit = defineEmits<{
   retry: []
   select: [id: string]
   openEvidence: [locator: EvidenceLocator]
+  inspectIndex: []
 }>()
 const query = ref('')
 const type = ref('')
@@ -40,6 +44,17 @@ function clear() { query.value = type.value = ''; mode.value = 'keyword'; emit('
       <button type="button" :disabled="loading || rebuilding" @click="emit('rebuild')">{{ rebuilding ? '更新索引中…' : '更新语义索引' }}</button>
       <button type="button" @click="clear">清空搜索</button>
     </form>
+    <section class="index-status" aria-label="语义索引状态">
+      <button type="button" :disabled="indexStatusLoading || rebuilding" @click="emit('inspectIndex')">{{ indexStatusLoading ? '检查索引中…' : '刷新索引状态' }}</button>
+      <p v-if="indexStatusError" role="alert">{{ indexStatusError }} 请刷新索引状态重试。</p>
+      <template v-else-if="indexStatus && !indexStatusLoading">
+        <p role="status">当前项目与时间范围：已索引 {{ indexStatus.indexed_count }}/{{ indexStatus.eligible_count }} 条，缺失 {{ indexStatus.missing_count }} 条；已检查 {{ indexStatus.scanned_count }} 条，发现 {{ indexStatus.stale_count }} 条内容过期。<span v-if="indexStatus.truncated">检查达到 {{ indexStatus.scan_limit }} 条上限，尚有知识未检查。</span></p>
+        <p v-if="!indexStatus.configured">嵌入服务配置尚未就绪；BM25 仍可使用。刷新状态不会调用模型。</p>
+        <p v-else-if="indexStatus.missing_count || indexStatus.stale_count">请显式更新语义索引后再使用向量相关检索。更新可能产生嵌入调用。</p>
+        <p v-else-if="!indexStatus.eligible_count">此范围尚无已确认的可检索知识，请先完成资料审核。</p>
+        <p v-else-if="!indexStatus.truncated">此范围内索引内容已与正式知识同步。</p>
+      </template>
+    </section>
     <p v-if="notice" class="search-notice" role="status">{{ notice }}</p>
     <p v-if="loading" class="search-hint" role="status">正在检索当前项目…</p>
     <div v-else-if="error" class="search-error" role="alert"><p>{{ error }}</p><button type="button" @click="errorAction === 'rebuild' ? emit('rebuild') : emit('retry')">{{ errorAction === 'rebuild' ? '重试更新索引' : '重试搜索' }}</button></div>
@@ -66,6 +81,7 @@ function clear() { query.value = type.value = ''; mode.value = 'keyword'; emit('
 </template>
 
 <style scoped>
+.index-status { margin: 14px 0; padding: 12px; border-left: 2px solid var(--teal); background: #edf5f3; font-size: 12px; line-height: 1.8; }
 .knowledge-search { margin: 22px 0; padding: 18px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); min-width: 0; }
 .search-heading, .hit-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }.search-heading h2 { margin: 0; font-size: 16px; }.search-heading > span, .hit-heading > span { color: var(--teal); font-size: 11px; }
 .search-hint, .hit-meta, .search-notice { font-size: 12px; color: #536b70; line-height: 1.8; overflow-wrap: anywhere; }.search-notice { color: var(--teal); }

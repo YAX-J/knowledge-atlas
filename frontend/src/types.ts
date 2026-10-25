@@ -229,6 +229,21 @@ export interface EmbeddingRebuildResult {
   reused_count: number
 }
 
+export interface EmbeddingIndexStatus {
+  model: string
+  dimensions: number
+  configured: boolean
+  checked_at: string
+  eligible_count: number
+  indexed_count: number
+  missing_count: number
+  stale_count: number
+  current_count: number
+  scanned_count: number
+  scan_limit: number
+  truncated: boolean
+}
+
 export interface QuestionEvidence extends FormalEvidence {
   entity_id: string
   entity_name: string

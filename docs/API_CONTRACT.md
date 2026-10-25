@@ -674,3 +674,16 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 `GET /projects/{id}/search?mode=rrf` 在同一时间与项目/类型作用域内各取最多 100 条 BM25 和向量结果，按 `sum(1/(60+rank))` 融合，分支缺席贡献为 0；不做图关系扩展。同分按名称/UUID 稳定排序。返回 `rrf_score,lexical_rank,vector_rank`、原始分数、lexical 扫描预算、indexed_count/eligible_count 和截断标记。要求有效嵌入配置，空索引不发嵌入请求，供应商错误不静默回退。分数不是概率或可回答性阈值。搜索默认仍为 keyword，问答默认仍为 hybrid。
 
 抽取 POST 与状态 GET 的 `review_counts` 是同用户/项目/来源/抽取任务下整份候选的实时统计，不受候选列表分页影响；重复抽取不重新调用模型，但统计可随审核变化。
+
+
+## 显式批量审核与索引状态（ADR 0046）
+
+`POST /api/v1/projects/{project_id}/reviews/resolve-batch`：
+
+```json
+{ "source_id": "UUID", "review_ids": ["UUID"], "action": "confirm" }
+```
+
+`action` 为 confirm/reject；1–100 个 review_ids 必须不重复且全部属于当前用户的有效项目和指定资料。整批预校验后持有项目锁，先实体后关系，复用原审核/审计/提升服务，只提交一次；任一项失败整批回滚。关系端点仍须已确认或在此次选择中先确认，不隐式增加选择。同动作重试幂等。返回 `{items: ReviewRead[], processed_count: number}`，items 保持请求 ID 顺序；processed_count 表示处理的请求项数，也包含幂等项。无修改名称/摘要字段；需修改时仍使用单项接口。作用域不符返回 404 REVIEW_NOT_FOUND，依赖/已处理冲突沿用原 409；输入无效返回 422。
+
+`GET /api/v1/projects/{project_id}/embeddings/status?valid_at=...`：只读且不调用供应商。valid_at 可选且必须带时区，沿用项目图谱的当前/历史可见性，不受搜索类型筛选影响。返回 model/dimensions/configured/checked_at、eligible_count/indexed_count/missing_count，以及 stale_count/current_count/scanned_count/scan_limit/truncated。前三种数量覆盖整个用户/项目/时间范围，内容哈希的 stale/current 只覆盖最多 1000 个实际检查实体；truncated 时不能据零 stale 推断全部新鲜。模型或维度不匹配视为缺失。configured 只表示本地配置校验通过，不表示服务连通，也不暴露密钥。按与重建相同顺序计算规范实体文本哈希，无写入，无嵌入请求。

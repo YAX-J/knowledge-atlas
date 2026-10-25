@@ -10,6 +10,10 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Explicit selected-candidate batch review with a named preview, entity-first atomic promotion, audit idempotency and all-or-nothing rollback. Review requests lock project/source/navigation context.
+- Provider-free index inspection reports missing rows and stale canonical content hashes with effective-time isolation and a 1000-entity inspection limit; successful rebuild refreshes the status.
+
+
 - Optional BM25/vector RRF search and selectable question retrieval; online evidence deduplication and fair per-entity allocation, with visible budget counts. Existing search defaults and historical baselines remain unchanged.
 - Source-wide live review progress and next steps; duplicate detection within all same-name summary groups, prioritized findings and direct evidence-review navigation.
 - Shared latest-request state and App-level clear/project-switch/retry regressions. No new model-quality claim; merges and undo remain unimplemented.

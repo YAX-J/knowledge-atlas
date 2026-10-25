@@ -16,11 +16,11 @@ import KnowledgeEvolution from './components/KnowledgeEvolution.vue'
 import QuestionWorkspace from './components/QuestionWorkspace.vue'
 import { ApiError } from './api/client'
 import { useLatestRequest } from './composables/useLatestRequest'
-import type { QuestionRetrievalMode } from './types'
+import type { EmbeddingIndexStatus, QuestionRetrievalMode } from './types'
 import { isCodeSource } from './sourceLanguages'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
-  runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate,
+  runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate, resolveCandidatesBatch, getEmbeddingStatus,
   getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
   getKnowledgeHistory, inspectGovernance, listKnowledgeChanges, proposeKnowledgeChange, resolveKnowledgeChange,
   getJavaCodeStructure, getProjectSourceChunk,
@@ -322,6 +322,7 @@ const extraction = ref<ExtractionResult | null>(null)
 const reviewsLoading = ref(false)
 const extracting = ref(false)
 const resolving = ref('')
+const reviewBusy = computed(() => extracting.value || Boolean(resolving.value))
 const reviewsError = ref('')
 const reviewsNotice = ref('')
 const realGraph = ref<ProjectGraphData | null>(null)
@@ -426,6 +427,7 @@ async function setGraphTime(value: string, entityId = '') {
   if (changeBusy.value) return
   graphValidAt.value = value
   clearSearch()
+  void loadIndexStatus()
   if (entityId) graphSelectedId.value = entityId
   graphType.value = ''
   await loadRealGraph(entityId)
@@ -435,6 +437,15 @@ let graphDetailRequest = 0
 const searchState = useLatestRequest<KnowledgeSearchResult>(errorMessage)
 const { result: searchResult, loading: searchLoading, error: searchError } = searchState
 const searchRebuilding = ref(false)
+const indexState = useLatestRequest<EmbeddingIndexStatus>(errorMessage)
+const { result: indexStatus, loading: indexStatusLoading, error: indexStatusError } = indexState
+async function loadIndexStatus() {
+  const projectId = project.value?.id
+  if (!projectId) return
+  const at = graphValidAt.value
+  await indexState.run(() => getEmbeddingStatus(projectId, at),
+    () => project.value?.id === projectId && graphValidAt.value === at)
+}
 const searchErrorAction = ref<'search' | 'rebuild'>('search')
 const searchNotice = ref('')
 let embeddingRebuildRequest = 0
@@ -497,7 +508,9 @@ async function rebuildSemanticIndex() {
     const result = await rebuildProjectEmbeddings(projectId)
     if (request !== embeddingRebuildRequest || project.value?.id !== projectId) return
     searchNotice.value = `语义索引已更新：新增或刷新 ${result.updated_count} 条，复用 ${result.reused_count} 条。`
-    if (searchQuery && searchMode !== 'keyword') await runSearch(searchQuery, searchTypes, searchMode)
+    await loadIndexStatus()
+    if (request !== embeddingRebuildRequest || project.value?.id !== projectId) return
+    if (searchQuery && ['vector', 'hybrid', 'rrf'].includes(searchMode)) await runSearch(searchQuery, searchTypes, searchMode)
   } catch (error) {
     if (request === embeddingRebuildRequest && project.value?.id === projectId) searchError.value = errorMessage(error)
   } finally {
@@ -519,6 +532,7 @@ async function openQuestionEntity(id: string) {
   graphValidAt.value = ''
   graphType.value = ''
   graphSelectedId.value = id
+  void loadIndexStatus()
   await loadRealGraph(id)
   await nextTick()
   if (graphSelectedId.value === id) document.getElementById('formal-knowledge-detail')?.focus()
@@ -571,10 +585,11 @@ async function loadProjects(page = 1) {
 }
 
 function selectProject(value: ApiProject) {
-  if (changeBusy.value || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
+  if (reviewBusy.value || changeBusy.value || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
   clearEvolution()
   graphValidAt.value = ''
   clearQuestion()
+  indexState.clear()
   clearSnapshots()
   errors.commit = ''
   clearCodeSearch()
@@ -759,7 +774,7 @@ async function importRegisteredGithubActivity(repositoryId: string) {
 }
 
 async function selectSource(sourceId: string, taskId: string | null) {
-  if (loading.create || loading.upload || loading.task || loading.sync || loading.activity || loading.commit) return
+  if (reviewBusy.value || loading.create || loading.upload || loading.task || loading.sync || loading.activity || loading.commit) return
   clearSourceSelection()
   selectedSourceId.value = sourceId
   selectedTaskId.value = taskId
@@ -984,6 +999,7 @@ async function reviewCandidate(decision: ReviewDecision) {
   try {
     await resolveCandidate(decision)
     if (action !== reviewAction) return
+    indexState.clear()
     await loadReviews()
     if (action === reviewAction) reviewsNotice.value = decision.action === 'confirm' ? '知识已写入项目图谱，审核记录已保存。' : '候选知识已拒绝，审核记录已保存。'
   } catch (error) {
@@ -993,13 +1009,36 @@ async function reviewCandidate(decision: ReviewDecision) {
   }
 }
 
+async function reviewCandidatesBatch(ids: string[], decision: 'confirm' | 'reject') {
+  const projectId = project.value?.id
+  const sourceId = selectedSourceId.value
+  if (!projectId || !sourceId || !ids.length || extracting.value || resolving.value) return
+  const action = ++reviewAction
+  reviewsRequest++
+  reviewsLoading.value = false
+  resolving.value = 'batch'
+  reviewsError.value = reviewsNotice.value = ''
+  try {
+    const result = await resolveCandidatesBatch(projectId, sourceId, ids, decision)
+    if (action !== reviewAction || project.value?.id !== projectId || selectedSourceId.value !== sourceId) return
+    indexState.clear()
+    await loadReviews()
+    if (action === reviewAction) reviewsNotice.value = `已${decision === 'confirm' ? '确认' : '拒绝'} ${result.processed_count} 条候选，整批审核记录已保存。`
+  } catch (error) {
+    if (action === reviewAction) reviewsError.value = errorMessage(error)
+  } finally {
+    if (action === reviewAction) resolving.value = ''
+  }
+}
+
 function openProjectGraph() {
-  if (!project.value) return
+  if (!project.value || reviewBusy.value) return
   clearSearch()
   activeNav.value = 'projectGraph'
   graphType.value = ''
   graphCenter.value = ''
   graphValidAt.value = ''
+  void loadIndexStatus()
   void loadChanges(1)
   void loadRealGraph('')
 }
@@ -1095,7 +1134,7 @@ function selectNode(id: string) {
 }
 
 function changeNav(value: string) {
-  if (changeBusy.value) return
+  if (changeBusy.value || reviewBusy.value) return
   if (value === 'filter') {
     if (activeNav.value === 'projectGraph') {
       ElMessage({ message: '可在项目图谱顶部按知识类型筛选。', type: 'info' })
@@ -1153,7 +1192,7 @@ function setTimeline(value: number) {
       :code-structure="codeStructure"
       :agent-call-analysis="agentCallAnalysis"
       :focused-chunk-id="focusedChunkId"
-      :loading="loading" :errors="errors" :notice="notice"
+      :loading="loading" :errors="errors" :notice="notice" :review-busy="reviewBusy"
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
       @repositories-page="loadRepositories" @resolve-github="registerGithubRepository" @sync-github="syncRegisteredGithubRepository" @import-github-activity="importRegisteredGithubActivity"
       @snapshots="loadSnapshots"
@@ -1189,13 +1228,14 @@ function setTimeline(value: number) {
         <CandidateReview :key="selectedSourceId" :candidates="candidates" :extraction="extraction"
           :loading="reviewsLoading" :extracting="extracting" :resolving="resolving"
           :error="reviewsError" :notice="reviewsNotice"
-          @extract="extractSource" @refresh="loadReviews" @resolve="reviewCandidate" @graph="openProjectGraph" />
+          @extract="extractSource" @refresh="loadReviews" @resolve="reviewCandidate" @resolve-batch="reviewCandidatesBatch" @graph="openProjectGraph" />
       </template>
     </SourceWorkspace>
     <ProjectGraph v-else-if="activeNav === 'projectGraph'" :project="project" :graph="realGraph"
       :valid-at="graphValidAt" :mutation-busy="changeBusy" @time="setGraphTime"
       :search-result="searchResult" :search-loading="searchLoading" :search-error="searchError"
       :search-rebuilding="searchRebuilding" :search-notice="searchNotice" :search-error-action="searchErrorAction"
+      :index-status="indexStatus" :index-status-loading="indexStatusLoading" :index-status-error="indexStatusError" @inspect-index="loadIndexStatus"
       @search="runSearch" @rebuild-search="rebuildSemanticIndex" @clear-search="clearSearch" @retry-search="runSearch(searchQuery, searchTypes, searchMode)" @select-search-entity="openSearchEntity"
       :entity-detail="realEntityDetail" :relationship-detail="realRelationshipDetail"
       :loading="graphLoading" :detail-loading="graphDetailLoading" :error="graphError" :detail-error="graphDetailError"

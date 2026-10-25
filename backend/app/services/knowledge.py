@@ -14,7 +14,7 @@ from app.models.domain import (
     CandidateKnowledge, ProcessingTask, Project, ReviewEvent, ReviewStatus,
     SourceChunk, SourceDocument, SourceStatus, TaskStatus, utc_now,
 )
-from app.schemas.knowledge import ExtractionRead, RelationDraft, ReviewRead, ReviewResolve
+from app.schemas.knowledge import ExtractionRead, RelationDraft, ReviewBatchRead, ReviewBatchResolve, ReviewRead, ReviewResolve
 from app.schemas.tasks import TaskRead
 from app.services import deepseek, graph
 from app.services.ingestion import get_source
@@ -252,7 +252,7 @@ def resolve_review(
 
 
 def _resolve_review(
-    db: Session, *, user_id: uuid.UUID, review_id: uuid.UUID, decision: ReviewResolve,
+    db: Session, *, user_id: uuid.UUID, review_id: uuid.UUID, decision: ReviewResolve, commit: bool = True,
 ) -> ReviewRead:
     candidate = db.scalar(_review_query(user_id).where(CandidateKnowledge.id == review_id))
     if candidate is None:
@@ -281,7 +281,8 @@ def _resolve_review(
             raise AppError(status_code=409, code="REVIEW_ENDPOINTS_UNCONFIRMED", message="请先确认关系两端的实体；已拒绝的实体不能组成已确认关系")
     if candidate.review_status != ReviewStatus.PENDING:
         formal_id = graph.promote_candidate(db, candidate, endpoint_candidates) if target_status == ReviewStatus.CONFIRMED else None
-        db.commit()
+        if commit:
+            db.commit()
         return read_review(candidate, formal_id)
     before = {"name": candidate.name, "summary": candidate.summary, "review_status": candidate.review_status.value}
     values = {**changes, "review_status": target_status, "updated_at": utc_now()}
@@ -300,5 +301,37 @@ def _resolve_review(
         after={"name": candidate.name, "summary": candidate.summary, "review_status": candidate.review_status.value},
     ))
     formal_id = graph.promote_candidate(db, candidate, endpoint_candidates) if target_status == ReviewStatus.CONFIRMED else None
-    db.commit()
+    if commit:
+        db.commit()
     return read_review(candidate, formal_id)
+
+
+def resolve_reviews_batch(
+    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, decision: ReviewBatchResolve,
+) -> ReviewBatchRead:
+    try:
+        get_project(db, user_id=user_id, project_id=project_id)
+        db.execute(select(Project.id).where(
+            Project.id == project_id, Project.user_id == user_id, Project.archived_at.is_(None),
+        ).with_for_update())
+        candidates = list(db.scalars(_review_query(user_id).where(
+            CandidateKnowledge.project_id == project_id,
+            CandidateKnowledge.source_id == decision.source_id,
+            CandidateKnowledge.id.in_(decision.review_ids),
+        ).execution_options(populate_existing=True)))
+        if {item.id for item in candidates} != set(decision.review_ids):
+            raise AppError(status_code=404, code='REVIEW_NOT_FOUND', message='所选候选不存在或不属于当前项目资料，请刷新后重试')
+        # Caller selection order does not affect endpoint dependencies.
+        candidates.sort(key=lambda item: (item.payload['kind'] != 'entity', str(item.id)))
+        resolved = {}
+        for candidate in candidates:
+            resolved[candidate.id] = _resolve_review(
+                db, user_id=user_id, review_id=candidate.id,
+                decision=ReviewResolve(action=decision.action), commit=False,
+            )
+            db.flush()
+        db.commit()
+        return ReviewBatchRead(items=[resolved[item] for item in decision.review_ids], processed_count=len(resolved))
+    except Exception:
+        db.rollback()
+        raise

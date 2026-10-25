@@ -1,5 +1,7 @@
 # Knowledge Atlas Implementation Plan
 
+Current optimization: explicit atomic batch review and provider-free embedding index status are implemented (ADR 0046). Previewed selections retain per-item review/promotion rules. Index inspection reports scope counts, content freshness and scan truncation. Review undo, merging and automatic indexing remain future work.
+
 2026-10-25 workflow optimization: opt-in BM25/vector RRF, selectable question retrieval with source-location deduplication, source-wide review totals, summary-group duplicate checks and shared latest-request state. Existing defaults remain stable. See [ADR 0045](docs/adr/0045-opt-in-rank-fusion.md). This is implementation/regression work, not a new model-quality result.
 
 Multi-language V1 extends the existing Markdown/Java pipeline to Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: single-file/folder/GitHub imports, Worker, exact chunks, outlines and symbol search. Default parsing is syntax-only and makes no model call. An explicit bounded Agent action now compares repository-local call sites with server-curated declaration candidates across compatible language families; every returned ID and exact source line is validated, and results remain ephemeral outside the formal graph. See [ADR 0040](docs/adr/0040-multilanguage-source-parsing.md) and [ADR 0041](docs/adr/0041-bounded-multilanguage-agent-call-analysis.md).

@@ -163,3 +163,7 @@ npm run build
 ## 2026-10-25 optimization checks
 
 For optional RRF, source review totals and summary-group governance, include `tests/test_retrieval_optimization.py` and `tests/test_maintenance_optimization.py`; native acceptance now runs both. Browser checks cover question retrieval selection/stop-wait, whole-source progress and governance entity navigation. Existing no-paid-provider and executor-selection rules still apply.
+
+## Native QA isolation and batch/index checks
+
+Add `tests/test_batch_reviews.py` and `tests/test_embedding_status.py` for ADR 0046; verify_native includes both. Before writing ANY temporary PostgreSQL fixture, assert that the temporary schema physically owns every required business table. `current_schema()` alone is insufficient: SQLAlchemy create_all existence checks may see public tables via search_path and skip private creation. Use explicit-schema migrations or forced creation with ownership assertions, then assert fixture UUIDs are absent from public. Always clean only recorded, validated temporary schema/fixture identifiers.

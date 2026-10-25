@@ -119,3 +119,20 @@ class ExtractionRead(BaseModel):
     candidate_count: int
     review_counts: dict[Literal['pending', 'confirmed', 'rejected'], int] = Field(
         default_factory=lambda: {'pending': 0, 'confirmed': 0, 'rejected': 0})
+
+
+class ReviewBatchResolve(StrictModel):
+    source_id: uuid.UUID
+    review_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
+    action: Literal['confirm', 'reject']
+
+    @model_validator(mode='after')
+    def unique_ids(self):
+        if len(set(self.review_ids)) != len(self.review_ids):
+            raise ValueError('Candidate IDs must be unique')
+        return self
+
+
+class ReviewBatchRead(BaseModel):
+    items: list[ReviewRead]
+    processed_count: int

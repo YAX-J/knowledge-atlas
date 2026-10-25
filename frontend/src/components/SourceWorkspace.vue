@@ -22,6 +22,7 @@ const props = defineProps<{
   loading: IngestionLoading
   errors: IngestionErrors
   notice: string
+  reviewBusy?: boolean
 }>()
 const emit = defineEmits<{
   create: [input: { name: string; description: string }]
@@ -64,7 +65,7 @@ const agentTargetsById = computed(() => new Map((props.agentCallAnalysis?.relate
 const linkableLocalRepositories = computed(() => (
   props.repositories?.items.filter(item => item.kind === 'local_folder' && !item.remote_url) ?? []
 ))
-const locked = computed(() => props.loading.create || props.loading.upload || props.loading.task || props.loading.remote || props.loading.sync || props.loading.activity || props.loading.commit || props.loading.agent)
+const locked = computed(() => props.reviewBusy || props.loading.create || props.loading.upload || props.loading.task || props.loading.remote || props.loading.sync || props.loading.activity || props.loading.commit || props.loading.agent)
 const statusLabels: Record<string, string> = {
   uploaded: '待解析', processing: '解析中', ready: '已解析', failed: '解析失败',
   queued: '待解析', running: '解析中', succeeded: '已解析', cancelled: '已取消',

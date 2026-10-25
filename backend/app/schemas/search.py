@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -64,3 +65,18 @@ class EmbeddingRebuildRead(BaseModel):
     eligible_count: int
     updated_count: int
     reused_count: int
+
+
+class EmbeddingStatusRead(BaseModel):
+    model: str
+    dimensions: int
+    configured: bool
+    checked_at: datetime
+    eligible_count: int
+    indexed_count: int
+    missing_count: int
+    stale_count: int
+    current_count: int
+    scanned_count: int
+    scan_limit: int
+    truncated: bool

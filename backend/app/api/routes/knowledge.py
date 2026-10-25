@@ -5,7 +5,7 @@ from fastapi import APIRouter, Query
 from app.api.dependencies import CurrentUserId, DatabaseSession
 from app.core.config import get_settings
 from app.models.domain import ReviewStatus
-from app.schemas.knowledge import ExtractionRead, ReviewList, ReviewRead, ReviewResolve
+from app.schemas.knowledge import ExtractionRead, ReviewBatchRead, ReviewBatchResolve, ReviewList, ReviewRead, ReviewResolve
 from app.services import knowledge
 
 
@@ -41,3 +41,8 @@ def list_reviews(
 @router.post("/reviews/{review_id}/resolve", response_model=ReviewRead)
 def resolve(review_id: uuid.UUID, decision: ReviewResolve, db: DatabaseSession, user_id: CurrentUserId):
     return knowledge.resolve_review(db, user_id=user_id, review_id=review_id, decision=decision)
+
+
+@router.post('/projects/{project_id}/reviews/resolve-batch', response_model=ReviewBatchRead)
+def resolve_batch(project_id: uuid.UUID, decision: ReviewBatchResolve, db: DatabaseSession, user_id: CurrentUserId):
+    return knowledge.resolve_reviews_batch(db, user_id=user_id, project_id=project_id, decision=decision)

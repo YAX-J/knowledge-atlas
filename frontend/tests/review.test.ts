@@ -27,7 +27,7 @@ it('requires an explicit confirm or reject and displays evidence as inert text',
 it('edits before confirmation and trims explicit changes', async () => {
   const wrapper = mount(CandidateReview, { props })
   await wrapper.findAll('button').find(button => button.text() === '修改后确认')!.trigger('click')
-  await wrapper.get('input').setValue('  Revised  ')
+  await wrapper.get('input[type="text"], input:not([type])').setValue('  Revised  ')
   await wrapper.get('textarea').setValue('  Revised evidence summary.  ')
   await wrapper.get('form').trigger('submit')
   expect(wrapper.emitted('resolve')).toEqual([[{ id: candidate.id, action: 'confirm',
@@ -37,4 +37,33 @@ it('edits before confirmation and trims explicit changes', async () => {
 it('disables review and extraction controls during persistence', () => {
   const wrapper = mount(CandidateReview, { props: { ...props, resolving: candidate.id } })
   expect(wrapper.findAll('button').every(button => button.attributes('disabled') !== undefined)).toBe(true)
+})
+
+it('requires selection and a named preview before batch confirmation', async () => {
+  const wrapper = mount(CandidateReview, { props })
+  await wrapper.get('input[type="checkbox"]').setValue(true)
+  await wrapper.findAll('button').find(button => button.text() === '审核所选')!.trigger('click')
+  expect(wrapper.emitted('resolveBatch')).toBeUndefined()
+  expect(wrapper.get('.batch-preview').text()).toContain('实体：Review')
+  await wrapper.get('.batch-preview').trigger('submit')
+  expect(wrapper.emitted('resolveBatch')).toEqual([[[candidate.id], 'confirm']])
+})
+
+it('clears page selection and cannot submit an outdated preview', async () => {
+  const wrapper = mount(CandidateReview, { props })
+  await wrapper.get('input[type="checkbox"]').setValue(true)
+  await wrapper.findAll('button').find(button => button.text() === '拒绝所选')!.trigger('click')
+  await wrapper.setProps({ candidates: { ...props.candidates, page: 2, items: [{ ...candidate, id: 'second' }] } })
+  expect(wrapper.find('.batch-preview').exists()).toBe(false)
+  expect(wrapper.get('[aria-label="批量审核"]').text()).toContain('已选 0 条')
+  expect(wrapper.emitted('resolveBatch')).toBeUndefined()
+})
+
+it('does not combine unsaved edits with batch decisions and unlocks after save', async () => {
+  const second = { ...candidate, id: 'second' }
+  const wrapper = mount(CandidateReview, { props: { ...props, candidates: { ...props.candidates, items: [candidate, second] } } })
+  await wrapper.findAll('button').find(button => button.text() === '修改后确认')!.trigger('click')
+  expect(wrapper.get('input[type="checkbox"]').attributes('disabled')).toBeDefined()
+  await wrapper.setProps({ candidates: { ...props.candidates, items: [{ ...candidate, review_status: 'confirmed' }, second] } })
+  expect(wrapper.get('input[type="checkbox"]').attributes('disabled')).toBeUndefined()
 })

@@ -1,5 +1,7 @@
 # Knowledge Atlas 实施计划
 
+本轮优化：显式整批审核和零供应商索引状态已实现（ADR 0046）。名称预览后的选择继续使用逐项审核/提升规则；索引检查报告范围数量、内容新鲜度及扫描截断。撤销、合并与自动索引仍属后续。
+
 2026-10-25 使用流程优化：新增可选 `rrf`（BM25＋向量排名融合），搜索默认仍为 keyword，问答默认仍为 hybrid；问答可选择 hybrid/rrf/vector/bm25，按原文位置去重并轮流分配证据预算。资料展示整份候选的实时审核统计；治理按摘要分组识别重复并提供原文核对入口；搜索/问答共享迟到响应隔离。见 [ADR 0045](docs/adr/0045-opt-in-rank-fusion.zh-CN.md)。这些是实现与回归改进，尚无新真实模型质量结论。
 
 多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。默认解析只做语法结构且不调用模型；新增显式有界 Agent 操作，可在兼容语言族的同仓库静态声明候选中分析跨文件调用。后端校验每个目标 ID 与精确源码行，结果保持临时派生且不进入正式图谱。见 [ADR 0040](docs/adr/0040-multilanguage-source-parsing.zh-CN.md) 与 [ADR 0041](docs/adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。

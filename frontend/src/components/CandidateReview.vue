@@ -17,12 +17,31 @@ const emit = defineEmits<{
   refresh: [page?: number]
   resolve: [decision: ReviewDecision]
   graph: []
+  resolveBatch: [ids: string[], action: 'confirm' | 'reject']
 }>()
 const editing = ref('')
 const name = ref('')
 const summary = ref('')
-const pages = computed(() => Math.max(1, Math.ceil((props.candidates?.total ?? 0) / 20)))
+const pages = computed(() => Math.max(1, Math.ceil((props.candidates?.total ?? 0) / (props.candidates?.page_size ?? 20))))
 const busy = computed(() => props.extracting || !!props.resolving)
+const selected = ref<string[]>([])
+const batchAction = ref<'confirm' | 'reject' | ''>('')
+const pending = computed(() => props.candidates?.items.filter(item => item.review_status === 'pending') ?? [])
+const batchDisabled = computed(() => busy.value || props.loading || !!editing.value)
+watch(() => props.candidates, () => {
+  selected.value = selected.value.filter(id => pending.value.some(item => item.id === id))
+  if (!pending.value.some(item => item.id === editing.value)) editing.value = ''
+  batchAction.value = ''
+})
+watch(selected, () => { batchAction.value = '' }, { deep: true })
+function selectPage() {
+  if (batchDisabled.value) return
+  selected.value = pending.value.map(item => item.id)
+}
+function submitBatch() {
+  if (batchDisabled.value || !batchAction.value || !selected.value.length) return
+  emit('resolveBatch', [...selected.value], batchAction.value)
+}
 const counts = computed(() => props.extraction?.review_counts)
 const nextStep = computed(() => {
   if (props.loading) return '正在读取整份资料的处理进度。'
@@ -59,6 +78,7 @@ watch(() => props.resolving, async (current, previous) => {
   }
 })
 function confirm(id: string) {
+  if (busy.value || props.loading) return
   emit('resolve', { id, action: 'confirm', changes: { name: name.value.trim(), summary: summary.value.trim() } })
 }
 </script>
@@ -82,9 +102,27 @@ function confirm(id: string) {
     <p v-if="loading" class="muted-copy" role="status">正在读取候选知识…</p>
     <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
     <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
+    <section v-if="pending.length" class="batch-review" aria-label="批量审核">
+      <p>已选 {{ selected.length }} 条当前页候选。请逐项核对原文后选择；关系两端须已确认或一同选中。</p>
+      <p v-if="editing" class="muted-copy">请先完成或取消正在修改的候选。</p>
+      <div class="candidate-actions">
+        <button class="text-button" type="button" :disabled="batchDisabled" @click="selectPage">选择本页待审核项</button>
+        <button class="text-button" type="button" :disabled="batchDisabled || !selected.length" @click="selected = []">清空选择</button>
+        <button class="primary-button" type="button" :disabled="batchDisabled || !selected.length" @click="batchAction = 'confirm'">审核所选</button>
+        <button class="text-button" type="button" :disabled="batchDisabled || !selected.length" @click="batchAction = 'reject'">拒绝所选</button>
+      </div>
+      <form v-if="batchAction" class="batch-preview" @submit.prevent="submitBatch">
+        <p>将{{ batchAction === 'confirm' ? '确认并写入图谱' : '拒绝' }}以下 {{ selected.length }} 条候选：</p>
+        <ul><li v-for="item in pending.filter(item => selected.includes(item.id))" :key="item.id">{{ item.kind === 'entity' ? '实体' : '关系' }}：{{ item.name }}</li></ul>
+        <p>任意一项无法处理时整批不生效。处理后暂不支持撤销。</p>
+        <button class="primary-button" type="submit" :disabled="batchDisabled">{{ batchAction === 'confirm' ? '确认所选并入图' : '确认拒绝所选' }}</button>
+        <button class="text-button" type="button" :disabled="batchDisabled" @click="batchAction = ''">取消批量操作</button>
+      </form>
+    </section>
     <p v-if="!loading && !error && candidates?.total === 0" class="empty-copy">{{ extraction?.task?.status === 'succeeded' ? '本篇资料未提取到有明确证据的候选知识。' : '还没有候选知识。完成提取后，可在这里核对名称、摘要和原文证据。' }}</p>
     <article v-for="item in candidates?.items ?? []" :key="item.id" class="candidate-card">
       <header>
+        <label v-if="item.review_status === 'pending'" class="candidate-select"><input v-model="selected" type="checkbox" :value="item.id" :disabled="batchDisabled" :aria-label="`选择候选：${item.name}`" />选择</label>
         <span>{{ item.kind === 'entity' ? '实体' : '关系' }} · {{ labels[item.type] ?? item.type }}</span>
         <span class="source-status" :class="{ 'status-ready': item.review_status === 'confirmed', 'status-failed': item.review_status === 'rejected' }">{{ labels[item.review_status] }}</span>
       </header>
@@ -127,6 +165,11 @@ function confirm(id: string) {
 </template>
 
 <style scoped>
+.batch-review { margin: 16px 0; padding: 14px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; line-height: 1.8; }
+.batch-preview { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.batch-preview ul { max-height: 180px; overflow: auto; overflow-wrap: anywhere; }
+.candidate-select { display: flex; align-items: center; gap: 6px; }
+.candidate-select input { width: 18px; height: 18px; }
 .review-progress { margin: 14px 0; padding: 12px; border-left: 3px solid var(--teal); background: #edf5f3; font-size: 12px; line-height: 1.8; }
 .candidate-review { margin-top: 30px; padding-top: 24px; border-top: 1px solid var(--line); }
 .candidate-card { margin-top: 16px; padding: 18px; border: 1px solid var(--line); border-radius: 6px; background: #f7faf9; }

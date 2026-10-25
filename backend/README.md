@@ -1,5 +1,7 @@
 # Knowledge Atlas Backend
 
+Added atomic `POST /projects/{id}/reviews/resolve-batch` (same source, 1–100 unique IDs, confirm/reject) and provider-free `GET /projects/{id}/embeddings/status?valid_at=...`. Index counts cover the complete effective scope; hash freshness is inspected for at most 1000 entities. No migration or new provider configuration.
+
 Added `search?mode=rrf` and question `retrieval_mode=hybrid|rrf|vector|bm25` (default hybrid). Online questions deduplicate exact source locations and report evidence-budget counts. Extraction status includes source-wide `review_counts`; governance findings include entity summaries. No migration. New fusion quality has not been evaluated with real providers.
 
 `GET /projects/{id}/search?mode=bm25` now provides bounded offline Chinese/English lexical search without provider configuration or migrations. Empty matching vector indexes skip query embedding, with configuration errors preserved. Run `scripts.run_evaluation --modes keyword bm25` without provider flags against a prepared corpus project. Formula, scope and limits: [ADR 0044](../docs/adr/0044-bounded-offline-bm25-search.md); [development results and failures](../evaluation/results/2026-10-25-bm25/README.md).

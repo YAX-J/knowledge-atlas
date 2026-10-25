@@ -44,6 +44,21 @@ describe('evidence questions', () => {
 })
 
 describe('knowledge search', () => {
+  it('shows stale content despite full index coverage and refreshes without rebuilding', async () => {
+    const wrapper = mount(KnowledgeSearch, { props: { ...searchProps, indexStatus: {
+      model: 'test-model', dimensions: 1024, configured: true, checked_at: project.created_at,
+      eligible_count: 5, indexed_count: 5, missing_count: 0, stale_count: 2, current_count: 3,
+      scanned_count: 5, scan_limit: 1000, truncated: false,
+    } } })
+    expect(wrapper.get('[aria-label="语义索引状态"]').text()).toContain('发现 2 条内容过期')
+    await wrapper.findAll('button').find(button => button.text() === '刷新索引状态')!.trigger('click')
+    expect(wrapper.emitted('inspectIndex')).toHaveLength(1)
+    expect(wrapper.emitted('rebuild')).toBeUndefined()
+    await wrapper.setProps({ indexStatus: { ...wrapper.props('indexStatus')!, stale_count: 0,
+      scanned_count: 1, truncated: true, scan_limit: 1 } })
+    expect(wrapper.text()).toContain('尚有知识未检查')
+    expect(wrapper.text()).not.toContain('索引内容已与正式知识同步')
+  })
   it('submits explicit BM25 mode without requesting a semantic index', async () => {
     const wrapper = mount(KnowledgeSearch, { props: searchProps })
     await wrapper.get('input').setValue('中文资料如何检索？')
@@ -87,6 +102,11 @@ describe('knowledge search', () => {
 })
 
 describe('cross-file Agent workspace', () => {
+  it('locks source and upload controls while a review transaction is running', () => {
+    const wrapper = mount(SourceWorkspace, { props: { ...sourceProps, reviewBusy: true } })
+    expect(wrapper.findAll('button').find(button => button.text() === '上传单个文件')!.attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[aria-label="跨文件调用分析方式"]').attributes('disabled')).toBeDefined()
+  })
   it('uses user-selected strategy for start and error retry', async () => {
     const wrapper = mount(SourceWorkspace, { props: sourceProps })
     await wrapper.get('[aria-label="跨文件调用分析方式"]').setValue('tools')
