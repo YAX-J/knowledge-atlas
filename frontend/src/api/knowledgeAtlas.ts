@@ -570,8 +570,11 @@ export function extractKnowledge(sourceId: string): Promise<ExtractionResult> {
   })
 }
 
-export function listCandidates(projectId: string, sourceId: string, page = 1): Promise<CandidateList> {
+export function listCandidates(projectId: string, sourceId: string, page = 1, filters?: import('../types').ReviewFilters): Promise<CandidateList> {
   const query = new URLSearchParams({ source_id: sourceId, page: String(page), page_size: '20' })
+  if (filters?.status) query.set('review_status', filters.status)
+  if (filters?.kind) query.set('kind', filters.kind)
+  if (filters?.query.trim()) query.set('q', filters.query.trim())
   return apiRequest<CandidateList>(`/projects/${projectId}/reviews?${query}`)
 }
 
@@ -633,8 +636,8 @@ export function getKnowledgeHistory(projectId: string, entityId: string): Promis
   return apiRequest(`/projects/${projectId}/knowledge/entities/${entityId}/history`)
 }
 
-export function inspectGovernance(projectId: string): Promise<GovernanceResult> {
-  return apiRequest(`/projects/${projectId}/governance`)
+export function inspectGovernance(projectId: string, kind: import('../types').GovernanceKind | '' = ''): Promise<GovernanceResult> {
+  return apiRequest(`/projects/${projectId}/governance${kind ? `?${new URLSearchParams({ kind })}` : ''}`)
 }
 
 export function rebuildProjectEmbeddings(projectId: string): Promise<EmbeddingRebuildResult> {

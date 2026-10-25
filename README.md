@@ -1,5 +1,7 @@
 # Knowledge Atlas
 
+新增候选状态/实体关系/文字组合筛选；治理类别由后端先筛选再截断，并可将两条知识的原文并排核对。问答证据去重后保留其他关联实体入口。见 [ADR 0047](docs/adr/0047-filtered-discovery-evidence-attribution.zh-CN.md) 与[验收记录](docs/DISCOVERY_OPTIMIZATION_20261025.zh-CN.md)。
+
 新增批量审核与语义索引状态：当前页候选可多选、核对名称预览后整批确认/拒绝，失败整批回滚；审核期间锁住上下文。检索区可免费刷新索引缺失/过期状态，内容哈希检查最多 1000 个实体，显式更新后刷新。见 [ADR 0046](docs/adr/0046-atomic-batch-review-index-status.zh-CN.md)。
 
 2026-10-25 使用流程优化：新增可选 `rrf`（BM25＋向量排名融合），搜索默认仍为 keyword，问答默认仍为 hybrid；问答可选择 hybrid/rrf/vector/bm25，按原文位置去重并轮流分配证据预算。资料展示整份候选的实时审核统计；治理按摘要分组识别重复并提供原文核对入口；搜索/问答共享迟到响应隔离。见 [ADR 0045](docs/adr/0045-opt-in-rank-fusion.zh-CN.md)。这些是实现与回归改进，尚无新真实模型质量结论。

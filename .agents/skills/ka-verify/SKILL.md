@@ -167,3 +167,7 @@ For optional RRF, source review totals and summary-group governance, include `te
 ## Native QA isolation and batch/index checks
 
 Add `tests/test_batch_reviews.py` and `tests/test_embedding_status.py` for ADR 0046; verify_native includes both. Before writing ANY temporary PostgreSQL fixture, assert that the temporary schema physically owns every required business table. `current_schema()` alone is insufficient: SQLAlchemy create_all existence checks may see public tables via search_path and skip private creation. Use explicit-schema migrations or forced creation with ownership assertions, then assert fixture UUIDs are absent from public. Always clean only recorded, validated temporary schema/fixture identifiers.
+
+## Discovery checks (ADR 0047)
+
+Include tests/test_knowledge_discovery.py in focused and native acceptance. Desktop checks cover combined review filters/empty results with unchanged source totals, governance filtering before limits, separate comparison quotes with focus/error/retry, and one question passage with related entity navigation. App regressions must reject stale filter responses and wrong-project/closed comparison results. Continue enforcing temporary-table ownership before fixture writes and recorded-schema-only cleanup; model/embedding stubs do not establish provider quality.

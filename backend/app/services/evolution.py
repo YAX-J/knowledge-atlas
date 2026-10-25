@@ -182,7 +182,7 @@ def _normalized(value):
     return " ".join(unicodedata.normalize("NFKC", value).casefold().split())
 
 
-def governance(db, *, user_id, project_id, limit):
+def governance(db, *, user_id, project_id, limit, kind=None):
     get_project(db, user_id=user_id, project_id=project_id)
     at = utc_now()
     entities = list(db.scalars(select(KnowledgeEntity).where(*graph.visible(KnowledgeEntity, user_id, project_id, at))
@@ -235,5 +235,8 @@ def governance(db, *, user_id, project_id, limit):
             add("orphan", [entity.id], "当前没有可见语义关系或已确认演化关系，建议检查是否需要补充关联。")
     priority = {'missing_evidence': 0, 'duplicate': 1, 'possible_conflict': 2, 'orphan': 3}
     findings.sort(key=lambda finding: priority[finding.kind])
+    counts = {name: sum(finding.kind == name for finding in findings) for name in priority}
+    if kind is not None:
+        findings = [finding for finding in findings if finding.kind == kind]
     return GovernanceRead(checked_at=at, scanned_entity_count=len(entities), findings=findings[:limit],
-                          truncated=truncated or len(findings) > limit)
+                          truncated=truncated or len(findings) > limit, kind_filter=kind, counts_by_kind=counts)

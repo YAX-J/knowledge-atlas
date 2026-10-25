@@ -1,5 +1,7 @@
 # Knowledge Atlas 前端开发说明
 
+CandidateReview 使用父级 ReviewFilters，对状态、实体/关系和文字应用服务端筛选；切条件回首屏并清空批量选择，整份统计独立。KnowledgeEvolution 可筛问题类别并调用 KnowledgeComparison 并排读取两条知识；App 校验项目/ID，关闭及上下文变化使迟到结果失效。QuestionWorkspace 展示去重片段的其他关联实体，原文仅展示一次。
+
 批量审核：CandidateReview 只保存当前页待审核选择，显示名称预览并要求最终确认；换页清空隐藏选择，未保存编辑阻止批量操作。App 在审核期间锁定项目/资料/导航。KnowledgeSearch 的索引状态经 App 只读刷新，沿用项目与历史时间请求隔离；重建后刷新状态，BM25 搜索不因更新索引而自动重跑。
 
 2026-10-25：搜索增加 BM25＋向量融合（rrf）；问答显式选择四种检索方式，停止等待会丢弃迟到响应，但不撤销服务端模型请求。App 使用 `composables/useLatestRequest.ts` 管理搜索/问答的结果、错误、加载与生命周期；页面仍负责编排。候选展示后端整份资料 `review_counts`，治理展示画布外实体摘要并可打开正式详情。

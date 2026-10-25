@@ -1,18 +1,21 @@
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, shallowMount } from '@vue/test-utils'
 import App from '../src/App.vue'
 import SideRail from '../src/components/SideRail.vue'
 import QuestionWorkspace from '../src/components/QuestionWorkspace.vue'
 import SourceWorkspace from '../src/components/SourceWorkspace.vue'
 import ProjectGraph from '../src/components/ProjectGraph.vue'
+import CandidateReview from '../src/components/CandidateReview.vue'
+import KnowledgeEvolution from '../src/components/KnowledgeEvolution.vue'
 import * as api from '../src/api/knowledgeAtlas'
-import { project } from './fixtures'
-import type { EmbeddingIndexStatus, QuestionAnswer } from '../src/types'
+import { project, source } from './fixtures'
+import type { EmbeddingIndexStatus, EntityDetail, QuestionAnswer } from '../src/types'
 
 vi.mock('../src/api/knowledgeAtlas', async importOriginal => {
   const original = await importOriginal<typeof api>()
   return { ...original, listProjects: vi.fn(), listSources: vi.fn(), listRepositories: vi.fn(), askQuestion: vi.fn(),
-    getEmbeddingStatus: vi.fn(), getProjectGraph: vi.fn(), listKnowledgeChanges: vi.fn() }
+    getEmbeddingStatus: vi.fn(), getProjectGraph: vi.fn(), listKnowledgeChanges: vi.fn(), getEntityDetail: vi.fn(),
+    getSource: vi.fn(), listSourceChunks: vi.fn(), listCandidates: vi.fn(), getExtraction: vi.fn() }
 })
 
 it('keeps index status scoped to the selected project when an older inspection finishes late', async () => {
@@ -44,6 +47,7 @@ it('keeps index status scoped to the selected project when an older inspection f
   expect(wrapper.getComponent(ProjectGraph).props('indexStatus')).toEqual(current)
 })
 enableAutoUnmount(afterEach)
+beforeEach(() => vi.resetAllMocks())
 
 it('App preserves request mode on retry and drops late answers after clear or project switch', async () => {
   vi.mocked(api.listProjects).mockResolvedValue({ items: [project], total: 1, page: 1, page_size: 20 })
@@ -79,4 +83,66 @@ it('App preserves request mode on retry and drops late answers after clear or pr
   await flushPromises()
   expect(api.askQuestion).toHaveBeenLastCalledWith('second-project', 'Retry question', 'vector')
   expect(wrapper.getComponent(QuestionWorkspace).props('result')).toEqual(answer)
+})
+
+it('does not restore closed comparisons or display entities from a different project', async () => {
+  vi.mocked(api.listProjects).mockResolvedValue({ items: [project], total: 1, page: 1, page_size: 20 })
+  vi.mocked(api.listSources).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  vi.mocked(api.listRepositories).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  vi.mocked(api.getProjectGraph).mockResolvedValue({ nodes: [], edges: [], truncated: false })
+  vi.mocked(api.listKnowledgeChanges).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  const detail = (id: string): EntityDetail => ({ entity: { id, project_id: project.id, candidate_id: id,
+    type: 'Decision', name: id, summary: id, confidence: .8, status: 'active', valid_from: project.created_at,
+    valid_to: null, evidence_count: 0 }, evidence: [], relationships: [], truncated: false })
+  let finish!: (value: EntityDetail) => void
+  vi.mocked(api.getEntityDetail).mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    .mockResolvedValueOnce(detail('second'))
+  const wrapper = shallowMount(App, { global: { stubs: { ProjectGraph: { template: '<div><slot name="evolution" /></div>' } } } })
+  wrapper.getComponent(SideRail).vm.$emit('change', 'sources')
+  await flushPromises()
+  wrapper.getComponent(SourceWorkspace).vm.$emit('graph')
+  await flushPromises()
+  wrapper.getComponent(KnowledgeEvolution).vm.$emit('compare', ['first', 'second'])
+  await flushPromises()
+  wrapper.getComponent(KnowledgeEvolution).vm.$emit('closeComparison')
+  finish(detail('first'))
+  await flushPromises()
+  expect(wrapper.getComponent(KnowledgeEvolution).props('comparison')).toBeNull()
+  const foreign = detail('first')
+  foreign.entity.project_id = 'other-project'
+  vi.mocked(api.getEntityDetail).mockResolvedValueOnce(foreign).mockResolvedValueOnce(detail('second'))
+  wrapper.getComponent(KnowledgeEvolution).vm.$emit('compare', ['first', 'second'])
+  await flushPromises()
+  expect(wrapper.getComponent(KnowledgeEvolution).props('comparison')).toBeNull()
+  expect(wrapper.getComponent(KnowledgeEvolution).props('comparisonError')).toBeTruthy()
+})
+
+it('discards an older candidate filter result and retains source-wide review totals', async () => {
+  vi.mocked(api.listProjects).mockResolvedValue({ items: [project], total: 1, page: 1, page_size: 20 })
+  vi.mocked(api.listSources).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  vi.mocked(api.listRepositories).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  vi.mocked(api.getSource).mockResolvedValue({ ...source, source_type: 'markdown' })
+  vi.mocked(api.listSourceChunks).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  const empty = { items: [], total: 0, page: 1, page_size: 20 }
+  vi.mocked(api.listCandidates).mockResolvedValueOnce(empty)
+  vi.mocked(api.getExtraction).mockResolvedValue({ task: null, candidate_count: 3,
+    review_counts: { pending: 3, confirmed: 0, rejected: 0 } })
+  const wrapper = shallowMount(App, { global: { stubs: { SourceWorkspace: { template: '<div><slot name="reviews" /></div>' } } } })
+  wrapper.getComponent(SideRail).vm.$emit('change', 'sources')
+  await flushPromises()
+  wrapper.getComponent(SourceWorkspace).vm.$emit('selectSource', source.id, null)
+  await flushPromises()
+  let finish!: (value: api.CandidateList) => void
+  vi.mocked(api.listCandidates).mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
+    .mockResolvedValueOnce(empty)
+  wrapper.getComponent(CandidateReview).vm.$emit('filter', { status: 'pending', kind: '', query: 'old' })
+  await flushPromises()
+  const filters = { status: 'confirmed' as const, kind: 'entity' as const, query: 'new' }
+  wrapper.getComponent(CandidateReview).vm.$emit('filter', filters)
+  await flushPromises()
+  finish({ ...empty, total: 30 })
+  await flushPromises()
+  expect(api.listCandidates).toHaveBeenLastCalledWith(project.id, source.id, 1, filters)
+  expect(wrapper.getComponent(CandidateReview).props('candidates')?.total).toBe(0)
+  expect(wrapper.getComponent(CandidateReview).props('extraction')?.review_counts?.pending).toBe(3)
 })

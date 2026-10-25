@@ -1,5 +1,7 @@
 # Knowledge Atlas 系统架构
 
+发现流程扩展见 [ADR 0047](adr/0047-filtered-discovery-evidence-attribution.zh-CN.md)：候选筛选在分页之前；治理类别筛选在截断之前；前端双实体比较复用既有只读详情 API 并校验项目。问答保留规范引用，补充同一原文的检索实体归属，不写权威知识。
+
 批量审核通过项目锁和单次提交复用原审核服务；正式知识仍只由 promotion 边界写入。索引状态只读，使用现有 canonical entity text 哈希检查内容，最多 1000 个实体，不触发供应商。详见 [ADR 0046](adr/0046-atomic-batch-review-index-status.zh-CN.md)。
 
 可选 RRF 融合由 `services/fusion.py` 读取现有 BM25 与向量结果，最多各 100 个候选，以 `sum(1/(60+rank))` 合并排名，不扩展图邻居。在线问答按原文位置去重并轮流选证据；原有 keyword/bm25/vector/hybrid 排序协议不变。见 [ADR 0045](adr/0045-opt-in-rank-fusion.zh-CN.md)。

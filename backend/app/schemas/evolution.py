@@ -7,6 +7,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validato
 from app.schemas.graph import FormalEvidenceRead, KnowledgeNodeRead
 
 ChangeKind = Literal["SUPERSEDES", "SUPPLEMENTS", "CONFLICTS_WITH"]
+GovernanceKind = Literal['missing_evidence', 'duplicate', 'possible_conflict', 'orphan']
 
 
 class ChangeCreate(BaseModel):
@@ -81,7 +82,7 @@ class GovernanceEntity(BaseModel):
 
 class GovernanceFinding(BaseModel):
     id: uuid.UUID
-    kind: Literal["missing_evidence", "duplicate", "possible_conflict", "orphan"]
+    kind: GovernanceKind
     entity_ids: list[uuid.UUID]
     message: str
     entities: list[GovernanceEntity] = Field(default_factory=list)
@@ -92,3 +93,5 @@ class GovernanceRead(BaseModel):
     scanned_entity_count: int
     truncated: bool
     findings: list[GovernanceFinding]
+    kind_filter: GovernanceKind | None = None
+    counts_by_kind: dict[GovernanceKind, int] = Field(default_factory=dict)

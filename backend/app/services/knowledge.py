@@ -5,7 +5,7 @@ import math
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import case, func, select, update
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -218,6 +218,7 @@ def list_reviews(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID,
     source_id: uuid.UUID | None, review_status: ReviewStatus | None,
     candidate_type: str | None, min_confidence: float | None, page: int, page_size: int,
+    kind: str | None = None, text_query: str = '',
 ) -> tuple[list[ReviewRead], int]:
     get_project(db, user_id=user_id, project_id=project_id)
     query = _review_query(user_id).where(CandidateKnowledge.project_id == project_id)
@@ -232,6 +233,12 @@ def list_reviews(
         query = query.where(CandidateKnowledge.candidate_type == candidate_type)
     if min_confidence is not None:
         query = query.where(CandidateKnowledge.confidence >= min_confidence)
+    if kind is not None:
+        query = query.where(CandidateKnowledge.payload['kind'].as_string() == kind)
+    normalized = ' '.join(text_query.split())
+    if normalized:
+        query = query.where(or_(CandidateKnowledge.name.icontains(normalized, autoescape=True),
+                               CandidateKnowledge.summary.icontains(normalized, autoescape=True)))
     total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
     items = list(db.scalars(query.order_by(
         case((CandidateKnowledge.payload["kind"].as_string() == "entity", 0), else_=1),

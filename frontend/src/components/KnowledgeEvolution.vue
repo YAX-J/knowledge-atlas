@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import KnowledgeComparison from './KnowledgeComparison.vue'
+import type { GovernanceKind } from '../types'
 import type { EntityDetail, EvidenceLocator, FormalKnowledgeNode, GovernanceResult, KnowledgeChangeInput, KnowledgeChangeKind, KnowledgeChangeList, KnowledgeHistory } from '../types'
 
 const props = defineProps<{
@@ -18,16 +20,23 @@ const props = defineProps<{
   notice: string
   busy: boolean
   historical: boolean
+  governanceKind?: GovernanceKind | ''
+  comparison?: EntityDetail[] | null
+  comparisonLoading?: boolean
+  comparisonError?: string
 }>()
 const emit = defineEmits<{
   history: []
   changes: [page: number]
-  inspect: []
+  inspect: [kind?: GovernanceKind | '']
   propose: [input: KnowledgeChangeInput]
   resolve: [id: string, action: 'confirm' | 'reject']
   openEvidence: [locator: EvidenceLocator]
   visitVersion: [id: string, at: string]
   openEntity: [id: string]
+  compare: [ids: string[]]
+  closeComparison: []
+  retryComparison: []
 }>()
 const newId = ref('')
 const kind = ref<KnowledgeChangeKind>('SUPERSEDES')
@@ -35,6 +44,10 @@ const reason = ref('')
 const confirmed = ref('')
 const labels: Record<KnowledgeChangeKind, string> = { SUPERSEDES: '替代', SUPPLEMENTS: '补充', CONFLICTS_WITH: '冲突' }
 const statusLabels = { pending: '待审核', confirmed: '已确认', rejected: '已拒绝' }
+const governanceLabels: Record<GovernanceKind, string> = { missing_evidence: '缺少证据', duplicate: '疑似重复', possible_conflict: '可能冲突', orphan: '孤立知识' }
+function filterGovernance(event: Event) {
+  emit('inspect', (event.target as HTMLSelectElement).value as GovernanceKind | '')
+}
 const eligible = computed(() => props.nodes.filter(item => item.id !== props.selected?.entity.id && item.type === props.selected?.entity.type && item.status === 'active' && !item.valid_to))
 const names = computed(() => new Map([...(props.history?.entities ?? []), ...props.nodes].map(item => [item.id, item.name])))
 function name(id: string) { return names.value.get(id) ?? id }
@@ -107,10 +120,15 @@ function submit() {
     </section>
     <section class="governance" aria-label="知识质量检查">
       <h3>知识质量检查 <button type="button" :disabled="busy || governanceLoading" @click="emit('inspect')">{{ governanceLoading ? '正在检查…' : '运行只读检查' }}</button></h3>
+      <label>问题类别<select :value="governanceKind ?? ''" :disabled="busy || governanceLoading" @change="filterGovernance"><option value="">全部问题</option><option v-for="(label, value) in governanceLabels" :key="value" :value="value">{{ label }}</option></select></label>
+      <p v-if="governance?.counts_by_kind">本次扫描范围：<span v-for="(label, value) in governanceLabels" :key="value">{{ label }} {{ governance.counts_by_kind[value] ?? 0 }}　</span></p>
       <p>检查当前知识的缺失证据、同名重复/可能冲突与孤立节点。结果只供人工核对，不会合并、删除或更改知识。</p>
       <div v-if="governanceError" role="alert" class="error">{{ governanceError }} <button type="button" @click="emit('inspect')">重试检查</button></div>
+      <KnowledgeComparison :details="comparison ?? null" :loading="comparisonLoading ?? false" :error="comparisonError ?? ''" :busy="busy"
+        @close="emit('closeComparison')" @retry="emit('retryComparison')" @open-evidence="emit('openEvidence', $event)" />
       <template v-if="governance"><p role="status">已扫描 {{ governance.scanned_entity_count }} 个当前实体；{{ governance.findings.length }} 条建议{{ governance.truncated ? '，已达扫描或结果上限' : '' }}。</p><p v-if="!governance.findings.length">本次有界检查未发现问题，不等同于完整语义质量保证。</p><ul class="findings"><li v-for="finding in governance.findings" :key="finding.id"><strong>{{ finding.entities?.map(item => item.name).join(' / ') || finding.entity_ids.map(name).join(' / ') }}</strong><p>{{ finding.message }}</p>
-        <article v-for="entity in finding.entities ?? []" :key="entity.id" class="finding-entity"><p><strong>{{ entity.name }}</strong> · {{ entity.type }}</p><p>{{ entity.summary }}</p><button type="button" :disabled="busy" @click="emit('openEntity', entity.id)">核对知识与原文</button></article></li></ul></template>
+        <article v-for="entity in finding.entities ?? []" :key="entity.id" class="finding-entity"><p><strong>{{ entity.name }}</strong> · {{ entity.type }}</p><p>{{ entity.summary }}</p><button type="button" :disabled="busy" @click="emit('openEntity', entity.id)">核对知识与原文</button></article>
+        <button v-if="finding.entity_ids.length === 2" type="button" :disabled="busy || comparisonLoading" @click="emit('compare', finding.entity_ids)">并排核对两条知识</button></li></ul></template>
     </section>
   </section>
 </template>

@@ -1,5 +1,7 @@
 # Knowledge Atlas Implementation Plan
 
+Current optimization: server-side review filters, category-scoped governance and read-only two-entity evidence comparison are implemented. Deduplicated question passages retain all retrieved entity attributions. No merge, undo or provider-quality experiment is included (ADR 0047).
+
 Current optimization: explicit atomic batch review and provider-free embedding index status are implemented (ADR 0046). Previewed selections retain per-item review/promotion rules. Index inspection reports scope counts, content freshness and scan truncation. Review undo, merging and automatic indexing remain future work.
 
 2026-10-25 workflow optimization: opt-in BM25/vector RRF, selectable question retrieval with source-location deduplication, source-wide review totals, summary-group duplicate checks and shared latest-request state. Existing defaults remain stable. See [ADR 0045](docs/adr/0045-opt-in-rank-fusion.md). This is implementation/regression work, not a new model-quality result.

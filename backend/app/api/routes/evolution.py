@@ -4,7 +4,7 @@ from typing import Literal
 from fastapi import APIRouter, Query
 
 from app.api.dependencies import CurrentUserId, DatabaseSession
-from app.schemas.evolution import ChangeCreate, ChangeList, ChangeRead, ChangeResolve, EvolutionRead, GovernanceRead
+from app.schemas.evolution import ChangeCreate, ChangeList, ChangeRead, ChangeResolve, EvolutionRead, GovernanceKind, GovernanceRead
 from app.services import evolution
 
 router = APIRouter(tags=["evolution"])
@@ -36,5 +36,5 @@ def history(project_id: uuid.UUID, entity_id: uuid.UUID, db: DatabaseSession, us
 
 @router.get("/projects/{project_id}/governance", response_model=GovernanceRead)
 def governance(project_id: uuid.UUID, db: DatabaseSession, user_id: CurrentUserId,
-               limit: int = Query(default=200, ge=1, le=500)):
-    return evolution.governance(db, user_id=user_id, project_id=project_id, limit=limit)
+               limit: int = Query(default=200, ge=1, le=500), kind: GovernanceKind | None = None):
+    return evolution.governance(db, user_id=user_id, project_id=project_id, limit=limit, kind=kind)

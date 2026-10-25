@@ -126,6 +126,7 @@ function submit() {
         <p v-if="!result.evidence.length" class="no-evidence">本次没有可引用的证据。</p>
         <article v-for="(item, index) in result.evidence" :key="item.id" class="evidence-card">
           <div><span>[{{ index + 1 }}]</span><button type="button" @click="emit('openEntity', item.entity_id)">{{ item.entity_name }} ↗</button></div>
+          <p v-if="(item.related_entities?.length ?? 0) > 1" class="related-evidence-entities">同一原文也关联：<button v-for="entity in item.related_entities?.filter(entity => entity.id !== item.entity_id) ?? []" :key="entity.id" type="button" @click="emit('openEntity', entity.id)">{{ entity.name }} ↗</button></p>
           <strong>{{ item.title }}</strong>
           <small>第 {{ item.start_line }}–{{ item.end_line }} 行 · {{ item.heading_path.join(' / ') || '文档开头' }}</small>
           <a v-if="item.git_url" :href="item.git_url" target="_blank" rel="noopener noreferrer">在 GitHub 查看来源 ↗</a>
@@ -141,6 +142,7 @@ function submit() {
 </template>
 
 <style scoped>
+.related-evidence-entities { font-size: 12px; line-height: 1.8; color: #435e64; }
 .retrieval-hint { font-size: 12px; line-height: 1.8; color: #536b70; }
 #question-retrieval-mode { max-width: 100%; padding: 8px; margin-top: 8px; }
 .question-page { height: calc(100% - 86px); overflow: auto; padding: 34px 42px 70px 112px; background: #edf3f3; color: var(--ink); }

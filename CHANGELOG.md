@@ -10,6 +10,10 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Server-side candidate status/kind/text filtering with page recovery and selection invalidation. Governance filters categories before result limits and reports bounded-scan counts.
+- Read-only two-entity evidence comparison with project/ID validation and late-response protection. Deduplicated question evidence retains related entity navigation and model context.
+
+
 - Explicit selected-candidate batch review with a named preview, entity-first atomic promotion, audit idempotency and all-or-nothing rollback. Review requests lock project/source/navigation context.
 - Provider-free index inspection reports missing rows and stale canonical content hashes with effective-time isolation and a 1000-entity inspection limit; successful rebuild refreshes the status.
 

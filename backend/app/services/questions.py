@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.errors import AppError
-from app.schemas.questions import QuestionEvidenceRead, QuestionRead, RetrievalSummary
+from app.schemas.questions import EvidenceEntityRead, QuestionEvidenceRead, QuestionRead, RetrievalSummary
 from app.services import deepseek
 from app.services.search import search_knowledge
 
@@ -36,6 +36,7 @@ def answer_question(
     )
     retrieval = _retrieval_summary(result)
     evidence_by_id: dict[uuid.UUID, QuestionEvidenceRead] = {}
+    passage_ids = {}
     seen = set()
     # Give each ranked entity a turn before taking its second/third quote.
     rows = [[(hit, item) for item in hit.evidence] for hit in result.items]
@@ -47,6 +48,9 @@ def answer_question(
             key = (item.source_id, item.chunk_id, item.start_line, item.end_line, item.quote)
             if key in seen:
                 retrieval.duplicate_evidence_count += 1
+                canonical = evidence_by_id.get(passage_ids.get(key))
+                if canonical is not None and all(entity.id != hit.entity.id for entity in canonical.related_entities):
+                    canonical.related_entities.append(EvidenceEntityRead(id=hit.entity.id, name=hit.entity.name))
                 continue
             seen.add(key)
             if len(evidence_by_id) >= MAX_ANSWER_EVIDENCE:
@@ -54,7 +58,9 @@ def answer_question(
                 continue
             evidence_by_id[item.id] = QuestionEvidenceRead(
                 **item.model_dump(), entity_id=hit.entity.id, entity_name=hit.entity.name,
+                related_entities=[EvidenceEntityRead(id=hit.entity.id, name=hit.entity.name)],
             )
+            passage_ids[key] = item.id
     retrieval.unique_evidence_count = len(evidence_by_id)
 
     if not evidence_by_id:
@@ -73,6 +79,7 @@ def answer_question(
     evidence_payload = [{
         'id': str(item.id), 'entity_name': item.entity_name, 'title': item.title,
         'start_line': item.start_line, 'end_line': item.end_line, 'quote': item.quote,
+        'entity_names': [entity.name for entity in item.related_entities],
     } for item in evidence_by_id.values()]
     try:
         draft = deepseek.answer_question(settings, question, evidence_payload)

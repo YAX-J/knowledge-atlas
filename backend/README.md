@@ -1,5 +1,7 @@
 # Knowledge Atlas Backend
 
+Review listing accepts optional kind=entity|relation and literal q filters. Governance accepts kind and returns category counts before limiting results. Question passages expose related_entities and provide entity_names to the answer model while retaining canonical citation IDs. No migration (ADR 0047).
+
 Added atomic `POST /projects/{id}/reviews/resolve-batch` (same source, 1–100 unique IDs, confirm/reject) and provider-free `GET /projects/{id}/embeddings/status?valid_at=...`. Index counts cover the complete effective scope; hash freshness is inspected for at most 1000 entities. No migration or new provider configuration.
 
 Added `search?mode=rrf` and question `retrieval_mode=hybrid|rrf|vector|bm25` (default hybrid). Online questions deduplicate exact source locations and report evidence-budget counts. Extraction status includes source-wide `review_counts`; governance findings include entity summaries. No migration. New fusion quality has not been evaluated with real providers.

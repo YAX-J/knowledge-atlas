@@ -139,3 +139,7 @@ Search/question requests now share `composables/useLatestRequest.ts`; App retain
 ## Batch review and index inspection (ADR 0046)
 
 CandidateReview supports current-page pending selections, named preview and final confirm/reject; discard hidden selections on page change and block bulk actions while editing. App/SourceWorkspace lock project/source/navigation during extraction or review without labeling review as parsing. Index status is provider-free, effective-time scoped and request-fenced, with missing/stale/truncated states; rebuilding stays explicit. Regressions include component selection and App late index-status isolation.
+
+## Filtered review and comparison (ADR 0047)
+
+Submit review filters explicitly; changing filters resets page/hidden selections, fences late responses and recovers a now-invalid last page. Keep source progress separate from filtered totals. Comparison must validate both returned IDs and project before displaying either result, clear on context changes/close, focus its named region and retain independent evidence scroll areas with retry. Question related_entities navigation must not repeat the canonical passage. Regressions: tests/discovery.test.ts and tests/appRequests.test.ts.

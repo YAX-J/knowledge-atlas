@@ -140,3 +140,7 @@ response = client.post(f"/api/v1/sources/{source['source_id']}/extract")
 - [ ] 文档双语已同步（见 `ka-docs-sync`）。
 - [ ] 没有把密钥、提示词全文或模型原始响应写进日志/测试/文档。
 - [ ] 实际运行过的命令已记录，未运行的检查明确说明。
+
+## Question passage attribution (ADR 0047)
+
+Exact source/chunk/line/quote deduplication retains related_entities from retrieved candidates and supplies entity_names in answer context. Preserve the canonical citation ID, primary entity_id/entity_name and response entity_ids attribution rules. Never merge stored evidence or collapse distinct sources/versions. Verify attribution and single-passage display with tests/test_knowledge_discovery.py and frontend/tests/discovery.test.ts; provider quality remains separate.

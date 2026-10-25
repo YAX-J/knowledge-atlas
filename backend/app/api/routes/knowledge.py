@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Query
 
@@ -28,12 +29,15 @@ def list_reviews(
     source_id: uuid.UUID | None = None, review_status: ReviewStatus | None = None,
     candidate_type: str | None = Query(default=None, max_length=50),
     min_confidence: float | None = Query(default=None, ge=0, le=1),
+    kind: Literal['entity', 'relation'] | None = None,
+    q: str = Query(default='', max_length=200),
     page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=100),
 ):
     items, total = knowledge.list_reviews(
         db, user_id=user_id, project_id=project_id, source_id=source_id,
         review_status=review_status, candidate_type=candidate_type, min_confidence=min_confidence,
         page=page, page_size=page_size,
+        kind=kind, text_query=q,
     )
     return ReviewList(items=items, total=total, page=page, page_size=page_size)
 

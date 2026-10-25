@@ -83,6 +83,12 @@ export interface ReviewDecision {
   changes?: { name?: string; summary?: string }
 }
 
+export interface ReviewFilters {
+  status: '' | 'pending' | 'confirmed' | 'rejected'
+  kind: '' | 'entity' | 'relation'
+  query: string
+}
+
 export interface FormalKnowledgeNode {
   id: string
   project_id: string
@@ -140,13 +146,17 @@ export interface KnowledgeHistory {
   changes: KnowledgeChange[]
   truncated: boolean
 }
+export type GovernanceKind = 'missing_evidence' | 'duplicate' | 'possible_conflict' | 'orphan'
+
 export interface GovernanceResult {
   checked_at: string
   scanned_entity_count: number
   truncated: boolean
+  kind_filter?: GovernanceKind | null
+  counts_by_kind?: Partial<Record<GovernanceKind, number>>
   findings: {
     id: string
-    kind: 'missing_evidence' | 'duplicate' | 'possible_conflict' | 'orphan'
+    kind: GovernanceKind
     entity_ids: string[]
     message: string
     entities?: { id: string; name: string; summary: string; type: string }[]
@@ -247,6 +257,7 @@ export interface EmbeddingIndexStatus {
 export interface QuestionEvidence extends FormalEvidence {
   entity_id: string
   entity_name: string
+  related_entities?: { id: string; name: string }[]
 }
 
 export interface QuestionAnswer {

@@ -127,3 +127,7 @@ ADR 0045 adds opt-in `rrf` with two 100-entity pools and `sum(1/(60+rank))`; pre
 ## Atomic batch review (ADR 0046)
 
 `resolve_reviews_batch` validates 1–100 unique IDs within one user/project/source, holds the project lock and reuses `_resolve_review(commit=False)` in entity-first order. It commits once or rolls back candidate/audit/formal writes together. Never implicitly add relation endpoints, change confirmed decisions or bypass promotion. Regressions: `tests/test_batch_reviews.py`; native acceptance includes them.
+
+## Filtered discovery (ADR 0047)
+
+Apply candidate status/kind/literal name-summary filters before count and pagination within the existing user/project/source scope; whole-source review_counts remain unfiltered. Governance kind filtering precedes the result limit; counts_by_kind describes only the bounded scan. Comparison is read-only and never merges entities or changes review decisions. Regressions: tests/test_knowledge_discovery.py.

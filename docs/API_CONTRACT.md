@@ -687,3 +687,14 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 `action` 为 confirm/reject；1–100 个 review_ids 必须不重复且全部属于当前用户的有效项目和指定资料。整批预校验后持有项目锁，先实体后关系，复用原审核/审计/提升服务，只提交一次；任一项失败整批回滚。关系端点仍须已确认或在此次选择中先确认，不隐式增加选择。同动作重试幂等。返回 `{items: ReviewRead[], processed_count: number}`，items 保持请求 ID 顺序；processed_count 表示处理的请求项数，也包含幂等项。无修改名称/摘要字段；需修改时仍使用单项接口。作用域不符返回 404 REVIEW_NOT_FOUND，依赖/已处理冲突沿用原 409；输入无效返回 422。
 
 `GET /api/v1/projects/{project_id}/embeddings/status?valid_at=...`：只读且不调用供应商。valid_at 可选且必须带时区，沿用项目图谱的当前/历史可见性，不受搜索类型筛选影响。返回 model/dimensions/configured/checked_at、eligible_count/indexed_count/missing_count，以及 stale_count/current_count/scanned_count/scan_limit/truncated。前三种数量覆盖整个用户/项目/时间范围，内容哈希的 stale/current 只覆盖最多 1000 个实际检查实体；truncated 时不能据零 stale 推断全部新鲜。模型或维度不匹配视为缺失。configured 只表示本地配置校验通过，不表示服务连通，也不暴露密钥。按与重建相同顺序计算规范实体文本哈希，无写入，无嵌入请求。
+
+
+## 候选筛选、治理类别与证据归属（ADR 0047）
+
+`GET /projects/{id}/reviews` 新增可选 kind=entity|relation 和 q（最多 200 字符）。q 规范化空白后对名称/摘要作字面、不区分大小写的子串查询，百分号/下划线不是通配符；与 source_id/review_status/candidate_type/min_confidence 共同作用于 total 与分页之前。不传新参数保持旧结果。整份来源 review_counts 不受列表筛选影响。未知 kind 或超长 q 返回 422，越权/错误来源仍为 404。
+
+`GET /projects/{id}/governance?kind=duplicate` 的 kind 可为 missing_evidence/duplicate/possible_conflict/orphan。不传仍返回全部。先在既有最多 1000 当前实体的扫描范围内生成建议与 counts_by_kind，再按 kind 筛选并应用 limit；返回 kind_filter（可空）。counts_by_kind 不受所选类别或结果 limit 影响，但只代表有界扫描结果。truncated 仍表示扫描或当前类别结果被截断。
+
+问答 evidence 新增 related_entities: [{id,name}]，记录引用同一已选原文位置的检索实体，不新增规范引用 ID。主要 entity_id/entity_name 与响应 entity_ids 保留原归属语义；提供给模型的片段增加 entity_names 名称列表。引用归属校验、证据预算、来源/版本隔离及回答输出约束不变。
+
+双实体核对复用 GET /knowledge/entities/{id}，不新增写入 API。前端必须校验两份响应均为所请求 ID 且属于当前项目；任意失败时不展示部分结果。

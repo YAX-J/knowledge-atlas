@@ -111,3 +111,5 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [0045: 可选排名融合与在线证据分配](0045-opt-in-rank-fusion.zh-CN.md)
 
 - [0046: 显式整批审核与只读索引状态](0046-atomic-batch-review-index-status.zh-CN.md)
+
+- [0047: 筛选发现与原文实体归属](0047-filtered-discovery-evidence-attribution.zh-CN.md)

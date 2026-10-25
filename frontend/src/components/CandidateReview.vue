@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import type { CandidateList, ExtractionResult } from '../api/knowledgeAtlas'
-import type { KnowledgeCandidate, ReviewDecision } from '../types'
+import type { KnowledgeCandidate, ReviewDecision, ReviewFilters } from '../types'
 
 const props = defineProps<{
   candidates: CandidateList | null
@@ -11,6 +11,7 @@ const props = defineProps<{
   resolving: string
   error: string
   notice: string
+  filters?: ReviewFilters
 }>()
 const emit = defineEmits<{
   extract: []
@@ -18,6 +19,7 @@ const emit = defineEmits<{
   resolve: [decision: ReviewDecision]
   graph: []
   resolveBatch: [ids: string[], action: 'confirm' | 'reject']
+  filter: [filters: ReviewFilters]
 }>()
 const editing = ref('')
 const name = ref('')
@@ -28,6 +30,20 @@ const selected = ref<string[]>([])
 const batchAction = ref<'confirm' | 'reject' | ''>('')
 const pending = computed(() => props.candidates?.items.filter(item => item.review_status === 'pending') ?? [])
 const batchDisabled = computed(() => busy.value || props.loading || !!editing.value)
+const filterStatus = ref<ReviewFilters['status']>('')
+const filterKind = ref<ReviewFilters['kind']>('')
+const filterQuery = ref('')
+watch(() => props.filters, value => {
+  filterStatus.value = value?.status ?? ''
+  filterKind.value = value?.kind ?? ''
+  filterQuery.value = value?.query ?? ''
+  selected.value = []; batchAction.value = ''; editing.value = ''
+}, { immediate: true })
+function applyFilters(reset = false) {
+  if (batchDisabled.value) return
+  emit('filter', reset ? { status: '', kind: '', query: '' } :
+    { status: filterStatus.value, kind: filterKind.value, query: filterQuery.value.trim() })
+}
 watch(() => props.candidates, () => {
   selected.value = selected.value.filter(id => pending.value.some(item => item.id === id))
   if (!pending.value.some(item => item.id === editing.value)) editing.value = ''
@@ -102,6 +118,14 @@ function confirm(id: string) {
     <p v-if="loading" class="muted-copy" role="status">正在读取候选知识…</p>
     <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
     <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
+    <form class="review-filters" aria-label="筛选候选" @submit.prevent="applyFilters()">
+      <label>审核状态<select v-model="filterStatus" :disabled="batchDisabled"><option value="">全部状态</option><option value="pending">待审核</option><option value="confirmed">已确认</option><option value="rejected">已拒绝</option></select></label>
+      <label>候选类别<select v-model="filterKind" :disabled="batchDisabled"><option value="">实体与关系</option><option value="entity">仅实体</option><option value="relation">仅关系</option></select></label>
+      <label>名称或摘要<input v-model="filterQuery" type="search" maxlength="200" :disabled="batchDisabled" placeholder="输入文字查找候选" /></label>
+      <button class="primary-button" type="submit" :disabled="batchDisabled">应用筛选</button>
+      <button class="text-button" type="button" :disabled="batchDisabled" @click="applyFilters(true)">重置筛选</button>
+    </form>
+    <p v-if="candidates && (filters?.status || filters?.kind || filters?.query)" class="muted-copy" role="status">筛选命中 {{ candidates.total }} 条；上方处理进度仍统计整份资料。</p>
     <section v-if="pending.length" class="batch-review" aria-label="批量审核">
       <p>已选 {{ selected.length }} 条当前页候选。请逐项核对原文后选择；关系两端须已确认或一同选中。</p>
       <p v-if="editing" class="muted-copy">请先完成或取消正在修改的候选。</p>
@@ -119,7 +143,7 @@ function confirm(id: string) {
         <button class="text-button" type="button" :disabled="batchDisabled" @click="batchAction = ''">取消批量操作</button>
       </form>
     </section>
-    <p v-if="!loading && !error && candidates?.total === 0" class="empty-copy">{{ extraction?.task?.status === 'succeeded' ? '本篇资料未提取到有明确证据的候选知识。' : '还没有候选知识。完成提取后，可在这里核对名称、摘要和原文证据。' }}</p>
+    <p v-if="!loading && !error && candidates?.total === 0" class="empty-copy">{{ filters?.status || filters?.kind || filters?.query ? '没有符合筛选条件的候选，可调整或重置筛选。' : extraction?.task?.status === 'succeeded' ? '本篇资料未提取到有明确证据的候选知识。' : '还没有候选知识。完成提取后，可在这里核对名称、摘要和原文证据。' }}</p>
     <article v-for="item in candidates?.items ?? []" :key="item.id" class="candidate-card">
       <header>
         <label v-if="item.review_status === 'pending'" class="candidate-select"><input v-model="selected" type="checkbox" :value="item.id" :disabled="batchDisabled" :aria-label="`选择候选：${item.name}`" />选择</label>
@@ -165,6 +189,9 @@ function confirm(id: string) {
 </template>
 
 <style scoped>
+.review-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.review-filters label { display: grid; gap: 6px; font-size: 12px; }
+.review-filters input, .review-filters select { min-height: 40px; max-width: 100%; border: 1px solid #aabec0; border-radius: 5px; padding: 8px; color: var(--ink); background: var(--paper); }
 .batch-review { margin: 16px 0; padding: 14px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; line-height: 1.8; }
 .batch-preview { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
 .batch-preview ul { max-height: 180px; overflow: auto; overflow-wrap: anywhere; }

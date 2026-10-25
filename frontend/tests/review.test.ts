@@ -29,7 +29,7 @@ it('edits before confirmation and trims explicit changes', async () => {
   await wrapper.findAll('button').find(button => button.text() === '修改后确认')!.trigger('click')
   await wrapper.get('input[type="text"], input:not([type])').setValue('  Revised  ')
   await wrapper.get('textarea').setValue('  Revised evidence summary.  ')
-  await wrapper.get('form').trigger('submit')
+  await wrapper.get('.candidate-card form').trigger('submit')
   expect(wrapper.emitted('resolve')).toEqual([[{ id: candidate.id, action: 'confirm',
     changes: { name: 'Revised', summary: 'Revised evidence summary.' } }]])
 })
@@ -47,6 +47,19 @@ it('requires selection and a named preview before batch confirmation', async () 
   expect(wrapper.get('.batch-preview').text()).toContain('实体：Review')
   await wrapper.get('.batch-preview').trigger('submit')
   expect(wrapper.emitted('resolveBatch')).toEqual([[[candidate.id], 'confirm']])
+})
+
+it('submits review filters explicitly and clears an old selection when filters change', async () => {
+  const wrapper = mount(CandidateReview, { props })
+  await wrapper.get('input[type="checkbox"]').setValue(true)
+  await wrapper.findAll('button').find(button => button.text() === '审核所选')!.trigger('click')
+  await wrapper.get('select').setValue('pending')
+  await wrapper.get('input[type="search"]').setValue('  Evidence  ')
+  await wrapper.get('[aria-label="筛选候选"]').trigger('submit')
+  expect(wrapper.emitted('filter')).toEqual([[{ status: 'pending', kind: '', query: 'Evidence' }]])
+  await wrapper.setProps({ filters: { status: 'pending', kind: '', query: 'Evidence' } })
+  expect(wrapper.find('.batch-preview').exists()).toBe(false)
+  expect(wrapper.get('[aria-label="批量审核"]').text()).toContain('已选 0 条')
 })
 
 it('clears page selection and cannot submit an outdated preview', async () => {

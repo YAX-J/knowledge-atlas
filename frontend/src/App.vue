@@ -16,7 +16,7 @@ import KnowledgeEvolution from './components/KnowledgeEvolution.vue'
 import QuestionWorkspace from './components/QuestionWorkspace.vue'
 import { ApiError } from './api/client'
 import { useLatestRequest } from './composables/useLatestRequest'
-import type { EmbeddingIndexStatus, QuestionRetrievalMode } from './types'
+import type { EmbeddingIndexStatus, GovernanceKind, QuestionRetrievalMode, ReviewFilters } from './types'
 import { isCodeSource } from './sourceLanguages'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
@@ -318,6 +318,7 @@ let agentCallRequest = 0
 let reviewsRequest = 0
 let reviewAction = 0
 const candidates = ref<CandidateList | null>(null)
+const reviewFilters = ref<ReviewFilters>({ status: '', kind: '', query: '' })
 const extraction = ref<ExtractionResult | null>(null)
 const reviewsLoading = ref(false)
 const extracting = ref(false)
@@ -341,6 +342,29 @@ const graphValidAt = ref('')
 const history = ref<KnowledgeHistory | null>(null)
 const knowledgeChanges = ref<KnowledgeChangeList | null>(null)
 const governance = ref<GovernanceResult | null>(null)
+const governanceKind = ref<GovernanceKind | ''>('')
+const comparisonState = useLatestRequest<EntityDetail[]>(errorMessage)
+const { result: comparison, loading: comparisonLoading, error: comparisonError } = comparisonState
+let comparisonIds: string[] = []
+function closeComparison() { comparisonState.clear(); comparisonIds = [] }
+async function compareKnowledge(ids = comparisonIds) {
+  const projectId = project.value?.id
+  const unique = [...new Set(ids)]
+  if (!projectId || changeBusy.value || unique.length !== 2) return
+  comparisonIds = unique
+  await comparisonState.run(async () => {
+    const details = await Promise.all(unique.map(id => getEntityDetail(id)))
+    if (details.some((detail, index) => detail.entity.project_id !== projectId || detail.entity.id !== unique[index])) {
+      throw new Error('Comparison context changed')
+    }
+    return details
+  }, () => project.value?.id === projectId && activeNav.value === 'projectGraph')
+  await nextTick()
+  if (project.value?.id === projectId && comparison.value?.every((detail, index) => detail.entity.id === unique[index])) {
+    const panel = document.getElementById('knowledge-comparison')
+    panel?.focus({ preventScroll: true }); panel?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
+  }
+}
 const evolutionLoading = reactive({ history: false, changes: false, governance: false })
 const evolutionError = reactive({ history: '', changes: '', governance: '', action: '' })
 const changeBusy = ref(false)
@@ -355,6 +379,7 @@ function clearEvolution() {
   evolutionLoading.history = evolutionLoading.changes = evolutionLoading.governance = false
   evolutionError.history = evolutionError.changes = evolutionError.governance = evolutionError.action = ''
   changeNotice.value = ''
+  closeComparison(); governanceKind.value = ''
 }
 
 async function loadHistory() {
@@ -382,13 +407,15 @@ async function loadChanges(page = 1) {
   finally { if (request === changesRequest) evolutionLoading.changes = false }
 }
 
-async function runGovernance() {
+async function runGovernance(kind = governanceKind.value) {
   const projectId = project.value?.id
   if (!projectId || changeBusy.value) return
   const request = ++governanceRequest
+  governanceKind.value = kind
+  closeComparison()
   governance.value = null; evolutionLoading.governance = true; evolutionError.governance = ''
   try {
-    const result = await inspectGovernance(projectId)
+    const result = await inspectGovernance(projectId, kind)
     if (request === governanceRequest && project.value?.id === projectId) governance.value = result
   } catch (error) { if (request === governanceRequest) evolutionError.governance = errorMessage(error) }
   finally { if (request === governanceRequest) evolutionLoading.governance = false }
@@ -417,6 +444,7 @@ async function resolveChange(id: string, action: 'confirm' | 'reject') {
     changeNotice.value = action === 'reject' ? '建议已拒绝，知识保持不变。' : '建议已确认，审核前后快照已保存。'
     clearSearch()
     governanceRequest++; governance.value = null; evolutionLoading.governance = false
+    closeComparison()
     if (action === 'confirm' && result.kind === 'SUPERSEDES') graphSelectedId.value = result.new_entity_id
     await Promise.all([loadChanges(knowledgeChanges.value?.page ?? 1), loadRealGraph('')])
   } catch (error) { if (project.value?.id === projectId) evolutionError.action = errorMessage(error) }
@@ -426,6 +454,8 @@ async function resolveChange(id: string, action: 'confirm' | 'reject') {
 async function setGraphTime(value: string, entityId = '') {
   if (changeBusy.value) return
   graphValidAt.value = value
+  governanceRequest++; governance.value = null; evolutionLoading.governance = false
+  closeComparison(); governanceKind.value = ''
   clearSearch()
   void loadIndexStatus()
   if (entityId) graphSelectedId.value = entityId
@@ -550,6 +580,7 @@ function clearSourceSelection() {
   reviewsRequest++
   reviewAction++
   candidates.value = null
+  reviewFilters.value = { status: '', kind: '', query: '' }
   extraction.value = null
   reviewsLoading.value = extracting.value = false
   resolving.value = reviewsError.value = reviewsNotice.value = ''
@@ -945,6 +976,13 @@ async function parseSource() {
   }
 }
 
+function applyReviewFilters(filters: ReviewFilters) {
+  if (reviewBusy.value) return
+  reviewFilters.value = { ...filters }
+  candidates.value = null
+  void loadReviews(1)
+}
+
 async function loadReviews(page = candidates.value?.page ?? 1) {
   const sourceId = selectedSourceId.value
   const projectId = project.value?.id
@@ -952,9 +990,12 @@ async function loadReviews(page = candidates.value?.page ?? 1) {
   const request = ++reviewsRequest
   reviewsLoading.value = true
   reviewsError.value = ''
+  const filters = { ...reviewFilters.value }
   try {
-    const [batch, status] = await Promise.all([listCandidates(projectId, sourceId, page), getExtraction(sourceId)])
+    const [batch, status] = await Promise.all([listCandidates(projectId, sourceId, page, filters), getExtraction(sourceId)])
     if (request !== reviewsRequest || sourceId !== selectedSourceId.value) return
+    const lastPage = Math.max(1, Math.ceil(batch.total / batch.page_size))
+    if (page > lastPage) { await loadReviews(lastPage); return }
     candidates.value = batch
     extraction.value = status
     if (status.task?.status === 'failed') {
@@ -1227,8 +1268,8 @@ function setTimeline(value: number) {
       <template #reviews>
         <CandidateReview :key="selectedSourceId" :candidates="candidates" :extraction="extraction"
           :loading="reviewsLoading" :extracting="extracting" :resolving="resolving"
-          :error="reviewsError" :notice="reviewsNotice"
-          @extract="extractSource" @refresh="loadReviews" @resolve="reviewCandidate" @resolve-batch="reviewCandidatesBatch" @graph="openProjectGraph" />
+          :error="reviewsError" :notice="reviewsNotice" :filters="reviewFilters"
+          @extract="extractSource" @refresh="loadReviews" @filter="applyReviewFilters" @resolve="reviewCandidate" @resolve-batch="reviewCandidatesBatch" @graph="openProjectGraph" />
       </template>
     </SourceWorkspace>
     <ProjectGraph v-else-if="activeNav === 'projectGraph'" :project="project" :graph="realGraph"
@@ -1247,7 +1288,9 @@ function setTimeline(value: number) {
         :changes="knowledgeChanges" :governance="governance" :history-loading="evolutionLoading.history" :changes-loading="evolutionLoading.changes"
         :governance-loading="evolutionLoading.governance" :history-error="evolutionError.history" :changes-error="evolutionError.changes"
         :governance-error="evolutionError.governance" :action-error="evolutionError.action" :notice="changeNotice" :busy="changeBusy" :historical="Boolean(graphValidAt)"
+        :governance-kind="governanceKind" :comparison="comparison" :comparison-loading="comparisonLoading" :comparison-error="comparisonError"
         @history="loadHistory" @changes="loadChanges" @inspect="runGovernance" @propose="proposeChange" @resolve="resolveChange"
+        @compare="compareKnowledge" @close-comparison="closeComparison" @retry-comparison="compareKnowledge()"
         @open-evidence="openEvidence" @open-entity="openQuestionEntity" @visit-version="(id, at) => setGraphTime(at, id)" /></template>
     </ProjectGraph>
     <QuestionWorkspace v-else-if="activeNav === 'questions'" :key="project?.id ?? 'no-project'"

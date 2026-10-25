@@ -39,9 +39,15 @@ class AnswerDraft(StrictModel):
         return self
 
 
+class EvidenceEntityRead(BaseModel):
+    id: uuid.UUID
+    name: str
+
+
 class QuestionEvidenceRead(FormalEvidenceRead):
     entity_id: uuid.UUID
     entity_name: str
+    related_entities: list[EvidenceEntityRead] = Field(default_factory=list)
 
 
 class RetrievalSummary(BaseModel):
