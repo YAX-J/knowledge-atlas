@@ -9,13 +9,14 @@ import CandidateReview from '../src/components/CandidateReview.vue'
 import KnowledgeEvolution from '../src/components/KnowledgeEvolution.vue'
 import * as api from '../src/api/knowledgeAtlas'
 import { project, source } from './fixtures'
-import type { EmbeddingIndexStatus, EntityDetail, QuestionAnswer } from '../src/types'
+import type { EmbeddingIndexStatus, EmbeddingRebuildResult, EntityDetail, KnowledgeSearchResult, QuestionAnswer } from '../src/types'
 
 vi.mock('../src/api/knowledgeAtlas', async importOriginal => {
   const original = await importOriginal<typeof api>()
   return { ...original, listProjects: vi.fn(), listSources: vi.fn(), listRepositories: vi.fn(), askQuestion: vi.fn(),
     getEmbeddingStatus: vi.fn(), getProjectGraph: vi.fn(), listKnowledgeChanges: vi.fn(), getEntityDetail: vi.fn(),
-    getSource: vi.fn(), listSourceChunks: vi.fn(), listCandidates: vi.fn(), getExtraction: vi.fn() }
+    getSource: vi.fn(), listSourceChunks: vi.fn(), listCandidates: vi.fn(), getExtraction: vi.fn(),
+    searchKnowledge: vi.fn(), rebuildProjectEmbeddings: vi.fn() }
 })
 
 it('keeps index status scoped to the selected project when an older inspection finishes late', async () => {
@@ -48,6 +49,75 @@ it('keeps index status scoped to the selected project when an older inspection f
 })
 enableAutoUnmount(afterEach)
 beforeEach(() => vi.resetAllMocks())
+
+async function openSearchGraph() {
+  vi.mocked(api.listProjects).mockResolvedValue({ items: [project], total: 1, page: 1, page_size: 20 })
+  vi.mocked(api.listSources).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  vi.mocked(api.listRepositories).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  vi.mocked(api.getProjectGraph).mockResolvedValue({ nodes: [], edges: [], truncated: false })
+  vi.mocked(api.listKnowledgeChanges).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  const wrapper = shallowMount(App)
+  wrapper.getComponent(SideRail).vm.$emit('change', 'sources')
+  await flushPromises()
+  wrapper.getComponent(SourceWorkspace).vm.$emit('graph')
+  await flushPromises()
+  return wrapper
+}
+
+const searchResult: KnowledgeSearchResult = { query: 'Storage', mode: 'bm25', items: [], truncated: false,
+  indexed_count: null, eligible_count: 0, weights: null }
+
+it('wires search retry and drops a late result after clear in the graph page', async () => {
+  const wrapper = await openSearchGraph()
+  vi.mocked(api.searchKnowledge).mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValueOnce(searchResult)
+  wrapper.getComponent(ProjectGraph).vm.$emit('search', 'Storage', 'Technology', 'bm25')
+  await flushPromises()
+  expect(wrapper.getComponent(ProjectGraph).props('searchError')).toBeTruthy()
+  wrapper.getComponent(ProjectGraph).vm.$emit('retrySearch')
+  await flushPromises()
+  expect(api.searchKnowledge).toHaveBeenLastCalledWith(project.id, 'Storage', 'Technology', 'bm25', '')
+  expect(wrapper.getComponent(ProjectGraph).props('searchResult')).toEqual(searchResult)
+  let finish!: (value: KnowledgeSearchResult) => void
+  vi.mocked(api.searchKnowledge).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+  wrapper.getComponent(ProjectGraph).vm.$emit('search', 'Late search', '', 'vector')
+  await flushPromises()
+  wrapper.getComponent(ProjectGraph).vm.$emit('clearSearch')
+  finish(searchResult)
+  await flushPromises()
+  expect(wrapper.getComponent(ProjectGraph).props('searchResult')).toBeNull()
+  expect(wrapper.getComponent(ProjectGraph).props('searchLoading')).toBe(false)
+})
+
+it('keeps the graph rebuild control busy after clear until the actual request finishes', async () => {
+  const wrapper = await openSearchGraph()
+  let finish!: (value: EmbeddingRebuildResult) => void
+  vi.mocked(api.rebuildProjectEmbeddings).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+  wrapper.getComponent(ProjectGraph).vm.$emit('rebuildSearch')
+  await flushPromises()
+  wrapper.getComponent(ProjectGraph).vm.$emit('clearSearch')
+  wrapper.getComponent(ProjectGraph).vm.$emit('rebuildSearch')
+  await flushPromises()
+  expect(api.rebuildProjectEmbeddings).toHaveBeenCalledTimes(1)
+  expect(wrapper.getComponent(ProjectGraph).props('searchRebuilding')).toBe(true)
+  finish({ model: 'test', dimensions: 1024, eligible_count: 1, updated_count: 1, reused_count: 0 })
+  await flushPromises()
+  expect(wrapper.getComponent(ProjectGraph).props('searchRebuilding')).toBe(false)
+  expect(wrapper.getComponent(ProjectGraph).props('searchNotice')).toBe('')
+})
+
+it('drops a graph search after switching the effective time', async () => {
+  const wrapper = await openSearchGraph()
+  let finish!: (value: KnowledgeSearchResult) => void
+  vi.mocked(api.searchKnowledge).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+  wrapper.getComponent(ProjectGraph).vm.$emit('search', 'Storage', '', 'rrf')
+  await flushPromises()
+  wrapper.getComponent(ProjectGraph).vm.$emit('time', '2026-10-24T00:00:00Z')
+  await flushPromises()
+  finish(searchResult)
+  await flushPromises()
+  expect(wrapper.getComponent(ProjectGraph).props('searchResult')).toBeNull()
+  expect(wrapper.getComponent(ProjectGraph).props('searchLoading')).toBe(false)
+})
 
 it('App preserves request mode on retry and drops late answers after clear or project switch', async () => {
   vi.mocked(api.listProjects).mockResolvedValue({ items: [project], total: 1, page: 1, page_size: 20 })

@@ -1,5 +1,7 @@
 # Knowledge Atlas 系统架构
 
+前端搜索/索引状态集中到 `useKnowledgeSearch`，复用 `useLatestRequest` 丢弃迟到读取；项目与有效时间变更同步失效，索引更新另有按项目的在途锁。该锁只存在当前页面实例，服务端写入继续使用原边界；清空搜索不取消已发出的更新。不引入路由、状态库或后端 API 变化。
+
 发现流程扩展见 [ADR 0047](adr/0047-filtered-discovery-evidence-attribution.zh-CN.md)：候选筛选在分页之前；治理类别筛选在截断之前；前端双实体比较复用既有只读详情 API 并校验项目。问答保留规范引用，补充同一原文的检索实体归属，不写权威知识。
 
 批量审核通过项目锁和单次提交复用原审核服务；正式知识仍只由 promotion 边界写入。索引状态只读，使用现有 canonical entity text 哈希检查内容，最多 1000 个实体，不触发供应商。详见 [ADR 0046](adr/0046-atomic-batch-review-index-status.zh-CN.md)。

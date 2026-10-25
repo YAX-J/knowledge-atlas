@@ -143,3 +143,7 @@ CandidateReview supports current-page pending selections, named preview and fina
 ## Filtered review and comparison (ADR 0047)
 
 Submit review filters explicitly; changing filters resets page/hidden selections, fences late responses and recovers a now-invalid last page. Keep source progress separate from filtered totals. Comparison must validate both returned IDs and project before displaying either result, clear on context changes/close, focus its named region and retain independent evidence scroll areas with retry. Question related_entities navigation must not repeat the canonical passage. Regressions: tests/discovery.test.ts and tests/appRequests.test.ts.
+
+## Search orchestration extraction
+
+Search/retry/index reads/rebuilds now live in composables/useKnowledgeSearch.ts; App retains project, graph and evidence navigation. Project/time watches invalidate synchronously, including context round trips. Keep per-project pending rebuilds until the actual promise settles; clearing search is not server cancellation. Preserve BM25 results without rerunning lexical search after rebuild. Test lifecycle boundaries with tests/knowledgeSearchState.test.ts and actual App graph events in tests/appRequests.test.ts before further extraction.

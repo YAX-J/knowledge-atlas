@@ -16,12 +16,13 @@ import KnowledgeEvolution from './components/KnowledgeEvolution.vue'
 import QuestionWorkspace from './components/QuestionWorkspace.vue'
 import { ApiError } from './api/client'
 import { useLatestRequest } from './composables/useLatestRequest'
-import type { EmbeddingIndexStatus, GovernanceKind, QuestionRetrievalMode, ReviewFilters } from './types'
+import { useKnowledgeSearch } from './composables/useKnowledgeSearch'
+import type { GovernanceKind, QuestionRetrievalMode, ReviewFilters } from './types'
 import { isCodeSource } from './sourceLanguages'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
-  runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate, resolveCandidatesBatch, getEmbeddingStatus,
-  getProjectGraph, getEntityDetail, getRelationshipDetail, searchKnowledge, rebuildProjectEmbeddings, askQuestion,
+  runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate, resolveCandidatesBatch,
+  getProjectGraph, getEntityDetail, getRelationshipDetail, askQuestion,
   getKnowledgeHistory, inspectGovernance, listKnowledgeChanges, proposeKnowledgeChange, resolveKnowledgeChange,
   getJavaCodeStructure, getProjectSourceChunk,
   analyzeAgentCalls,
@@ -37,7 +38,7 @@ import type {
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
 import type { GovernanceResult, KnowledgeChangeInput, KnowledgeChangeList, KnowledgeHistory } from './types'
-import type { EvidenceLocator, IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, KnowledgeSearchMode, KnowledgeSearchResult, QuestionAnswer } from './types'
+import type { EvidenceLocator, IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, QuestionAnswer } from './types'
 
 const selectedId = ref('event-driven')
 const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'graph')
@@ -464,24 +465,11 @@ async function setGraphTime(value: string, entityId = '') {
 }
 let graphRequest = 0
 let graphDetailRequest = 0
-const searchState = useLatestRequest<KnowledgeSearchResult>(errorMessage)
-const { result: searchResult, loading: searchLoading, error: searchError } = searchState
-const searchRebuilding = ref(false)
-const indexState = useLatestRequest<EmbeddingIndexStatus>(errorMessage)
-const { result: indexStatus, loading: indexStatusLoading, error: indexStatusError } = indexState
-async function loadIndexStatus() {
-  const projectId = project.value?.id
-  if (!projectId) return
-  const at = graphValidAt.value
-  await indexState.run(() => getEmbeddingStatus(projectId, at),
-    () => project.value?.id === projectId && graphValidAt.value === at)
-}
-const searchErrorAction = ref<'search' | 'rebuild'>('search')
-const searchNotice = ref('')
-let embeddingRebuildRequest = 0
-let searchQuery = ''
-let searchTypes = ''
-let searchMode: KnowledgeSearchMode = 'keyword'
+const {
+  searchResult, searchLoading, searchError, searchRebuilding, searchErrorAction, searchNotice,
+  indexStatus, indexStatusLoading, indexStatusError, loadIndexStatus, clearIndexStatus,
+  clearSearch, runSearch, retrySearch, rebuildSemanticIndex,
+} = useKnowledgeSearch(() => ({ projectId: project.value?.id, validAt: graphValidAt.value }), errorMessage)
 const questionState = useLatestRequest<QuestionAnswer>(errorMessage)
 const { result: questionResult, loading: questionLoading, error: questionError } = questionState
 let questionText = ''
@@ -503,49 +491,6 @@ async function runQuestion(question: string, mode: QuestionRetrievalMode = 'hybr
 
 function retryQuestion() {
   if (questionText) void runQuestion(questionText, questionMode)
-}
-
-function clearSearch() {
-  searchState.clear()
-  embeddingRebuildRequest++
-  searchErrorAction.value = 'search'
-  searchNotice.value = ''
-  searchRebuilding.value = false
-  searchQuery = searchTypes = ''
-  searchMode = 'keyword'
-}
-
-async function runSearch(query: string, types: string, mode: KnowledgeSearchMode) {
-  const projectId = project.value?.id
-  if (!projectId) return
-  searchQuery = query
-  searchTypes = types
-  searchMode = mode
-  searchErrorAction.value = 'search'
-  const at = graphValidAt.value
-  await searchState.run(() => searchKnowledge(projectId, query, types, mode, at),
-    () => project.value?.id === projectId && graphValidAt.value === at)
-}
-
-async function rebuildSemanticIndex() {
-  const projectId = project.value?.id
-  if (!projectId || searchRebuilding.value) return
-  const request = ++embeddingRebuildRequest
-  searchRebuilding.value = true
-  searchErrorAction.value = 'rebuild'
-  searchError.value = searchNotice.value = ''
-  try {
-    const result = await rebuildProjectEmbeddings(projectId)
-    if (request !== embeddingRebuildRequest || project.value?.id !== projectId) return
-    searchNotice.value = `语义索引已更新：新增或刷新 ${result.updated_count} 条，复用 ${result.reused_count} 条。`
-    await loadIndexStatus()
-    if (request !== embeddingRebuildRequest || project.value?.id !== projectId) return
-    if (searchQuery && ['vector', 'hybrid', 'rrf'].includes(searchMode)) await runSearch(searchQuery, searchTypes, searchMode)
-  } catch (error) {
-    if (request === embeddingRebuildRequest && project.value?.id === projectId) searchError.value = errorMessage(error)
-  } finally {
-    if (request === embeddingRebuildRequest) searchRebuilding.value = false
-  }
 }
 
 async function openSearchEntity(id: string) {
@@ -620,7 +565,7 @@ function selectProject(value: ApiProject) {
   clearEvolution()
   graphValidAt.value = ''
   clearQuestion()
-  indexState.clear()
+  clearIndexStatus()
   clearSnapshots()
   errors.commit = ''
   clearCodeSearch()
@@ -1040,7 +985,7 @@ async function reviewCandidate(decision: ReviewDecision) {
   try {
     await resolveCandidate(decision)
     if (action !== reviewAction) return
-    indexState.clear()
+    clearIndexStatus()
     await loadReviews()
     if (action === reviewAction) reviewsNotice.value = decision.action === 'confirm' ? '知识已写入项目图谱，审核记录已保存。' : '候选知识已拒绝，审核记录已保存。'
   } catch (error) {
@@ -1062,7 +1007,7 @@ async function reviewCandidatesBatch(ids: string[], decision: 'confirm' | 'rejec
   try {
     const result = await resolveCandidatesBatch(projectId, sourceId, ids, decision)
     if (action !== reviewAction || project.value?.id !== projectId || selectedSourceId.value !== sourceId) return
-    indexState.clear()
+    clearIndexStatus()
     await loadReviews()
     if (action === reviewAction) reviewsNotice.value = `已${decision === 'confirm' ? '确认' : '拒绝'} ${result.processed_count} 条候选，整批审核记录已保存。`
   } catch (error) {
@@ -1277,7 +1222,7 @@ function setTimeline(value: number) {
       :search-result="searchResult" :search-loading="searchLoading" :search-error="searchError"
       :search-rebuilding="searchRebuilding" :search-notice="searchNotice" :search-error-action="searchErrorAction"
       :index-status="indexStatus" :index-status-loading="indexStatusLoading" :index-status-error="indexStatusError" @inspect-index="loadIndexStatus"
-      @search="runSearch" @rebuild-search="rebuildSemanticIndex" @clear-search="clearSearch" @retry-search="runSearch(searchQuery, searchTypes, searchMode)" @select-search-entity="openSearchEntity"
+      @search="runSearch" @rebuild-search="rebuildSemanticIndex" @clear-search="clearSearch" @retry-search="retrySearch" @select-search-entity="openSearchEntity"
       :entity-detail="realEntityDetail" :relationship-detail="realRelationshipDetail"
       :loading="graphLoading" :detail-loading="graphDetailLoading" :error="graphError" :detail-error="graphDetailError"
       :selected-id="graphSelectedId" :center="graphCenter" :depth="graphDepth" :type-filter="graphType"

@@ -9,7 +9,8 @@ export default defineConfig({
     restoreMocks: true,
     coverage: {
       provider: 'v8',
-      include: ['src/api/client.ts', 'src/components/{SourceWorkspace,QuestionWorkspace,KnowledgeSearch,CandidateReview}.vue'],
+      include: ['src/api/client.ts', 'src/components/{SourceWorkspace,QuestionWorkspace,KnowledgeSearch,CandidateReview}.vue',
+        'src/composables/useKnowledgeSearch.ts'],
       reporter: ['text', 'json-summary', 'lcov'],
       reportsDirectory: '../output/frontend-coverage',
       thresholds: { statements: 45, branches: 40, functions: 25, lines: 45 },

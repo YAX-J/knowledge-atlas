@@ -1,5 +1,7 @@
 # Knowledge Atlas Implementation Plan
 
+Search/index request orchestration now lives in `useKnowledgeSearch`, with project/time round-trip invalidation and per-project in-flight rebuild guards that survive clearing search. App integration and lifecycle regressions are implemented; remaining import/graph orchestration extraction is deferred. See [acceptance](docs/SEARCH_STATE_OPTIMIZATION_20261025.md).
+
 Current optimization: server-side review filters, category-scoped governance and read-only two-entity evidence comparison are implemented. Deduplicated question passages retain all retrieved entity attributions. No merge, undo or provider-quality experiment is included (ADR 0047).
 
 Current optimization: explicit atomic batch review and provider-free embedding index status are implemented (ADR 0046). Previewed selections retain per-item review/promotion rules. Index inspection reports scope counts, content freshness and scan truncation. Review undo, merging and automatic indexing remain future work.

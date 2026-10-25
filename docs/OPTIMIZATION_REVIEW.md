@@ -32,6 +32,8 @@ No repeated hybrid weight tuning on the same questions, new paid calls or retros
 
 ## Next priorities, not silently implemented
 
+Follow-up: the search/index portion of priority 4 is now implemented with App regressions and a dedicated composable; see [search state acceptance](SEARCH_STATE_OPTIMIZATION_20261025.md). The numbered assessment below records the earlier baseline, not the current App line count. Other priorities remain independent work.
+
 1. **Independent data and actual human grades**: real reviewers complete the blind packet; add unseen Chinese questions and repositories, including multi-hop, misleading evidence, abstention and code locations. Never infer missing human grades.
 2. **Controlled fusion experiments**: compare BM25/vector/fixed hybrid, RRF or bounded graph boosts on independent questions. Define metrics, evidence deduplication and development/test splits before selection; current results do not justify changing default weights.
 3. **Agent candidate coverage**: five constructed cases per language cannot establish language-wide quality. Evaluate build-context coverage separately from model decision errors; do not promise a full runtime call graph.

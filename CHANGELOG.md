@@ -10,6 +10,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Search/index lifecycle and App integration regressions cover context round trips, retries and clearing during rebuild. Search state is now isolated in a tested composable.
+
 - Server-side candidate status/kind/text filtering with page recovery and selection invalidation. Governance filters categories before result limits and reports bounded-scan counts.
 - Read-only two-entity evidence comparison with project/ID validation and late-response protection. Deduplicated question evidence retains related entity navigation and model context.
 
@@ -114,6 +116,8 @@ The project is pre-release. Version numbers and release dates will be added when
 - Factory-inferred Java return types retain their resolved source identity across caller imports. Unnamed-package types no longer get redirected to a same-named imported class; duplicate source versions retain ambiguity.
 
 ### Changed
+
+- Clearing search keeps an outstanding index update busy, preventing duplicate rebuild requests in the same project. Project/time changes discard old completions; successful index updates retain BM25 results without rerunning lexical search.
 
 - Explicit GitHub synchronization now retries incomplete same-commit snapshots, preserves successful typed source/task reuse, repairs missing or incompatible snapshot links, and avoids guessing renames from truncated file selections. Markdown/Java copies or extension changes cannot share the wrong parser task.
 

@@ -171,3 +171,7 @@ Add `tests/test_batch_reviews.py` and `tests/test_embedding_status.py` for ADR 0
 ## Discovery checks (ADR 0047)
 
 Include tests/test_knowledge_discovery.py in focused and native acceptance. Desktop checks cover combined review filters/empty results with unchanged source totals, governance filtering before limits, separate comparison quotes with focus/error/retry, and one question passage with related entity navigation. App regressions must reject stale filter responses and wrong-project/closed comparison results. Continue enforcing temporary-table ownership before fixture writes and recorded-schema-only cleanup; model/embedding stubs do not establish provider quality.
+
+## Search lifecycle verification
+
+For search/index composable changes, focus frontend/tests/knowledgeSearchState.test.ts and frontend/tests/appRequests.test.ts, then run full frontend coverage and build. Coverage now includes useKnowledgeSearch.ts; report its scoped denominator accurately. Browser response-delay checks may hold a local rebuild response: clearing must keep the rebuild control disabled until settlement, suppress old notices and avoid another request. Normal rebuild must retain BM25 results without another lexical request. Provider stubs and native fixture persistence are separate from full native migration/contention acceptance.
