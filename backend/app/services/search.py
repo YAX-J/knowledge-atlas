@@ -373,6 +373,10 @@ def search_knowledge(
     settings: Settings,
 ) -> SearchRead:
     get_project(db, user_id=user_id, project_id=project_id)
+    if mode == 'rrf':
+        from app.services.fusion import reciprocal_rank_search
+        return reciprocal_rank_search(db, user_id=user_id, project_id=project_id, query=query,
+                                      types=types, valid_at=valid_at, top_k=top_k, settings=settings)
     if mode == 'bm25':
         return _bm25_search(db, user_id=user_id, project_id=project_id, query=query,
                             types=types, valid_at=valid_at, top_k=top_k)

@@ -1,5 +1,7 @@
 # Knowledge Atlas
 
+2026-10-25 使用流程优化：新增可选 `rrf`（BM25＋向量排名融合），搜索默认仍为 keyword，问答默认仍为 hybrid；问答可选择 hybrid/rrf/vector/bm25，按原文位置去重并轮流分配证据预算。资料展示整份候选的实时审核统计；治理按摘要分组识别重复并提供原文核对入口；搜索/问答共享迟到响应隔离。见 [ADR 0045](docs/adr/0045-opt-in-rank-fusion.zh-CN.md)。这些是实现与回归改进，尚无新真实模型质量结论。
+
 2026-10-25 优化：新增“BM25 · 无需模型”中英词法检索，保留旧默认和历史基线；语义空索引不再请求查询嵌入。改动、取舍与下一步优先级见[毕业设计优化复盘](docs/OPTIMIZATION_REVIEW.zh-CN.md)，零模型测评及失败案例见[本轮开发诊断](evaluation/results/2026-10-25-bm25/README.zh-CN.md)。
 
 毕业补强清单第 3—8 项已落地：10 种语言/50 题跨文件金标集、可选只读工具 Agent、112 次真实 DeepSeek 验收、5 组可复现图表、双语交付说明，以及前端测试/CI/完整本地启动环境。真实结果与限制见[实验报告](evaluation/results/2026-10-24-models/REPORT.zh-CN.md)，启动见[演示说明](docs/DEMO.zh-CN.md)。人工盲评仍待真实评审；Docker 构建与远端 CI 未在本机执行，不计作已验收。

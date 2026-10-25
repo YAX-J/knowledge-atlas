@@ -27,6 +27,7 @@ const emit = defineEmits<{
   resolve: [id: string, action: 'confirm' | 'reject']
   openEvidence: [locator: EvidenceLocator]
   visitVersion: [id: string, at: string]
+  openEntity: [id: string]
 }>()
 const newId = ref('')
 const kind = ref<KnowledgeChangeKind>('SUPERSEDES')
@@ -108,7 +109,8 @@ function submit() {
       <h3>知识质量检查 <button type="button" :disabled="busy || governanceLoading" @click="emit('inspect')">{{ governanceLoading ? '正在检查…' : '运行只读检查' }}</button></h3>
       <p>检查当前知识的缺失证据、同名重复/可能冲突与孤立节点。结果只供人工核对，不会合并、删除或更改知识。</p>
       <div v-if="governanceError" role="alert" class="error">{{ governanceError }} <button type="button" @click="emit('inspect')">重试检查</button></div>
-      <template v-if="governance"><p role="status">已扫描 {{ governance.scanned_entity_count }} 个当前实体；{{ governance.findings.length }} 条建议{{ governance.truncated ? '，已达扫描或结果上限' : '' }}。</p><p v-if="!governance.findings.length">本次有界检查未发现问题，不等同于完整语义质量保证。</p><ul class="findings"><li v-for="finding in governance.findings" :key="finding.id"><strong>{{ finding.entity_ids.map(name).join(' / ') }}</strong><p>{{ finding.message }}</p></li></ul></template>
+      <template v-if="governance"><p role="status">已扫描 {{ governance.scanned_entity_count }} 个当前实体；{{ governance.findings.length }} 条建议{{ governance.truncated ? '，已达扫描或结果上限' : '' }}。</p><p v-if="!governance.findings.length">本次有界检查未发现问题，不等同于完整语义质量保证。</p><ul class="findings"><li v-for="finding in governance.findings" :key="finding.id"><strong>{{ finding.entities?.map(item => item.name).join(' / ') || finding.entity_ids.map(name).join(' / ') }}</strong><p>{{ finding.message }}</p>
+        <article v-for="entity in finding.entities ?? []" :key="entity.id" class="finding-entity"><p><strong>{{ entity.name }}</strong> · {{ entity.type }}</p><p>{{ entity.summary }}</p><button type="button" :disabled="busy" @click="emit('openEntity', entity.id)">核对知识与原文</button></article></li></ul></template>
     </section>
   </section>
 </template>

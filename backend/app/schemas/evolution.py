@@ -72,11 +72,19 @@ class EvolutionRead(BaseModel):
     truncated: bool
 
 
+class GovernanceEntity(BaseModel):
+    id: uuid.UUID
+    name: str
+    summary: str
+    type: str
+
+
 class GovernanceFinding(BaseModel):
     id: uuid.UUID
     kind: Literal["missing_evidence", "duplicate", "possible_conflict", "orphan"]
     entity_ids: list[uuid.UUID]
     message: str
+    entities: list[GovernanceEntity] = Field(default_factory=list)
 
 
 class GovernanceRead(BaseModel):

@@ -10,6 +10,10 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Optional BM25/vector RRF search and selectable question retrieval; online evidence deduplication and fair per-entity allocation, with visible budget counts. Existing search defaults and historical baselines remain unchanged.
+- Source-wide live review progress and next steps; duplicate detection within all same-name summary groups, prioritized findings and direct evidence-review navigation.
+- Shared latest-request state and App-level clear/project-switch/retry regressions. No new model-quality claim; merges and undo remain unimplemented.
+
 - Bounded provider-free BM25 Chinese/English search with terms, scope-aware corpus statistics, scan limits and UI explanations; a separate 40-question development diagnostic preserves failures and old baselines (ADR 0044).
 - Semantic queries skip embedding requests for empty matching indexes while preserving configuration errors; search forms now guard busy submissions. Added lexical/native regressions and three component cases (18 frontend tests total).
 

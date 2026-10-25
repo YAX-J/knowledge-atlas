@@ -557,6 +557,7 @@ export interface CandidateList {
 export interface ExtractionResult {
   task: ProcessingTask | null
   candidate_count: number
+  review_counts?: { pending: number; confirmed: number; rejected: number }
 }
 
 export function getExtraction(sourceId: string): Promise<ExtractionResult> {
@@ -631,10 +632,10 @@ export function rebuildProjectEmbeddings(projectId: string): Promise<EmbeddingRe
   })
 }
 
-export function askQuestion(projectId: string, question: string): Promise<QuestionAnswer> {
+export function askQuestion(projectId: string, question: string, retrievalMode: import('../types').QuestionRetrievalMode = 'hybrid'): Promise<QuestionAnswer> {
   return apiRequest<QuestionAnswer>(`/projects/${projectId}/questions`, {
     method: 'POST',
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, retrieval_mode: retrievalMode }),
     signal: AbortSignal.timeout(240_000),
   })
 }

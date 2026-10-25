@@ -21,7 +21,7 @@ describe('evidence questions', () => {
     const wrapper = mount(QuestionWorkspace, { props: questionProps })
     await wrapper.get('textarea').setValue('  Where is the evidence?  ')
     await wrapper.get('form').trigger('submit')
-    expect(wrapper.emitted('ask')).toEqual([['Where is the evidence?']])
+    expect(wrapper.emitted('ask')).toEqual([['Where is the evidence?', 'hybrid']])
     await wrapper.setProps({ project: { ...project, id: 'project-2' } })
     expect(wrapper.get('textarea').element.value).toBe('')
   })

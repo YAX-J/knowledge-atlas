@@ -68,14 +68,16 @@ def test_extract_and_review_with_evidence_and_idempotency(client: TestClient, db
         return ExtractionDraft.model_validate(draft)
     monkeypatch.setattr(deepseek, "extract_candidates", extract)
     url = f"/api/v1/sources/{source['source_id']}/extract"
-    assert client.get(url.replace('/extract', '/extraction')).json() == {"task": None, "candidate_count": 0}
+    assert client.get(url.replace('/extract', '/extraction')).json() == {"task": None, "candidate_count": 0, "review_counts": {"pending": 0, "confirmed": 0, "rejected": 0}}
     response = client.post(url)
     assert response.status_code == 200
     result = response.json()
     assert result["candidate_count"] == 3
     assert result["task"]["type"] == "knowledge_candidates"
     assert result["task"]["status"] == "succeeded"
-    assert client.post(url).json() == result
+    replay = client.post(url).json()
+    assert replay['task'] == result['task'] and replay['candidate_count'] == result['candidate_count']
+    assert replay['review_counts'] == {'pending': 3, 'confirmed': 0, 'rejected': 0}
     assert len(calls) == 1
     assert client.get(f"/api/v1/sources/{source['source_id']}").json()["status"] == "ready"
     listing = reviews(client, project_id)
@@ -104,7 +106,9 @@ def test_extract_and_review_with_evidence_and_idempotency(client: TestClient, db
     event = db_session.scalar(select(ReviewEvent).where(ReviewEvent.candidate_id == uuid.UUID(items[0]["id"])))
     assert event.before["review_status"] == "pending" and event.after["review_status"] == "confirmed"
     assert reviews(client, project_id, review_status="pending")["total"] == 0
-    assert client.post(url).json() == result
+    replay = client.post(url).json()
+    assert replay['task'] == result['task'] and replay['candidate_count'] == result['candidate_count']
+    assert replay['review_counts'] == {'pending': 0, 'confirmed': 3, 'rejected': 0}
     assert len(calls) == 1
     # Upload and source-list task references must remain parsing tasks.
     assert upload(client, project_id, content=b"# Decision\n\nUse PostgreSQL for storage.\n")["task_id"] == source["task_id"]

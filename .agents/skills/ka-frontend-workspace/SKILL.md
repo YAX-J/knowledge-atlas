@@ -131,3 +131,7 @@ Token：
 - 不要在组件里直接 `fetch` 或复制请求逻辑。
 - 不要用 `any` 绕过类型；集成边界确实需要时加注释。
 - 不要把演示数据当作真实图谱能力写进文档。
+
+## 2026-10-25 request and workflow updates
+
+Search/question requests now share `composables/useLatestRequest.ts`; App retains orchestration and context checks. Preserve clear/project/time/unmount invalidation and retry mode. Question stop-wait discards the browser result, without claiming server cancellation. Selectable hybrid/rrf/vector/bm25 question retrieval preserves hybrid default; BM25 still needs a model to generate supported answers. Show whole-source backend `review_counts`, not current-page progress. Governance entity context must work outside the visible canvas and open real entity evidence. App-level regressions live in `tests/appRequests.test.ts`, with request races and component workflow tests alongside.

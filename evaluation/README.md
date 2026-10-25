@@ -1,5 +1,7 @@
 # Knowledge Atlas Evaluation Set
 
+Optional `--modes rrf` requires `--allow-embedding-calls`, records `bm25-vector-rrf-v1` plus rank diagnostics. Frozen results and `line-evidence-v2` remain unchanged. The runner retains historical evidence expansion/answer replay; it does not evaluate the new online deduplication pipeline end to end. No new provider experiment was run.
+
 [简体中文](README.zh-CN.md)
 
 The new [provider-free BM25 development diagnostic](results/2026-10-25-bm25/README.md) uses the same frozen corpus/graph/index without overwriting prior runs. Use `scripts.run_evaluation --modes keyword bm25` without provider flags. BM25 Recall@5 is 74.49% here, but code-location recall is zero and unanswerable queries still retrieve text; this is not held-out or answer-quality acceptance.

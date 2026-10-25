@@ -30,6 +30,9 @@ class SearchHit(BaseModel):
     vector_component: float | None = None
     graph_score: float | None = None
     hybrid_score: float | None = None
+    rrf_score: float | None = None
+    lexical_rank: int | None = None
+    vector_rank: int | None = None
     matched_fields: list[Literal['name', 'summary', 'evidence']]
     graph_connections: list[GraphSearchSignal] = Field(default_factory=list)
     evidence: list[FormalEvidenceRead]
@@ -46,7 +49,7 @@ class LexicalSearchInfo(BaseModel):
 
 class SearchRead(BaseModel):
     query: str
-    mode: Literal['keyword', 'bm25', 'vector', 'hybrid'] = 'keyword'
+    mode: Literal['keyword', 'bm25', 'vector', 'hybrid', 'rrf'] = 'keyword'
     items: list[SearchHit]
     truncated: bool
     indexed_count: int | None = None

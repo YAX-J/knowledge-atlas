@@ -1,5 +1,7 @@
 # Knowledge Atlas 前端开发说明
 
+2026-10-25：搜索增加 BM25＋向量融合（rrf）；问答显式选择四种检索方式，停止等待会丢弃迟到响应，但不撤销服务端模型请求。App 使用 `composables/useLatestRequest.ts` 管理搜索/问答的结果、错误、加载与生命周期；页面仍负责编排。候选展示后端整份资料 `review_counts`，治理展示画布外实体摘要并可打开正式详情。
+
 检索新增 `bm25`（“BM25 · 无需模型”），显示词法扫描规模、截断与非置信度说明；仅 `vector/hybrid` 显示语义索引覆盖。空 BM25 结果不提示重建向量索引，提交函数直接检查 loading/rebuilding，防止忙碌时重复提交。App 的请求序号隔离不变；组件/API 回归现为 18 项，仍非全站端到端覆盖。
 
 当前新增 Vitest/jsdom + Vue Test Utils 测试基础，`npm run test:coverage` 覆盖 API 客户端与四个关键组件；不是全站端到端测试。源码区选择 `single_step/tools`，由 App 继续维护请求序号与上下文锁；展示工具脱敏轨迹，不展示推理。生产 nginx 同源代理与原生一键演示见[演示文档](DEMO.zh-CN.md)。

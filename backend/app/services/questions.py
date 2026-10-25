@@ -1,4 +1,5 @@
 import uuid
+from itertools import zip_longest
 
 from sqlalchemy.orm import Session
 
@@ -16,32 +17,45 @@ MAX_ANSWER_EVIDENCE = 12
 def _retrieval_summary(result) -> RetrievalSummary:
     return RetrievalSummary(
         keyword_hits=sum((item.keyword_score or 0) > 0 for item in result.items),
-        vector_hits=sum((item.vector_component or 0) > 0 for item in result.items),
+        vector_hits=sum(item.vector_score is not None for item in result.items),
         graph_hits=sum((item.graph_score or 0) > 0 for item in result.items),
         indexed_count=result.indexed_count or 0,
         eligible_count=result.eligible_count or 0,
+        mode=result.mode, bm25_hits=sum((item.bm25_score or 0) > 0 for item in result.items),
+        truncated=result.truncated,
     )
 
 
 def answer_question(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, question: str,
-    valid_at, settings: Settings,
+    valid_at, settings: Settings, retrieval_mode: str = 'hybrid',
 ) -> QuestionRead:
     result = search_knowledge(
         db, user_id=user_id, project_id=project_id, query=question, types=[],
-        valid_at=valid_at, top_k=MAX_ANSWER_ENTITIES, mode='hybrid', settings=settings,
+        valid_at=valid_at, top_k=MAX_ANSWER_ENTITIES, mode=retrieval_mode, settings=settings,
     )
     retrieval = _retrieval_summary(result)
     evidence_by_id: dict[uuid.UUID, QuestionEvidenceRead] = {}
-    for hit in result.items:
-        for item in hit.evidence:
-            evidence_by_id.setdefault(item.id, QuestionEvidenceRead(
-                **item.model_dump(), entity_id=hit.entity.id, entity_name=hit.entity.name,
-            ))
+    seen = set()
+    # Give each ranked entity a turn before taking its second/third quote.
+    rows = [[(hit, item) for item in hit.evidence] for hit in result.items]
+    for group in zip_longest(*rows):
+        for pair in group:
+            if pair is None:
+                continue
+            hit, item = pair
+            key = (item.source_id, item.chunk_id, item.start_line, item.end_line, item.quote)
+            if key in seen:
+                retrieval.duplicate_evidence_count += 1
+                continue
+            seen.add(key)
             if len(evidence_by_id) >= MAX_ANSWER_EVIDENCE:
-                break
-        if len(evidence_by_id) >= MAX_ANSWER_EVIDENCE:
-            break
+                retrieval.truncated = True
+                continue
+            evidence_by_id[item.id] = QuestionEvidenceRead(
+                **item.model_dump(), entity_id=hit.entity.id, entity_name=hit.entity.name,
+            )
+    retrieval.unique_evidence_count = len(evidence_by_id)
 
     if not evidence_by_id:
         return QuestionRead(

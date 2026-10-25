@@ -1,5 +1,7 @@
 # Knowledge Atlas 测评集
 
+新增可选 `--modes rrf`，须显式 `--allow-embedding-calls`，协议标为 `bm25-vector-rrf-v1`，输出两路排名及融合得分。旧结果和 `line-evidence-v2` 评分保持不变；此运行器的证据展开/回答重放仍沿用历史协议，不能当作新版在线问答去重的端到端质量实验。本轮未运行真实供应商实验。
+
 [English](README.md)
 
 新增[零供应商 BM25 开发诊断](results/2026-10-25-bm25/README.zh-CN.md)，使用相同冻结语料/图谱/索引，不覆盖旧运行。可用 `scripts.run_evaluation --modes keyword bm25`，不加供应商授权标志。本次 BM25 Recall@5 为 74.49%，但代码定位为零、无答案题也会检索到文字；不等于独立测试或答案质量验收。

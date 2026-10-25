@@ -1,5 +1,5 @@
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
@@ -18,6 +18,7 @@ class StrictModel(BaseModel):
 class QuestionCreate(StrictModel):
     question: QuestionText
     valid_at: AwareDatetime | None = None
+    retrieval_mode: Literal['hybrid', 'rrf', 'vector', 'bm25'] = 'hybrid'
 
 
 class AnswerDraft(StrictModel):
@@ -49,6 +50,11 @@ class RetrievalSummary(BaseModel):
     graph_hits: int
     indexed_count: int
     eligible_count: int
+    mode: Literal['hybrid', 'rrf', 'vector', 'bm25'] = 'hybrid'
+    bm25_hits: int = 0
+    unique_evidence_count: int = 0
+    duplicate_evidence_count: int = 0
+    truncated: bool = False
 
 
 class QuestionRead(BaseModel):

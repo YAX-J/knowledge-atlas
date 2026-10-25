@@ -23,7 +23,7 @@ const query = ref('')
 const type = ref('')
 const mode = ref<KnowledgeSearchMode>('keyword')
 const fields = { name: '名称', summary: '摘要', evidence: '原文证据' }
-const modeLabels: Record<KnowledgeSearchMode, string> = { keyword: '关键词检索', bm25: 'BM25 词法检索 · 无需模型', vector: '语义检索', hybrid: '混合检索' }
+const modeLabels: Record<KnowledgeSearchMode, string> = { keyword: '关键词检索', bm25: 'BM25 词法检索 · 无需模型', vector: '语义检索', hybrid: '混合检索', rrf: 'BM25 + 向量融合' }
 function submit() { if (!props.loading && !props.rebuilding && query.value.trim()) emit('search', query.value.trim(), type.value, mode.value) }
 function clear() { query.value = type.value = ''; mode.value = 'keyword'; emit('clear') }
 </script>
@@ -31,10 +31,10 @@ function clear() { query.value = type.value = ''; mode.value = 'keyword'; emit('
 <template>
   <section class="knowledge-search" aria-labelledby="knowledge-search-title">
     <div class="search-heading"><h2 id="knowledge-search-title">搜索项目知识</h2><span>{{ modeLabels[mode] }}</span></div>
-    <p class="search-hint">关键词模式按空格分词精确匹配；BM25 支持中英混合问题，无需模型或语义索引。语义与混合模式需要配置嵌入服务、先更新索引；混合结果包含一跳关系得分。</p>
+    <p class="search-hint">关键词模式按空格分词精确匹配；BM25 支持中英混合问题，无需模型或语义索引。语义与混合模式需要配置嵌入服务、先更新索引；混合结果包含一跳关系得分；BM25 + 向量融合按两路排名组合，不扩展图邻居。</p>
     <form class="knowledge-search-form" @submit.prevent="submit">
       <label class="query-label" for="project-knowledge-query">{{ mode === 'keyword' ? '关键词' : '问题或描述' }}<input id="project-knowledge-query" v-model="query" type="search" name="q" maxlength="200" required :placeholder="mode === 'keyword' ? '例如：PostgreSQL 存储' : '例如：如何保存并检索个人技术知识？'" /></label>
-      <label for="project-search-mode">检索方式<select id="project-search-mode" v-model="mode"><option value="keyword">关键词</option><option value="bm25">BM25 · 无需模型</option><option value="vector">语义向量</option><option value="hybrid">混合 + 图关系</option></select></label>
+      <label for="project-search-mode">检索方式<select id="project-search-mode" v-model="mode"><option value="keyword">关键词</option><option value="bm25">BM25 · 无需模型</option><option value="vector">语义向量</option><option value="hybrid">混合 + 图关系</option><option value="rrf">BM25 + 向量融合</option></select></label>
       <label for="project-search-type">知识类型<select id="project-search-type" v-model="type"><option value="">全部类型</option><option v-for="(label, value) in labels" :key="value" :value="value">{{ label }}</option></select></label>
       <button type="submit" :disabled="loading || rebuilding || !query.trim()">{{ loading ? '搜索中…' : '搜索知识' }}</button>
       <button type="button" :disabled="loading || rebuilding" @click="emit('rebuild')">{{ rebuilding ? '更新索引中…' : '更新语义索引' }}</button>
@@ -44,9 +44,9 @@ function clear() { query.value = type.value = ''; mode.value = 'keyword'; emit('
     <p v-if="loading" class="search-hint" role="status">正在检索当前项目…</p>
     <div v-else-if="error" class="search-error" role="alert"><p>{{ error }}</p><button type="button" @click="errorAction === 'rebuild' ? emit('rebuild') : emit('retry')">{{ errorAction === 'rebuild' ? '重试更新索引' : '重试搜索' }}</button></div>
     <template v-else-if="result">
-      <p class="search-hint" role="status">“{{ result.query }}”：显示 {{ result.items.length }} 条知识<span v-if="result.truncated">，结果或扫描范围已截断，请补充条件</span><span v-if="result.mode === 'vector' || result.mode === 'hybrid'">；已索引 {{ result.indexed_count }}/{{ result.eligible_count }} 条</span>。</p>
+      <p class="search-hint" role="status">“{{ result.query }}”：显示 {{ result.items.length }} 条知识<span v-if="result.truncated">，结果或扫描范围已截断，请补充条件</span><span v-if="result.mode === 'vector' || result.mode === 'hybrid' || result.mode === 'rrf'">；已索引 {{ result.indexed_count }}/{{ result.eligible_count }} 条</span>。</p>
       <p v-if="result.lexical" class="search-hint">本地词法扫描 {{ result.lexical.scanned_count }}/{{ result.eligible_count }} 条正式知识；最多 {{ result.lexical.entity_limit }} 条，每条排序文本最多 {{ result.lexical.text_limit_per_entity }} 字符。BM25 得分不是置信度；支持性答案仍需核对证据。<span v-if="result.lexical.truncated_reasons.length"> 部分排序文本或候选未参与计算。</span></p>
-      <p v-if="!result.items.length" class="search-hint">{{ result.mode === 'vector' || result.mode === 'hybrid' ? ((result.indexed_count ?? 0) < (result.eligible_count ?? 0) ? '语义索引尚未覆盖全部可检索知识，请先更新索引。' : '未找到相关知识，可换一种问题描述。') : '未找到匹配知识。可换一种表述，或先在资料中确认相关实体。' }}</p>
+      <p v-if="!result.items.length" class="search-hint">{{ result.mode === 'vector' || result.mode === 'hybrid' || result.mode === 'rrf' ? ((result.indexed_count ?? 0) < (result.eligible_count ?? 0) ? '语义索引尚未覆盖全部可检索知识，请先更新索引。' : '未找到相关知识，可换一种问题描述。') : '未找到匹配知识。可换一种表述，或先在资料中确认相关实体。' }}</p>
       <ol v-else class="keyword-results" aria-label="知识搜索结果">
         <li v-for="hit in result.items" :key="hit.entity.id">
           <div class="hit-heading"><button type="button" @click="emit('select', hit.entity.id)">{{ hit.entity.name }}</button><span>{{ labels[hit.entity.type] ?? hit.entity.type }}</span></div>
@@ -54,6 +54,7 @@ function clear() { query.value = type.value = ''; mode.value = 'keyword'; emit('
           <p v-if="result.mode === 'keyword'" class="hit-meta">命中：{{ hit.matched_fields.map(field => fields[field]).join('、') }} · 关键词得分 {{ hit.keyword_score }}</p>
           <p v-else-if="result.mode === 'bm25'" class="hit-meta">命中：{{ hit.matched_fields.map(field => fields[field]).join('、') }} · BM25 得分 {{ (hit.bm25_score ?? 0).toFixed(3) }}</p>
           <p v-else-if="result.mode === 'vector'" class="hit-meta">向量相似度 {{ ((hit.vector_score ?? 0) * 100).toFixed(1) }}%</p>
+          <p v-else-if="result.mode === 'rrf'" class="hit-meta">融合得分 {{ hit.rrf_score?.toFixed(5) }} · 词法排名 {{ hit.lexical_rank ?? '未命中' }} · 向量排名 {{ hit.vector_rank ?? '未命中' }}。排名不表示答案可信度。</p>
           <p v-else class="hit-meta">融合得分 {{ ((hit.hybrid_score ?? 0) * 100).toFixed(1) }} · 关键词 {{ ((hit.keyword_component ?? 0) * 100).toFixed(1) }}% · 向量 {{ ((hit.vector_component ?? 0) * 100).toFixed(1) }}% · 图关系 {{ ((hit.graph_score ?? 0) * 100).toFixed(1) }}%</p>
           <ul v-if="result.mode === 'hybrid' && hit.graph_connections.length" class="graph-signals" aria-label="图关系得分依据"><li v-for="signal in hit.graph_connections" :key="`${signal.relationship_id}:${signal.related_entity_id}`">经“{{ signal.relationship_name }}”关联到 {{ signal.related_entity_name }}（{{ (signal.score * 100).toFixed(1) }}%）</li></ul>
           <article v-for="evidence in hit.evidence" :key="evidence.id" class="search-evidence"><strong>{{ evidence.title }}</strong><span>第 {{ evidence.start_line }}–{{ evidence.end_line }} 行</span><a v-if="evidence.git_url" :href="evidence.git_url" target="_blank" rel="noopener noreferrer">GitHub 原文 ↗</a><blockquote>{{ evidence.quote }}</blockquote><button type="button" class="evidence-source-button" @click="emit('openEvidence', evidence)">查看原文分块</button></article>

@@ -125,7 +125,8 @@ def test_answer_generation_rejects_unknown_citation():
         )
 
 
-def test_vector_prediction_requires_complete_index():
+@pytest.mark.parametrize('mode', ['vector', 'hybrid', 'rrf'])
+def test_vector_prediction_requires_complete_index(mode):
     source_id = uuid.uuid4()
     result = result_with([evidence(uuid.uuid4(), source_id)], indexed_count=1, eligible_count=2)
 
@@ -136,7 +137,7 @@ def test_vector_prediction_requires_complete_index():
             user_id=uuid.uuid4(),
             project_id=uuid.uuid4(),
             case={"id": "direct-001", "question": "question", "valid_at": None},
-            mode="vector",
+            mode=mode,
             top_k=5,
             with_answers=False,
             source_paths={source_id: "corpus/docs/source.md"},

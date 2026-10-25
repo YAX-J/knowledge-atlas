@@ -18,5 +18,5 @@ def ask_question(
 ):
     return answer_question(
         db, user_id=user_id, project_id=project_id, question=request.question,
-        valid_at=request.valid_at, settings=get_settings(),
+        valid_at=request.valid_at, settings=get_settings(), retrieval_mode=request.retrieval_mode,
     )

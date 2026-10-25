@@ -107,3 +107,5 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0042: Replay curated synthetic evaluation projects through review services](0042-reproducible-curated-evaluation-projects.md)
 - [ADR 0043: Bounded read-only repository tools](0043-bounded-read-only-tool-agent.md)
 - [ADR 0044: Add a bounded offline lexical baseline](0044-bounded-offline-bm25-search.md)
+
+- [0045: Opt-in rank fusion and online evidence allocation](0045-opt-in-rank-fusion.md)

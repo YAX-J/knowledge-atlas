@@ -149,6 +149,7 @@ export interface GovernanceResult {
     kind: 'missing_evidence' | 'duplicate' | 'possible_conflict' | 'orphan'
     entity_ids: string[]
     message: string
+    entities?: { id: string; name: string; summary: string; type: string }[]
   }[]
 }
 
@@ -177,7 +178,8 @@ export interface RelationshipDetail {
   evidence: FormalEvidence[]
 }
 
-export type KnowledgeSearchMode = 'keyword' | 'bm25' | 'vector' | 'hybrid'
+export type KnowledgeSearchMode = 'keyword' | 'bm25' | 'vector' | 'hybrid' | 'rrf'
+export type QuestionRetrievalMode = Exclude<KnowledgeSearchMode, 'keyword'>
 
 export interface KnowledgeSearchResult {
   query: string
@@ -186,6 +188,9 @@ export interface KnowledgeSearchResult {
     entity: FormalKnowledgeNode
     keyword_score: number | null
     bm25_score?: number | null
+    rrf_score?: number | null
+    lexical_rank?: number | null
+    vector_rank?: number | null
     vector_score: number | null
     keyword_component: number | null
     vector_component: number | null
@@ -238,6 +243,11 @@ export interface QuestionAnswer {
   entity_ids: string[]
   evidence: QuestionEvidence[]
   retrieval: {
+    mode?: QuestionRetrievalMode
+    bm25_hits?: number
+    unique_evidence_count?: number
+    duplicate_evidence_count?: number
+    truncated?: boolean
     keyword_hits: number
     vector_hits: number
     graph_hits: number

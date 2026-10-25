@@ -1,5 +1,7 @@
 # Knowledge Atlas 系统架构
 
+可选 RRF 融合由 `services/fusion.py` 读取现有 BM25 与向量结果，最多各 100 个候选，以 `sum(1/(60+rank))` 合并排名，不扩展图邻居。在线问答按原文位置去重并轮流选证据；原有 keyword/bm25/vector/hybrid 排序协议不变。见 [ADR 0045](adr/0045-opt-in-rank-fusion.zh-CN.md)。
+
 多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。默认解析只做语法结构，不执行代码、不调用模型也不自动入图；独立显式 Agent 操作可在后端静态候选范围内分析跨文件调用。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。复用来源/任务/分块模型；仅缓存不可变语法 Language，每次解析独立 Parser，见 [ADR 0040](adr/0040-multilanguage-source-parsing.zh-CN.md) 与 [ADR 0041](adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。
 
 本文描述 Knowledge Atlas 的当前架构、组件边界和关键数据流。已实现多语言导入、显式单轮或有界只读工具 Agent、候选抽取/人工审核、PostgreSQL 图谱、关键词/向量/一跳混合检索与同步证据问答。实体消歧、完整代码语义、通用规划和多轮会话记忆尚未实现。当前只使用 PostgreSQL/pgvector，不引入 Neo4j 或 LangGraph，见 ADR 0005、[ADR 0043](adr/0043-bounded-read-only-tool-agent.zh-CN.md)。

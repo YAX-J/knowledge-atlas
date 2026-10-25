@@ -372,7 +372,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
               <div class="task-strip" role="status">
                 <span class="source-status" :class="`status-${task?.status ?? source.status}`">{{ statusLabels[task?.status ?? source.status] }}</span>
                 <span v-if="loading.task">正在解析，请稍候…</span>
-                <span v-else-if="source.status === 'ready'">解析完成，可以核对下方原文分块。</span>
+                <span v-else-if="source.status === 'ready'">解析完成。下方可核对原文、提取并审核知识；解析完成不代表已进入问答。</span>
                 <span v-else-if="task?.status === 'running'">任务正在执行，刷新状态查看结果。</span>
                 <span v-else-if="task?.status === 'failed'">解析未完成，可以重新尝试。</span>
                 <span v-else-if="task?.status === 'cancelled'">此任务已取消。</span>

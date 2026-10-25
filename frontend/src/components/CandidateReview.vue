@@ -16,12 +16,25 @@ const emit = defineEmits<{
   extract: []
   refresh: [page?: number]
   resolve: [decision: ReviewDecision]
+  graph: []
 }>()
 const editing = ref('')
 const name = ref('')
 const summary = ref('')
 const pages = computed(() => Math.max(1, Math.ceil((props.candidates?.total ?? 0) / 20)))
 const busy = computed(() => props.extracting || !!props.resolving)
+const counts = computed(() => props.extraction?.review_counts)
+const nextStep = computed(() => {
+  if (props.loading) return '正在读取整份资料的处理进度。'
+  if (props.error) return '状态读取或处理失败，请刷新候选并核对错误信息。'
+  if (props.extracting || props.extraction?.task?.status === 'running') return '正在抽取候选，请等待完成或刷新状态。'
+  if (props.extraction?.task?.status !== 'succeeded') return '资料已解析；下一步提取候选。尚未确认的内容不会进入知识问答。'
+  if (!props.extraction.candidate_count) return '抽取完成，但没有候选知识；请核对资料是否包含明确的技术结论。'
+  if (counts.value?.pending) return '下一步核对并审核候选，先确认实体，再确认关系。'
+  if (counts.value?.confirmed) return '审核已完成，可查看项目图谱；使用语义检索前请显式更新索引。'
+  if (counts.value) return '候选均已拒绝，本篇资料没有通过审核的知识。'
+  return '抽取完成，请刷新候选查看整份资料的审核进度。'
+})
 const labels: Record<string, string> = {
   pending: '待确认', confirmed: '已确认', rejected: '已拒绝',
   Project: '项目', CodeFile: '代码文件', CodeEntity: '代码实体', Technology: '技术',
@@ -57,6 +70,11 @@ function confirm(id: string) {
       <button class="text-button" type="button" :disabled="loading || busy" @click="emit('refresh')">刷新候选</button>
     </div>
     <p class="source-upload-hint">提取时会将本篇资料的原文分块发送至 DeepSeek。核对证据并确认后，知识会写入项目图谱；关系两端的实体需要先确认。</p>
+    <div class="review-progress" role="status">
+      <strong>资料处理进度</strong><p>{{ nextStep }}</p>
+      <p v-if="counts && !loading && !error">整份资料：待审核 {{ counts.pending }} · 已确认 {{ counts.confirmed }} · 已拒绝 {{ counts.rejected }}</p>
+      <button v-if="counts?.confirmed" class="text-button" type="button" :disabled="loading || busy" @click="emit('graph')">查看图谱与检索</button>
+    </div>
     <button v-if="extraction?.task?.status !== 'succeeded'" class="primary-button" type="button" :disabled="loading || busy" @click="emit('extract')">
       {{ extracting ? '正在提取，请稍候…' : extraction?.task?.status === 'failed' ? '重试提取候选知识' : extraction?.task?.status === 'running' ? '恢复超时提取' : '提取候选知识' }}
     </button>
@@ -109,6 +127,7 @@ function confirm(id: string) {
 </template>
 
 <style scoped>
+.review-progress { margin: 14px 0; padding: 12px; border-left: 3px solid var(--teal); background: #edf5f3; font-size: 12px; line-height: 1.8; }
 .candidate-review { margin-top: 30px; padding-top: 24px; border-top: 1px solid var(--line); }
 .candidate-card { margin-top: 16px; padding: 18px; border: 1px solid var(--line); border-radius: 6px; background: #f7faf9; }
 .candidate-card header { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--teal); font-size: 12px; }

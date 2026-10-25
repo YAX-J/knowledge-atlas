@@ -42,7 +42,7 @@ from scripts.evaluate_dataset import (
 from scripts.evaluation_snapshot import project_snapshot
 
 
-Mode = Literal["keyword", "bm25", "vector", "hybrid"]
+Mode = Literal["keyword", "bm25", "vector", "hybrid", "rrf"]
 MAX_ANSWER_EVIDENCE = 12
 
 
@@ -218,7 +218,7 @@ def build_prediction(
         mode=mode,
         settings=settings,
     )
-    if mode in {"vector", "hybrid"}:
+    if mode in {"vector", "hybrid", "rrf"}:
         if not result.eligible_count:
             raise EvaluationRunError("Vector experiment requires at least one eligible formal entity")
         if result.indexed_count != result.eligible_count:
@@ -248,6 +248,7 @@ def build_prediction(
             hits=[{"entity_id": str(hit.entity.id), "name": hit.entity.name,
                    "keyword_score": hit.keyword_score, "bm25_score": hit.bm25_score, "vector_score": hit.vector_score,
                    "graph_score": hit.graph_score, "hybrid_score": hit.hybrid_score,
+                   "rrf_score": hit.rrf_score, "lexical_rank": hit.lexical_rank, "vector_rank": hit.vector_rank,
                    "graph_signal_count": len(hit.graph_connections)} for hit in result.items],
         )
     return ({
@@ -278,11 +279,11 @@ def run_evaluation(
     manifest, cases, dataset_summary = validate_dataset(dataset_root)
     if len(modes) != len(set(modes)):
         raise EvaluationRunError("Modes must not contain duplicates")
-    if not modes or set(modes) - {'keyword', 'bm25', 'vector', 'hybrid'}:
+    if not modes or set(modes) - {'keyword', 'bm25', 'vector', 'hybrid', 'rrf'}:
         raise EvaluationRunError("Choose at least one supported retrieval mode")
-    uses_embeddings = any(mode in {"vector", "hybrid"} for mode in modes)
+    uses_embeddings = any(mode in {"vector", "hybrid", "rrf"} for mode in modes)
     if uses_embeddings and not allow_embedding_calls:
-        raise EvaluationRunError("Vector and hybrid modes require --allow-embedding-calls")
+        raise EvaluationRunError("Vector, hybrid and RRF modes require --allow-embedding-calls")
     if uses_embeddings and settings.embedding_api_key is None:
         raise EvaluationRunError("Embedding provider is not configured")
     if with_answers and settings.deepseek_api_key is None:
@@ -312,7 +313,7 @@ def run_evaluation(
             "answer": settings.deepseek_model if with_answers else None,
         },
         "successful_provider_call_counts": {"embedding": 0, "answer": 0},
-        "retrieval_protocols": {mode: lexical.PROTOCOL if mode == 'bm25' else 'legacy-v1' for mode in modes},
+        "retrieval_protocols": {mode: lexical.PROTOCOL if mode == 'bm25' else 'bm25-vector-rrf-v1' if mode == 'rrf' else 'legacy-v1' for mode in modes},
         "outputs": {},
     }
     manifest_path = output_dir / "run.json"
@@ -353,7 +354,7 @@ def run_evaluation(
                     predictions.append(prediction)
                     _append_jsonl(partial_path, prediction)
                     _append_jsonl(diagnostics_partial, diagnostics)
-                    if mode in {"vector", "hybrid"}:
+                    if mode in {"vector", "hybrid", "rrf"}:
                         run_manifest["successful_provider_call_counts"]["embedding"] += 1
                     if answer_called:
                         run_manifest["successful_provider_call_counts"]["answer"] += 1
@@ -393,7 +394,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--modes",
         nargs="+",
-        choices=("keyword", "bm25", "vector", "hybrid"),
+        choices=("keyword", "bm25", "vector", "hybrid", "rrf"),
         default=["keyword"],
         help="Experiment modes; default keyword makes no provider calls",
     )
@@ -401,7 +402,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--allow-embedding-calls",
         action="store_true",
-        help="Explicitly authorize embedding-provider calls for vector/hybrid modes",
+        help="Explicitly authorize embedding-provider calls for vector/hybrid/rrf modes",
     )
     parser.add_argument(
         "--with-answers",

@@ -15,6 +15,8 @@ import ProjectGraph from './components/ProjectGraph.vue'
 import KnowledgeEvolution from './components/KnowledgeEvolution.vue'
 import QuestionWorkspace from './components/QuestionWorkspace.vue'
 import { ApiError } from './api/client'
+import { useLatestRequest } from './composables/useLatestRequest'
+import type { QuestionRetrievalMode } from './types'
 import { isCodeSource } from './sourceLanguages'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
@@ -430,61 +432,43 @@ async function setGraphTime(value: string, entityId = '') {
 }
 let graphRequest = 0
 let graphDetailRequest = 0
-const searchResult = ref<KnowledgeSearchResult | null>(null)
-const searchLoading = ref(false)
+const searchState = useLatestRequest<KnowledgeSearchResult>(errorMessage)
+const { result: searchResult, loading: searchLoading, error: searchError } = searchState
 const searchRebuilding = ref(false)
-const searchError = ref('')
 const searchErrorAction = ref<'search' | 'rebuild'>('search')
 const searchNotice = ref('')
-let searchRequest = 0
 let embeddingRebuildRequest = 0
 let searchQuery = ''
 let searchTypes = ''
 let searchMode: KnowledgeSearchMode = 'keyword'
-const questionResult = ref<QuestionAnswer | null>(null)
-const questionLoading = ref(false)
-const questionError = ref('')
+const questionState = useLatestRequest<QuestionAnswer>(errorMessage)
+const { result: questionResult, loading: questionLoading, error: questionError } = questionState
 let questionText = ''
-let questionRequest = 0
+let questionMode: QuestionRetrievalMode = 'hybrid'
 
 function clearQuestion() {
-  questionRequest++
-  questionResult.value = null
-  questionError.value = ''
-  questionLoading.value = false
+  questionState.clear()
   questionText = ''
+  questionMode = 'hybrid'
 }
 
-async function runQuestion(question: string) {
+async function runQuestion(question: string, mode: QuestionRetrievalMode = 'hybrid') {
   const projectId = project.value?.id
   if (!projectId || questionLoading.value) return
-  const request = ++questionRequest
   questionText = question
-  questionLoading.value = true
-  questionError.value = ''
-  questionResult.value = null
-  try {
-    const result = await askQuestion(projectId, question)
-    if (request === questionRequest && project.value?.id === projectId) questionResult.value = result
-  } catch (error) {
-    if (request === questionRequest && project.value?.id === projectId) questionError.value = errorMessage(error)
-  } finally {
-    if (request === questionRequest) questionLoading.value = false
-  }
+  questionMode = mode
+  await questionState.run(() => askQuestion(projectId, question, mode), () => project.value?.id === projectId)
 }
 
 function retryQuestion() {
-  if (questionText) void runQuestion(questionText)
+  if (questionText) void runQuestion(questionText, questionMode)
 }
 
 function clearSearch() {
-  searchRequest++
+  searchState.clear()
   embeddingRebuildRequest++
-  searchResult.value = null
-  searchError.value = ''
   searchErrorAction.value = 'search'
   searchNotice.value = ''
-  searchLoading.value = false
   searchRebuilding.value = false
   searchQuery = searchTypes = ''
   searchMode = 'keyword'
@@ -493,22 +477,13 @@ function clearSearch() {
 async function runSearch(query: string, types: string, mode: KnowledgeSearchMode) {
   const projectId = project.value?.id
   if (!projectId) return
-  const request = ++searchRequest
   searchQuery = query
   searchTypes = types
   searchMode = mode
-  searchLoading.value = true
   searchErrorAction.value = 'search'
-  searchError.value = ''
-  searchResult.value = null
-  try {
-    const result = await searchKnowledge(projectId, query, types, mode, graphValidAt.value)
-    if (request === searchRequest && project.value?.id === projectId) searchResult.value = result
-  } catch (error) {
-    if (request === searchRequest) searchError.value = errorMessage(error)
-  } finally {
-    if (request === searchRequest) searchLoading.value = false
-  }
+  const at = graphValidAt.value
+  await searchState.run(() => searchKnowledge(projectId, query, types, mode, at),
+    () => project.value?.id === projectId && graphValidAt.value === at)
 }
 
 async function rebuildSemanticIndex() {
@@ -1214,7 +1189,7 @@ function setTimeline(value: number) {
         <CandidateReview :key="selectedSourceId" :candidates="candidates" :extraction="extraction"
           :loading="reviewsLoading" :extracting="extracting" :resolving="resolving"
           :error="reviewsError" :notice="reviewsNotice"
-          @extract="extractSource" @refresh="loadReviews" @resolve="reviewCandidate" />
+          @extract="extractSource" @refresh="loadReviews" @resolve="reviewCandidate" @graph="openProjectGraph" />
       </template>
     </SourceWorkspace>
     <ProjectGraph v-else-if="activeNav === 'projectGraph'" :project="project" :graph="realGraph"
@@ -1233,7 +1208,7 @@ function setTimeline(value: number) {
         :governance-loading="evolutionLoading.governance" :history-error="evolutionError.history" :changes-error="evolutionError.changes"
         :governance-error="evolutionError.governance" :action-error="evolutionError.action" :notice="changeNotice" :busy="changeBusy" :historical="Boolean(graphValidAt)"
         @history="loadHistory" @changes="loadChanges" @inspect="runGovernance" @propose="proposeChange" @resolve="resolveChange"
-        @open-evidence="openEvidence" @visit-version="(id, at) => setGraphTime(at, id)" /></template>
+        @open-evidence="openEvidence" @open-entity="openQuestionEntity" @visit-version="(id, at) => setGraphTime(at, id)" /></template>
     </ProjectGraph>
     <QuestionWorkspace v-else-if="activeNav === 'questions'" :key="project?.id ?? 'no-project'"
       :projects="projects" :project="project" :projects-loading="loading.projects" :projects-error="errors.projects"

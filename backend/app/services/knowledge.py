@@ -51,13 +51,17 @@ def get_extraction(db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID) -> 
         ProcessingTask.source_id == source.id,
         ProcessingTask.type == EXTRACTION_TASK_TYPE,
     ).execution_options(populate_existing=True))
-    count = db.scalar(select(func.count()).select_from(CandidateKnowledge).where(
+    counts = {'pending': 0, 'confirmed': 0, 'rejected': 0}
+    rows = db.execute(select(CandidateKnowledge.review_status, func.count()).where(
         CandidateKnowledge.task_id == task.id,
         CandidateKnowledge.user_id == user_id,
         CandidateKnowledge.project_id == source.project_id,
         CandidateKnowledge.source_id == source.id,
-    )) if task else 0
-    return ExtractionRead(task=TaskRead.model_validate(task) if task else None, candidate_count=count or 0)
+    ).group_by(CandidateKnowledge.review_status)).all() if task else []
+    for status, count in rows:
+        counts[status.value if isinstance(status, ReviewStatus) else status] = count
+    return ExtractionRead(task=TaskRead.model_validate(task) if task else None,
+                          candidate_count=sum(counts.values()), review_counts=counts)
 
 
 def run_extraction(

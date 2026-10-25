@@ -19,7 +19,7 @@
 - `POST /projects/{project_id}/knowledge-changes/{change_id}/resolve`：`{"action":"confirm"}` 或 `reject`。项目锁内重新校验，同事务记录审核及前后快照。重复同动作幂等，改判 409。确认替代才设置 `old.status=superseded`、`old.valid_to=new.valid_from=effective_at`；补充/冲突仅记录分类，不改有效期。不支持分叉、合并、环或失效端点。
 - 记录字段：`id,project_id,new_entity_id,old_entity_id,evidence_id,new_entity_name,old_entity_name,kind,reason,effective_at,review_status,resolved_at,created_at,before,after,evidence`。快照为不可变双端点状态/有效期，证据沿用正式结构，可跳精确分块。时间统一 UTC，原文不覆盖。
 - `GET /projects/{project_id}/knowledge/entities/{entity_id}/history`：返回 `entities,changes,truncated`。忽略当前有效期，不忽略用户/项目/归档；双向遍历已确认替代，按有效起点/生效时间排序，最多 100 个实体/200 条变化。普通图谱不加入失效端点；演化链与语义关系独立。
-- `GET /projects/{project_id}/governance?limit=200`：只读、无模型、无持久化；最多扫描 1000 个当前实体，默认最多 200 条建议、最大 500。返回 `checked_at,scanned_entity_count,truncated,findings`，每条含稳定 `id`、`kind`（`missing_evidence/duplicate/possible_conflict/orphan`）、`entity_ids,message`。同类型名称经 NFKC/大小写/空白规范化，与组首项比较摘要；不同摘要只是可能冲突，不是语义判定。
+- `GET /projects/{project_id}/governance?limit=200`：只读、无模型、无持久化；最多扫描 1000 个当前实体，默认最多 200 条建议、最大 500。返回 `checked_at,scanned_entity_count,truncated,findings`，每条含稳定 `id`、`kind`（`missing_evidence/duplicate/possible_conflict/orphan`）、`entity_ids,message,entities`，entities 含 id/name/summary/type，供画布外知识核对。同类型名称经 NFKC/大小写/空白规范化，在各摘要组内识别重复；各新摘要组与名称组首项作可能冲突提示。先返回缺失证据、重复、可能冲突，最后孤立建议；扫描有界，非完整语义判定。
 
 作用域缺失 404。`CHANGE_STALE`、`CHANGE_EVIDENCE_INVALID`、`CHANGE_TIME_INVALID`、`CHANGE_ENDPOINTS_INVALID`、`CHANGE_CHAIN_INVALID`、`CHANGE_ALREADY_RESOLVED` 均为 409。结构、枚举、无时区时间或额外字段返回统一 422。历史沿用图谱/详情/搜索/问答的 `valid_at`；有效区间半开 `[valid_from,valid_to)`，不能按当前 `status == active` 排除历史上仍有效的已替代实体。前端图谱和搜索使用同一时间上下文。
 
@@ -534,7 +534,7 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 查询参数：
 
 - `q`：必填，1–200 字符。`keyword` 模式按空白切分为 1–8 个词；`hybrid` 的关键词分支最多使用前 8 个不同词，两者都要求所用词在名称、摘要或证据摘录中命中，重复词只计分一次。`vector` 与 `hybrid` 的向量分支把规范化后的完整文本作为查询。
-- `mode`：`keyword`（默认）、`bm25`、`vector` 或 `hybrid`。新增 `bm25` 是离线中英混合词法排序，不依赖模型或向量索引；不会改变旧关键词/混合语义。
+- `mode`：`keyword`（默认）、`bm25`、`vector`、`hybrid` 或 `rrf`。新增 `bm25` 是离线中英混合词法排序，不依赖模型或向量索引；不会改变旧关键词/混合语义。
 - `types`：可选，逗号分隔的实体类型。
 - `valid_at`：可选带时区时间，沿用图谱的有效区间和归档过滤。
 - `top_k`：1–50，默认 10。
@@ -553,7 +553,7 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 
 ## 证据问答
 
-状态：已实现同步、非持久化的第一版。每次请求复用混合检索，只允许模型依据选定的正式证据回答；当前不提供历史查询、流式输出或多轮会话。
+状态：已实现同步、非持久化的第一版。每次请求使用显式选定的检索方式，只允许模型依据选定的正式证据回答；当前不提供历史查询、流式输出或多轮会话。
 
 ### 创建问答请求
 
@@ -566,7 +566,7 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 }
 ```
 
-`question` 去除首尾空白后必须为 1–200 字符；`valid_at` 可选，提供时必须带时区。服务固定执行混合检索，最多选 5 个实体和 12 条证据。问题全文用于向量查询；关键词分支最多使用前 8 个不同空白分词。语义索引和嵌入服务要求与 `mode=hybrid` 搜索一致。
+`question` 去除首尾空白后必须为 1–200 字符；`valid_at` 可选，提供时必须带时区。`retrieval_mode` 可选 hybrid/rrf/vector/bm25，默认 hybrid。最多选 5 个实体，按实体排名轮流取原文，每轮每实体一条，最多 12 段。使用 `(source_id,chunk_id,start_line,end_line,quote)` 去重，保留首条正式证据 ID/归属，不合并不同来源或版本。问题全文用于向量查询；关键词分支最多使用前 8 个不同空白分词。hybrid/rrf/vector 要求嵌入配置；bm25 检索不调用嵌入，但有证据时生成答案仍需 DeepSeek。retrieval 新增 mode/bm25_hits/unique_evidence_count/duplicate_evidence_count/truncated；vector_hits 统计具有向量得分的返回实体数，计数不代表答案可信度。
 
 ```json
 {
@@ -623,7 +623,8 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
     "stage": "candidates_ready",
     "progress": 100
   },
-  "candidate_count": 3
+  "candidate_count": 3,
+  "review_counts": { "pending": 3, "confirmed": 0, "rejected": 0 }
 }
 ```
 
@@ -666,3 +667,10 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 4. 局部图谱和节点详情。
 5. 证据问答。
 6. 历史状态和替代关系查询。
+
+
+## 可选排名融合（ADR 0045）
+
+`GET /projects/{id}/search?mode=rrf` 在同一时间与项目/类型作用域内各取最多 100 条 BM25 和向量结果，按 `sum(1/(60+rank))` 融合，分支缺席贡献为 0；不做图关系扩展。同分按名称/UUID 稳定排序。返回 `rrf_score,lexical_rank,vector_rank`、原始分数、lexical 扫描预算、indexed_count/eligible_count 和截断标记。要求有效嵌入配置，空索引不发嵌入请求，供应商错误不静默回退。分数不是概率或可回答性阈值。搜索默认仍为 keyword，问答默认仍为 hybrid。
+
+抽取 POST 与状态 GET 的 `review_counts` 是同用户/项目/来源/抽取任务下整份候选的实时统计，不受候选列表分页影响；重复抽取不重新调用模型，但统计可随审核变化。

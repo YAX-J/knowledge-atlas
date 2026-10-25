@@ -159,3 +159,7 @@ npm run build
 - 默认验收路径是用户本机原生 PostgreSQL 17 + pgvector；Docker Compose 可选，不是前提。
 - 后端测试用内存 SQLite，不验证行锁、组合外键强制、扩展和并发。
 - 若 shell / 构建环境不可用（例如沙箱文件权限问题），直接说明“无法运行”，不要用静态阅读冒充验证结果。
+
+## 2026-10-25 optimization checks
+
+For optional RRF, source review totals and summary-group governance, include `tests/test_retrieval_optimization.py` and `tests/test_maintenance_optimization.py`; native acceptance now runs both. Browser checks cover question retrieval selection/stop-wait, whole-source progress and governance entity navigation. Existing no-paid-provider and executor-selection rules still apply.

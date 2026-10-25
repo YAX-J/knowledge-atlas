@@ -107,3 +107,5 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0042：通过审核服务重放可复现的合成实验项目](0042-reproducible-curated-evaluation-projects.zh-CN.md)
 - [ADR 0043：有界只读仓库工具 Agent](0043-bounded-read-only-tool-agent.zh-CN.md)
 - [ADR 0044：新增有界离线词法检索基线](0044-bounded-offline-bm25-search.zh-CN.md)
+
+- [0045: 可选排名融合与在线证据分配](0045-opt-in-rank-fusion.zh-CN.md)

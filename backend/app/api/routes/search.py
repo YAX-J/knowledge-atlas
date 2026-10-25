@@ -19,7 +19,7 @@ router = APIRouter(tags=['search'])
 @router.get('/projects/{project_id}/search', response_model=SearchRead)
 def search(
     project_id: uuid.UUID, db: DatabaseSession, user_id: CurrentUserId,
-    q: str = Query(min_length=1, max_length=200), mode: Literal['keyword', 'bm25', 'vector', 'hybrid'] = 'keyword',
+    q: str = Query(min_length=1, max_length=200), mode: Literal['keyword', 'bm25', 'vector', 'hybrid', 'rrf'] = 'keyword',
     types: str = Query(default='', max_length=500), valid_at: AwareDatetime | None = None,
     top_k: int = Query(default=10, ge=1, le=50),
 ):

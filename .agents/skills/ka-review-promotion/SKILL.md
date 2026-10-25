@@ -119,3 +119,7 @@ python -m pytest tests/test_graph.py tests/test_knowledge.py
 - [ ] 图谱查询仍有用户/项目/时间/数量边界。
 - [ ] 双语文档已同步（`KNOWLEDGE_MODEL.md`、`API_CONTRACT.md`、ADR）。
 - [ ] 实际运行的测试与结果已记录。
+
+## 2026-10-25 workflow optimization
+
+ADR 0045 adds opt-in `rrf` with two 100-entity pools and `sum(1/(60+rank))`; preserve existing defaults, all scope/time boundaries and provider errors. Online question evidence uses exact source/chunk/line/quote deduplication and round-robin allocation; never merge formal evidence. Extraction status reports whole-source live `review_counts`. Governance groups duplicate summaries within each type/name, prioritizes missing evidence and duplicate findings, and returns entity context for manual inspection; it still never merges or rewrites knowledge. Regressions: `tests/test_retrieval_optimization.py`, `tests/test_maintenance_optimization.py`; both run in native acceptance.

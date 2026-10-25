@@ -117,3 +117,5 @@ class ReviewResolve(StrictModel):
 class ExtractionRead(BaseModel):
     task: TaskRead | None
     candidate_count: int
+    review_counts: dict[Literal['pending', 'confirmed', 'rejected'], int] = Field(
+        default_factory=lambda: {'pending': 0, 'confirmed': 0, 'rejected': 0})

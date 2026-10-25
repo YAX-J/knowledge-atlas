@@ -1,5 +1,7 @@
 # Knowledge Atlas 后端
 
+新增 `search?mode=rrf` 和问答 `retrieval_mode=hybrid|rrf|vector|bm25`（默认 hybrid）。问答去重保留精确来源/位置，返回实际证据预算统计。抽取状态新增整份资料 `review_counts`，治理建议新增 `entities` 摘要。无迁移；新融合排序未进行真实供应商质量实验。
+
 新增 `GET /projects/{id}/search?mode=bm25` 的有界中英离线词法检索，无需供应商配置或迁移。空的匹配向量索引不再请求查询嵌入，配置错误仍保留。已准备语料项目可通过 `scripts.run_evaluation --modes keyword bm25` 零供应商授权测评。公式、隔离与上限见 [ADR 0044](../docs/adr/0044-bounded-offline-bm25-search.zh-CN.md)，[开发结果与失败案例](../evaluation/results/2026-10-25-bm25/README.zh-CN.md)单独保存。
 
 毕业补强清单 3—8 新增 `POST /sources/{source_id}/agent-call-analysis?strategy=tools`，默认兼容 `single_step`。只读快照工具最多 4 轮模型/8 次工具，结果继续校验且不持久化，见 [ADR 0043](../docs/adr/0043-bounded-read-only-tool-agent.zh-CN.md)。覆盖率与图表安装 `.[dev,evaluation]`；`scripts.model_acceptance` 需显式模型授权，`scripts.render_experiments` 与 `scripts.import_grades` 离线运行。真实合成结果与待人工评分见[报告](../evaluation/results/2026-10-24-models/REPORT.zh-CN.md)，原生/可选 Compose 完整演示与 CI 见[交付说明](../docs/DEMO.zh-CN.md)。

@@ -189,8 +189,9 @@ def governance(db, *, user_id, project_id, limit):
                               .order_by(KnowledgeEntity.created_at, KnowledgeEntity.id).limit(MAX_GOVERNANCE_ENTITIES + 1)))
     truncated = len(entities) > MAX_GOVERNANCE_ENTITIES
     entities = entities[:MAX_GOVERNANCE_ENTITIES]
-    findings, names = [], {}
+    findings, names, summaries = [], {}, {}
     ids = [item.id for item in entities]
+    by_id = {item.id: item for item in entities}
     contains_quote = (func.strpos(SourceChunk.content, KnowledgeEvidence.quote) if db.get_bind().dialect.name == "postgresql"
                       else func.instr(SourceChunk.content, KnowledgeEvidence.quote)) > 0
     evidenced = set(db.scalars(select(KnowledgeEvidence.entity_id).join(
@@ -212,25 +213,27 @@ def governance(db, *, user_id, project_id, limit):
     connected.update(db.scalars(newer.union(older)))
 
     def add(kind, ids, message):
-        nonlocal truncated
-        if len(findings) >= limit:
-            truncated = True
-            return
         key = f"governance-v1:{kind}:{':'.join(sorted(str(item) for item in ids))}"
-        findings.append(GovernanceFinding(id=uuid.uuid5(project_id, key), kind=kind, entity_ids=ids, message=message))
+        findings.append(GovernanceFinding(id=uuid.uuid5(project_id, key), kind=kind, entity_ids=ids, message=message,
+            entities=[dict(id=item, name=by_id[item].name, summary=by_id[item].summary, type=by_id[item].type) for item in ids]))
 
     for entity in entities:
         if entity.id not in evidenced:
             add("missing_evidence", [entity.id], "未找到可核验的逐字原文证据；请人工核对，不自动删除知识。")
         key = entity.type, _normalized(entity.name)
         previous = names.get(key)
-        if previous:
-            duplicate = _normalized(previous.summary) == _normalized(entity.summary)
-            add("duplicate" if duplicate else "possible_conflict", [previous.id, entity.id],
-                "同类型、规范化名称与摘要相同，建议人工检查重复。" if duplicate else
+        summary_key = (*key, _normalized(entity.summary))
+        duplicate = summaries.get(summary_key)
+        if duplicate:
+            add("duplicate", [duplicate.id, entity.id], "同类型、规范化名称与摘要相同，建议人工检查重复。")
+        elif previous:
+            add("possible_conflict", [previous.id, entity.id],
                 "同类型同名但摘要不同，可能是补充、冲突或替代；这不是语义冲突判定。")
-        else:
-            names[key] = entity
+        names.setdefault(key, entity)
+        summaries.setdefault(summary_key, entity)
         if entity.id not in connected:
             add("orphan", [entity.id], "当前没有可见语义关系或已确认演化关系，建议检查是否需要补充关联。")
-    return GovernanceRead(checked_at=at, scanned_entity_count=len(entities), findings=findings, truncated=truncated)
+    priority = {'missing_evidence': 0, 'duplicate': 1, 'possible_conflict': 2, 'orphan': 3}
+    findings.sort(key=lambda finding: priority[finding.kind])
+    return GovernanceRead(checked_at=at, scanned_entity_count=len(entities), findings=findings[:limit],
+                          truncated=truncated or len(findings) > limit)
