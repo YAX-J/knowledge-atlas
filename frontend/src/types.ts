@@ -50,6 +50,11 @@ export type WorkspaceNav = 'graph' | 'projectGraph' | 'projects' | 'sources' | '
 export type IngestionOperation = 'projects' | 'create' | 'repositories' | 'remote' | 'sync' | 'activity' | 'commit' | 'sources' | 'upload' | 'detail' | 'task' | 'chunks' | 'structure' | 'agent'
 export type IngestionLoading = Record<IngestionOperation, boolean>
 export type IngestionErrors = Record<IngestionOperation, string>
+export interface SourceFilters {
+  query: string
+  type: string
+  status: '' | 'uploaded' | 'processing' | 'ready' | 'failed'
+}
 export interface CandidateEvidence {
   chunk_id: string
   quote: string

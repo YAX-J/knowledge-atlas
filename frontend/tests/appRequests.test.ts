@@ -67,6 +67,74 @@ async function openSearchGraph() {
 const searchResult: KnowledgeSearchResult = { query: 'Storage', mode: 'bm25', items: [], truncated: false,
   indexed_count: null, eligible_count: 0, weights: null }
 
+async function openSourceList() {
+  vi.mocked(api.listProjects).mockResolvedValue({ items: [project], total: 1, page: 1, page_size: 20 })
+  vi.mocked(api.listSources).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  vi.mocked(api.listRepositories).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  const wrapper = shallowMount(App)
+  wrapper.getComponent(SideRail).vm.$emit('change', 'sources')
+  await flushPromises()
+  return wrapper
+}
+
+it('keeps an opened source when filtering and discards an older source list response', async () => {
+  const wrapper = await openSourceList()
+  vi.mocked(api.getSource).mockResolvedValue(source)
+  vi.mocked(api.listSourceChunks).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  vi.mocked(api.getExtraction).mockResolvedValue({ task: null, candidate_count: 0 })
+  vi.mocked(api.listCandidates).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  wrapper.getComponent(SourceWorkspace).vm.$emit('selectSource', source.id, null)
+  await flushPromises()
+  let finish!: (value: api.SourceList) => void
+  vi.mocked(api.listSources).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+  wrapper.getComponent(SourceWorkspace).vm.$emit('filterSources', { query: 'old', type: '', status: '' })
+  await flushPromises()
+  const filters = { query: 'new', type: 'markdown', status: 'failed' as const }
+  wrapper.getComponent(SourceWorkspace).vm.$emit('filterSources', filters)
+  await flushPromises()
+  finish({ items: [], total: 100, page: 1, page_size: 20 })
+  await flushPromises()
+  expect(api.listSources).toHaveBeenLastCalledWith(project.id, 1, 20, filters)
+  expect(wrapper.getComponent(SourceWorkspace).props('sources')?.total).toBe(0)
+  expect(wrapper.getComponent(SourceWorkspace).props('selectedSourceId')).toBe(source.id)
+  expect(wrapper.getComponent(SourceWorkspace).props('source')).toEqual(source)
+  expect(api.getSource).toHaveBeenCalledTimes(1)
+})
+
+it('records a failed source page for retry and recovers when a previously valid last page disappears', async () => {
+  const wrapper = await openSourceList()
+  vi.mocked(api.listSources).mockRejectedValueOnce(new Error('Page unavailable'))
+  wrapper.getComponent(SourceWorkspace).vm.$emit('sourcesPage', 2)
+  await flushPromises()
+  expect(wrapper.getComponent(SourceWorkspace).props('sourcesRequestedPage')).toBe(2)
+  expect(wrapper.getComponent(SourceWorkspace).props('errors').sources).toBeTruthy()
+  vi.mocked(api.listSources).mockResolvedValueOnce({ items: [], total: 25, page: 2, page_size: 20 })
+  wrapper.getComponent(SourceWorkspace).vm.$emit('sourcesPage', wrapper.getComponent(SourceWorkspace).props('sourcesRequestedPage'))
+  await flushPromises()
+  expect(wrapper.getComponent(SourceWorkspace).props('sources')?.page).toBe(2)
+  vi.mocked(api.listSources).mockResolvedValueOnce({ items: [], total: 1, page: 2, page_size: 20 })
+  wrapper.getComponent(SourceWorkspace).vm.$emit('sourcesPage', 2)
+  await flushPromises()
+  expect(api.listSources).toHaveBeenLastCalledWith(project.id, 1, 20, { query: '', type: '', status: '' })
+  expect(wrapper.getComponent(SourceWorkspace).props('sourcesRequestedPage')).toBe(1)
+  expect(wrapper.getComponent(SourceWorkspace).props('sources')?.page).toBe(1)
+})
+
+it('resets source filters on project switch and rejects the earlier filtered project response', async () => {
+  const wrapper = await openSourceList()
+  let finish!: (value: api.SourceList) => void
+  vi.mocked(api.listSources).mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+  wrapper.getComponent(SourceWorkspace).vm.$emit('filterSources', { query: 'old project', type: 'markdown', status: 'ready' })
+  await flushPromises()
+  wrapper.getComponent(SourceWorkspace).vm.$emit('selectProject', { ...project, id: 'second-project' })
+  await flushPromises()
+  finish({ items: [], total: 100, page: 1, page_size: 20 })
+  await flushPromises()
+  expect(api.listSources).toHaveBeenLastCalledWith('second-project', 1, 20, { query: '', type: '', status: '' })
+  expect(wrapper.getComponent(SourceWorkspace).props('sourceFilters')).toEqual({ query: '', type: '', status: '' })
+  expect(wrapper.getComponent(SourceWorkspace).props('sources')?.total).toBe(0)
+})
+
 it('wires search retry and drops a late result after clear in the graph page', async () => {
   const wrapper = await openSearchGraph()
   vi.mocked(api.searchKnowledge).mockRejectedValueOnce(new Error('Unavailable')).mockResolvedValueOnce(searchResult)

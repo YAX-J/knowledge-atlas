@@ -1,5 +1,7 @@
 # Knowledge Atlas Implementation Plan
 
+Source discovery filters and recoverable source pagination are implemented (ADR 0049), preserving opened originals and provider-free reads. See [acceptance](docs/SOURCE_FILTERS_20261025.md).
+
 Relation review dependency snapshots and pre-submit guidance are implemented (ADR 0048), preserving explicit batch selection and backend final validation. See [acceptance](docs/REVIEW_DEPENDENCIES_20261025.md).
 
 Search/index request orchestration now lives in `useKnowledgeSearch`, with project/time round-trip invalidation and per-project in-flight rebuild guards that survive clearing search. App integration and lifecycle regressions are implemented; remaining import/graph orchestration extraction is deferred. See [acceptance](docs/SEARCH_STATE_OPTIMIZATION_20261025.md).

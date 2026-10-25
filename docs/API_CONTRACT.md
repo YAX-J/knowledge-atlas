@@ -704,3 +704,9 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 `GET /api/v1/projects/{project_id}/reviews` 的每个关系候选新增 `endpoints: [{id,name,review_status}]`，按起点/终点顺序去重，最多两项。只返回同用户/项目/资料/成功抽取任务且 kind=entity 的可访问端点；缺失或不兼容端点省略，不回退查找其他任务/资料。端点读取独立于外层列表筛选和分页，total 仍仅统计列表候选；最多一次附加查询，读取 ID 数量不超过两倍 page_size。实体候选与单项/批量审核响应的 endpoints 默认空列表；需刷新列表获得快照。
 
 快照可能过期，不能作为绕过最终审核校验的依据。单项确认仍要求两端已确认；批量依赖只接受明确所选实体先确认，任一冲突仍整批回滚。未新增写入接口、自动选择、审核撤销、数据库迁移或模型调用。
+
+## 资料组合筛选（ADR 0049）
+
+`GET /api/v1/projects/{project_id}/sources` 新增可选 `q`（最多 200 字符）、`source_type`、`source_status`。q 规范化空白后对 original_name/relative_path 作字面、不区分大小写的子串匹配，%/_ 不作通配符；不匹配原文全文或仓库名称。source_type 接受上传注册表的 markdown/java/python/javascript/jsx/typescript/tsx/go/c/cpp/csharp。source_status 接受 uploaded/processing/ready/failed，针对资料记录，非 task_status。非法值或超长 q 返回 422。
+
+全部条件在同用户、有效项目范围内共同作用于 total 和分页之前；不传条件保持既有结果。响应结构、最新解析任务 task_id/task_status、repository_name/git_url 与分页上限不变。读取不触发解析、抽取、模型调用或正式知识写入；跨用户或归档项目仍返回 404。

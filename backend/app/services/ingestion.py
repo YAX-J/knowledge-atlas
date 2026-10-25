@@ -3,7 +3,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import UploadFile
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.config import Settings
@@ -236,12 +236,21 @@ def get_source(
 def list_sources(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID,
     page: int, page_size: int,
+    text_query: str = '', source_type: str | None = None, source_status: SourceStatus | None = None,
 ) -> tuple[list[tuple[SourceDocument, ProcessingTask | None]], int]:
     get_project(db, user_id=user_id, project_id=project_id)
-    filters = (
+    filters = [
         SourceDocument.user_id == user_id,
         SourceDocument.project_id == project_id,
-    )
+    ]
+    query = ' '.join(text_query.split())
+    if query:
+        filters.append(or_(SourceDocument.original_name.icontains(query, autoescape=True),
+                           SourceDocument.relative_path.icontains(query, autoescape=True)))
+    if source_type is not None:
+        filters.append(SourceDocument.source_type == source_type)
+    if source_status is not None:
+        filters.append(SourceDocument.status == source_status)
     total = db.scalar(select(func.count()).select_from(SourceDocument).where(*filters)) or 0
     sources = list(db.scalars(
         select(SourceDocument).where(*filters)

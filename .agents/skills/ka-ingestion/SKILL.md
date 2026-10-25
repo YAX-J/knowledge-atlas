@@ -169,3 +169,7 @@ python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_source_l
 - [ ] 租约 fencing 没有被绕过。
 - [ ] 文档（`API_CONTRACT.md`、后端 README、ADR 0003/0004）已同步。
 - [ ] 实际运行的测试与结果已记录。
+
+## Source discovery filters (ADR 0049)
+
+Source listing accepts literal filename/relative-path q (max 200), registered source_type and source_status. Apply all conditions before count/pagination in the existing user/project/archive scope, and preserve parsing task links and GitHub provenance. Source status is not task status. Reads must not parse, extract or call providers. Focus tests/test_source_filters.py tests/test_sources.py; the native runner includes the filter suite.

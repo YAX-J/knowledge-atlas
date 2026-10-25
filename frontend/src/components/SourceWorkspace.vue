@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { isCodeSource, sourceFileAccept, sourceLanguageHint, sourceTypeForFile, sourceTypeLabel } from '../sourceLanguages'
+import { isCodeSource, sourceFileAccept, sourceLanguageHint, sourceTypeForFile, sourceTypeLabel, sourceTypes } from '../sourceLanguages'
 import type {
   AgentCallAnalysis, ApiProject, ApiProjectList, ApiSource, JavaCodeStructure, ProcessingTask, SourceChunkList, SourceList, SourceListItem, SourceRepository, SourceRepositoryList,
 } from '../api/knowledgeAtlas'
-import type { IngestionErrors, IngestionLoading } from '../types'
+import type { IngestionErrors, IngestionLoading, SourceFilters } from '../types'
 
 const props = defineProps<{
   view: 'projects' | 'sources'
@@ -23,6 +23,8 @@ const props = defineProps<{
   errors: IngestionErrors
   notice: string
   reviewBusy?: boolean
+  sourceFilters?: SourceFilters
+  sourcesRequestedPage?: number
 }>()
 const emit = defineEmits<{
   create: [input: { name: string; description: string }]
@@ -34,6 +36,7 @@ const emit = defineEmits<{
   importGithubActivity: [repositoryId: string]
   snapshots: [repository: SourceRepository]
   sourcesPage: [page: number]
+  filterSources: [filters: SourceFilters]
   selectSource: [sourceId: string, taskId: string | null]
   upload: [files: File[]]
   run: []
@@ -66,6 +69,15 @@ const linkableLocalRepositories = computed(() => (
   props.repositories?.items.filter(item => item.kind === 'local_folder' && !item.remote_url) ?? []
 ))
 const locked = computed(() => props.reviewBusy || props.loading.create || props.loading.upload || props.loading.task || props.loading.remote || props.loading.sync || props.loading.activity || props.loading.commit || props.loading.agent)
+const sourceFilter = reactive<SourceFilters>({ query: '', type: '', status: '' })
+const filteredSources = computed(() => !!(props.sourceFilters?.query || props.sourceFilters?.type || props.sourceFilters?.status))
+const hiddenSource = computed(() => props.selectedSourceId && props.sources && !props.loading.sources && !props.errors.sources &&
+  !props.sources.items.some(item => item.id === props.selectedSourceId))
+watch(() => props.sourceFilters, value => Object.assign(sourceFilter, value ?? { query: '', type: '', status: '' }), { immediate: true })
+function applySourceFilters(reset = false) {
+  if (locked.value || props.loading.sources) return
+  emit('filterSources', reset ? { query: '', type: '', status: '' } : { ...sourceFilter, query: sourceFilter.query.trim() })
+}
 const statusLabels: Record<string, string> = {
   uploaded: '待解析', processing: '解析中', ready: '已解析', failed: '解析失败',
   queued: '待解析', running: '解析中', succeeded: '已解析', cancelled: '已取消',
@@ -341,16 +353,24 @@ function sourceMeta(source: SourceListItem | ApiSource) {
 
           <slot name="code-search" />
           <div class="source-section-heading">
-            <h3>项目资料 <span v-if="sources">{{ sources.total }}</span></h3>
+            <h3 id="source-list-title" tabindex="-1">{{ filteredSources ? '筛选资料' : '项目资料' }} <span v-if="sources">{{ sources.total }}</span></h3>
             <button class="text-button" type="button" :disabled="loading.sources || locked" @click="emit('sourcesPage', sources?.page ?? 1)">刷新资料</button>
           </div>
           <p v-if="loading.sources" class="muted-copy" role="status">正在读取资料…</p>
-          <div v-if="errors.sources" class="inline-error" role="alert"><p>{{ errors.sources }}</p><button class="text-button" type="button" @click="emit('sourcesPage', sources?.page ?? 1)">重试加载资料</button></div>
-          <p v-if="!loading.sources && !errors.sources && sources?.total === 0" class="empty-copy">这个项目还没有资料，上传第一篇笔记开始整理。</p>
+          <form class="source-filters" aria-label="筛选项目资料" @submit.prevent="applySourceFilters()">
+            <label>文件名或路径<input v-model="sourceFilter.query" type="search" maxlength="200" :disabled="locked || loading.sources" placeholder="输入文件名或仓库内路径" /></label>
+            <label>资料语言<select v-model="sourceFilter.type" :disabled="locked || loading.sources"><option value="">全部语言</option><option v-for="type in sourceTypes" :key="type" :value="type">{{ sourceTypeLabel(type) }}</option></select></label>
+            <label>资料解析状态<select v-model="sourceFilter.status" :disabled="locked || loading.sources"><option value="">全部状态</option><option value="uploaded">待解析</option><option value="processing">解析中</option><option value="ready">已解析</option><option value="failed">解析失败</option></select></label>
+            <button class="primary-button" type="submit" :disabled="locked || loading.sources">应用资料筛选</button>
+            <button class="text-button" type="button" :disabled="locked || loading.sources" @click="applySourceFilters(true)">重置资料筛选</button>
+          </form>
+          <div v-if="errors.sources" class="inline-error" role="alert"><p>{{ errors.sources }}</p><button class="text-button" type="button" :disabled="locked || loading.sources" @click="emit('sourcesPage', sourcesRequestedPage ?? sources?.page ?? 1)">重试加载资料</button></div>
+          <p v-if="!loading.sources && !errors.sources && sources?.total === 0" class="empty-copy">{{ filteredSources ? '没有符合条件的资料，可调整或重置筛选。' : '这个项目还没有资料，上传第一篇笔记开始整理。' }}</p>
+          <p v-if="hiddenSource" class="muted-copy" role="status">已打开的资料不在本页结果中，仍可继续核对原文。</p>
           <div class="source-list">
             <button v-for="item in sources?.items ?? []" :key="item.id" class="source-row" type="button"
               :class="{ selected: selectedSourceId === item.id }" :aria-pressed="selectedSourceId === item.id"
-              :disabled="locked" @click="emit('selectSource', item.id, item.task_id)">
+              :disabled="locked || loading.sources" @click="emit('selectSource', item.id, item.task_id)">
               <span class="source-file-type" aria-hidden="true">{{ sourceTypeLabel(item.source_type) }}</span>
               <span class="source-file-name"><strong>{{ sourceName(item) }}</strong><small>{{ sourceMeta(item) }}</small></span>
               <span class="source-status" :class="`status-${item.task_status ?? item.status}`">{{ statusLabels[item.task_status ?? item.status] }}</span>

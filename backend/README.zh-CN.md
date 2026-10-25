@@ -1,5 +1,7 @@
 # Knowledge Atlas 后端
 
+资料列表支持可选 `q`（文件名/路径字面子串，最多 200 字符）、已注册 `source_type` 和 `source_status`。先筛选再计数/分页，保留作用域、任务引用与溯源；状态指资料记录。不触发解析、供应商或迁移（ADR 0049）。
+
 候选列表新增关系 `endpoints` 快照（id/name/review_status），独立于列表筛选和分页；一次有界读取校验实体类别及用户/项目/资料/任务，缺失端点省略。审核动作响应默认快照为空，提升与事务规则不变（ADR 0048）。
 
 候选列表接受 kind=entity|relation 与字面文字 q；治理接受 kind，并在结果截断前统计类别。问答片段返回 related_entities，并给模型提供 entity_names，规范引用 ID 保持不变。不新增迁移（ADR 0047）。

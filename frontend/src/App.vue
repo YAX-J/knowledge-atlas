@@ -17,7 +17,7 @@ import QuestionWorkspace from './components/QuestionWorkspace.vue'
 import { ApiError } from './api/client'
 import { useLatestRequest } from './composables/useLatestRequest'
 import { useKnowledgeSearch } from './composables/useKnowledgeSearch'
-import type { GovernanceKind, QuestionRetrievalMode, ReviewFilters } from './types'
+import type { GovernanceKind, QuestionRetrievalMode, ReviewFilters, SourceFilters } from './types'
 import { isCodeSource } from './sourceLanguages'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
@@ -177,6 +177,8 @@ async function saveSnapshotCommit(snapshotId: string) {
   }
 }
 const sources = ref<SourceList | null>(null)
+const sourceFilters = ref<SourceFilters>({ query: '', type: '', status: '' })
+const sourcesRequestedPage = ref(1)
 const selectedSourceId = ref('')
 const selectedTaskId = ref<string | null>(null)
 const source = ref<ApiSource | null>(null)
@@ -581,6 +583,8 @@ function selectProject(value: ApiProject) {
   repositoriesRequest++
   sources.value = null
   sourcesRequest++
+  sourceFilters.value = { query: '', type: '', status: '' }
+  sourcesRequestedPage.value = 1
   clearSourceSelection()
   errors.repositories = errors.remote = errors.sync = errors.activity = errors.sources = errors.upload = ''
   notice.value = ''
@@ -609,11 +613,15 @@ async function loadSources(page = 1) {
   const projectId = project.value?.id
   if (!projectId) return
   const request = ++sourcesRequest
+  sourcesRequestedPage.value = page
+  const filters = { ...sourceFilters.value }
   loading.sources = true
   errors.sources = ''
   try {
-    const result = await listSources(projectId, page)
+    const result = await listSources(projectId, page, 20, filters)
     if (request !== sourcesRequest || project.value?.id !== projectId) return
+    const lastPage = Math.max(1, Math.ceil(result.total / result.page_size))
+    if (page > lastPage) { await loadSources(lastPage); return }
     sources.value = result
     if (!selectedSourceId.value && result.items[0]) {
       void selectSource(result.items[0].id, result.items[0].task_id)
@@ -623,6 +631,20 @@ async function loadSources(page = 1) {
   } finally {
     if (request === sourcesRequest) loading.sources = false
   }
+}
+
+async function filterSources(filters: SourceFilters) {
+  if (reviewBusy.value || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit || loading.agent) return
+  const projectId = project.value?.id
+  sourceFilters.value = { ...filters }
+  const applied = sourceFilters.value
+  sources.value = null
+  await loadSources(1)
+  await nextTick()
+  if (project.value?.id !== projectId || sourceFilters.value !== applied) return
+  const heading = document.getElementById('source-list-title')
+  heading?.focus({ preventScroll: true })
+  heading?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
 }
 
 async function loadRepositories(page = 1) {
@@ -1182,6 +1204,7 @@ function setTimeline(value: number) {
     <SourceWorkspace
       v-if="activeNav === 'projects' || activeNav === 'sources'"
       :view="activeNav" :projects="projects" :project="project" :repositories="repositories" :sources="sources"
+      :source-filters="sourceFilters" :sources-requested-page="sourcesRequestedPage"
       :selected-source-id="selectedSourceId" :source="source" :task="task" :chunks="chunks"
       :code-structure="codeStructure"
       :agent-call-analysis="agentCallAnalysis"
@@ -1190,7 +1213,7 @@ function setTimeline(value: number) {
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
       @repositories-page="loadRepositories" @resolve-github="registerGithubRepository" @sync-github="syncRegisteredGithubRepository" @import-github-activity="importRegisteredGithubActivity"
       @snapshots="loadSnapshots"
-      @sources-page="loadSources" @select-source="selectSource" @upload="uploadFiles"
+      @sources-page="loadSources" @filter-sources="filterSources" @select-source="selectSource" @upload="uploadFiles"
       @run="parseSource" @refresh="refreshSource" @chunks-page="loadChunks"
       @analyze-calls="runAgentCallAnalysis"
       @graph="openProjectGraph"

@@ -1,5 +1,7 @@
 # Knowledge Atlas 前端开发说明
 
+SourceWorkspace 使用父级 SourceFilters 显式筛选文件名/路径、语言与资料状态，语言选项复用 sourceLanguages 注册表。App 保留已打开原文、独立记录 sourcesRequestedPage、隔离迟到响应并在页数收缩时回最后有效页；切换项目重置筛选。重试发出失败目标页，不使用旧响应页码。无结果与空项目分开提示，当前打开资料不在本页时明确说明。见 [ADR 0049](adr/0049-source-discovery-filters.zh-CN.md)。
+
 CandidateReview 展示关系起点/终点名称与审核状态；单项确认要求两端已确认，整批确认允许本页明确选中的待审核端点，依赖不足显示具名提示并阻止最终提交，拒绝仍可用。“查看本资料实体候选”发出筛选意图，不自动选择/审核。App 在筛选加载后校验上下文并聚焦可定位的审核标题，清空隐藏选择。见 [ADR 0048](adr/0048-review-endpoint-visibility.zh-CN.md)。
 
 搜索与索引请求现由 `composables/useKnowledgeSearch.ts` 管理，App 保留项目、导航、图谱和原文定位编排。模块同步监听项目/有效时间，清理结果与重试参数，防止离开再返回同一上下文时旧请求复活。索引更新按项目记录在途请求，清空搜索不解除更新锁、不代表取消服务端写入；完成后只在原上下文仍有效时刷新状态和向量相关搜索，BM25 结果保留且不自动重跑。验收见[搜索状态优化记录](SEARCH_STATE_OPTIMIZATION_20261025.zh-CN.md)。

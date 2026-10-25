@@ -1,5 +1,7 @@
 # Knowledge Atlas
 
+资料列表支持按文件名/仓库内路径、语言、资料解析状态组合筛选，保留已打开原文，并可准确重试失败页。见 [ADR 0049](docs/adr/0049-source-discovery-filters.zh-CN.md) 与[验收记录](docs/SOURCE_FILTERS_20261025.zh-CN.md)。
+
 关系候选现展示两端实体名称和审核状态，单项/批量确认前提示未满足的依赖；可返回实体候选继续审核。见 [ADR 0048](docs/adr/0048-review-endpoint-visibility.zh-CN.md) 与[验收记录](docs/REVIEW_DEPENDENCIES_20261025.zh-CN.md)。
 
 新增候选状态/实体关系/文字组合筛选；治理类别由后端先筛选再截断，并可将两条知识的原文并排核对。问答证据去重后保留其他关联实体入口。见 [ADR 0047](docs/adr/0047-filtered-discovery-evidence-attribution.zh-CN.md) 与[验收记录](docs/DISCOVERY_OPTIMIZATION_20261025.zh-CN.md)。

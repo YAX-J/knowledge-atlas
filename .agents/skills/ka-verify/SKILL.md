@@ -179,3 +179,7 @@ For search/index composable changes, focus frontend/tests/knowledgeSearchState.t
 ## Relation dependency acceptance (ADR 0048)
 
 Focus tests/test_knowledge_discovery.py tests/test_batch_reviews.py tests/test_knowledge.py and frontend/tests/review.test.ts tests/appRequests.test.ts. Native includes the discovery file. Desktop acceptance: filter to relations while endpoints are pending, verify disabled confirmation and named batch warnings, navigate to entities with cleared selection/preview and heading focus, explicitly confirm entities then the relation. Keep no-real-provider and temporary-schema ownership/cleanup rules.
+
+## Source discovery acceptance (ADR 0049)
+
+Focus tests/test_source_filters.py tests/test_sources.py plus frontend workspace/App/client regressions. Native acceptance includes the source filter suite. Desktop: combine literal path punctuation/language/source status, verify zero-match guidance with original preserved, reset, and simulate one second-page read failure to confirm retry reaches page two. Confirm list heading focus and no horizontal clipping. Continue physical private-table ownership checks before fixture writes and recorded-schema cleanup; providers remain stubbed.

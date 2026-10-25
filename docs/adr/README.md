@@ -115,3 +115,5 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [0047: Filtered discovery and passage attribution](0047-filtered-discovery-evidence-attribution.md)
 
 - [0048: Relation review dependency visibility](0048-review-endpoint-visibility.md)
+
+- [0049: Filtered source discovery and recoverable pagination](0049-source-discovery-filters.md)

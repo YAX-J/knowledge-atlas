@@ -10,6 +10,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Source filename/path, language and parsing-state filters apply before pagination; filtering preserves the opened original source and explains when it is absent from the current results. Failed source pages retry their requested page, and disappeared pages recover to the last valid page.
+
 - Relation review cards display scoped endpoint names/statuses across filtering and pagination, with entity-list navigation and named batch dependency explanations before final confirmation.
 
 - Search/index lifecycle and App integration regressions cover context round trips, retries and clearing during rebuild. Search state is now isolated in a tested composable.

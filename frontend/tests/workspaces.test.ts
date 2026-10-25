@@ -102,6 +102,31 @@ describe('knowledge search', () => {
 })
 
 describe('cross-file Agent workspace', () => {
+  it('submits source filters explicitly and distinguishes filtered empty results from an empty project', async () => {
+    const wrapper = mount(SourceWorkspace, { props: { ...sourceProps,
+      sourceFilters: { query: 'notes', type: 'markdown', status: 'failed' },
+      sources: { items: [], total: 0, page: 1, page_size: 20 } } })
+    expect(wrapper.text()).toContain('没有符合条件的资料')
+    expect(wrapper.text()).toContain('已打开的资料不在本页结果中')
+    expect(wrapper.text()).not.toContain('这个项目还没有资料')
+    await wrapper.get('.source-filters input').setValue('  notes/decision  ')
+    await wrapper.get('.source-filters').trigger('submit')
+    expect(wrapper.emitted('filterSources')).toEqual([[{ query: 'notes/decision', type: 'markdown', status: 'failed' }]])
+    await wrapper.findAll('button').find(button => button.text() === '重置资料筛选')!.trigger('click')
+    expect(wrapper.emitted('filterSources')?.[1]).toEqual([{ query: '', type: '', status: '' }])
+  })
+  it('retries the failed source page rather than the previously displayed one', async () => {
+    const wrapper = mount(SourceWorkspace, { props: { ...sourceProps, sourcesRequestedPage: 3,
+      sources: { items: [], total: 50, page: 1, page_size: 20 }, errors: { ...errors, sources: 'Offline' } } })
+    await wrapper.findAll('button').find(button => button.text() === '重试加载资料')!.trigger('click')
+    expect(wrapper.emitted('sourcesPage')).toEqual([[3]])
+  })
+  it.each(['loading', 'review'] as const)('blocks source filter submission while %s is busy', async busy => {
+    const wrapper = mount(SourceWorkspace, { props: { ...sourceProps,
+      reviewBusy: busy === 'review', loading: { ...loading, sources: busy === 'loading' } } })
+    await wrapper.get('.source-filters').trigger('submit')
+    expect(wrapper.emitted('filterSources')).toBeUndefined()
+  })
   it('locks source and upload controls while a review transaction is running', () => {
     const wrapper = mount(SourceWorkspace, { props: { ...sourceProps, reviewBusy: true } })
     expect(wrapper.findAll('button').find(button => button.text() === '上传单个文件')!.attributes('disabled')).toBeDefined()

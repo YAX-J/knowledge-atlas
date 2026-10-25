@@ -115,3 +115,5 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [0047: 筛选发现与原文实体归属](0047-filtered-discovery-evidence-attribution.zh-CN.md)
 
 - [0048: 关系审核依赖可见性](0048-review-endpoint-visibility.zh-CN.md)
+
+- [0049: 资料组合筛选与分页恢复](0049-source-discovery-filters.zh-CN.md)

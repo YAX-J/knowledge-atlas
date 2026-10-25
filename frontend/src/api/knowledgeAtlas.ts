@@ -512,8 +512,11 @@ export function getSource(sourceId: string): Promise<ApiSource> {
   return apiRequest<ApiSource>(`/sources/${sourceId}`)
 }
 
-export function listSources(projectId: string, page = 1, pageSize = 20): Promise<SourceList> {
+export function listSources(projectId: string, page = 1, pageSize = 20, filters?: import('../types').SourceFilters): Promise<SourceList> {
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
+  if (filters?.query.trim()) query.set('q', filters.query.trim())
+  if (filters?.type) query.set('source_type', filters.type)
+  if (filters?.status) query.set('source_status', filters.status)
   return apiRequest<SourceList>(`/projects/${projectId}/sources?${query}`)
 }
 

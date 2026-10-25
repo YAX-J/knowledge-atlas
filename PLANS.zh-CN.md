@@ -1,5 +1,7 @@
 # Knowledge Atlas 实施计划
 
+资料组合筛选与分页恢复已实现（ADR 0049），保留已打开原文且不调用供应商，见[验收记录](docs/SOURCE_FILTERS_20261025.zh-CN.md)。
+
 关系审核依赖快照与提交前提示已实现（ADR 0048），保留显式批量选择及后端最终校验，见[验收记录](docs/REVIEW_DEPENDENCIES_20261025.zh-CN.md)。
 
 搜索/索引请求已拆到 `useKnowledgeSearch`，同步隔离项目/时间往返切换，并按项目保留清空搜索后的在途更新锁；App 集成与生命周期回归已实现。其余导入/图谱编排拆分保留为后续。见[验收记录](docs/SEARCH_STATE_OPTIMIZATION_20261025.zh-CN.md)。

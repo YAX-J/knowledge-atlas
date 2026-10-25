@@ -1,9 +1,19 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, apiRequest } from '../src/api/client'
-import { analyzeAgentCalls } from '../src/api/knowledgeAtlas'
+import { analyzeAgentCalls, listSources } from '../src/api/knowledgeAtlas'
 
 afterEach(() => vi.unstubAllGlobals())
 describe('API transport', () => {
+  it('encodes source filters without treating query punctuation as URL syntax', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response('{}'))
+    vi.stubGlobal('fetch', fetcher)
+    await listSources('project-1', 2, 20, { query: '  docs/a&b_100%  ', type: 'markdown', status: 'failed' })
+    const query = new URL(String(fetcher.mock.calls[0]?.[0]), 'http://localhost').searchParams
+    expect(query.get('q')).toBe('docs/a&b_100%')
+    expect(query.get('source_type')).toBe('markdown')
+    expect(query.get('source_status')).toBe('failed')
+    expect(query.get('page')).toBe('2')
+  })
   it('preserves structured error and request identity', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
       error: { code: 'MODEL_UNAVAILABLE', message: 'Unavailable', details: { retry: false }, request_id: 'req-1' },

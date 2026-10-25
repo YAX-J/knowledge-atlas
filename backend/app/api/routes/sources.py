@@ -55,9 +55,15 @@ def list_sources(
     user_id: CurrentUserId,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
+    q: str = Query(default='', max_length=200),
+    source_type: str | None = Query(default=None, max_length=30),
+    source_status: SourceStatus | None = None,
 ) -> SourceList:
+    if source_type is not None and source_type not in ingestion.TASK_TYPE_BY_SOURCE:
+        raise AppError(status_code=422, code='SOURCE_TYPE_INVALID', message='不支持此资料类型')
     records, total = ingestion.list_sources(
-        db, user_id=user_id, project_id=project_id, page=page, page_size=page_size
+        db, user_id=user_id, project_id=project_id, page=page, page_size=page_size,
+        text_query=q, source_type=source_type, source_status=source_status,
     )
     git_urls = github_file_urls(
         db,

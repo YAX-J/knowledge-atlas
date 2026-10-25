@@ -151,3 +151,7 @@ Search/retry/index reads/rebuilds now live in composables/useKnowledgeSearch.ts;
 ## Relation review guidance (ADR 0048)
 
 CandidateReview uses list endpoint snapshots to show both endpoint names/statuses. Block single/edit-confirm unless both are confirmed; batch confirmation may also use explicitly selected current-page pending entities, never auto-select dependencies. Show named missing/rejected/unselected reasons; rejection remains available. Entity-list intent resets filters and selections, and App fences post-load heading focus by project/source/applied-filter identity. Test relation-only filters, batch submit guards and safe endpoint text in tests/review.test.ts.
+
+## Source filtering and page recovery (ADR 0049)
+
+SourceWorkspace emits explicit SourceFilters and uses the upload registry for language options. App keeps the opened source independently of filtered pages, resets filters on project switch and fences responses/focus by current context. Keep sourcesRequestedPage separately so retries target the failed page, and recover from a no-longer-valid page. Explain empty matches and a hidden opened source; lock filtering while existing operations run. Regressions: tests/workspaces.test.ts, tests/appRequests.test.ts, tests/client.test.ts.
