@@ -1,5 +1,7 @@
 # Knowledge Atlas Backend
 
+2026-10-26 functional completion: audited identity aliases/merge/unmerge, historical withdrawal/reactivation and replacement groups, persistent grounded conversations, resumable fixed-commit GitHub traversal, and explicit Java/TypeScript/Go static compiler analysis are implemented. The real workbench is the default; questions now default to RRF (search API remains keyword; UI search BM25). Migration head `20261026_0018`. Public-v2 used 84 model / 61 embedding attempts cumulatively; human grading and private authorization acceptance remain pending. See [acceptance](../docs/FUNCTIONAL_COMPLETION_20261026.md). Earlier dated checkpoints below are historical.
+
 2026-10-26: projected source lists/latest tasks and batched search evidence (ADR 0053); explicit current entity/relationship retirement plus paginated immutable audit snapshots (ADR 0054). Apply head `20261026_0017`. See [acceptance](../docs/OPTIMIZATION_456_20261026.md) and [read measurements](../evaluation/performance/2026-10-26-read-paths/README.md).
 
 Added durable rebuild status/explicit interrupted retry (migration `20261025_0016`), opt-in `bm25_source` search/questions, and `python -m scripts.database_backup` backup/restore tools. See [operations](../docs/BACKUP_RESTORE.md) and ADR 0050–0052. Apply `alembic upgrade head` and restart a running API to load the new routes.
@@ -51,7 +53,7 @@ Explicit DeepSeek extraction, review, formal graph promotion, project keyword/ve
 
 ### Reviewed evolution and native acceptance
 
-Apply head `20261026_0017` before using the time/evolution/governance panels. Cross-source proposals are separate from extraction candidates; only human confirmation can close the old interval and start the new one. History retains evidence, governance is read-only, and dates cannot precede promotion or be scheduled in the future. See [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.md).
+Apply head `20261026_0018` before using the time/evolution/governance panels. Cross-source proposals are separate from extraction candidates; only human confirmation can close the old interval and start the new one. History retains evidence, governance is read-only, and dates cannot precede promotion or be scheduled in the future. See [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.md).
 
 From `backend/`, run `.\.venv\Scripts\python.exe -m scripts.verify_native` for disposable-schema migration/API/contention/Worker checks. Requires configured native PostgreSQL, pgvector already in `public`, and `CREATE SCHEMA` permission. It explicitly qualifies the Alembic version schema, verifies local tables before tests and removes only its generated schema. Existing business data is not test data. `--github` additionally permits real read-only public petclinic import/search/repeat/commit-provenance acceptance; it never calls models or uses a GitHub token. Ordinary `pytest` skips these opt-in checks. Model/embedding quality and private-token acceptance are not covered.
 
@@ -152,7 +154,7 @@ Docker Compose is an optional alternative: from the repository root, `docker com
 
 ## DeepSeek candidate extraction and review
 
-Apply `alembic upgrade head` (expected `20261026_0017`) before review or semantic-index operations. Configure only the backend `.env`:
+Apply `alembic upgrade head` (expected `20261026_0018`) before review or semantic-index operations. Configure only the backend `.env`:
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key
@@ -183,7 +185,7 @@ Confirmation writes formal entities, relationships, and evidence in the review t
 
 ## Project graph
 
-`GET /api/v1/projects/{project_id}/graph` returns `nodes`, `edges`, and `truncated` for active, user-scoped projects. Optional parameters are `center_id`, `depth` (1 or 2), `types` (comma-separated entity types), `valid_at`, and `limit` (1–200, default 100); edges are capped at 500. Visibility requires `status != archived`, `valid_from <= at`, and `valid_to` absent or later than `at`.
+`GET /api/v1/projects/{project_id}/graph` returns `nodes`, `edges`, and `truncated` for active, user-scoped projects. Optional parameters are `center_id`, `depth` (1 or 2), `types` (comma-separated entity types), `valid_at`, and `limit` (1–200, default 100); edges are capped at 500. Visibility requires non-archived status and a current or saved historical validity interval at the query time, followed by effective identity projection (ADR 0056).
 
 `GET /api/v1/knowledge/entities/{entity_id}` returns the entity, up to 100 direct relationships, and evidence with the original filename, `project://` URI, nullable GitHub URL, quote, heading path, and server-calculated line range. Repository-file links are commit-pinned to exact lines; Issue/Pull Request links open the canonical conversation while line ranges refer to the imported Markdown snapshot. `GET /api/v1/knowledge/relationships/{relationship_id}` returns the relationship and its evidence. Canvas coordinates are not part of the API; layout belongs to the frontend.
 

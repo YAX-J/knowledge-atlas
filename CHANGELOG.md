@@ -10,6 +10,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Audited identity aliases/merge/unmerge and lifecycle reactivation/reversal with preserved temporal intervals; atomic split/merge replacements. Persistent grounded conversations, real workbench/navigation and contextual search; resumable pinned GitHub manifests. Explicit Java/TypeScript/Go static compiler paths. Separate public-v2 online experiment and offline blind review; question default RRF, human/private acceptance pending (ADR 0056–0059).
+
 - Projected source pagination/latest tasks and batched search evidence with native measurements; explicit reasoned knowledge retirement with audit/history; scoped import/review/graph orchestration modules (ADR 0053–0055).
 
 - Persisted server-side index rebuild ownership, refresh recovery and explicit interrupted retry, with uncertain-result transport errors and bounded model request budgets.

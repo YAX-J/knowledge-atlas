@@ -1,0 +1,38 @@
+{
+  "dataset": {
+    "dataset_id": "knowledge-atlas-public-v2",
+    "version": "2.0.0",
+    "source_count": 10,
+    "case_count": 20,
+    "answerable_count": 16,
+    "category_counts": {
+      "code_location": 4,
+      "cross_document": 4,
+      "direct_fact": 8,
+      "unanswerable": 4
+    },
+    "fingerprint_sha256": "0341a422f40d91e9d8f18e40d74ffd5d90cf225994fbbfc5eef6bcfe2a2bd606"
+  },
+  "modes": [
+    "keyword",
+    "bm25",
+    "vector",
+    "hybrid",
+    "rrf"
+  ],
+  "pipeline": "online questions.answer_question, fresh retrieval each time; all modes share one immutable curated graph/index",
+  "primary_metric": "macro evidence Recall@5",
+  "human_metrics": [
+    "answer_correct",
+    "explainability_score"
+  ],
+  "human_coverage": 0,
+  "ranking_tuned_on_this_set": false,
+  "prospective_separation": "New public sources/questions, separate from old synthetic development set; agent-authored, not independently human-curated.",
+  "default_selection": "Select on primary metric, report ties/failed cases and human coverage; no claims of semantic answer superiority without real human grades.",
+  "provider_limits": {
+    "model": 120,
+    "embedding": 160
+  },
+  "temporal_quality": "Not evaluated by this set; existing temporal regressions remain separate."
+}

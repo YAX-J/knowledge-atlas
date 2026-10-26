@@ -33,8 +33,8 @@ def reciprocal_rank_search(
         scores[hit.entity.id] = 1 / (RRF_CONSTANT + rank)
     terms = set(local.lexical.query_terms)
     missing = [entity for entity, _ in vectors[:RRF_POOL_LIMIT] if entity.id not in hits]
-    reads = {entity.id: entity for entity in graph._reads(db, missing)}
-    evidence_by_entity = graph.evidence_for_records(db, missing)
+    reads = {entity.id: entity for entity in graph._reads(db, missing, at=at)}
+    evidence_by_entity = graph.evidence_for_records(db, missing, at=at)
     for rank, (entity, similarity) in enumerate(vectors[:RRF_POOL_LIMIT], 1):
         if entity.id not in hits:
             evidence = evidence_by_entity[entity.id]

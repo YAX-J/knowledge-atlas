@@ -19,6 +19,8 @@ from app.models.domain import (
     utc_now,
 )
 from app.models.graph import KnowledgeEntity, KnowledgeEvidence, KnowledgeRelationship
+from app.models.workspace import EntityMerge, KnowledgePeriod
+from app.services import identities
 from app.schemas.graph import EntityDetail, FormalEvidenceRead, GraphRead, KnowledgeEdgeRead, KnowledgeNodeRead, RelationshipDetail
 from app.schemas.knowledge import EntityType, EvidenceDraft, RelationType
 from app.services.projects import get_project
@@ -161,31 +163,88 @@ def promote_candidate(
     return formal_id
 
 
+def apply_lifecycle(db, record, request, now, *, current):
+    """Authorized human mutation boundary; caller holds the project lock."""
+    if request.action == 'withdraw':
+        if not current or record.valid_to is not None:
+            raise AppError(status_code=409, code='KNOWLEDGE_NOT_CURRENT', message='只能撤回当前有效知识')
+        record.valid_to = now
+    elif request.action == 'reactivate':
+        if current or record.valid_to is None or record.status == 'archived':
+            raise AppError(status_code=409, code='KNOWLEDGE_NOT_CLOSED', message='请选择已停用或撤回的知识')
+        if not _evidence_read(db, record):
+            raise AppError(status_code=409, code='KNOWLEDGE_EVIDENCE_INVALID', message='重新启用需要原始证据')
+        if isinstance(record, KnowledgeEntity) and db.scalar(select(EntityMerge.id).where(
+                *identities.active_merge(record.user_id, record.project_id, now), EntityMerge.source_id == record.id)):
+            raise AppError(status_code=409, code='KNOWLEDGE_MERGED', message='请先解除合并身份')
+        if isinstance(record, KnowledgeRelationship):
+            for endpoint in (record.source_id, record.target_id):
+                target = db.scalar(select(identities.canonical(KnowledgeEntity.id, record.user_id, record.project_id, now)).where(KnowledgeEntity.id == endpoint))
+                if db.scalar(select(KnowledgeEntity.id).where(KnowledgeEntity.id == target,
+                        *visible(KnowledgeEntity, record.user_id, record.project_id, now))) is None:
+                    raise AppError(status_code=409, code='KNOWLEDGE_ENDPOINT_CLOSED', message='请先重新启用关系两端实体')
+        db.add(KnowledgePeriod(user_id=record.user_id, project_id=record.project_id, knowledge_id=record.id,
+            kind=request.kind, valid_from=record.valid_from, valid_to=record.valid_to))
+        record.valid_from, record.valid_to, record.status = now, None, 'active'
+
+
+def apply_evolution_group(records, old_ids, now):
+    """A reviewed split/merge closes predecessors together; existing successor history stays intact."""
+    for key in old_ids:
+        records[key].valid_to, records[key].status = now, 'superseded'
+
+
 def visible(model, user_id: uuid.UUID, project_id: uuid.UUID, at: datetime):
-    return (
+    is_entity = model.__tablename__ == 'knowledge_entities'
+    previous = select(KnowledgePeriod.id).where(
+        KnowledgePeriod.user_id == user_id, KnowledgePeriod.project_id == project_id,
+        KnowledgePeriod.kind == ('entity' if is_entity else 'relationship'),
+        KnowledgePeriod.knowledge_id == model.id, KnowledgePeriod.valid_from <= at,
+        KnowledgePeriod.valid_to > at,
+    ).correlate_except(KnowledgePeriod).exists()
+    conditions = [
         model.user_id == user_id, model.project_id == project_id, model.status != "archived",
-        model.valid_from <= at, or_(model.valid_to.is_(None), model.valid_to > at),
-    )
+        or_(and_(model.valid_from <= at, or_(model.valid_to.is_(None), model.valid_to > at)), previous),
+    ]
+    if is_entity:
+        conditions.append(~select(EntityMerge.id).where(*identities.active_merge(user_id, project_id, at),
+            EntityMerge.source_id == model.id).correlate_except(EntityMerge).exists())
+    return tuple(conditions)
 
 
 def _edge_query(user_id: uuid.UUID, project_id: uuid.UUID, at: datetime):
     source, target = aliased(KnowledgeEntity), aliased(KnowledgeEntity)
-    return select(KnowledgeRelationship).join(source, source.id == KnowledgeRelationship.source_id).join(
-        target, target.id == KnowledgeRelationship.target_id,
+    return select(KnowledgeRelationship).join(source, source.id == identities.canonical(KnowledgeRelationship.source_id, user_id, project_id, at)).join(
+        target, target.id == identities.canonical(KnowledgeRelationship.target_id, user_id, project_id, at),
     ).where(*visible(KnowledgeRelationship, user_id, project_id, at),
             *visible(source, user_id, project_id, at), *visible(target, user_id, project_id, at))
 
 
-def _reads(db: Session, records, *, edges=False):
+def _reads(db: Session, records, *, edges=False, at=None):
     if not records:
         return []
-    owner = KnowledgeEvidence.relationship_id if edges else KnowledgeEvidence.entity_id
+    at = at or utc_now()
+    owner = KnowledgeEvidence.relationship_id if edges else identities.canonical(KnowledgeEvidence.entity_id, records[0].user_id, records[0].project_id, at)
     counts = dict(db.execute(select(owner, func.count()).where(
         owner.in_([item.id for item in records]), KnowledgeEvidence.user_id == records[0].user_id,
         KnowledgeEvidence.project_id == records[0].project_id,
     ).group_by(owner)).all())
     schema = KnowledgeEdgeRead if edges else KnowledgeNodeRead
-    return [schema.model_validate(item).model_copy(update={"evidence_count": counts.get(item.id, 0)}) for item in records]
+    result = [schema.model_validate(item).model_copy(update={"evidence_count": counts.get(item.id, 0)}) for item in records]
+    if edges:
+        links = identities.mapping(db, records[0].user_id, records[0].project_id, at)
+        for item in result:
+            item.source_id = links.get(item.source_id, item.source_id)
+            item.target_id = links.get(item.target_id, item.target_id)
+    periods = list(db.scalars(select(KnowledgePeriod).where(
+        KnowledgePeriod.user_id == records[0].user_id, KnowledgePeriod.project_id == records[0].project_id,
+        KnowledgePeriod.kind == ('relationship' if edges else 'entity'), KnowledgePeriod.knowledge_id.in_([r.id for r in records]),
+        KnowledgePeriod.valid_from <= at, KnowledgePeriod.valid_to > at)))
+    intervals = {item.knowledge_id: item for item in periods}
+    for item in result:
+        if item.id in intervals:
+            item.valid_from, item.valid_to, item.status = intervals[item.id].valid_from, intervals[item.id].valid_to, 'active'
+    return result
 
 
 def get_graph(
@@ -211,8 +270,10 @@ def get_graph(
         nodes = [center]
         frontier, visited = {center_id}, {center_id}
         for _ in range(depth):
-            outgoing = edge_query.with_only_columns(KnowledgeRelationship.target_id).where(KnowledgeRelationship.source_id.in_(frontier))
-            incoming = edge_query.with_only_columns(KnowledgeRelationship.source_id).where(KnowledgeRelationship.target_id.in_(frontier))
+            source_id = identities.canonical(KnowledgeRelationship.source_id, user_id, project_id, at)
+            target_id = identities.canonical(KnowledgeRelationship.target_id, user_id, project_id, at)
+            outgoing = edge_query.with_only_columns(target_id).where(source_id.in_(frontier))
+            incoming = edge_query.with_only_columns(source_id).where(target_id.in_(frontier))
             neighbors = outgoing.union(incoming).subquery()
             remaining = limit - len(nodes)
             found = list(db.scalars(ordered_nodes.where(
@@ -227,17 +288,18 @@ def get_graph(
                 break
     ids = [node.id for node in nodes]
     edges = list(db.scalars(edge_query.where(
-        KnowledgeRelationship.source_id.in_(ids), KnowledgeRelationship.target_id.in_(ids),
+        identities.canonical(KnowledgeRelationship.source_id, user_id, project_id, at).in_(ids),
+        identities.canonical(KnowledgeRelationship.target_id, user_id, project_id, at).in_(ids),
     ).order_by(KnowledgeRelationship.created_at, KnowledgeRelationship.id).limit(MAX_EDGES + 1))) if ids else []
     truncated = truncated or len(edges) > MAX_EDGES
-    return GraphRead(nodes=_reads(db, nodes), edges=_reads(db, edges[:MAX_EDGES], edges=True), truncated=truncated)
+    return GraphRead(nodes=_reads(db, nodes, at=at), edges=_reads(db, edges[:MAX_EDGES], edges=True, at=at), truncated=truncated)
 
 
 def _evidence_read(db: Session, record):
     return evidence_for_records(db, [record])[record.id]
 
 
-def evidence_for_records(db: Session, records):
+def evidence_for_records(db: Session, records, *, at=None):
     """Batch one homogeneous authorized scope; preserve each owner's evidence order."""
     if not records:
         return {}
@@ -246,7 +308,9 @@ def evidence_for_records(db: Session, records):
            (record.user_id, record.project_id, isinstance(record, KnowledgeEntity)) for item in records):
         raise ValueError('Evidence batch must share scope and owner kind')
     result = {item.id: [] for item in records}
+    at = at or utc_now()
     owner = KnowledgeEvidence.entity_id if isinstance(record, KnowledgeEntity) else KnowledgeEvidence.relationship_id
+    projected_owner = identities.canonical(owner, record.user_id, record.project_id, at) if isinstance(record, KnowledgeEntity) else owner
     rows = list(db.execute(select(
         KnowledgeEvidence,
         SourceDocument.original_name,
@@ -262,7 +326,7 @@ def evidence_for_records(db: Session, records):
             SourceRepository.project_id == record.project_id,
         ),
     ).join(SourceChunk, SourceChunk.id == KnowledgeEvidence.chunk_id).where(
-        owner.in_(result), KnowledgeEvidence.user_id == record.user_id, KnowledgeEvidence.project_id == record.project_id,
+        projected_owner.in_(result), KnowledgeEvidence.user_id == record.user_id, KnowledgeEvidence.project_id == record.project_id,
         SourceDocument.user_id == record.user_id, SourceDocument.project_id == record.project_id,
         SourceChunk.source_id == KnowledgeEvidence.source_id,
         SourceChunk.user_id == record.user_id, SourceChunk.project_id == record.project_id,
@@ -273,8 +337,10 @@ def evidence_for_records(db: Session, records):
         project_id=record.project_id,
         source_ids=list({item.source_id for item, *_ in rows}),
     )
+    links = identities.mapping(db, record.user_id, record.project_id, at) if isinstance(record, KnowledgeEntity) else {}
     for item, title, relative_path, repository_name in rows:
-        result[item.entity_id if isinstance(record, KnowledgeEntity) else item.relationship_id].append(FormalEvidenceRead(
+        owner_id = links.get(item.entity_id, item.entity_id) if isinstance(record, KnowledgeEntity) else item.relationship_id
+        result[owner_id].append(FormalEvidenceRead(
         id=item.id, source_id=item.source_id, chunk_id=item.chunk_id,
         title=(
             f"{repository_name}/{relative_path}"
@@ -300,11 +366,12 @@ def entity_detail(db: Session, *, user_id: uuid.UUID, entity_id: uuid.UUID, vali
     if db.scalar(select(KnowledgeEntity.id).where(KnowledgeEntity.id == entity_id, *visible(KnowledgeEntity, user_id, entity.project_id, at))) is None:
         raise AppError(status_code=404, code="KNOWLEDGE_NOT_FOUND", message="知识在当前时间不可见")
     edges = list(db.scalars(_edge_query(user_id, entity.project_id, at).where(or_(
-        KnowledgeRelationship.source_id == entity_id, KnowledgeRelationship.target_id == entity_id,
+        identities.canonical(KnowledgeRelationship.source_id, user_id, entity.project_id, at) == entity_id,
+        identities.canonical(KnowledgeRelationship.target_id, user_id, entity.project_id, at) == entity_id,
     )).order_by(KnowledgeRelationship.created_at, KnowledgeRelationship.id).limit(101)))
-    evidence = _evidence_read(db, entity)
-    return EntityDetail(entity=_reads(db, [entity])[0], evidence=evidence,
-                        relationships=_reads(db, edges[:100], edges=True), truncated=len(edges) > 100)
+    evidence = evidence_for_records(db, [entity], at=at)[entity.id]
+    return EntityDetail(entity=_reads(db, [entity], at=at)[0], evidence=evidence,
+                        relationships=_reads(db, edges[:100], edges=True, at=at), truncated=len(edges) > 100)
 
 
 def relationship_detail(db: Session, *, user_id: uuid.UUID, relationship_id: uuid.UUID, valid_at: datetime | None) -> RelationshipDetail:
@@ -314,4 +381,4 @@ def relationship_detail(db: Session, *, user_id: uuid.UUID, relationship_id: uui
     get_project(db, user_id=user_id, project_id=edge.project_id)
     if db.scalar(_edge_query(user_id, edge.project_id, valid_at or utc_now()).where(KnowledgeRelationship.id == relationship_id)) is None:
         raise AppError(status_code=404, code="KNOWLEDGE_NOT_FOUND", message="关系在当前时间不可见")
-    return RelationshipDetail(relationship=_reads(db, [edge], edges=True)[0], evidence=_evidence_read(db, edge))
+    return RelationshipDetail(relationship=_reads(db, [edge], edges=True, at=valid_at)[0], evidence=_evidence_read(db, edge))

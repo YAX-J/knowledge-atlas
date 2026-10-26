@@ -1,5 +1,7 @@
 # Knowledge Atlas 后端
 
+2026-10-26 功能补全：已实现身份别名/合并/解除、保留历史间隔的撤回/启用及分组替代、持久化证据会话、固定提交 GitHub 文件/目录续扫，以及显式 Java/TypeScript/Go 编译器静态分析。默认真实工作台；问答默认 RRF（搜索 API 保留 keyword，界面搜索默认 BM25）。迁移 head `20261026_0018`。公开实验累计 84 次模型 / 61 次嵌入；真实人工评分与私有授权验收仍待外部条件。见[验收](../docs/FUNCTIONAL_COMPLETION_20261026.zh-CN.md)。下方较早检查点按历史记录保留，不代表本轮最新状态。
+
 2026-10-26：资料列表字段裁剪/最新任务及搜索证据批量读取（ADR 0053）；当前实体/关系可人工停用并分页读取不可变审计快照（ADR 0054）。应用 head `20261026_0017`，见[验收](../docs/OPTIMIZATION_456_20261026.zh-CN.md)与[读取测量](../evaluation/performance/2026-10-26-read-paths/README.zh-CN.md)。
 
 新增持久化更新状态/显式中断重试（迁移 `20261025_0016`）、可选 `bm25_source` 检索/问答，以及 `python -m scripts.database_backup` 备份恢复工具。见[操作指南](../docs/BACKUP_RESTORE.zh-CN.md)及 ADR 0050–0052。执行 `alembic upgrade head`，已运行的 API 重启后加载新接口。
@@ -45,13 +47,13 @@
 - 提供只读项目图谱、实体详情和关系详情接口，按用户/项目/时间过滤，限制节点与边数量，并返回后端计算的行号。
 - 为 GitHub 导入来源派生固定 Commit 的文件 URL，并为正式图谱/搜索/问答证据派生精确行号 URL，同时保留与供应商无关的 `project://` 定位符。
 
-已实现显式 DeepSeek 候选提取、审核与正式图谱提升、项目关键词/语义向量/一跳图关系混合检索，以及同步证据问答。语义索引使用显式重建操作和可配置的 OpenAI-compatible Embeddings 服务；真实服务/原生 pgvector 搜索冒烟已通过，包含关系的代表性召回和真实回答质量仍待验收。实体消歧、问答历史和多轮 Agent 尚未实现。
+已实现显式 DeepSeek 候选提取、审核与正式图谱提升、项目关键词/语义向量/一跳图关系混合检索，以及同步证据问答。语义索引使用显式重建操作和可配置的 OpenAI-compatible Embeddings 服务；真实服务/原生 pgvector 搜索冒烟已通过，包含关系的代表性召回和真实回答质量仍待验收。已实现人工身份整理和有界会话历史；通用多轮规划仍不在范围。
 
 ## 环境配置
 
 ### 演化审核与原生验收
 
-使用时间/演化/治理面板前先应用 head `20261026_0017`。跨来源建议与抽取候选分离；仅人工确认才可关闭旧有效期并开始新有效期。历史保留证据，治理只读；不能回溯提升前或定时至未来。见 [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.zh-CN.md)。
+使用时间/演化/治理面板前先应用 head `20261026_0018`。跨来源建议与抽取候选分离；仅人工确认才可关闭旧有效期并开始新有效期。历史保留证据，治理只读；不能回溯提升前或定时至未来。见 [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.zh-CN.md)。
 
 在 `backend/` 运行 `.\.venv\Scripts\python.exe -m scripts.verify_native`，在临时 schema 验证迁移/API/竞争/Worker。要求配置的原生 PostgreSQL、已在 `public` 安装 pgvector，以及 `CREATE SCHEMA` 权限。脚本显式限定 Alembic 版本表 schema，测试前检查本地表，最后只删除自己生成的 schema。既有业务资料不是测试数据。`--github` 另允许真实只读公开 petclinic 导入/检索/重复/Commit 追溯验收，不调用模型或使用 GitHub 令牌。普通 `pytest` 跳过这些显式验收；不验证模型/嵌入质量或私有令牌。
 
@@ -152,7 +154,7 @@ Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose 
 
 ## DeepSeek 候选提取与审核
 
-审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261026_0017`。只在后端 `.env` 中配置：
+审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261026_0018`。只在后端 `.env` 中配置：
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key
@@ -183,7 +185,7 @@ GITHUB_TIMEOUT_SECONDS=30
 
 ## 项目图谱
 
-`GET /api/v1/projects/{project_id}/graph` 返回当前用户有效项目的 `nodes`、`edges` 和 `truncated`。可选参数为 `center_id`、`depth`（1 或 2）、`types`（逗号分隔的实体类型）、`valid_at` 和 `limit`（1–200，默认 100）；边上限为 500。可见条件为 `status != archived`、`valid_from <= at`，且 `valid_to` 为空或晚于 `at`。
+`GET /api/v1/projects/{project_id}/graph` 返回当前用户有效项目的 `nodes`、`edges` 和 `truncated`。可选参数为 `center_id`、`depth`（1 或 2）、`types`（逗号分隔的实体类型）、`valid_at` 和 `limit`（1–200，默认 100）；边上限为 500。可见条件为未归档、当前或已保存历史生效区间包含查询时间，再按该时刻投影身份（ADR 0056）。
 
 `GET /api/v1/knowledge/entities/{entity_id}` 返回实体、最多 100 条直接关系，以及带原始文件名、`project://` URI、可空 GitHub URL、引用、标题路径和后端计算行号的证据。仓库文件链接固定到 Commit 精确行号；Issue/Pull Request 链接打开规范会话，行号则定位导入的 Markdown 快照。`GET /api/v1/knowledge/relationships/{relationship_id}` 返回关系及其证据。画布坐标不属于接口，布局由前端负责。
 

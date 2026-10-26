@@ -45,7 +45,7 @@ export interface TimelinePoint {
   label: string
 }
 
-export type WorkspaceNav = 'graph' | 'projectGraph' | 'projects' | 'sources' | 'questions'
+export type WorkspaceNav = 'graph' | 'projectGraph' | 'projects' | 'sources' | 'questions' | 'workbench' | 'conversations'
 
 export type IngestionOperation = 'projects' | 'create' | 'repositories' | 'remote' | 'sync' | 'activity' | 'commit' | 'sources' | 'upload' | 'detail' | 'task' | 'chunks' | 'structure' | 'agent'
 export type IngestionLoading = Record<IngestionOperation, boolean>
@@ -196,6 +196,15 @@ export interface RelationshipDetail {
 
 export type KnowledgeSearchMode = 'keyword' | 'bm25' | 'bm25_source' | 'vector' | 'hybrid' | 'rrf'
 export type QuestionRetrievalMode = Exclude<KnowledgeSearchMode, 'keyword'>
+
+export interface Page<T> { items: T[]; total: number; page: number; page_size: number }
+export interface ProjectOverview { project_id: string; sources: number; ready_sources: number; pending_reviews: number; entities: number; relationships: number; pending_tasks: number }
+export interface Conversation { id: string; project_id: string; title: string; created_at: string; updated_at: string }
+export interface ConversationTurn { id: string; request_id: string; position: number; question: string; retrieval_mode: QuestionRetrievalMode; valid_at: string | null; status: 'running' | 'succeeded' | 'failed' | 'interrupted'; error_code: string | null; answer: QuestionAnswer | null; created_at: string }
+export interface IdentityInfo { entity_id: string; canonical_id: string; aliases: string[]; member_ids: string[] }
+export interface OperationInput { action: 'alias' | 'merge' | 'unmerge' | 'withdraw' | 'reactivate' | 'reverse_change'; kind: 'entity' | 'relationship'; knowledge_id: string; target_id?: string; alias?: string; reason: string }
+export interface KnowledgeOperation { id: string; action: string; reason: string; payload: Record<string, unknown>; before: Record<string, unknown>; after: Record<string, unknown>; created_at: string }
+export type ManagementIntent = OperationInput | { action: 'evolution_group'; old_entity_ids: string[]; new_entity_ids: string[]; reason: string }
 
 export interface RetirementInput {
   kind: 'entity' | 'relationship'

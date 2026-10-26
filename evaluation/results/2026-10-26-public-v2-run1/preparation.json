@@ -1,0 +1,82 @@
+{
+  "status": "succeeded",
+  "protocol": "curated-review-replay-v1",
+  "dataset": {
+    "dataset_id": "knowledge-atlas-public-v2",
+    "version": "2.0.0",
+    "source_count": 10,
+    "case_count": 20,
+    "answerable_count": 16,
+    "category_counts": {
+      "code_location": 4,
+      "cross_document": 4,
+      "direct_fact": 8,
+      "unanswerable": 4
+    },
+    "fingerprint_sha256": "0341a422f40d91e9d8f18e40d74ffd5d90cf225994fbbfc5eef6bcfe2a2bd606"
+  },
+  "fixture_id": "public-repository-v2",
+  "fixture_version": "2.0.0",
+  "fixture_fingerprint_sha256": "d1f65391b9bea6cbc464f380f78326d521f8bd9b9c7e85ecc5df7d5a7bc287aa",
+  "accepted_curated_fixture": true,
+  "synthetic_history": true,
+  "provider_call_count": 0,
+  "project_id": "c735f789-eefe-45db-b6ea-4cd21334412e",
+  "repository_id": "04c43d9f-54f5-4eda-924d-c2a9a7c26d7b",
+  "counts": {
+    "sources": 10,
+    "chunks": 81,
+    "tasks": 20,
+    "candidates": 25,
+    "reviews": 25,
+    "entities": 19,
+    "relationships": 6,
+    "evidence": 55,
+    "changes": 0
+  },
+  "snapshot": {
+    "knowledge_sha256": "09dae819e8e55ce2efbbf039819ab8330cfd899ecc8944d8f5290e256361650f",
+    "index_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "record_count": 90,
+    "indexed_entity_count": 0
+  },
+  "source_ids": {
+    "corpus/fastapi/body.py": "673f97c8-b7a0-4d22-964a-32c614536df8",
+    "corpus/fastapi/dependencies.py": "fa054a11-10b3-4b7f-98da-782cfdabde84",
+    "corpus/fastapi/first_steps.py": "1833a43a-5392-4bcb-b141-64a7ff0cf27f",
+    "corpus/fastapi/paths.py": "40dfd911-fe91-433d-acd4-3bec738f6516",
+    "corpus/fastapi/query.py": "823c38a5-5584-4ac4-b26c-73b789bdec5d",
+    "corpus/fastapi/response.py": "f6a79a54-4dfc-479d-a89e-1ae8145a0a43",
+    "corpus/petclinic/Owner.java": "25431be6-5347-49a6-9078-99887d6710b4",
+    "corpus/petclinic/Pet.java": "d0bb52dd-67cb-4be5-8135-d9eb65178361",
+    "corpus/petclinic/PetType.java": "378642c6-3106-4041-86a6-6f509fc57c45",
+    "corpus/petclinic/Visit.java": "30c40053-22cd-462b-ad29-ecf8df429b9b"
+  },
+  "knowledge_ids": {
+    "body-item": "72b7ed31-0d14-543c-8799-79da18032eaa",
+    "body-creator": "15e6fc82-bb08-5bc3-b95c-5ee745797642",
+    "body-uses-item": "64518b89-9689-5280-998e-6d4c8a06cad9",
+    "common-parameters": "036458a3-fdb8-560b-99fa-1138751ab410",
+    "dependent-items": "3106312e-75c6-541c-9331-6b4b7c89f0ba",
+    "dependent-users": "ca2feee0-57e2-595c-b991-e2f0bb8b4a5e",
+    "items-dependency": "e3f17c8f-df16-5d22-8e20-70877f50eb1c",
+    "users-dependency": "b00f6122-da72-5a29-b80d-162d545a00bc",
+    "root": "35a5d390-f821-59c2-8ea2-f8159e74d189",
+    "path-reader": "5b83c41d-b5a7-5cbb-b18c-c145343395d1",
+    "query-reader": "5d24337c-5024-5249-a222-9f5cbb632ba9",
+    "response-item": "f4f380b2-50fb-58ff-b20d-e9e9623bc8fb",
+    "response-creator": "ceeb43c9-d48b-5f4d-a65f-5f0c8c00e3dd",
+    "response-reader": "057c21c2-c7b2-5d08-9056-c9ce7bcf5596",
+    "response-uses-item": "ce777220-8670-5b7e-be10-269cf0ead7f6",
+    "owner-phone": "d6d86ddb-8d45-593f-9054-cc9f73d22282",
+    "owner-add-visit": "f797f73f-b821-50f8-8bb1-0b0d1f48a7c6",
+    "owner-pets": "5e94b95b-b0df-5f57-8d82-28008aa5c25a",
+    "owner-visit-pets": "64b9c589-2bb2-55e8-9691-ba57c96c8bd9",
+    "pet-visits": "74e0e44c-a810-5fb5-b952-753b93bad7f2",
+    "pet-add-visit": "1b1ad403-d299-50fe-9dfc-289262a14811",
+    "visit-collection": "7edc1af5-d6b4-5d92-b631-4518bc30dd49",
+    "pet-type": "9bf4d54e-df81-5c43-a151-047fd8b059c1",
+    "visit-date": "c59d028b-345a-51e5-b4c5-37e2bc8d674a",
+    "visit-description": "0517d473-529d-5b11-b965-000f4424dad3"
+  }
+}

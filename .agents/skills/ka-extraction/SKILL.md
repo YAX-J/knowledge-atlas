@@ -148,3 +148,7 @@ Exact source/chunk/line/quote deduplication retains related_entities from retrie
 ## Question source-aware mode and uncertain outcomes
 
 Question retrieval accepts bm25_source without embeddings, but supported answer generation still requires explicit provider use. Retain citation UUID and evidence/support validation. New misleading-overlap refusal cases use stub answers and are not real model-quality grades. Questions and call analysis remain non-persistent; durable embedding_jobs does not create question history or resume Agents. Client writes with lost results are uncertain and must never be described as rolled back.
+
+## 2026-10-26 功能补全更新
+
+持久化会话每轮重新检索，六轮历史是提示，不能提供可引用证据；请求 UUID 与 execution UUID 分开，未知结果先查询，明确付费重试。问答默认 RRF，仍可 BM25。public-v2 金标为 Agent 编制，真实人工评分不得自动生成。

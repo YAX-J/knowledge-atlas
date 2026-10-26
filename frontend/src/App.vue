@@ -15,6 +15,12 @@ import ProjectGraph from './components/ProjectGraph.vue'
 import KnowledgeEvolution from './components/KnowledgeEvolution.vue'
 import KnowledgeRetirement from './components/KnowledgeRetirement.vue'
 import QuestionWorkspace from './components/QuestionWorkspace.vue'
+import ConversationsWorkspace from './components/ConversationsWorkspace.vue'
+import Workbench from './components/Workbench.vue'
+import KnowledgeManagement from './components/KnowledgeManagement.vue'
+import { useKnowledgeManagement } from './composables/useKnowledgeManagement'
+import { getOverview } from './api/workspace'
+import type { ProjectOverview } from './types'
 import { ApiError } from './api/client'
 import { useLatestRequest } from './composables/useLatestRequest'
 import { useSourceImport } from './composables/useSourceImport'
@@ -45,7 +51,7 @@ import type { GovernanceResult, KnowledgeChangeInput, KnowledgeChangeList, Knowl
 import type { EvidenceLocator, IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, EntityDetail, QuestionAnswer } from './types'
 
 const selectedId = ref('event-driven')
-const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'graph')
+const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'mock' ? 'graph' : import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'workbench')
 const timelineIndex = ref(timelinePoints.length - 1)
 const panelOpen = ref(true)
 const filterOpen = ref(false)
@@ -313,7 +319,7 @@ async function openCodeSymbol(hit: CodeSymbolHit) {
 const notice = ref('')
 const loading = reactive<IngestionLoading>({ projects: false, create: false, repositories: false, remote: false, sync: false, activity: false, commit: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false, agent: false })
 const errors = reactive<IngestionErrors>({ projects: '', create: '', repositories: '', remote: '', sync: '', activity: '', commit: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '', agent: '' })
-const { registerGithubRepository, syncRegisteredGithubRepository, importRegisteredGithubActivity, uploadFiles, parseSource } = useSourceImport({
+const { githubContinuations, registerGithubRepository, syncRegisteredGithubRepository, importRegisteredGithubActivity, uploadFiles, parseSource } = useSourceImport({
   project, repositories, sources, selectedSourceId, selectedTaskId, task, notice, loading, errors,
   locked: () => reviewBusy.value || changeBusy.value,
   prepareSource: () => { sourcesRequest++; clearSourceSelection() },
@@ -382,6 +388,25 @@ const retirementSelection = computed(() => {
   const record = realEntityDetail.value?.entity ?? realRelationshipDetail.value?.relationship
   return record ? { kind: realEntityDetail.value ? 'entity' as const : 'relationship' as const,
     id: record.id, name: record.name, current: record.status === 'active' && !record.valid_to } : null
+})
+const { identity: managedIdentity, operations: managementOperations, loading: managementLoading, error: managementError,
+  notice: managementNotice, refresh: refreshManagement, apply: applyManagement } = useKnowledgeManagement(
+  () => ({ projectId: project.value?.id, entityId: realEntityDetail.value?.entity.id,
+    active: activeNav.value === 'projectGraph', validAt: graphValidAt.value }), changeBusy, async () => {
+    clearSearch(); clearQuestion(); closeComparison()
+    governanceRequest++; governance.value = null
+    clearProjectGraph()
+    await Promise.all([loadRealGraph(''), loadIndexStatus(), loadChanges(1), loadRetirements()])
+  })
+const overviewState = useLatestRequest<ProjectOverview>(errorMessage)
+async function refreshOverview() {
+  const id = project.value?.id
+  if (!id) return
+  await overviewState.run(() => getOverview(id), () => project.value?.id === id && activeNav.value === 'workbench')
+}
+watch(() => [project.value?.id, activeNav.value], () => {
+  overviewState.clear()
+  if (activeNav.value === 'workbench' && project.value) void refreshOverview()
 })
 async function visitRetiredKnowledge(event: RetirementEvent) {
   if (changeBusy.value || event.project_id !== project.value?.id) return
@@ -494,15 +519,15 @@ const {
 const questionState = useLatestRequest<QuestionAnswer>(errorMessage)
 const { result: questionResult, loading: questionLoading, error: questionError } = questionState
 let questionText = ''
-let questionMode: QuestionRetrievalMode = 'hybrid'
+let questionMode: QuestionRetrievalMode = 'rrf'
 
 function clearQuestion() {
   questionState.clear()
   questionText = ''
-  questionMode = 'hybrid'
+  questionMode = 'rrf'
 }
 
-async function runQuestion(question: string, mode: QuestionRetrievalMode = 'hybrid') {
+async function runQuestion(question: string, mode: QuestionRetrievalMode = 'rrf') {
   const projectId = project.value?.id
   if (!projectId || questionLoading.value) return
   questionText = question
@@ -745,7 +770,7 @@ async function loadCodeStructure() {
   }
 }
 
-async function runAgentCallAnalysis(strategy: 'single_step' | 'tools' = 'single_step') {
+async function runAgentCallAnalysis(strategy: 'single_step' | 'tools' | 'semantic' = 'single_step') {
   const sourceId = selectedSourceId.value
   if (!sourceId || loading.agent || source.value?.status !== 'ready') return
   const request = ++agentCallRequest
@@ -765,7 +790,7 @@ async function runAgentCallAnalysis(strategy: 'single_step' | 'tools' = 'single_
 }
 
 function openProjectGraph() {
-  if (!project.value || reviewBusy.value) return
+  if (!project.value || reviewBusy.value || changeBusy.value) return
   clearSearch()
   activeNav.value = 'projectGraph'
   graphType.value = ''
@@ -793,6 +818,18 @@ function selectNode(id: string) {
 
 function changeNav(value: string) {
   if (changeBusy.value || reviewBusy.value) return
+  if (value === 'demo') { activeNav.value = 'graph'; return }
+  if (value === 'review') {
+    activeNav.value = 'sources'
+    void nextTick(() => { const target = document.getElementById('candidate-title'); target?.scrollIntoView({ block: 'start' }); target?.focus() })
+    return
+  }
+  if (value === 'search' || value === 'govern') {
+    if (!project.value) { activeNav.value = 'sources'; return }
+    openProjectGraph()
+    void nextTick(() => document.getElementById(value === 'search' ? 'project-knowledge-query' : 'knowledge-management-title')?.focus())
+    return
+  }
   if (value === 'filter') {
     if (activeNav.value === 'projectGraph') {
       ElMessage({ message: '可在项目图谱顶部按知识类型筛选。', type: 'info' })
@@ -802,15 +839,23 @@ function changeNav(value: string) {
     filterOpen.value = !filterOpen.value
     return
   }
-  if (value === 'graph' && project.value) {
-    openProjectGraph()
+  if (value === 'graph') {
+    if (project.value) openProjectGraph()
+    else { activeNav.value = 'sources'; ElMessage({ message: '请先选择或创建项目，再打开真实图谱。', type: 'info' }) }
     return
   }
-  if (value === 'graph' || value === 'projects' || value === 'sources' || value === 'questions') {
+  if (value === 'projects' || value === 'sources' || value === 'questions' || value === 'workbench' || value === 'conversations') {
     activeNav.value = value
     filterOpen.value = false
-    if (value !== 'graph' && !projects.value && !loading.projects) void loadProjects()
+    if (!projects.value && !loading.projects) void loadProjects()
   }
+}
+async function searchCurrentProject(query: string) {
+  if (reviewBusy.value || changeBusy.value) return
+  if (!project.value) { activeNav.value = 'sources'; ElMessage({ message: '请先选择项目。', type: 'info' }); return }
+  openProjectGraph()
+  await nextTick()
+  await runSearch(query, '', 'bm25_source')
 }
 
 function toggleType(type: NodeType) {
@@ -840,13 +885,16 @@ function setTimeline(value: number) {
 
 <template>
   <div class="app-shell">
-    <AppHeader :nodes="nodes" :selected-id="selectedId" :graph-active="activeNav === 'graph'" @select="selectNode" />
+    <AppHeader :nodes="nodes" :selected-id="selectedId" :graph-active="activeNav === 'graph'" :project-name="project?.name" @select="selectNode" @search="searchCurrentProject" />
     <SideRail :active="activeNav === 'projectGraph' ? 'graph' : activeNav" @change="changeNav" />
 
+    <Workbench v-if="activeNav === 'workbench'" :project="project" :projects="projects" :overview="overviewState.result.value" :loading="overviewState.loading.value || loading.projects" :error="overviewState.error.value || errors.projects" @navigate="changeNav" @select-project="selectProject" @refresh="project ? refreshOverview() : loadProjects()" />
+    <ConversationsWorkspace v-else-if="activeNav === 'conversations'" :project="project" :projects="projects" :projects-loading="loading.projects" :projects-error="errors.projects" @select-project="selectProject" @retry-projects="loadProjects()" @open-entity="openQuestionEntity" @open-evidence="openEvidence" />
     <SourceWorkspace
-      v-if="activeNav === 'projects' || activeNav === 'sources'"
+      v-else-if="activeNav === 'projects' || activeNav === 'sources'"
       :view="activeNav" :projects="projects" :project="project" :repositories="repositories" :sources="sources"
       :source-filters="sourceFilters" :sources-requested-page="sourcesRequestedPage"
+      :github-continuations="githubContinuations"
       :selected-source-id="selectedSourceId" :source="source" :task="task" :chunks="chunks"
       :code-structure="codeStructure"
       :agent-call-analysis="agentCallAnalysis"
@@ -871,7 +919,7 @@ function setTimeline(value: number) {
       <template #snapshots>
         <RepositorySnapshots :repository="snapshotRepository" :snapshots="snapshots" :loading="snapshotsLoading" :error="snapshotsError" :requested-page="snapshotsPage" :importing-id="importingSnapshotId" :files-snapshot-id="filesSnapshotId"
           :locked="loading.commit || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity"
-          @page="snapshotRepository && loadSnapshots(snapshotRepository, $event)" @import="saveSnapshotCommit" @files="loadSnapshotFilePage" @close="clearSnapshots">
+          @page="snapshotRepository && loadSnapshots(snapshotRepository, $event)" @import="saveSnapshotCommit" @files="loadSnapshotFilePage" @close="clearSnapshots" @continue="snapshotRepository && syncRegisteredGithubRepository({ repositoryId: snapshotRepository.id, ref: $event.ref, continueFromSnapshot: $event.snapshotId })">
           <template #files><SnapshotFiles :snapshot-id="filesSnapshotId" :files="snapshotFiles" :loading="snapshotFilesLoading" :error="snapshotFilesError" :requested-page="snapshotFilesPage"
             :locked="loading.commit || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity"
             @page="loadSnapshotFilePage(filesSnapshotId, $event)" @open="openSnapshotFile" @close="closeSnapshotFiles" /></template>
@@ -904,6 +952,7 @@ function setTimeline(value: number) {
       @select-entity="selectGraphEntity" @select-relationship="selectGraphRelationship" @neighborhood="loadRealGraph"
       @reset="loadRealGraph('')" @filter-type="filterGraph" @depth="setGraphDepth" @retry-detail="retryGraphDetail" @open-evidence="openEvidence">
       <template #evolution>
+        <KnowledgeManagement :nodes="realGraph?.nodes ?? []" :selected="retirementSelection" :identity="managedIdentity" :operations="managementOperations" :retirements="retirements?.items ?? []" :changes="knowledgeChanges" :historical="Boolean(graphValidAt)" :busy="changeBusy" :loading="managementLoading" :error="managementError" :notice="managementNotice" @apply="applyManagement" @refresh="refreshManagement" />
         <KnowledgeRetirement :selected="retirementSelection" :records="retirements" :loading="retirementsLoading"
           :error="retirementsError" :action-error="retirementError" :notice="retirementNotice" :busy="changeBusy" :historical="Boolean(graphValidAt)"
           @retire="retireKnowledge" @page="loadRetirements" @visit="visitRetiredKnowledge" />

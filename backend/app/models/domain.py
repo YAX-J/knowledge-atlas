@@ -171,6 +171,7 @@ class RepositorySnapshot(TimestampMixin, Base):
     ref: Mapped[str] = mapped_column(String(255), nullable=False)
     commit_sha: Mapped[str] = mapped_column(String(64), nullable=False)
     tree_sha: Mapped[str] = mapped_column(String(64), nullable=False)
+    scan_state: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     commit_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     commit_message: Mapped[str] = mapped_column(Text, default="", nullable=False)
     commit_source_id: Mapped[uuid.UUID | None] = mapped_column(

@@ -1,0 +1,17 @@
+{
+  "dataset_id": "knowledge-atlas-public-v2",
+  "version": "2.0.0",
+  "language": "zh-CN",
+  "created_at": "2026-10-26",
+  "source_count": 10,
+  "case_count": 20,
+  "category_counts": {
+    "direct_fact": 8,
+    "code_location": 4,
+    "cross_document": 4,
+    "unanswerable": 4
+  },
+  "corpus_root": "corpus",
+  "cases_file": "cases.jsonl",
+  "license": "Upstream MIT (FastAPI) and Apache-2.0 (Spring PetClinic); see license files and provenance.json"
+}

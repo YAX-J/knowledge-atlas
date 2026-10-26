@@ -1,0 +1,321 @@
+{
+  "fixture_id": "public-repository-v2",
+  "version": "2.0.0",
+  "dataset_id": "knowledge-atlas-public-v2",
+  "dataset_fingerprint_sha256": "0341a422f40d91e9d8f18e40d74ffd5d90cf225994fbbfc5eef6bcfe2a2bd606",
+  "provenance": "Agent-curated code annotations, created before first experiment; not human review or extraction quality.",
+  "sources": [
+    {
+      "source": "corpus/fastapi/first_steps.py",
+      "available_at": "2026-10-26T00:00:00Z",
+      "entities": [
+        {
+          "id": "root",
+          "type": "CodeEntity",
+          "name": "fastapi.first_steps.root",
+          "lines": [
+            6,
+            8
+          ]
+        }
+      ],
+      "relations": []
+    },
+    {
+      "source": "corpus/fastapi/paths.py",
+      "available_at": "2026-10-26T00:00:00Z",
+      "entities": [
+        {
+          "id": "path-reader",
+          "type": "CodeEntity",
+          "name": "fastapi.path_params.read_item",
+          "lines": [
+            6,
+            7,
+            8
+          ]
+        }
+      ],
+      "relations": []
+    },
+    {
+      "source": "corpus/fastapi/query.py",
+      "available_at": "2026-10-26T00:00:00Z",
+      "entities": [
+        {
+          "id": "query-reader",
+          "type": "CodeEntity",
+          "name": "fastapi.query_params.read_item",
+          "lines": [
+            5,
+            9,
+            10
+          ]
+        }
+      ],
+      "relations": []
+    },
+    {
+      "source": "corpus/fastapi/dependencies.py",
+      "available_at": "2026-10-26T00:00:00Z",
+      "entities": [
+        {
+          "id": "common-parameters",
+          "type": "CodeEntity",
+          "name": "fastapi.dependencies.common_parameters",
+          "lines": [
+            6,
+            7
+          ]
+        },
+        {
+          "id": "dependent-items",
+          "type": "CodeEntity",
+          "name": "fastapi.dependencies.read_items",
+          "lines": [
+            10,
+            11
+          ]
+        },
+        {
+          "id": "dependent-users",
+          "type": "CodeEntity",
+          "name": "fastapi.dependencies.read_users",
+          "lines": [
+            15,
+            16
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "id": "items-dependency",
+          "type": "DEPENDS_ON",
+          "source": "dependent-items",
+          "target": "common-parameters",
+          "lines": [
+            11
+          ]
+        },
+        {
+          "id": "users-dependency",
+          "type": "DEPENDS_ON",
+          "source": "dependent-users",
+          "target": "common-parameters",
+          "lines": [
+            16
+          ]
+        }
+      ]
+    },
+    {
+      "source": "corpus/fastapi/body.py",
+      "available_at": "2026-10-26T00:00:00Z",
+      "entities": [
+        {
+          "id": "body-item",
+          "type": "CodeEntity",
+          "name": "fastapi.body.Item",
+          "lines": [
+            6,
+            7,
+            8,
+            9
+          ]
+        },
+        {
+          "id": "body-creator",
+          "type": "CodeEntity",
+          "name": "fastapi.body.create_item",
+          "lines": [
+            15,
+            16
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "id": "body-uses-item",
+          "type": "USES",
+          "source": "body-creator",
+          "target": "body-item",
+          "lines": [
+            16
+          ]
+        }
+      ]
+    },
+    {
+      "source": "corpus/fastapi/response.py",
+      "available_at": "2026-10-26T00:00:00Z",
+      "entities": [
+        {
+          "id": "response-item",
+          "type": "CodeEntity",
+          "name": "fastapi.response_model.Item",
+          "lines": [
+            10,
+            12,
+            14
+          ]
+        },
+        {
+          "id": "response-creator",
+          "type": "CodeEntity",
+          "name": "fastapi.response_model.create_item",
+          "lines": [
+            17,
+            18
+          ]
+        },
+        {
+          "id": "response-reader",
+          "type": "CodeEntity",
+          "name": "fastapi.response_model.read_items",
+          "lines": [
+            22,
+            23,
+            25,
+            26
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "id": "response-uses-item",
+          "type": "USES",
+          "source": "response-reader",
+          "target": "response-item",
+          "lines": [
+            22
+          ]
+        }
+      ]
+    },
+    {
+      "source": "corpus/petclinic/Pet.java",
+      "available_at": "2026-10-26T00:00:00Z",
+      "entities": [
+        {
+          "id": "pet-visits",
+          "type": "CodeEntity",
+          "name": "petclinic.Pet.visits",
+          "lines": [
+            56,
+            58,
+            59
+          ]
+        },
+        {
+          "id": "pet-add-visit",
+          "type": "CodeEntity",
+          "name": "petclinic.Pet.addVisit",
+          "lines": [
+            81,
+            82
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "id": "visit-collection",
+          "type": "USES",
+          "source": "pet-add-visit",
+          "target": "pet-visits",
+          "lines": [
+            82
+          ]
+        }
+      ]
+    },
+    {
+      "source": "corpus/petclinic/Visit.java",
+      "available_at": "2026-10-26T00:00:00Z",
+      "entities": [
+        {
+          "id": "visit-date",
+          "type": "CodeEntity",
+          "name": "petclinic.Visit.date",
+          "lines": [
+            39,
+            51
+          ]
+        },
+        {
+          "id": "visit-description",
+          "type": "CodeEntity",
+          "name": "petclinic.Visit.description",
+          "lines": [
+            43,
+            44,
+            45
+          ]
+        }
+      ],
+      "relations": []
+    },
+    {
+      "source": "corpus/petclinic/PetType.java",
+      "available_at": "2026-10-26T00:00:00Z",
+      "entities": [
+        {
+          "id": "pet-type",
+          "type": "CodeEntity",
+          "name": "petclinic.PetType",
+          "lines": [
+            27,
+            28
+          ]
+        }
+      ],
+      "relations": []
+    },
+    {
+      "source": "corpus/petclinic/Owner.java",
+      "available_at": "2026-10-26T00:00:00Z",
+      "entities": [
+        {
+          "id": "owner-phone",
+          "type": "CodeEntity",
+          "name": "petclinic.Owner.telephone",
+          "lines": [
+            64,
+            65
+          ]
+        },
+        {
+          "id": "owner-add-visit",
+          "type": "CodeEntity",
+          "name": "petclinic.Owner.addVisit",
+          "lines": [
+            176,
+            178,
+            179,
+            181,
+            185
+          ]
+        },
+        {
+          "id": "owner-pets",
+          "type": "CodeEntity",
+          "name": "petclinic.Owner.pets",
+          "lines": [
+            70
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "id": "owner-visit-pets",
+          "type": "USES",
+          "source": "owner-add-visit",
+          "target": "owner-pets",
+          "lines": [
+            181
+          ]
+        }
+      ]
+    }
+  ],
+  "changes": []
+}

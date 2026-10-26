@@ -1,0 +1,61 @@
+{
+  "source_id": "0182ba71-08c9-4a6c-87f9-ddcdd5132234",
+  "language": "java",
+  "model": "deepseek-flash",
+  "prompt_version": "repository-call-tools-v1",
+  "calls": [
+    {
+      "id": "0d65cf2a-abee-553c-aec2-28d1125017f0",
+      "caller_id": "e666fa87-3003-51db-acae-ed2b9f78a505",
+      "target_ids": [
+        "e1ca9d71-9044-51b1-8fb6-08a5082ebb51"
+      ],
+      "receiver": "pet",
+      "callee_name": "addVisit",
+      "line": 185,
+      "column": 1,
+      "call_quote": "\t\tpet.addVisit(visit);",
+      "resolution": "resolved",
+      "confidence": 0.95,
+      "resolution_basis": "局部变量 pet 由 getPet(petId) 返回，类型为 Pet；Pet.java 中声明了 addVisit(Visit)，且唯一候选匹配。"
+    }
+  ],
+  "related_symbols": [
+    {
+      "id": "e1ca9d71-9044-51b1-8fb6-08a5082ebb51",
+      "source_id": "2a54c57f-9471-40f6-b570-98c3572bf508",
+      "source_path": "petclinic/Pet.java",
+      "language": "java",
+      "name": "addVisit",
+      "qualified_name": "Pet.addVisit",
+      "start_line": 81,
+      "end_line": 83,
+      "quote": "\tpublic void addVisit(Visit visit) {"
+    }
+  ],
+  "scanned_source_count": 4,
+  "detected_call_count": 1,
+  "candidate_call_count": 1,
+  "provider_call_count": 2,
+  "truncated": false,
+  "has_syntax_errors": false,
+  "strategy": "tools",
+  "tool_call_count": 2,
+  "tool_trace": [
+    {
+      "name": "read_source_range",
+      "status": "ok",
+      "result_characters": 1757,
+      "duration_ms": 0.161
+    },
+    {
+      "name": "read_source_range",
+      "status": "ok",
+      "result_characters": 1164,
+      "duration_ms": 0.095
+    }
+  ],
+  "candidate_generation": "syntax-and-import-bindings",
+  "uncovered_call_count": 0,
+  "semantic_diagnostics": []
+}

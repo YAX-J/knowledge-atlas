@@ -1,0 +1,322 @@
+{
+  "review-001": {
+    "mode": "bm25",
+    "case_id": "public-003"
+  },
+  "review-002": {
+    "mode": "hybrid",
+    "case_id": "public-013"
+  },
+  "review-003": {
+    "mode": "bm25",
+    "case_id": "public-017"
+  },
+  "review-004": {
+    "mode": "rrf",
+    "case_id": "public-012"
+  },
+  "review-005": {
+    "mode": "vector",
+    "case_id": "public-003"
+  },
+  "review-006": {
+    "mode": "rrf",
+    "case_id": "public-014"
+  },
+  "review-007": {
+    "mode": "bm25",
+    "case_id": "public-006"
+  },
+  "review-008": {
+    "mode": "vector",
+    "case_id": "public-013"
+  },
+  "review-009": {
+    "mode": "vector",
+    "case_id": "public-018"
+  },
+  "review-010": {
+    "mode": "vector",
+    "case_id": "public-019"
+  },
+  "review-011": {
+    "mode": "vector",
+    "case_id": "public-017"
+  },
+  "review-012": {
+    "mode": "rrf",
+    "case_id": "public-020"
+  },
+  "review-013": {
+    "mode": "bm25",
+    "case_id": "public-001"
+  },
+  "review-014": {
+    "mode": "hybrid",
+    "case_id": "public-015"
+  },
+  "review-015": {
+    "mode": "bm25",
+    "case_id": "public-011"
+  },
+  "review-016": {
+    "mode": "hybrid",
+    "case_id": "public-018"
+  },
+  "review-017": {
+    "mode": "hybrid",
+    "case_id": "public-007"
+  },
+  "review-018": {
+    "mode": "rrf",
+    "case_id": "public-017"
+  },
+  "review-019": {
+    "mode": "hybrid",
+    "case_id": "public-016"
+  },
+  "review-020": {
+    "mode": "hybrid",
+    "case_id": "public-009"
+  },
+  "review-021": {
+    "mode": "vector",
+    "case_id": "public-016"
+  },
+  "review-022": {
+    "mode": "rrf",
+    "case_id": "public-007"
+  },
+  "review-023": {
+    "mode": "bm25",
+    "case_id": "public-016"
+  },
+  "review-024": {
+    "mode": "bm25",
+    "case_id": "public-008"
+  },
+  "review-025": {
+    "mode": "vector",
+    "case_id": "public-009"
+  },
+  "review-026": {
+    "mode": "rrf",
+    "case_id": "public-005"
+  },
+  "review-027": {
+    "mode": "bm25",
+    "case_id": "public-007"
+  },
+  "review-028": {
+    "mode": "rrf",
+    "case_id": "public-018"
+  },
+  "review-029": {
+    "mode": "rrf",
+    "case_id": "public-015"
+  },
+  "review-030": {
+    "mode": "rrf",
+    "case_id": "public-013"
+  },
+  "review-031": {
+    "mode": "rrf",
+    "case_id": "public-006"
+  },
+  "review-032": {
+    "mode": "bm25",
+    "case_id": "public-013"
+  },
+  "review-033": {
+    "mode": "hybrid",
+    "case_id": "public-002"
+  },
+  "review-034": {
+    "mode": "rrf",
+    "case_id": "public-019"
+  },
+  "review-035": {
+    "mode": "hybrid",
+    "case_id": "public-001"
+  },
+  "review-036": {
+    "mode": "vector",
+    "case_id": "public-011"
+  },
+  "review-037": {
+    "mode": "hybrid",
+    "case_id": "public-011"
+  },
+  "review-038": {
+    "mode": "hybrid",
+    "case_id": "public-005"
+  },
+  "review-039": {
+    "mode": "rrf",
+    "case_id": "public-011"
+  },
+  "review-040": {
+    "mode": "bm25",
+    "case_id": "public-010"
+  },
+  "review-041": {
+    "mode": "hybrid",
+    "case_id": "public-020"
+  },
+  "review-042": {
+    "mode": "vector",
+    "case_id": "public-002"
+  },
+  "review-043": {
+    "mode": "bm25",
+    "case_id": "public-005"
+  },
+  "review-044": {
+    "mode": "bm25",
+    "case_id": "public-019"
+  },
+  "review-045": {
+    "mode": "vector",
+    "case_id": "public-001"
+  },
+  "review-046": {
+    "mode": "vector",
+    "case_id": "public-008"
+  },
+  "review-047": {
+    "mode": "vector",
+    "case_id": "public-006"
+  },
+  "review-048": {
+    "mode": "vector",
+    "case_id": "public-014"
+  },
+  "review-049": {
+    "mode": "hybrid",
+    "case_id": "public-017"
+  },
+  "review-050": {
+    "mode": "bm25",
+    "case_id": "public-020"
+  },
+  "review-051": {
+    "mode": "hybrid",
+    "case_id": "public-014"
+  },
+  "review-052": {
+    "mode": "vector",
+    "case_id": "public-007"
+  },
+  "review-053": {
+    "mode": "rrf",
+    "case_id": "public-008"
+  },
+  "review-054": {
+    "mode": "hybrid",
+    "case_id": "public-010"
+  },
+  "review-055": {
+    "mode": "bm25",
+    "case_id": "public-009"
+  },
+  "review-056": {
+    "mode": "hybrid",
+    "case_id": "public-019"
+  },
+  "review-057": {
+    "mode": "rrf",
+    "case_id": "public-001"
+  },
+  "review-058": {
+    "mode": "vector",
+    "case_id": "public-020"
+  },
+  "review-059": {
+    "mode": "vector",
+    "case_id": "public-012"
+  },
+  "review-060": {
+    "mode": "vector",
+    "case_id": "public-004"
+  },
+  "review-061": {
+    "mode": "bm25",
+    "case_id": "public-014"
+  },
+  "review-062": {
+    "mode": "rrf",
+    "case_id": "public-002"
+  },
+  "review-063": {
+    "mode": "bm25",
+    "case_id": "public-004"
+  },
+  "review-064": {
+    "mode": "hybrid",
+    "case_id": "public-008"
+  },
+  "review-065": {
+    "mode": "rrf",
+    "case_id": "public-009"
+  },
+  "review-066": {
+    "mode": "rrf",
+    "case_id": "public-004"
+  },
+  "review-067": {
+    "mode": "vector",
+    "case_id": "public-015"
+  },
+  "review-068": {
+    "mode": "vector",
+    "case_id": "public-005"
+  },
+  "review-069": {
+    "mode": "hybrid",
+    "case_id": "public-004"
+  },
+  "review-070": {
+    "mode": "hybrid",
+    "case_id": "public-003"
+  },
+  "review-071": {
+    "mode": "hybrid",
+    "case_id": "public-006"
+  },
+  "review-072": {
+    "mode": "rrf",
+    "case_id": "public-016"
+  },
+  "review-073": {
+    "mode": "bm25",
+    "case_id": "public-002"
+  },
+  "review-074": {
+    "mode": "bm25",
+    "case_id": "public-012"
+  },
+  "review-075": {
+    "mode": "rrf",
+    "case_id": "public-010"
+  },
+  "review-076": {
+    "mode": "hybrid",
+    "case_id": "public-012"
+  },
+  "review-077": {
+    "mode": "rrf",
+    "case_id": "public-003"
+  },
+  "review-078": {
+    "mode": "bm25",
+    "case_id": "public-018"
+  },
+  "review-079": {
+    "mode": "vector",
+    "case_id": "public-010"
+  },
+  "review-080": {
+    "mode": "bm25",
+    "case_id": "public-015"
+  }
+}

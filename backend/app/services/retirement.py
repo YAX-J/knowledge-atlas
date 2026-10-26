@@ -41,6 +41,8 @@ def retire(db, *, user_id, project_id, request):
         now = utc_now()
         if record.status != 'active' or record.valid_to is not None or aware(record.valid_from) >= now:
             raise AppError(status_code=409, code='KNOWLEDGE_NOT_CURRENT', message='知识已失效或状态已变化，请刷新记录')
+        if request.kind == 'entity' and db.scalar(select(model.id).where(model.id==record.id,*graph.visible(model,user_id,project_id,now))) is None:
+            raise AppError(status_code=409,code='KNOWLEDGE_NOT_CURRENT',message='实体身份已合并，请先核对保留身份')
         if request.kind == 'relationship' and db.scalar(graph._edge_query(user_id, project_id, now).where(model.id == record.id)) is None:
             raise AppError(status_code=409, code='KNOWLEDGE_NOT_CURRENT', message='关系端点已失效，请先核对知识记录')
         event = KnowledgeRetirement(id=event_id, user_id=user_id, project_id=project_id,

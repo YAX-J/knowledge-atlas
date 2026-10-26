@@ -18,7 +18,7 @@ class StrictModel(BaseModel):
 class QuestionCreate(StrictModel):
     question: QuestionText
     valid_at: AwareDatetime | None = None
-    retrieval_mode: Literal['hybrid', 'rrf', 'vector', 'bm25', 'bm25_source'] = 'hybrid'
+    retrieval_mode: Literal['hybrid', 'rrf', 'vector', 'bm25', 'bm25_source'] = 'rrf'
 
 
 class AnswerDraft(StrictModel):

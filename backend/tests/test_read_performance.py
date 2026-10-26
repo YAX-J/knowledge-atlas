@@ -32,7 +32,8 @@ def test_source_projection_and_latest_tasks_are_bounded(db_session):
         assert 'error' in inspect(task).unloaded
 
 
-@pytest.mark.parametrize('mode,expected', [('keyword',8), ('bm25',10), ('bm25_source',10)])
+# Historical intervals and merged identity/evidence reads add constant scoped batches.
+@pytest.mark.parametrize('mode,expected', [('keyword',10), ('bm25',13), ('bm25_source',13)])
 def test_search_query_count_does_not_grow_per_hit_and_evidence_is_unchanged(db_session, mode, expected):
     seed(db_session, count=12, history=1, body_bytes=1024)
     engine = db_session.get_bind()

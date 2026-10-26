@@ -1,5 +1,9 @@
 # Knowledge Atlas 前端开发说明
 
+2026-10-26 当前入口（ADR 0056–0059）：默认 `VITE_DATA_SOURCE=workbench`，读取真实项目概览；`api` 可直接开资料，`mock` 才打开演示。顶部导航串联工作台/资料审核/图谱/证据会话/项目，Ctrl+K 聚焦项目搜索，Enter 运行 BM25 来源检索；结果同步搜索表单且保留未提交的新草稿。`useConversations` 管理分页历史、请求 UUID、未知结果先查询及显式重试；`useKnowledgeManagement` 管理身份/时序 API、同输入重试标识和历史视图写锁。组件接收 props/emit，不直接访问数据库。具名预览包含保留实体，二次确认后才变更。GitHub 续扫显示剩余文件/目录及不可继续原因。沿用纸色/深青/玫瑰视觉并整合原型工作台信息结构。
+
+[本轮桌面与自动化验收](FUNCTIONAL_COMPLETION_20261026.zh-CN.md)。下方旧入口/历史未实现描述属于早期检查点；当前实现以上述行为为准。
+
 2026-10-26（ADR 0054/0055）：导入写入、候选审核、图谱读取分别集中于 `useSourceImport` / `useCandidateReview` / `useProjectGraph`；同步上下文变化与卸载使旧响应失效，保持现有 props/events 与跨流程导航锁。`KnowledgeRetirement` 提供具名目标/原因/说明、二次确认、分页审计和历史详情入口，`useKnowledgeRetirement` 复用同输入重试 UUID，未知结果不自动重发。停用成功清理旧检索/问答/对照并刷新图谱。App 仍保留原文定位、仓库快照与演化；覆盖率统计只含配置范围。
 
 搜索模块读取持久化更新任务，跨页面刷新恢复 running/succeeded/failed/interrupted 显示，状态读取期间保留运行锁。ApiError 区分 READ_UNAVAILABLE 与 REQUEST_RESULT_UNKNOWN；未知更新结果转向状态查询，过期任务有明确重新更新按钮。向量检索/问答/单步 Agent/工具 Agent 等待为 240/420/240/900 秒。新增 bm25_source 选项与来源位置命中解释，仍只导航正式证据。
@@ -140,7 +144,7 @@ frontend/
 
 `QuestionWorkspace.vue` 调用 `POST /api/v1/projects/{id}/questions`。问题限制为 200 字，单次调用允许 240 秒；页面提供空闲、加载、错误、证据支持和证据不足状态。结果展示回答置信度、关键词/向量/图关系命中数、语义索引覆盖率，以及模型实际引用的文件、行号和原文。点击引用实体会进入项目图谱、加载该实体邻域并聚焦正式详情。
 
-问答只保留当前内存结果，不写浏览器存储，也没有历史列表。切换项目、清空或新请求会使旧响应失效。后端无证据时会直接拒答；前端不会以 Mock 内容替代失败结果。
+独立 QuestionWorkspace 保留兼容的内存回答；证据会话通过 ConversationsWorkspace 保存后端历史。未知请求的 UUID/原问题暂存当前标签页 sessionStorage，返回会话后继续使用同一标识；成功确认后删除。切换项目、清空或新请求会使旧响应失效。后端无证据时会直接拒答；前端不会以 Mock 内容替代失败结果。
 
 GitHub 活动按钮显式请求 Issue、PR、PR Review 活动与 Review thread 当前状态。完成提示分别汇总工作项版本与 Review 快照的新增、复用、跳过数量，显示 thread/已解决数量，并分别提示普通评论、Review/thread 数据达到上限或后端缺少 `GITHUB_TOKEN`；Review 快照仍作为普通 Markdown 资料展示，不在组件内建立第二套请求状态。
 

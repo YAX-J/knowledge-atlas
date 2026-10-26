@@ -163,3 +163,7 @@ useKnowledgeSearch reads getEmbeddingJob with request fencing, retaining known r
 ## Scoped import/review/graph modules and retirement (ADR 0054/0055)
 
 useSourceImport owns upload/parse/explicit remote mutations with typed refs/refresh callbacks and disposal fencing. useCandidateReview owns extraction/filter/list/single/batch review and synchronous source/project invalidation. useProjectGraph owns scoped graph/detail reads and time/context invalidation. App retains navigation, snapshots, source evidence and evolution; component events stay unchanged. Test modules plus App event wiring before further extraction. useKnowledgeRetirement shares the evolution busy lock, preserves same-input submission UUID on unknown outcomes and never auto-resends; KnowledgeRetirement requires a reason/second confirmation and offers paginated audit/history. Success clears stale question/search/comparison and refreshes graph/index. Do not describe stop-wait/disposal as cancelling server writes or retiring knowledge as reversing original confirmation.
+
+## 2026-10-26 功能补全更新
+
+默认 workbench 读取真实 overview；mock 仅显式演示。useConversations/useKnowledgeManagement 管理 API 和上下文隔离，具名预览/二次确认/历史写锁。顶部搜索同步结果但不覆盖更新的未提交草稿。可见 UI 验收使用独立临时 schema/浏览器，不能污染业务项目。

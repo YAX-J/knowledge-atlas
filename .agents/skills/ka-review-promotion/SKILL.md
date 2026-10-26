@@ -143,3 +143,7 @@ Optional bm25_source/mixed-bm25-source-v1 adds filename/path/heading metadata on
 ## Measured reads and audited retirement (ADR 0053/0054)
 
 Search evidence is read in homogeneous scoped batches via graph.evidence_for_records; preserve exact IDs/order/quotes/Git links, ranking and budgets. Source list projections must never lazy-load omitted bodies/errors, and latest task ties retain created_at/id descending. Regressions: tests/test_read_performance.py plus native. Explicit human retirement is an additional allowed graph mutation boundary: retirement.retire holds the project lock and graph.apply_retirement closes only valid_to atomically with knowledge_retirements snapshots. Preserve original reviews/evidence/status/vectors, current exclusion and historical visibility; stale evolution cannot revive closed endpoints. Require scoped UUID idempotence and reason; no merge, hard archive, reactivation or original-decision reversal. Tests: tests/test_retirement.py and native independent-session races.
+
+## 2026-10-26 功能补全更新
+
+新增身份/时序操作走 workspace 服务的项目锁/请求 UUID/理由/前后快照。不得物理移动证据或改写原边；读取按 valid_at 投影身份。重新启用保存 KnowledgePeriod，保证失效空档；独立替代撤销必须检查依赖，分组替代检查循环。见 ADR 0056。

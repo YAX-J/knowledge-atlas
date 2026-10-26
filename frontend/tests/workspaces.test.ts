@@ -21,7 +21,7 @@ describe('evidence questions', () => {
     const wrapper = mount(QuestionWorkspace, { props: questionProps })
     await wrapper.get('textarea').setValue('  Where is the evidence?  ')
     await wrapper.get('form').trigger('submit')
-    expect(wrapper.emitted('ask')).toEqual([['Where is the evidence?', 'hybrid']])
+    expect(wrapper.emitted('ask')).toEqual([['Where is the evidence?', 'rrf']])
     await wrapper.setProps({ project: { ...project, id: 'project-2' } })
     expect(wrapper.get('textarea').element.value).toBe('')
   })
@@ -102,7 +102,7 @@ describe('knowledge search', () => {
     await wrapper.findAll('button').find(button => button.text() === '清空搜索')!.trigger('click')
     expect(wrapper.emitted('clear')).toHaveLength(1)
     expect(wrapper.get('input').element.value).toBe('')
-    expect(wrapper.get<HTMLSelectElement>('#project-search-mode').element.value).toBe('keyword')
+    expect(wrapper.get<HTMLSelectElement>('#project-search-mode').element.value).toBe('bm25')
   })
   it('retries the failed operation rather than changing it', async () => {
     const wrapper = mount(KnowledgeSearch, { props: { ...searchProps, errorAction: 'rebuild', error: 'offline' } })
@@ -155,7 +155,7 @@ describe('cross-file Agent workspace', () => {
   it('locks strategy and context while Agent is running', () => {
     const wrapper = mount(SourceWorkspace, { props: { ...sourceProps, loading: { ...loading, agent: true } } })
     expect(wrapper.get('[aria-label="跨文件调用分析方式"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.text()).toContain('Agent 分析中')
+    expect(wrapper.text()).toContain('正在分析调用')
   })
   it('shows empty analysis and sanitized tool trace as text', () => {
     const wrapper = mount(SourceWorkspace, { props: { ...sourceProps, agentCallAnalysis: {

@@ -10,6 +10,8 @@ from app.core.config import Settings
 from app.core.errors import AppError
 from app.models.domain import SourceChunk, SourceDocument, utc_now
 from app.models.graph import KnowledgeEmbedding, KnowledgeEntity, KnowledgeEvidence, KnowledgeRelationship
+from app.models.workspace import EntityAlias
+from app.services import identities
 from app.schemas.search import GraphSearchSignal, LexicalSearchInfo, SearchHit, SearchRead, SearchWeights
 from app.services import embeddings as embedding_service
 from app.services import graph
@@ -57,7 +59,7 @@ def _keyword_ranked(
     evidence = select(KnowledgeEvidence.id).join(
         SourceDocument, SourceDocument.id == KnowledgeEvidence.source_id,
     ).join(SourceChunk, SourceChunk.id == KnowledgeEvidence.chunk_id).where(
-        KnowledgeEvidence.entity_id == KnowledgeEntity.id,
+        identities.canonical(KnowledgeEvidence.entity_id, user_id, project_id, at) == KnowledgeEntity.id,
         KnowledgeEvidence.user_id == user_id, KnowledgeEvidence.project_id == project_id,
         SourceDocument.user_id == user_id, SourceDocument.project_id == project_id,
         SourceChunk.user_id == user_id, SourceChunk.project_id == project_id,
@@ -68,7 +70,10 @@ def _keyword_ranked(
     score = case((func.lower(KnowledgeEntity.name) == normalized.lower(), 50), else_=0)
     for term in terms:
         matches = {
-            'name': KnowledgeEntity.name.icontains(term, autoescape=True),
+            'name': or_(KnowledgeEntity.name.icontains(term, autoescape=True), select(EntityAlias.id).where(
+                EntityAlias.user_id == user_id, EntityAlias.project_id == project_id, EntityAlias.created_at <= at,
+                identities.canonical(EntityAlias.entity_id, user_id, project_id, at) == KnowledgeEntity.id,
+                EntityAlias.name.icontains(term, autoescape=True)).correlate(KnowledgeEntity).exists()),
             'summary': KnowledgeEntity.summary.icontains(term, autoescape=True),
             'evidence': evidence.where(KnowledgeEvidence.quote.icontains(term, autoescape=True)).exists(),
         }
@@ -100,8 +105,8 @@ def _keyword_search(
     rows = ranked
     truncated = len(rows) > top_k
     rows = rows[:top_k]
-    entities = graph._reads(db, [row[0] for row in rows])
-    evidence_by_entity = graph.evidence_for_records(db, [row[0] for row in rows])
+    entities = graph._reads(db, [row[0] for row in rows], at=at)
+    evidence_by_entity = graph.evidence_for_records(db, [row[0] for row in rows], at=at)
     items = []
     for row, entity in zip(rows, entities, strict=True):
         quotes = evidence_by_entity[row[0].id]
@@ -121,18 +126,21 @@ def _bm25_search(
     normalized = ' '.join(query.split())
     if not lexical.tokenize(normalized):
         raise AppError(status_code=422, code='SEARCH_QUERY_INVALID', message='请输入包含文字或标识符的问题；符号精确匹配请使用关键词模式')
-    conditions = _base_conditions(user_id, project_id, valid_at or utc_now(), types)
+    at = valid_at or utc_now()
+    conditions = _base_conditions(user_id, project_id, at, types)
     eligible = db.scalar(select(func.count()).select_from(KnowledgeEntity).where(*conditions)) or 0
     entities = list(db.scalars(select(KnowledgeEntity).where(*conditions).order_by(
         KnowledgeEntity.name, KnowledgeEntity.id,
     ).limit(BM25_ENTITY_LIMIT)))
     reasons = {'entity_limit'} if eligible > len(entities) else set()
     ids = [entity.id for entity in entities]
+    aliases = identities.alias_names(db, user_id, project_id, at, ids)
+    evidence_owner = identities.canonical(KnowledgeEvidence.entity_id, user_id, project_id, at)
     quotes: dict[uuid.UUID, list[str]] = {}
     locations: dict[uuid.UUID, list[str]] = {}
     if ids:
         rows = db.execute(select(
-            KnowledgeEvidence.entity_id,
+            evidence_owner,
             func.substr(KnowledgeEvidence.quote, 1, BM25_QUOTE_LIMIT),
             func.length(KnowledgeEvidence.quote),
             SourceDocument.original_name, SourceDocument.relative_path,
@@ -140,7 +148,7 @@ def _bm25_search(
         ).join(SourceDocument, SourceDocument.id == KnowledgeEvidence.source_id).join(
             SourceChunk, SourceChunk.id == KnowledgeEvidence.chunk_id,
         ).where(
-            KnowledgeEvidence.entity_id.in_(ids),
+            evidence_owner.in_(ids),
             KnowledgeEvidence.user_id == user_id, KnowledgeEvidence.project_id == project_id,
             SourceDocument.user_id == user_id, SourceDocument.project_id == project_id,
             SourceChunk.user_id == user_id, SourceChunk.project_id == project_id,
@@ -163,7 +171,7 @@ def _bm25_search(
     for entity in entities:
         document = {}
         remaining = BM25_TEXT_LIMIT
-        fields = [('name', entity.name), ('summary', entity.summary)]
+        fields = [('name', ' '.join([entity.name, *aliases.get(entity.id, [])])), ('summary', entity.summary)]
         if provenance:
             fields.append(('provenance', '\n'.join(dict.fromkeys(locations.get(entity.id, [])))))
         fields.append(('evidence', '\n'.join(quotes.get(entity.id, []))))
@@ -178,8 +186,8 @@ def _bm25_search(
                     key=lambda item: (-item[1], item[0].name, str(item[0].id)))
     truncated = bool(reasons) or len(ranked) > top_k
     ranked = ranked[:top_k]
-    reads = graph._reads(db, [item[0] for item in ranked])
-    evidence_by_entity = graph.evidence_for_records(db, [item[0] for item in ranked])
+    reads = graph._reads(db, [item[0] for item in ranked], at=at)
+    evidence_by_entity = graph.evidence_for_records(db, [item[0] for item in ranked], at=at)
     items = []
     for (entity, score, fields), read in zip(ranked, reads, strict=True):
         evidence = evidence_by_entity[entity.id]
@@ -209,7 +217,7 @@ def _vector_ranked(
     conditions = _base_conditions(user_id, project_id, at, types)
     eligible_count = db.scalar(select(func.count()).select_from(KnowledgeEntity).where(*conditions)) or 0
     joined = select(KnowledgeEntity, KnowledgeEmbedding).join(
-        KnowledgeEmbedding, KnowledgeEmbedding.entity_id == KnowledgeEntity.id,
+        KnowledgeEmbedding, identities.canonical(KnowledgeEmbedding.entity_id, user_id, project_id, at) == KnowledgeEntity.id,
     ).where(
         *conditions,
         KnowledgeEmbedding.user_id == user_id,
@@ -217,7 +225,7 @@ def _vector_ranked(
         KnowledgeEmbedding.model == settings.embedding_model,
         KnowledgeEmbedding.dimensions == settings.embedding_dimensions,
     )
-    indexed_count = db.scalar(select(func.count()).select_from(joined.subquery())) or 0
+    indexed_count = db.scalar(select(func.count()).select_from(joined.with_only_columns(KnowledgeEntity.id).distinct().subquery())) or 0
     try:
         # Preserve configuration errors, but never pay to query an empty index.
         embedding_service._require_configuration(settings)
@@ -228,14 +236,20 @@ def _vector_ranked(
         raise AppError(status_code=503, code=exc.code, message=exc.message) from exc
     if db.get_bind().dialect.name == 'postgresql':
         distance = KnowledgeEmbedding.embedding.cosine_distance(query_vector)
-        rows = db.execute(joined.add_columns(distance.label('distance')).order_by(
-            distance, KnowledgeEntity.name, KnowledgeEntity.id,
+        closest = func.min(distance)
+        rows = db.execute(joined.with_only_columns(KnowledgeEntity, closest.label('distance')).group_by(KnowledgeEntity.id).order_by(
+            closest, KnowledgeEntity.name, KnowledgeEntity.id,
         ).limit(limit)).all()
-        ranked = [(row[0], max(-1.0, min(1.0, 1.0 - float(row[2])))) for row in rows]
+        ranked = [(row[0], max(-1.0, min(1.0, 1.0 - float(row[1])))) for row in rows]
     else:
         candidates = db.execute(joined).all()
+        grouped = {}
+        for entity, embedding in candidates:
+            score = _cosine(list(embedding.embedding), query_vector)
+            if entity.id not in grouped or score > grouped[entity.id][1]:
+                grouped[entity.id] = (entity, score)
         ranked = sorted(
-            ((row[0], _cosine(list(row[1].embedding), query_vector)) for row in candidates),
+            grouped.values(),
             key=lambda item: (-item[1], item[0].name, str(item[0].id)),
         )[:limit]
     return normalized, ranked, indexed_count, eligible_count
@@ -245,14 +259,15 @@ def _vector_search(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, query: str,
     types: list[str], valid_at: datetime | None, top_k: int, settings: Settings,
 ) -> SearchRead:
+    at = valid_at or utc_now()
     normalized, ranked, indexed_count, eligible_count = _vector_ranked(
         db, user_id=user_id, project_id=project_id, query=query, types=types,
-        at=valid_at or utc_now(), limit=top_k + 1, settings=settings,
+        at=at, limit=top_k + 1, settings=settings,
     )
     truncated = len(ranked) > top_k
     ranked = ranked[:top_k]
-    reads = graph._reads(db, [item[0] for item in ranked])
-    evidence_by_entity = graph.evidence_for_records(db, [item[0] for item in ranked])
+    reads = graph._reads(db, [item[0] for item in ranked], at=at)
+    evidence_by_entity = graph.evidence_for_records(db, [item[0] for item in ranked], at=at)
     items = [SearchHit(
         entity=read,
         vector_score=round(score, 6),
@@ -300,8 +315,8 @@ def _hybrid_search(
     if seed_ids:
         edge_rows = list(db.scalars(
             graph._edge_query(user_id, project_id, at).where(or_(
-                KnowledgeRelationship.source_id.in_(seed_ids),
-                KnowledgeRelationship.target_id.in_(seed_ids),
+                identities.canonical(KnowledgeRelationship.source_id, user_id, project_id, at).in_(seed_ids),
+                identities.canonical(KnowledgeRelationship.target_id, user_id, project_id, at).in_(seed_ids),
             )).order_by(
                 KnowledgeRelationship.confidence.desc(), KnowledgeRelationship.name,
                 KnowledgeRelationship.id,
@@ -309,7 +324,9 @@ def _hybrid_search(
         ))
     graph_truncated = len(edge_rows) > HYBRID_EDGE_LIMIT
     edge_rows = edge_rows[:HYBRID_EDGE_LIMIT]
-    endpoint_ids = {identifier for edge in edge_rows for identifier in (edge.source_id, edge.target_id)}
+    links = identities.mapping(db, user_id, project_id, at) if edge_rows else {}
+    endpoints = lambda edge: (links.get(edge.source_id, edge.source_id), links.get(edge.target_id, edge.target_id))
+    endpoint_ids = {identifier for edge in edge_rows for identifier in endpoints(edge)}
     eligible_entities = {
         entity.id: entity for entity in db.scalars(select(KnowledgeEntity).where(
             KnowledgeEntity.id.in_(endpoint_ids),
@@ -319,7 +336,8 @@ def _hybrid_search(
 
     signals: dict[uuid.UUID, list[GraphSearchSignal]] = {}
     for edge in edge_rows:
-        for seed_id, candidate_id in ((edge.source_id, edge.target_id), (edge.target_id, edge.source_id)):
+        source_id, target_id = endpoints(edge)
+        for seed_id, candidate_id in ((source_id, target_id), (target_id, source_id)):
             strength = seed_strength.get(seed_id, 0.0)
             candidate_entity = eligible_entities.get(candidate_id)
             related_entity = eligible_entities.get(seed_id) or candidates.get(seed_id, None)
@@ -361,8 +379,8 @@ def _hybrid_search(
     )
     truncated = graph_truncated or len(ranked) > top_k
     ranked = ranked[:top_k]
-    reads = graph._reads(db, [item[0].entity for item in ranked])
-    evidence_by_entity = graph.evidence_for_records(db, [item[0].entity for item in ranked])
+    reads = graph._reads(db, [item[0].entity for item in ranked], at=at)
+    evidence_by_entity = graph.evidence_for_records(db, [item[0].entity for item in ranked], at=at)
     items = []
     for item, read in zip(ranked, reads, strict=True):
         candidate, keyword_component, vector_component, graph_score, hybrid_score = item

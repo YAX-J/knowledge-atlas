@@ -17,6 +17,7 @@ const emit = defineEmits<{
   import: [snapshotId: string]
   files: [snapshotId: string]
   close: []
+  continue: [input: { snapshotId: string; ref: string }]
 }>()
 const pages = computed(() => Math.max(1, Math.ceil((props.snapshots?.total ?? 0) / (props.snapshots?.page_size ?? 10))))
 function commitUrl(sha: string) {
@@ -37,6 +38,7 @@ function commitUrl(sha: string) {
           <div><strong>{{ item.commit_sha.slice(0, 12) }} · {{ item.ref }}</strong><small>同步记录：{{ new Date(item.created_at).toLocaleString() }} · {{ item.file_count }} 份入选文件</small></div>
           <p class="snapshot-message" role="group" aria-label="提交说明" tabindex="0">{{ item.commit_message || '没有保存提交说明' }}</p>
           <small v-if="item.truncated" class="snapshot-warning">此快照的文件集合或下载预算受限，不能代表完整仓库。</small>
+          <button v-if="item.truncated" class="text-button" type="button" :disabled="locked" @click="emit('continue', { snapshotId: item.id, ref: item.ref })">继续扫描此固定提交</button>
           <div class="snapshot-actions"><a v-if="repository.remote_url" :href="commitUrl(item.commit_sha)" target="_blank" rel="noopener noreferrer">在 GitHub 查看提交 ↗</a><button class="text-button" type="button" :disabled="locked" @click="emit('import', item.id)">{{ importingId === item.id ? '正在保存…' : item.commit_source_id ? '打开提交资料' : '将提交说明加入资料' }}</button></div>
           <button class="text-button snapshot-files-toggle" type="button" :data-snapshot-files="item.id" :disabled="locked" :aria-expanded="filesSnapshotId === item.id" :aria-controls="filesSnapshotId === item.id ? 'snapshot-files-panel' : undefined" @click="emit('files', item.id)">{{ filesSnapshotId === item.id ? '刷新文件记录' : '查看文件记录' }}</button>
         </article>

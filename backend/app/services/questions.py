@@ -28,10 +28,11 @@ def _retrieval_summary(result) -> RetrievalSummary:
 
 def answer_question(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, question: str,
-    valid_at, settings: Settings, retrieval_mode: str = 'hybrid',
+    valid_at, settings: Settings, retrieval_mode: str = 'rrf',
+    context: list[dict] | None = None, retrieval_query: str | None = None,
 ) -> QuestionRead:
     result = search_knowledge(
-        db, user_id=user_id, project_id=project_id, query=question, types=[],
+        db, user_id=user_id, project_id=project_id, query=retrieval_query or question, types=[],
         valid_at=valid_at, top_k=MAX_ANSWER_ENTITIES, mode=retrieval_mode, settings=settings,
     )
     retrieval = _retrieval_summary(result)
@@ -82,7 +83,8 @@ def answer_question(
         'entity_names': [entity.name for entity in item.related_entities],
     } for item in evidence_by_id.values()]
     try:
-        draft = deepseek.answer_question(settings, question, evidence_payload)
+        draft = (deepseek.answer_question(settings, question, evidence_payload, context=context)
+                 if context else deepseek.answer_question(settings, question, evidence_payload))
     except deepseek.QuestionError as exc:
         raise AppError(status_code=503, code=exc.code, message=exc.message) from exc
 

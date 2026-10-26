@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { Search } from '@element-plus/icons-vue'
 import type { KnowledgeNode } from '../types'
 
@@ -7,14 +7,20 @@ const props = defineProps<{
   nodes: KnowledgeNode[]
   selectedId: string
   graphActive: boolean
+  projectName?: string
 }>()
 
 const emit = defineEmits<{
   select: [id: string]
+  search: [query: string]
 }>()
 
 const query = ref('')
 const isFocused = ref(false)
+const searchInput = ref<HTMLInputElement | null>(null)
+function shortcut(event: KeyboardEvent) { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); searchInput.value?.focus() } }
+onMounted(() => window.addEventListener('keydown', shortcut))
+onUnmounted(() => window.removeEventListener('keydown', shortcut))
 
 const results = computed(() => {
   const keyword = query.value.trim().toLowerCase()
@@ -31,6 +37,7 @@ function choose(node: KnowledgeNode) {
 }
 
 function submit() {
+  if (!props.graphActive) { if (query.value.trim()) emit('search', query.value.trim()); return }
   if (results.value[0]) choose(results.value[0])
 }
 
@@ -56,16 +63,18 @@ function closeResults() {
     <div class="global-search" :class="{ 'is-focused': isFocused }">
       <el-icon><Search /></el-icon>
       <input
+        ref="searchInput"
         v-model="query"
         type="search"
-        placeholder="搜索演示图谱，例如：事件驱动架构"
-        aria-label="搜索演示知识"
+        :placeholder="graphActive ? '搜索独立演示图谱' : '搜索当前项目的知识、文件名或路径'"
+        :aria-label="graphActive ? '搜索演示知识' : '搜索当前项目知识'"
+        maxlength="200"
         @focus="isFocused = true"
         @blur="closeResults"
         @keydown.enter="submit"
       />
-      <span class="search-shortcut">⌘ K</span>
-      <div v-if="isFocused && query" class="search-results">
+      <span class="search-shortcut">Ctrl K</span>
+      <div v-if="graphActive && isFocused && query" class="search-results">
         <button v-for="node in results" :key="node.id" type="button" @click="choose(node)">
           <span>{{ node.label }}</span>
           <small>{{ node.project }} · {{ node.subtitle }}</small>
@@ -75,9 +84,8 @@ function closeResults() {
     </div>
 
     <div class="sync-status">
-      <span>{{ graphActive ? '演示图谱' : '资料工作台' }}</span>
-      <strong>{{ graphActive ? `${nodes.length} 个演示节点` : '项目与原文持久保存' }}</strong>
-      <button type="button" aria-label="打开个人菜单">YX</button>
+      <span>{{ graphActive ? '独立演示' : '当前项目' }}</span>
+      <strong>{{ graphActive ? `${nodes.length} 个演示节点` : projectName || '尚未选择' }}</strong>
     </div>
   </header>
 </template>

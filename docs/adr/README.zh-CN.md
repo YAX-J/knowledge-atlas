@@ -129,3 +129,11 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0054: 保留历史的审计停用](0054-audited-knowledge-retirement.zh-CN.md)
 
 - [ADR 0055: 按上下文分离工作台编排](0055-scoped-workspace-orchestration.zh-CN.md)
+
+- [ADR 0056: 审计身份与历史生效区间](0056-audited-identities-and-validity.zh-CN.md)
+
+- [ADR 0057: 证据约束的持久化会话与实测默认策略](0057-grounded-persistent-conversations.zh-CN.md)
+
+- [ADR 0058: 可续扫的不可变 GitHub 清单](0058-resumable-immutable-github-manifests.zh-CN.md)
+
+- [ADR 0059: 显式原生静态声明分析](0059-explicit-native-static-call-analysis.zh-CN.md)

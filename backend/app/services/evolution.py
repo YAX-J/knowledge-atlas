@@ -59,6 +59,9 @@ def _validate(db, change, new, old):
         raise AppError(status_code=409, code="CHANGE_ENDPOINTS_INVALID", message="演化建议需要同类型的两个不同正式实体")
     if any(entity.status != "active" or entity.valid_to is not None for entity in (new, old)):
         raise AppError(status_code=409, code="CHANGE_STALE", message="知识已失效或状态已变化，请刷新后重新提出建议")
+    if any(db.scalar(select(KnowledgeEntity.id).where(KnowledgeEntity.id==entity.id,
+            *graph.visible(KnowledgeEntity,entity.user_id,entity.project_id,utc_now()))) is None for entity in (new,old)):
+        raise AppError(status_code=409,code='CHANGE_STALE',message='知识身份已合并或当前不可见，请核对保留身份')
     effective = aware(change.effective_at)
     if effective > utc_now() or effective < max(aware(new.valid_from), aware(old.valid_from)):
         raise AppError(status_code=409, code="CHANGE_TIME_INVALID", message="生效时间须带时区，不早于两端知识有效起点且不晚于当前时间")

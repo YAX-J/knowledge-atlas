@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import type { EmbeddingIndexStatus, EvidenceLocator, KnowledgeSearchMode, KnowledgeSearchResult } from '../types'
 
 const props = defineProps<{
@@ -27,11 +27,20 @@ const emit = defineEmits<{
 }>()
 const query = ref('')
 const type = ref('')
-const mode = ref<KnowledgeSearchMode>('keyword')
+const mode = ref<KnowledgeSearchMode>('bm25')
+let submitted = ''
+watch(() => props.result, value => {
+  // Header-initiated searches populate this form; never erase a newer unsent draft.
+  if (value && (!query.value.trim() || query.value.trim() === submitted)) {
+    query.value = value.query
+    mode.value = value.mode
+    submitted = value.query
+  }
+})
 const fields = { name: '名称', summary: '摘要', evidence: '原文证据', provenance: '来源位置' }
 const modeLabels: Record<KnowledgeSearchMode, string> = { keyword: '关键词检索', bm25: 'BM25 词法检索 · 无需模型', bm25_source: 'BM25 + 来源位置 · 无需模型', vector: '语义检索', hybrid: '混合检索', rrf: 'BM25 + 向量融合' }
-function submit() { if (!props.loading && !props.rebuilding && query.value.trim()) emit('search', query.value.trim(), type.value, mode.value) }
-function clear() { query.value = type.value = ''; mode.value = 'keyword'; emit('clear') }
+function submit() { if (!props.loading && !props.rebuilding && query.value.trim()) { submitted = query.value.trim(); emit('search', submitted, type.value, mode.value) } }
+function clear() { query.value = type.value = ''; submitted = ''; mode.value = 'bm25'; emit('clear') }
 </script>
 
 <template>

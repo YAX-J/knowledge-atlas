@@ -8,6 +8,8 @@ import ProjectGraph from '../src/components/ProjectGraph.vue'
 import CandidateReview from '../src/components/CandidateReview.vue'
 import KnowledgeEvolution from '../src/components/KnowledgeEvolution.vue'
 import KnowledgeRetirement from '../src/components/KnowledgeRetirement.vue'
+import Workbench from '../src/components/Workbench.vue'
+import AppHeader from '../src/components/AppHeader.vue'
 import * as api from '../src/api/knowledgeAtlas'
 import { project, source } from './fixtures'
 import type { EmbeddingIndexStatus, EmbeddingRebuildResult, EntityDetail, KnowledgeSearchResult, QuestionAnswer } from '../src/types'
@@ -328,10 +330,24 @@ it('locks navigation for retirement and refreshes the graph after success', asyn
   expect(wrapper.getComponent(KnowledgeRetirement).props('busy')).toBe(true)
   wrapper.getComponent(SideRail).vm.$emit('change','sources');await flushPromises()
   expect(wrapper.findComponent(ProjectGraph).exists()).toBe(true)
+  wrapper.getComponent(AppHeader).vm.$emit('search','Do not switch during mutation');await flushPromises()
+  expect(api.searchKnowledge).not.toHaveBeenCalled()
   finish({...input,id:'event',project_id:project.id,name:'one',effective_at:project.created_at,
     before:{valid_from:project.created_at,valid_to:null},after:{valid_from:project.created_at,valid_to:project.created_at}})
   await flushPromises()
   expect(wrapper.getComponent(KnowledgeRetirement).props('notice')).toContain('已停用')
   expect(wrapper.getComponent(KnowledgeRetirement).props('busy')).toBe(false)
   expect(api.getProjectGraph).toHaveBeenCalledTimes(2)
+})
+
+it('retries the initial project read from the real workbench error state', async () => {
+  vi.mocked(api.listProjects).mockRejectedValueOnce(new Error('Projects unavailable'))
+    .mockResolvedValueOnce({ items: [], total: 0, page: 1, page_size: 20 })
+  vi.mocked(api.listRepositories).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20 })
+  const wrapper=shallowMount(App)
+  wrapper.getComponent(SideRail).vm.$emit('change','workbench');await flushPromises()
+  expect(wrapper.getComponent(Workbench).props('error')).toContain('请检查后端服务')
+  wrapper.getComponent(Workbench).vm.$emit('refresh');await flushPromises()
+  expect(api.listProjects).toHaveBeenCalledTimes(2)
+  expect(wrapper.getComponent(Workbench).props('error')).toBe('')
 })

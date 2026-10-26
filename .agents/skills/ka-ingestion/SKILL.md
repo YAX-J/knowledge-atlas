@@ -177,3 +177,7 @@ Source listing accepts literal filename/relative-path q (max 200), registered so
 ## Projected source pagination (ADR 0053)
 
 list_sources selects only list fields (omitted columns raiseload), keeps repository display and uses a scoped window rank to read one latest parsing task per visible source. Preserve existing supported task types, filters/count/page order and created_at/id descending ties; parsing/detail still read full content explicitly. SourceListItem must serialize without loading content or task error histories. Query-count/projection/latest-task regressions run in SQLite and native PostgreSQL (tests/test_read_performance.py).
+
+## 2026-10-26 功能补全更新
+
+GitHub continue_from_snapshot 固定提交/tree/ref，缓存 scan_state/frontier；每步 10 目录及 50 文件/20 MiB，旧快照不可变；仅完整序列判断删除。单目录截断/清单上限明确 blocked。前端本地文件夹最多 10,000 份顺序导入并复用相同内容。

@@ -252,7 +252,7 @@ def run_agent_call_analysis(
     source_id: uuid.UUID,
     db: DatabaseSession,
     user_id: CurrentUserId,
-    strategy: Literal["single_step", "tools"] = Query(default="single_step"),
+    strategy: Literal["single_step", "tools", "semantic"] = Query(default="single_step"),
 ) -> AgentCallAnalysisRead:
     return code_agent.analyze_calls(
         db,

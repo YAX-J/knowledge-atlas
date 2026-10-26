@@ -1,5 +1,7 @@
 # Knowledge Atlas 仓库代理规范
 
+2026-10-26 功能补全：已实现身份别名/合并/解除、保留历史间隔的撤回/启用及分组替代、持久化证据会话、固定提交 GitHub 文件/目录续扫，以及显式 Java/TypeScript/Go 编译器静态分析。默认真实工作台；问答默认 RRF（搜索 API 保留 keyword，界面搜索默认 BM25）。迁移 head `20261026_0018`。公开实验累计 84 次模型 / 61 次嵌入；真实人工评分与私有授权验收仍待外部条件。见[当前验收](docs/FUNCTIONAL_COMPLETION_20261026.zh-CN.md)。下方早期“未实现”状态由 ADR 0056–0059 取代；正式变更仍须人工明确操作，编译器/Agent 结果不得自动入图。
+
 离线词法检索新增显式 `mode=bm25`（ADR 0044），与默认字面关键词、固定混合模式分开。必须保留用户/项目/类型/时间隔离及扫描/文本上限，返回截断信息，不把分数当作可回答性。语义空索引在本地配置校验后跳过查询嵌入。新实验单独版本化，2026-10-25 结果是开发诊断，不是独立盲测或人工质量分。
 
 多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。默认解析只做语法结构，显式提示语法错误，不执行代码、不调用模型也不自动入图；独立显式 Agent 操作可按 ADR 0041 对后端给出的同仓库跨文件调用候选分类。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。修改时读 `docs/MULTILANGUAGE_PARSING.zh-CN.md`、ADR 0040 与 ADR 0041；注册表 `services/source_languages.py`，语法解析器 `services/code_source.py`；下文 Java 确定性规则仍仅适用 Java。
@@ -12,7 +14,7 @@
 
 Knowledge Atlas 是面向单人开发者的毕业设计项目。它将技术笔记、代码、项目文档和 Git 记录组织成个人时序知识图谱，并通过有证据支撑的检索来回答问题。
 
-仓库当前包含可交互的 Mock 演示图谱、接入真实 API 且分别支持桌面端 Markdown/Java 单文件与仓库范围文件夹上传及相对路径持久化的项目/资料工作台、规范化 GitHub remote 身份与 provider ID，以及带持久化 Commit 快照和增量 blob 复用的显式有界 ref 同步、从快照派生并固定到 Commit 的 GitHub 文件/行号证据 URL、显式有界且带版本的 Issue/Pull Request 与 PR Review 活动 Markdown 导入及令牌支持的 GraphQL Review thread 当前状态快照、Markdown 解析、有界本地 Java 解析及仓库范围结构/调用分析 V1（词法/头部作用域、继承候选和保守参数数量筛选）、租约恢复、DeepSeek 候选抽取和带审计审核、确认后写入 PostgreSQL 图谱、带证据的关键词/语义向量/一跳图关系混合检索，以及带引用校验的同步非持久化证据问答。权威 GitHub Review thread 事件时间、自动轮询/Webhook、远端删除的破坏性传播、完整跨文件代码语义、实体消歧、问答历史和通用多轮规划尚未实现；派生代码结构不是正式知识。真实 GitHub/私有令牌验收、DeepSeek 质量与代表性原生 pgvector 验收应与模拟测试区分。
+仓库当前包含可交互的 Mock 演示图谱、接入真实 API 且分别支持桌面端 Markdown/Java 单文件与仓库范围文件夹上传及相对路径持久化的项目/资料工作台、规范化 GitHub remote 身份与 provider ID，以及带持久化 Commit 快照和增量 blob 复用的显式有界 ref 同步、从快照派生并固定到 Commit 的 GitHub 文件/行号证据 URL、显式有界且带版本的 Issue/Pull Request 与 PR Review 活动 Markdown 导入及令牌支持的 GraphQL Review thread 当前状态快照、Markdown 解析、有界本地 Java 解析及仓库范围结构/调用分析 V1（词法/头部作用域、继承候选和保守参数数量筛选）、租约恢复、DeepSeek 候选抽取和带审计审核、确认后写入 PostgreSQL 图谱、带证据的关键词/语义向量/一跳图关系混合检索，以及带引用校验的同步证据问答与持久化项目会话。权威 GitHub Review thread 事件时间、自动轮询/Webhook、远端删除的破坏性传播、完整构建/运行时代码语义、自动身份决策和通用多轮规划仍不在范围；派生代码结构不是正式知识。真实 GitHub/私有令牌验收、DeepSeek 质量与代表性原生 pgvector 验收应与模拟测试区分。
 
 显式调用分析接口覆盖全部已登记代码语言，默认 single_step，可选 tools：授权快照上最多 4 轮模型、8 次只读工具（ADR 0043）。它只能对后端给出的同仓库声明候选分类，后端校验输出 ID 与精确调用/声明行。接口同步、非持久化，不由解析 Worker 消费，也不写正式图谱。这不代表已实现完整跨文件语义或多轮规划 Agent，见 ADR 0041。
 

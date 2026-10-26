@@ -1,5 +1,7 @@
 # Knowledge Atlas 开发环境配置
 
+2026-10-26 功能补全：已实现身份别名/合并/解除、保留历史间隔的撤回/启用及分组替代、持久化证据会话、固定提交 GitHub 文件/目录续扫，以及显式 Java/TypeScript/Go 编译器静态分析。默认真实工作台；问答默认 RRF（搜索 API 保留 keyword，界面搜索默认 BM25）。迁移 head `20261026_0018`。公开实验累计 84 次模型 / 61 次嵌入；真实人工评分与私有授权验收仍待外部条件。见[验收](FUNCTIONAL_COMPLETION_20261026.zh-CN.md)。下方较早检查点按历史记录保留，不代表本轮最新状态。
+
 完整 Windows 原生启动器、可选 nginx/API/Worker/pgvector Compose 及 CI 命令见[演示说明](DEMO.zh-CN.md)。前端 `npm ci` 安装锁定测试工具链，`npm run test:coverage` 运行组件/API 回归。后端 `pip install -e ".[dev,evaluation]"` 增加覆盖率与离线图表；这些检查不需供应商密钥，真实模型验收必须显式授权，且与人工评分分开记录。
 
 阶段六可复现实验项目和三组检索基线见[实验环境说明](../evaluation/README.zh-CN.md)。独立命令复用已迁移的本机 PostgreSQL，仅创建新 `[EVAL]` 项目，分别要求接受夹具和允许嵌入调用；`--validate-only` 无需数据库。不新增迁移或前端配置。
@@ -94,7 +96,7 @@ uvicorn app.main:app --reload
 
 在 OpenAPI 界面验证导入时，依次创建项目、上传 UTF-8 Markdown 或 Java 源文件、调用 `POST /api/v1/tasks/{task_id}/run`，并查询 `GET /api/v1/sources/{source_id}/chunks`。也可以在另一个已激活环境的终端中，从 `backend/` 运行 `python -m app.worker`，自动消费上传任务。先应用包含执行租约与图谱表的最新迁移。`python -m app.worker --once` 最多处理一个符合条件的任务后退出。配置、恢复规则、退出码和解析限制见 [后端说明](../backend/README.zh-CN.md)。
 
-验证本机服务配置时，从 `backend/` 运行 `alembic current`，预期版本为 `20261026_0017`；查询 `/api/v1/health/ready`，PostgreSQL 应为 `up`。随后使用真实本地数据库验证项目创建、上传、自动解析、重复复用、重启持久化，以及 Worker/API 竞争。SQLite 测试不能验证原生服务联通、PostgreSQL 锁或 pgvector 距离运算。
+验证本机服务配置时，从 `backend/` 运行 `alembic current`，预期版本为 `20261026_0018`；查询 `/api/v1/health/ready`，PostgreSQL 应为 `up`。随后使用真实本地数据库验证项目创建、上传、自动解析、重复复用、重启持久化，以及 Worker/API 竞争。SQLite 测试不能验证原生服务联通、PostgreSQL 锁或 pgvector 距离运算。
 
 如果选择容器方案，从仓库根目录运行 `docker compose up -d --build` 可启动完整环境。Worker 等待 API 应用迁移并通过存活检查后启动。Docker 不是验收前提。
 

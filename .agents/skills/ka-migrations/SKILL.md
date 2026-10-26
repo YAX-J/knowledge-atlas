@@ -36,7 +36,7 @@ description: Knowledge Atlas 的 SQLAlchemy 模型与 Alembic 迁移。新增/�
 
 新增 `20261025_0016`：每项目最近一次索引更新归属、租约、状态与结果。
 
-当前 head 是 `20261026_0017`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
+当前 head 是 `20261026_0018`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
 
 原生临时 schema 验收使用 `python -m scripts.verify_native`：Alembic Config 必须设置 `attributes["version_table_schema"]`，`migrations/env.py` 传给在线 context；同时保留 public 以解析 vector。仅设置 `search_path=temp,public` 会回退到业务版本表和业务表，不能作为隔离保证。测试前检查所有核心表确在生成 schema 且初始项目为空；结束只删除自己生成的 schema 并核对业务迁移标记未变。不要对业务 schema 运行验收降级或清理。
 
@@ -113,3 +113,7 @@ Head 20261025_0016 adds embedding_jobs as one latest project operation, not form
 ## Audited retirement (ADR 0054)
 
 Head 20261026_0017 adds knowledge_retirements with scoped entity/relationship composite FKs, exclusive owner/category checks and before/after snapshots. Existing business rows must survive migration. Downgrade only removes audit storage and never reopens validity intervals; retain a verified backup before downgrade to preserve audits. Native suite covers retirement races and schema migration; final clean application backup/schema recovery now includes 19 tables. Temporary QA schemas must be cleaned before a public-only schema restore rehearsal; full fresh DB restore remains permission-limited.
+
+## 2026-10-26 功能补全更新
+
+当前 head `20261026_0018`：六张身份/时序/会话表与 repository_snapshots.scan_state。升级加表/可空列；降级删除新增历史/会话，不可用于业务撤销。原生隔离验证必须检查 Base 全表实际位于本任务 schema。

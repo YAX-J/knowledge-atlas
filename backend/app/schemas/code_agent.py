@@ -70,6 +70,9 @@ class AgentCallAnalysisRead(BaseModel):
     provider_call_count: int
     truncated: bool
     has_syntax_errors: bool
-    strategy: Literal["single_step", "tools"] = "single_step"
+    strategy: Literal["single_step", "tools", "semantic"] = "single_step"
     tool_call_count: int = 0
     tool_trace: list[dict] = Field(default_factory=list)
+    candidate_generation: str = 'syntax'
+    uncovered_call_count: int = 0
+    semantic_diagnostics: list[dict] = Field(default_factory=list)

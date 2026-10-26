@@ -1,4 +1,4 @@
-import { onScopeDispose, watch, type Ref } from 'vue'
+import { onScopeDispose, reactive, watch, type Ref } from 'vue'
 import { importGithubWorkItems, resolveGithubRepository, resolveLocalRepository, syncGithubRepository, uploadSource, runTask } from '../api/knowledgeAtlas'
 import type { ApiProject, ProcessingTask, SourceList, SourceRepositoryList, SourceUploadResult } from '../api/knowledgeAtlas'
 import type { IngestionErrors, IngestionLoading } from '../types'
@@ -16,6 +16,7 @@ export function useSourceImport(dependencies: Dependencies) {
   const { project, repositories, sources, selectedSourceId, selectedTaskId, task, notice, loading, errors,
     prepareSource, loadSources, loadRepositories, refreshSource, errorMessage, locked } = dependencies
   let generation = 0, disposed = false
+  const githubContinuations = reactive<Record<string, { snapshotId: string; ref: string; remaining: number; pendingDirectories: number; blocked: boolean }>>({})
   const current = (projectId: string, captured: number) => !disposed && captured === generation && project.value?.id === projectId
   async function registerGithubRepository(input: {
     remoteUrl: string
@@ -47,6 +48,7 @@ export function useSourceImport(dependencies: Dependencies) {
     repositoryId: string
     ref?: string
     rescan?: boolean
+    continueFromSnapshot?: string
   }) {
     const projectId = project.value?.id
     const captured = generation
@@ -55,8 +57,15 @@ export function useSourceImport(dependencies: Dependencies) {
     errors.sync = errors.activity = ''
     notice.value = '正在从 GitHub 读取仓库快照…'
     try {
-      const result = await syncGithubRepository(projectId, input.repositoryId, input.ref, input.rescan)
+      const result = input.continueFromSnapshot
+        ? await syncGithubRepository(projectId, input.repositoryId, input.ref, input.rescan, input.continueFromSnapshot)
+        : await syncGithubRepository(projectId, input.repositoryId, input.ref, input.rescan)
       if (!current(projectId, captured)) return
+      if (result.continuation_snapshot_id) githubContinuations[input.repositoryId] = {
+        snapshotId: result.continuation_snapshot_id, ref: result.ref, remaining: result.remaining_files ?? 0,
+        pendingDirectories: result.pending_directories ?? 0, blocked: result.traversal_blocked ?? false,
+      }
+      else delete githubContinuations[input.repositoryId]
       const selected = [...result.items].reverse().find(
         item => item.status !== 'deleted' && item.source_id && item.task_id,
       )
@@ -66,6 +75,8 @@ export function useSourceImport(dependencies: Dependencies) {
         selectedTaskId.value = selected.task_id
       }
       notice.value = `GitHub ${result.ref}@${result.commit_sha.slice(0, 7)} 同步完成：新增 ${result.imported_count}、复用 ${result.reused_count}、未变 ${result.unchanged_count}、重命名 ${result.renamed_count}、删除 ${result.deleted_count}、跳过 ${result.skipped_count}${result.truncated ? '；结果达到导入上限' : ''}${result.deletion_detection_complete ? '' : '；本次无法完整判断删除'}。`
+      if (result.pending_directories) notice.value += ` 还有 ${result.pending_directories} 个目录待遍历，可继续同一固定提交。`
+      if (result.traversal_blocked) notice.value += ' 单个目录或文件清单达到安全上限，请改用本地文件夹导入；继续操作无法补全该范围。'
       await Promise.all([loadSources(1), loadRepositories(repositories.value?.page ?? 1)])
       if (current(projectId, captured) && selectedSourceId.value) await refreshSource()
     } catch (error) {
@@ -217,7 +228,7 @@ export function useSourceImport(dependencies: Dependencies) {
   }
 
 
-  watch(() => project.value?.id, () => { generation++ }, { flush:'sync' })
+  watch(() => project.value?.id, () => { generation++; Object.keys(githubContinuations).forEach(key => delete githubContinuations[key]) }, { flush:'sync' })
   onScopeDispose(() => { disposed = true; generation++ })
-  return { registerGithubRepository, syncRegisteredGithubRepository, importRegisteredGithubActivity, uploadFiles, parseSource }
+  return { githubContinuations, registerGithubRepository, syncRegisteredGithubRepository, importRegisteredGithubActivity, uploadFiles, parseSource }
 }

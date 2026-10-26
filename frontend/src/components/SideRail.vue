@@ -5,10 +5,11 @@ defineProps<{ active: string }>()
 const emit = defineEmits<{ change: [value: string] }>()
 
 const items = [
+  { id: 'workbench', label: '工作台', icon: Collection },
+  { id: 'sources', label: '资料与审核', icon: Document },
   { id: 'graph', label: '知识图谱', icon: Connection },
+  { id: 'conversations', label: '证据会话', icon: QuestionFilled },
   { id: 'projects', label: '我的项目', icon: Collection },
-  { id: 'sources', label: '资料来源', icon: Document },
-  { id: 'questions', label: '证据问答', icon: QuestionFilled },
 ]
 </script>
 

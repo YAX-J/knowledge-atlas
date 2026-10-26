@@ -156,7 +156,10 @@ export interface AgentCallAnalysis {
   detected_call_count: number
   candidate_call_count: number
   provider_call_count: number
-  strategy: 'single_step' | 'tools'
+  strategy: 'single_step' | 'tools' | 'semantic'
+  candidate_generation?: string
+  uncovered_call_count?: number
+  semantic_diagnostics?: Record<string, unknown>[]
   tool_call_count: number
   tool_trace: { name: string; status: string; result_characters: number; duration_ms: number }[]
   truncated: boolean
@@ -236,6 +239,14 @@ export interface SourceRepositoryList {
 }
 
 export interface GithubRepositorySyncResult {
+  pending_directories?: number
+  tree_complete?: boolean
+  traversal_blocked?: boolean
+  continuation_snapshot_id?: string | null
+  completed_files?: number
+  remaining_files?: number
+  total_supported_files?: number
+  access?: 'public' | 'private' | 'unknown'
   repository_id: string
   snapshot_id: string
   ref: string
@@ -456,12 +467,13 @@ export function syncGithubRepository(
   repositoryId: string,
   ref?: string,
   rescan = false,
+  continueFromSnapshot?: string,
 ): Promise<GithubRepositorySyncResult> {
   return apiRequest<GithubRepositorySyncResult>(
     `/projects/${projectId}/repositories/${repositoryId}/sync-github`,
     {
       method: 'POST',
-      body: JSON.stringify({ ref: ref?.trim() || null, rescan }),
+      body: JSON.stringify({ ref: ref?.trim() || null, rescan, ...(continueFromSnapshot ? { continue_from_snapshot: continueFromSnapshot } : {}) }),
       signal: AbortSignal.timeout(120000),
     },
   )
@@ -537,7 +549,7 @@ export function getJavaCodeStructure(sourceId: string): Promise<JavaCodeStructur
   return apiRequest<JavaCodeStructure>(`/sources/${sourceId}/code-structure`)
 }
 
-export function analyzeAgentCalls(sourceId: string, strategy: 'single_step' | 'tools' = 'single_step'): Promise<AgentCallAnalysis> {
+export function analyzeAgentCalls(sourceId: string, strategy: 'single_step' | 'tools' | 'semantic' = 'single_step'): Promise<AgentCallAnalysis> {
   return apiRequest<AgentCallAnalysis>(`/sources/${sourceId}/agent-call-analysis?strategy=${strategy}`, {
     method: 'POST', signal: AbortSignal.timeout(strategy === 'tools' ? 900_000 : 240_000),
   })
@@ -665,7 +677,7 @@ export function rebuildProjectEmbeddings(projectId: string, retryInterrupted = f
   })
 }
 
-export function askQuestion(projectId: string, question: string, retrievalMode: import('../types').QuestionRetrievalMode = 'hybrid'): Promise<QuestionAnswer> {
+export function askQuestion(projectId: string, question: string, retrievalMode: import('../types').QuestionRetrievalMode = 'rrf'): Promise<QuestionAnswer> {
   return apiRequest<QuestionAnswer>(`/projects/${projectId}/questions`, {
     method: 'POST',
     body: JSON.stringify({ question, retrieval_mode: retrievalMode }),

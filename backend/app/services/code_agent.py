@@ -20,6 +20,7 @@ from app.services.projects import get_project
 from app.services.code_source import CodeCallSite, analyze_code
 from app.services.java_source import JavaSourceInput, analyze_java, java_symbols
 from app.services.source_languages import CODE_SOURCE_TYPES
+from app.services import code_bindings, code_semantics
 
 
 MAX_RELATED_SOURCES = 99
@@ -152,8 +153,10 @@ def _non_java_candidates(
             targets[candidate.id] = candidate
             by_name.setdefault(candidate.name, []).append(candidate)
     calls: list[_Call] = []
+    imports = code_bindings.bindings(source.content, source.source_type)
     for call in current.call_sites:
-        candidates = sorted(by_name.get(call.callee_name, []), key=lambda item: (
+        imported = code_bindings.imported_candidates(source, call, targets, imports)
+        candidates = sorted(imported if imported is not None else by_name.get(call.callee_name, []), key=lambda item: (
             item.source_path.casefold(), item.start_line, str(item.id),
         ))
         if not candidates:
@@ -237,6 +240,8 @@ def analyze_calls(
 
 
 def analyze_snapshot(*, source, related, settings, strategy="single_step", related_truncated=False):
+    if strategy == 'semantic':
+        return _semantic_analysis(source, related, related_truncated)
     if strategy not in {"single_step", "tools"}:
         raise AppError(status_code=422, code="CALL_AGENT_STRATEGY_INVALID", message="不支持的 Agent 分析模式")
     prompt_version = call_tools.PROMPT_VERSION if strategy == "tools" else deepseek.CALL_AGENT_PROMPT_VERSION
@@ -335,4 +340,55 @@ def analyze_snapshot(*, source, related, settings, strategy="single_step", relat
         candidate_call_count=len(calls), provider_call_count=provider_count,
         truncated=truncated, has_syntax_errors=syntax_errors,
         strategy=strategy, tool_call_count=len(trace), tool_trace=trace,
+        candidate_generation='syntax-and-import-bindings',
+        uncovered_call_count=max(0, detected-len(calls)),
     )
+
+
+def _semantic_analysis(source, related, related_truncated):
+    result = code_semantics.analyze(source, related)
+    targets = {}
+    for item in [source, *related]:
+        symbols = java_symbols(item.content, source_id=item.id)[0] if item.source_type == 'java' else analyze_code(
+            item.content, source_id=item.id, language=item.source_type).symbols
+        for symbol in symbols:
+            if symbol.kind == 'method':
+                target = _target(item,symbol)
+                targets[target.id] = target
+    calls=[]
+    selected={}
+    sources_by_path={(item.relative_path or item.original_name):item for item in [source,*related]}
+    for call in result['calls'][:MAX_AGENT_CALLS]:
+        declaration=call.get('target')
+        candidates=[] if not declaration else [item for item in targets.values()
+            if item.source_path == declaration['path'] and item.start_line <= declaration['line'] <= item.end_line
+            and (not declaration.get('name') or item.name == declaration['name'])]
+        # Exact declaration identity must survive mapping back to stored immutable source evidence.
+        candidates=sorted(candidates,key=lambda item:(item.end_line-item.start_line,str(item.id)))
+        target=candidates[0] if candidates and (len(candidates)==1 or
+            candidates[0].end_line-candidates[0].start_line < candidates[1].end_line-candidates[1].start_line) else None
+        if declaration and declaration.get('name') and (target is None or declaration.get('identity')):
+            owner=sources_by_path.get(declaration['path'])
+            start,end=declaration['line'],declaration.get('end_line',declaration['line'])
+            lines=owner.content.splitlines() if owner else []
+            name=declaration['name']
+            if owner and 1<=start<=end<=len(lines) and name in '\n'.join(lines[start-1:end]):
+                # Compiler declarations can cover valid syntax omitted by the bounded outline parser.
+                target=_Target(id=uuid.uuid5(owner.id,f"native-declaration-v1:{start}:{end}:{name}:{declaration.get('identity','')}"),source_id=owner.id,
+                    source_path=declaration['path'],language=owner.source_type,name=name,qualified_name=name,
+                    start_line=start,end_line=end,quote=lines[start-1])
+        if target is not None:
+            selected[target.id]=target
+        expression=call['expression']
+        receiver,_,name=expression.rpartition('.')
+        calls.append(AgentCrossFileCallRead(id=uuid.uuid5(source.id,f"native:{call['line']}:{call['column']}:{expression}"),
+            caller_id=None,target_ids=[target.id] if target else [],receiver=receiver or None,callee_name=name,
+            line=call['line'],column=call['column'],call_quote=_line(source.content,call['line']),
+            resolution='resolved' if target else 'unresolved',confidence=1.0 if target else 0,
+            resolution_basis='编译器在当前源码上下文中定位声明；不代表运行时动态分派。' if target else '当前源码上下文中未找到可核验的仓库内声明。'))
+    return AgentCallAnalysisRead(source_id=source.id,language=source.source_type,model=None,
+        prompt_version='native-semantics-v1',calls=calls,related_symbols=[AgentRelatedSymbolRead(**vars(item)) for item in selected.values()],
+        scanned_source_count=1+len(related),detected_call_count=len(result['calls']),candidate_call_count=len(calls),
+        provider_call_count=0,truncated=related_truncated or result['truncated'] or len(result['calls'])>MAX_AGENT_CALLS,
+        has_syntax_errors=any(item.get('kind')=='syntax' for item in result['diagnostics']),strategy='semantic',candidate_generation=result['engine'],
+        uncovered_call_count=sum(not item.target_ids for item in calls),semantic_diagnostics=result['diagnostics'])

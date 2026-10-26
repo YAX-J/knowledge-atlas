@@ -14,6 +14,7 @@ from app.models.domain import Project, utc_now
 from app.models.graph import KnowledgeEmbedding, KnowledgeEntity, KnowledgeEvidence
 from app.services.projects import get_project
 from app.schemas.search import EmbeddingStatusRead
+from app.services import identities
 
 
 class EmbeddingError(Exception):
@@ -73,8 +74,8 @@ def embed_texts(settings: Settings, texts: list[str]) -> list[list[float]]:
         raise EmbeddingError("EMBEDDING_OUTPUT_INVALID", "嵌入服务返回内容不符合接口约定") from exc
 
 
-def entity_text(entity: KnowledgeEntity, quotes: list[str]) -> str:
-    parts = [entity.type, entity.name, entity.summary, *quotes]
+def entity_text(entity: KnowledgeEntity, quotes: list[str], aliases: list[str] | None = None) -> str:
+    parts = [entity.type, entity.name, entity.summary, *(aliases or []), *quotes]
     return "\n".join(part.strip() for part in parts if part.strip())
 
 
@@ -84,39 +85,45 @@ INDEX_STATUS_SCAN_LIMIT = 1000
 def project_embedding_status(db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID,
                              settings: Settings, valid_at=None) -> EmbeddingStatusRead:
     from app.services.graph import visible
+    from app.services.identities import canonical
     get_project(db, user_id=user_id, project_id=project_id)
     at = valid_at or utc_now()
     query = select(KnowledgeEntity).where(*visible(KnowledgeEntity, user_id, project_id, at))
     eligible = db.scalar(select(func.count()).select_from(query.subquery())) or 0
-    joined = query.join(KnowledgeEmbedding, KnowledgeEmbedding.entity_id == KnowledgeEntity.id).where(
+    owner_id = canonical(KnowledgeEmbedding.entity_id, user_id, project_id, at)
+    joined = query.join(KnowledgeEmbedding, owner_id == KnowledgeEntity.id).where(
         KnowledgeEmbedding.user_id == user_id, KnowledgeEmbedding.project_id == project_id,
         KnowledgeEmbedding.model == settings.embedding_model,
         KnowledgeEmbedding.dimensions == settings.embedding_dimensions,
     )
-    indexed = db.scalar(select(func.count()).select_from(joined.subquery())) or 0
+    indexed = db.scalar(select(func.count()).select_from(joined.distinct().subquery())) or 0
     entities = list(db.scalars(query.order_by(KnowledgeEntity.id).limit(INDEX_STATUS_SCAN_LIMIT)))
     ids = [entity.id for entity in entities]
     existing = {item.entity_id: item for item in db.scalars(select(KnowledgeEmbedding).where(
-        KnowledgeEmbedding.entity_id.in_(ids), KnowledgeEmbedding.user_id == user_id,
+        owner_id.in_(ids), KnowledgeEmbedding.user_id == user_id,
         KnowledgeEmbedding.project_id == project_id, KnowledgeEmbedding.model == settings.embedding_model,
         KnowledgeEmbedding.dimensions == settings.embedding_dimensions,
     ))} if ids else {}
     quotes = {}
+    owner = KnowledgeEvidence.entity_id
     if existing:
-        for owner, quote in db.execute(select(KnowledgeEvidence.entity_id, KnowledgeEvidence.quote).where(
-            KnowledgeEvidence.entity_id.in_(existing), KnowledgeEvidence.user_id == user_id,
+        for entity_id, quote in db.execute(select(owner, KnowledgeEvidence.quote).where(
+            owner.in_(existing), KnowledgeEvidence.user_id == user_id,
             KnowledgeEvidence.project_id == project_id,
         ).order_by(KnowledgeEvidence.id)):
-            quotes.setdefault(owner, []).append(quote)
-    current = stale = 0
-    for entity in entities:
+            quotes.setdefault(entity_id, []).append(quote)
+    originals = list(db.scalars(select(KnowledgeEntity).where(KnowledgeEntity.id.in_(existing),
+        KnowledgeEntity.user_id == user_id, KnowledgeEntity.project_id == project_id))) if existing else []
+    from app.services.identities import mapping
+    links = mapping(db, user_id, project_id, at)
+    freshness = {}
+    for entity in originals:
         embedding = existing.get(entity.id)
         if embedding is not None:
             digest = hashlib.sha256(entity_text(entity, quotes.get(entity.id, [])).encode('utf-8')).hexdigest()
-            if digest == embedding.content_sha256:
-                current += 1
-            else:
-                stale += 1
+            freshness.setdefault(links.get(entity.id, entity.id), []).append(digest == embedding.content_sha256)
+    current = sum(all(values) for values in freshness.values())
+    stale = sum(not all(values) for values in freshness.values())
     try:
         _require_configuration(settings)
         configured = True
@@ -147,9 +154,12 @@ def rebuild_project_embeddings(
         KnowledgeEmbedding.project_id == project_id,
     ))}
     pending: list[tuple[KnowledgeEntity, str, str]] = []
+    at = utc_now()
+    # Keep immutable original-owner text: a current merge must never put future facts in a historical vector.
+    owner = KnowledgeEvidence.entity_id
     for entity in entities:
         quotes = list(db.scalars(select(KnowledgeEvidence.quote).where(
-            KnowledgeEvidence.entity_id == entity.id,
+            owner == entity.id,
             KnowledgeEvidence.user_id == user_id,
             KnowledgeEvidence.project_id == project_id,
         ).order_by(KnowledgeEvidence.id)))

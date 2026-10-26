@@ -191,3 +191,7 @@ Focus tests/test_embedding_jobs.py tests/test_source_retrieval.py tests/test_dat
 ## Optimization 4–6 acceptance
 
 Focus tests/test_read_performance.py tests/test_retirement.py plus migration/graph/search; verify_native includes both and an independent-session retirement race. Count SELECT reads separately from transaction/savepoint statements and scope fixture queries to their own project even when other native tests commit fixtures. benchmark_reads runs a random physically-owned native schema with no providers, records three fresh-session query/time/tracemalloc samples and cleans only itself; retain versioned before/after JSON and normalized-output hashes, never infer HTTP/RSS/capacity or answer quality. Frontend focus orchestration.test.ts retirement.test.ts appRequests.test.ts, full scoped coverage/build, then real desktop upload/parse/stub extraction/review/entity+relationship retirement/audit/history checks. Check browser focus/overflow/errors and clean only recorded processes/schema. Clean QA before final public-only backup/schema recovery.
+
+## 2026-10-26 功能补全更新
+
+功能补全检查包含 workspace/conversations/GitHub continuation、KA_NATIVE_COMPILERS=1 的 Java/TS/Go 实机测试，以及独立 schema 的 verify_native。付费公开实验累计账本有 120/160 上限，失败/未知也计入，不得重置；离线盲评空白不能冒充真实人工评分。

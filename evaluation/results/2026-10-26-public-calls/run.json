@@ -1,0 +1,86 @@
+{
+  "status": "succeeded",
+  "dataset": {
+    "dataset_id": "knowledge-atlas-public-v2",
+    "version": "2.0.0",
+    "source_count": 10,
+    "case_count": 20,
+    "answerable_count": 16,
+    "category_counts": {
+      "code_location": 4,
+      "cross_document": 4,
+      "direct_fact": 8,
+      "unanswerable": 4
+    },
+    "fingerprint_sha256": "0341a422f40d91e9d8f18e40d74ffd5d90cf225994fbbfc5eef6bcfe2a2bd606"
+  },
+  "case": {
+    "source": "petclinic/Owner.java",
+    "call_line": 185,
+    "target": "petclinic/Pet.java",
+    "declaration_line": 81,
+    "scope": "Four same-repository public Java source files, incomplete Spring/JPA classpath; one source-verified positive acceptance case, not general accuracy"
+  },
+  "human_reviewed": false,
+  "results": {
+    "single_step": {
+      "source_verified_target_found": true,
+      "provider_calls": 1,
+      "tool_calls": 0,
+      "uncovered_call_count": 0,
+      "truncated": false,
+      "candidate_generation": "syntax-and-import-bindings",
+      "semantic_diagnostics": []
+    },
+    "tools": {
+      "source_verified_target_found": true,
+      "provider_calls": 2,
+      "tool_calls": 2,
+      "uncovered_call_count": 0,
+      "truncated": false,
+      "candidate_generation": "syntax-and-import-bindings",
+      "semantic_diagnostics": []
+    },
+    "semantic": {
+      "source_verified_target_found": true,
+      "provider_calls": 0,
+      "tool_calls": 0,
+      "uncovered_call_count": 30,
+      "truncated": false,
+      "candidate_generation": "javac-17",
+      "semantic_diagnostics": [
+        {
+          "count": 91
+        }
+      ]
+    }
+  },
+  "schema_removed": true,
+  "model_usage": {
+    "limit": 12,
+    "attempted": 3,
+    "usage_reported": 3,
+    "prompt_tokens": 9332,
+    "completion_tokens": 392,
+    "calls": [
+      {
+        "kind": "single_step_agent",
+        "usage_reported": true,
+        "prompt_tokens": 2039,
+        "completion_tokens": 97
+      },
+      {
+        "kind": "tool_agent",
+        "usage_reported": true,
+        "prompt_tokens": 3014,
+        "completion_tokens": 175
+      },
+      {
+        "kind": "tool_agent",
+        "usage_reported": true,
+        "prompt_tokens": 4279,
+        "completion_tokens": 120
+      }
+    ]
+  }
+}

@@ -1,0 +1,295 @@
+[
+  {
+    "source": "fastapi/first_steps.py",
+    "status": "succeeded",
+    "error": null,
+    "candidates": [
+      {
+        "type": "CodeEntity",
+        "name": "app",
+        "summary": "FastAPI 应用实例，通过 FastAPI() 创建并赋值给 app。",
+        "kind": "entity",
+        "evidence": [
+          {
+            "chunk_id": "6976c3cd-0bbf-5285-91c4-fdaebd8e1df2",
+            "quote": "app = FastAPI()",
+            "start_line": 3,
+            "end_line": 3,
+            "heading_path": []
+          }
+        ]
+      },
+      {
+        "type": "CodeEntity",
+        "name": "root",
+        "summary": "异步根路由处理函数，返回 Hello World 消息。",
+        "kind": "entity",
+        "evidence": [
+          {
+            "chunk_id": "82db11ef-c474-517d-b56f-2375b3cc3e7e",
+            "quote": "async def root():",
+            "start_line": 7,
+            "end_line": 7,
+            "heading_path": [
+              "root"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Technology",
+        "name": "FastAPI",
+        "summary": "用于构建该应用的 Python Web 框架 FastAPI。",
+        "kind": "entity",
+        "evidence": [
+          {
+            "chunk_id": "6976c3cd-0bbf-5285-91c4-fdaebd8e1df2",
+            "quote": "from fastapi import FastAPI",
+            "start_line": 1,
+            "end_line": 1,
+            "heading_path": []
+          }
+        ]
+      },
+      {
+        "type": "USES",
+        "name": "app → FastAPI",
+        "summary": "app 实例由 FastAPI 框架创建。",
+        "kind": "relation",
+        "evidence": [
+          {
+            "chunk_id": "6976c3cd-0bbf-5285-91c4-fdaebd8e1df2",
+            "quote": "app = FastAPI()",
+            "start_line": 3,
+            "end_line": 3,
+            "heading_path": []
+          }
+        ]
+      },
+      {
+        "type": "BELONGS_TO",
+        "name": "root → app",
+        "summary": "root 函数通过 @app.get 装饰器注册到 app 应用。",
+        "kind": "relation",
+        "evidence": [
+          {
+            "chunk_id": "82db11ef-c474-517d-b56f-2375b3cc3e7e",
+            "quote": "@app.get(\"/\")",
+            "start_line": 6,
+            "end_line": 6,
+            "heading_path": [
+              "root"
+            ]
+          }
+        ]
+      }
+    ],
+    "human_reviewed": false
+  },
+  {
+    "source": "fastapi/dependencies.py",
+    "status": "succeeded",
+    "error": null,
+    "candidates": [
+      {
+        "type": "USES",
+        "name": "app → FastAPI",
+        "summary": "app 由 FastAPI 框架创建。",
+        "kind": "relation",
+        "evidence": [
+          {
+            "chunk_id": "82dd3d68-3b57-5038-87d5-81eee12a155f",
+            "quote": "app = FastAPI()",
+            "start_line": 3,
+            "end_line": 3,
+            "heading_path": []
+          }
+        ]
+      },
+      {
+        "type": "DEPENDS_ON",
+        "name": "read_items → common_parameters",
+        "summary": "read_items 通过 Depends 依赖 common_parameters。",
+        "kind": "relation",
+        "evidence": [
+          {
+            "chunk_id": "505506a4-9122-5bfc-a1d8-ccbfc0a47751",
+            "quote": "commons: dict = Depends(common_parameters)",
+            "start_line": 11,
+            "end_line": 11,
+            "heading_path": [
+              "read_items"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "DEPENDS_ON",
+        "name": "read_users → common_parameters",
+        "summary": "read_users 通过 Depends 依赖 common_parameters。",
+        "kind": "relation",
+        "evidence": [
+          {
+            "chunk_id": "54d07505-bca8-5b06-8372-812c623fc0ce",
+            "quote": "commons: dict = Depends(common_parameters)",
+            "start_line": 16,
+            "end_line": 16,
+            "heading_path": [
+              "read_users"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "BELONGS_TO",
+        "name": "read_items → app",
+        "summary": "read_items 路由注册在 app 上。",
+        "kind": "relation",
+        "evidence": [
+          {
+            "chunk_id": "505506a4-9122-5bfc-a1d8-ccbfc0a47751",
+            "quote": "@app.get(\"/items/\")",
+            "start_line": 10,
+            "end_line": 10,
+            "heading_path": [
+              "read_items"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "BELONGS_TO",
+        "name": "read_users → app",
+        "summary": "read_users 路由注册在 app 上。",
+        "kind": "relation",
+        "evidence": [
+          {
+            "chunk_id": "54d07505-bca8-5b06-8372-812c623fc0ce",
+            "quote": "@app.get(\"/users/\")",
+            "start_line": 15,
+            "end_line": 15,
+            "heading_path": [
+              "read_users"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "USES",
+        "name": "Depends 依赖注入 → common_parameters",
+        "summary": "Depends 依赖注入机制被用于注入 common_parameters。",
+        "kind": "relation",
+        "evidence": [
+          {
+            "chunk_id": "505506a4-9122-5bfc-a1d8-ccbfc0a47751",
+            "quote": "commons: dict = Depends(common_parameters)",
+            "start_line": 11,
+            "end_line": 11,
+            "heading_path": [
+              "read_items"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "CodeEntity",
+        "name": "app",
+        "summary": "FastAPI 应用实例，通过 FastAPI() 创建。",
+        "kind": "entity",
+        "evidence": [
+          {
+            "chunk_id": "82dd3d68-3b57-5038-87d5-81eee12a155f",
+            "quote": "app = FastAPI()",
+            "start_line": 3,
+            "end_line": 3,
+            "heading_path": []
+          }
+        ]
+      },
+      {
+        "type": "CodeEntity",
+        "name": "common_parameters",
+        "summary": "异步依赖函数，接收 q、skip、limit 参数并返回字典。",
+        "kind": "entity",
+        "evidence": [
+          {
+            "chunk_id": "0937581d-eb4f-548c-b212-be3123793fd5",
+            "quote": "async def common_parameters(q: str | None = None, skip: int = 0, limit: int = 100):",
+            "start_line": 6,
+            "end_line": 6,
+            "heading_path": [
+              "common_parameters"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "CodeEntity",
+        "name": "read_items",
+        "summary": "处理 GET /items/ 的异步路由函数，通过 Depends 注入 common_parameters。",
+        "kind": "entity",
+        "evidence": [
+          {
+            "chunk_id": "505506a4-9122-5bfc-a1d8-ccbfc0a47751",
+            "quote": "async def read_items(commons: dict = Depends(common_parameters)):",
+            "start_line": 11,
+            "end_line": 11,
+            "heading_path": [
+              "read_items"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "CodeEntity",
+        "name": "read_users",
+        "summary": "处理 GET /users/ 的异步路由函数，通过 Depends 注入 common_parameters。",
+        "kind": "entity",
+        "evidence": [
+          {
+            "chunk_id": "54d07505-bca8-5b06-8372-812c623fc0ce",
+            "quote": "async def read_users(commons: dict = Depends(common_parameters)):",
+            "start_line": 16,
+            "end_line": 16,
+            "heading_path": [
+              "read_users"
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Technology",
+        "name": "FastAPI",
+        "summary": "用于构建 API 的 Python Web 框架，代码中导入 Depends 与 FastAPI。",
+        "kind": "entity",
+        "evidence": [
+          {
+            "chunk_id": "82dd3d68-3b57-5038-87d5-81eee12a155f",
+            "quote": "from fastapi import Depends, FastAPI",
+            "start_line": 1,
+            "end_line": 1,
+            "heading_path": []
+          }
+        ]
+      },
+      {
+        "type": "Concept",
+        "name": "Depends 依赖注入",
+        "summary": "FastAPI 的依赖注入机制，用于在路由函数中注入 common_parameters。",
+        "kind": "entity",
+        "evidence": [
+          {
+            "chunk_id": "505506a4-9122-5bfc-a1d8-ccbfc0a47751",
+            "quote": "commons: dict = Depends(common_parameters)",
+            "start_line": 11,
+            "end_line": 11,
+            "heading_path": [
+              "read_items"
+            ]
+          }
+        ]
+      }
+    ],
+    "human_reviewed": false
+  }
+]

@@ -25,6 +25,7 @@ const props = defineProps<{
   reviewBusy?: boolean
   sourceFilters?: SourceFilters
   sourcesRequestedPage?: number
+  githubContinuations?: Record<string, { snapshotId: string; ref: string; remaining: number; pendingDirectories: number; blocked: boolean }>
 }>()
 const emit = defineEmits<{
   create: [input: { name: string; description: string }]
@@ -32,7 +33,7 @@ const emit = defineEmits<{
   projectsPage: [page: number]
   repositoriesPage: [page: number]
   resolveGithub: [input: { remoteUrl: string; localRepositoryId?: string }]
-  syncGithub: [input: { repositoryId: string; ref?: string; rescan?: boolean }]
+  syncGithub: [input: { repositoryId: string; ref?: string; rescan?: boolean; continueFromSnapshot?: string }]
   importGithubActivity: [repositoryId: string]
   snapshots: [repository: SourceRepository]
   sourcesPage: [page: number]
@@ -42,7 +43,7 @@ const emit = defineEmits<{
   run: []
   refresh: []
   chunksPage: [page: number]
-  analyzeCalls: [strategy: 'single_step' | 'tools']
+  analyzeCalls: [strategy: 'single_step' | 'tools' | 'semantic']
   graph: []
 }>()
 const name = ref('')
@@ -56,7 +57,7 @@ const folderInput = ref<HTMLInputElement | null>(null)
 const fileError = ref('')
 const selectionNote = ref('')
 const uploadKind = ref<'file' | 'folder' | ''>('')
-const agentStrategy = ref<'single_step' | 'tools'>('single_step')
+const agentStrategy = ref<'single_step' | 'tools' | 'semantic'>('single_step')
 const projectPages = computed(() => Math.max(1, Math.ceil((props.projects?.total ?? 0) / (props.projects?.page_size ?? 20))))
 const repositoryPages = computed(() => Math.max(1, Math.ceil((props.repositories?.total ?? 0) / (props.repositories?.page_size ?? 20))))
 const sourcePages = computed(() => Math.max(1, Math.ceil((props.sources?.total ?? 0) / (props.sources?.page_size ?? 20))))
@@ -158,8 +159,8 @@ function chooseFolder(event: Event) {
     fileError.value = '这个文件夹中没有可上传的非空 Markdown 或受支持的代码文件。'
     return
   }
-  if (files.length > 50) {
-    fileError.value = `文件夹中有 ${files.length} 个可上传文件，一次最多上传 50 个。`
+  if (files.length > 10000) {
+    fileError.value = `文件夹中有 ${files.length} 个可上传文件，请按子目录拆分，每次最多 10000 个。`
     return
   }
   if (ignored) selectionNote.value = `已忽略 ${ignored} 个格式不支持或内容为空的文件。`
@@ -295,7 +296,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
               <button class="primary-button" type="button" :disabled="locked" @click="folderInput?.click()">{{ loading.upload && uploadKind === 'folder' ? '正在上传文件夹…' : '上传文件夹' }}</button>
             </div>
           </header>
-          <p class="source-upload-hint">支持 UTF-8 {{ sourceLanguageHint }} 文件。文件夹最多导入 50 份支持文件，保存仓库与相对路径；其他类型与空文件会被忽略。</p>
+          <p class="source-upload-hint">支持 UTF-8 {{ sourceLanguageHint }} 文件。文件夹逐份导入并保存仓库与相对路径，失败后可重新选择，已导入内容会复用；其他类型与空文件会被忽略。</p>
           <p v-if="selectionNote" class="muted-copy" role="status">{{ selectionNote }}</p>
           <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
           <p v-if="fileError || errors.upload" class="inline-error" role="alert">{{ fileError || errors.upload }}</p>
@@ -323,6 +324,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                   <input :id="`github-ref-${repository.id}`" v-model="githubRefs[repository.id]" type="text" maxlength="255" placeholder="默认分支" :disabled="locked" />
                   <label><input v-model="githubRescans[repository.id]" type="checkbox" :disabled="locked" />重新扫描（发现新增语言文件）</label>
                   <button class="text-button" type="button" :disabled="locked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubRefs[repository.id]?.trim() || undefined, rescan: githubRescans[repository.id] ?? false })">{{ loading.sync ? '正在同步…' : '同步 GitHub 内容' }}</button>
+                  <button v-if="githubContinuations?.[repository.id]" class="text-button" type="button" :disabled="locked || githubContinuations[repository.id]!.blocked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubContinuations[repository.id]!.ref, continueFromSnapshot: githubContinuations[repository.id]!.snapshotId })">继续同一提交（剩余 {{ githubContinuations[repository.id]!.remaining }} 份，待遍历 {{ githubContinuations[repository.id]!.pendingDirectories }} 个目录）</button>
                   <button class="text-button" type="button" :disabled="locked" @click="emit('importGithubActivity', repository.id)">{{ loading.activity ? '正在导入…' : '导入 Issue / PR / Review thread' }}</button>
                   <button class="text-button" type="button" :disabled="locked" @click="emit('snapshots', repository)">查看同步快照</button>
                 </div>
@@ -344,7 +346,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                   <option value="">不关联，登记为远程仓库</option>
                   <option v-for="repository in linkableLocalRepositories" :key="repository.id" :value="repository.id">{{ repository.name }}</option>
                 </select>
-                <p class="source-upload-hint">接受 GitHub HTTPS 或 SSH remote；登记后可显式同步默认分支或指定 ref 中最多 50 份支持的 Markdown/多语言代码文件。</p>
+            <p class="source-upload-hint">接受 GitHub HTTPS 或 SSH remote；每步最多下载 50 份支持文件，达到上限后可继续扫描同一固定提交。</p>
                 <p v-if="errors.remote" class="inline-error" role="alert">{{ errors.remote }}</p>
                 <button class="primary-button" type="submit" :disabled="locked || !remoteUrl.trim()">{{ loading.remote ? '正在登记…' : '登记 remote' }}</button>
               </form>
@@ -412,13 +414,15 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                       <select v-model="agentStrategy" :disabled="locked" aria-label="跨文件调用分析方式">
                         <option value="single_step">单轮候选判断</option>
                         <option value="tools">工具调用 Agent</option>
+                        <option v-if="['java','javascript','jsx','typescript','tsx','go'].includes(source.source_type)" value="semantic">编译器静态解析 · 无模型</option>
                       </select>
                     </label>
-                    <button type="button" class="primary-button" :disabled="locked || loading.structure" @click="emit('analyzeCalls', agentStrategy)">{{ loading.agent ? 'Agent 分析中…' : 'Agent 分析跨文件调用' }}</button>
+                    <button type="button" class="primary-button" :disabled="locked || loading.structure" @click="emit('analyzeCalls', agentStrategy)">{{ loading.agent ? '正在分析调用…' : agentStrategy === 'semantic' ? '解析静态调用声明' : 'Agent 分析跨文件调用' }}</button>
                   </div>
                   <p class="source-upload-hint">结构关系由本地规则推导，不会自动写入已审核的正式知识图谱。</p>
-                  <p v-if="source.source_type !== 'java'" class="source-upload-hint">{{ sourceTypeLabel(source.source_type) }} 默认只做语法结构解析；显式运行 Agent 后，才会在同仓库静态候选中分析跨文件调用并产生模型费用。</p>
-                  <p v-else class="source-upload-hint">Java 保留本地确定性调用提示；显式运行 Agent 可对已有仓库内候选进一步消歧。</p>
+                  <p v-if="agentStrategy === 'semantic'" class="source-upload-hint">使用本机 JDK、TypeScript 或 Go 类型检查器分析当前源码；Go 限同包文件。禁用构建脚本、注解处理和项目代码执行；缺失依赖与运行时动态行为仍可能无法确定。</p>
+                  <p v-if="agentStrategy !== 'semantic' && source.source_type !== 'java'" class="source-upload-hint">{{ sourceTypeLabel(source.source_type) }} 默认只做语法结构解析；显式运行 Agent 后，才会在同仓库静态候选中分析跨文件调用并产生模型费用。</p>
+                  <p v-else-if="agentStrategy !== 'semantic'" class="source-upload-hint">Java 保留本地确定性调用提示；显式运行 Agent 可对已有仓库内候选进一步消歧。</p>
                   <p v-if="loading.structure" class="muted-copy" role="status">正在读取源码结构…</p>
                   <p v-else-if="errors.structure" class="inline-error" role="alert">{{ errors.structure }} 请刷新状态重试。</p>
                   <template v-else-if="codeStructure">
@@ -467,6 +471,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                       <p v-if="loading.agent" class="muted-copy" role="status">Agent 正在核对导入、接收者、文件路径和候选声明…</p>
                       <p v-else-if="errors.agent" class="inline-error" role="alert">{{ errors.agent }} <button type="button" class="text-button" @click="emit('analyzeCalls', agentStrategy)">重试分析</button></p>
                       <template v-else-if="agentCallAnalysis">
+                        <p class="source-upload-hint">分析依据：{{ agentCallAnalysis.candidate_generation || '语法候选' }}；未覆盖调用 {{ agentCallAnalysis.uncovered_call_count ?? 0 }} 个。<span v-if="agentCallAnalysis.semantic_diagnostics?.length">编译上下文仍有 {{ agentCallAnalysis.semantic_diagnostics.length }} 项诊断，请结合原文核对。</span></p>
                         <details v-if="agentCallAnalysis.tool_trace?.length" class="agent-tool-trace"><summary>查看工具执行记录</summary><ol><li v-for="(entry, index) in agentCallAnalysis.tool_trace" :key="index">{{ entry.name }} · {{ entry.status === 'ok' ? '成功' : '参数或范围被拒绝' }} · {{ entry.duration_ms }} ms</li></ol></details>
                         <p v-if="agentCallAnalysis.truncated" class="inline-error">仓库或候选达到分析上限，结果可能不完整。</p>
                         <p v-if="agentCallAnalysis.has_syntax_errors" class="inline-error">扫描范围中存在语法错误，Agent 结果仅作为有界提示。</p>
@@ -476,7 +481,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                             <strong>{{ call.caller_id ? callerName(call.caller_id) : '文件顶层' }}</strong>
                             <span aria-hidden="true">→</span>
                             <strong>{{ agentTargetName(call) }}</strong>
-                            <small>调用第 {{ call.line }} 行 · {{ call.resolution }} · 置信度 {{ Math.round(call.confidence * 100) }}%<span v-if="agentTargetLocations(call)"> · {{ agentTargetLocations(call) }}</span></small>
+                            <small>调用第 {{ call.line }} 行 · {{ call.resolution }} · <template v-if="agentCallAnalysis.strategy === 'semantic'">静态声明定位，非运行时结论</template><template v-else>模型估计 {{ Math.round(call.confidence * 100) }}%</template><span v-if="agentTargetLocations(call)"> · {{ agentTargetLocations(call) }}</span></small>
                             <small>{{ call.resolution_basis }}</small>
                             <code>{{ call.call_quote }}</code>
                           </p>

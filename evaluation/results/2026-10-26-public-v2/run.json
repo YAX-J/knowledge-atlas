@@ -1,0 +1,42 @@
+{
+  "status": "failed",
+  "protocol": "public-online-v2",
+  "dataset": {
+    "dataset_id": "knowledge-atlas-public-v2",
+    "version": "2.0.0",
+    "source_count": 10,
+    "case_count": 20,
+    "answerable_count": 16,
+    "category_counts": {
+      "code_location": 4,
+      "cross_document": 4,
+      "direct_fact": 8,
+      "unanswerable": 4
+    },
+    "fingerprint_sha256": "0341a422f40d91e9d8f18e40d74ffd5d90cf225994fbbfc5eef6bcfe2a2bd606"
+  },
+  "started_at": "2026-10-26T12:21:07.250055+00:00",
+  "private_inputs": false,
+  "human_coverage": 0,
+  "billing_cost": null,
+  "embedding_calls": 0,
+  "model_limit": 120,
+  "embedding_limit": 160,
+  "schema_removed": false,
+  "modes": {},
+  "errors": [
+    {
+      "type": "ValueError",
+      "code": null
+    }
+  ],
+  "model_usage": {
+    "limit": 120,
+    "attempted": 0,
+    "usage_reported": 0,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "calls": []
+  },
+  "completed_at": "2026-10-26T12:21:07.337474+00:00"
+}

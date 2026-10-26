@@ -11,6 +11,7 @@ const props = defineProps<{
   result: QuestionAnswer | null
   loading: boolean
   error: string
+  persistent?: boolean
 }>()
 const emit = defineEmits<{
   selectProject: [project: ApiProject]
@@ -22,7 +23,7 @@ const emit = defineEmits<{
   openEvidence: [locator: EvidenceLocator]
 }>()
 const question = ref('')
-const mode = ref<QuestionRetrievalMode>('hybrid')
+const mode = ref<QuestionRetrievalMode>('rrf')
 const remaining = computed(() => 200 - question.value.length)
 const coverage = computed(() => {
   const result = props.result
@@ -73,7 +74,7 @@ function submit() {
         </select>
         <p class="retrieval-hint">BM25 可直接检索已确认知识；向量相关方式需要配置嵌入服务并更新索引。生成回答仍需调用模型。</p>
         <div class="ask-footer">
-          <small>{{ remaining }} 字可用 · 当前回答不会保存为历史记录</small>
+          <small>{{ remaining }} 字可用 · {{ persistent ? '回答和证据将保存在当前项目会话' : '当前回答不会保存为历史记录' }}</small>
           <div>
             <button v-if="result || error || loading" type="button" @click="emit('clear')">{{ loading ? '停止等待' : '清除回答' }}</button>
             <button class="primary" type="submit" :disabled="loading || !project || !question.trim()">

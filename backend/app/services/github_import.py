@@ -22,7 +22,7 @@ from app.schemas.repositories import (
     GithubRepositorySyncItem,
     GithubRepositorySyncResult,
 )
-from app.services import ingestion
+from app.services import ingestion, github_tree
 from app.services.source_languages import CODE_SOURCE_TYPES
 from app.services.repositories import get_repository, normalize_github_remote
 from app.services.projects import get_project
@@ -371,6 +371,7 @@ def sync_github_repository(
     repository_id: uuid.UUID,
     requested_ref: str | None,
     rescan: bool = False,
+    continue_from_snapshot: uuid.UUID | None = None,
 ) -> GithubRepositorySyncResult:
     repository = get_repository(
         db,
@@ -378,6 +379,16 @@ def sync_github_repository(
         project_id=project_id,
         repository_id=repository_id,
     )
+    continuation = None
+    if continue_from_snapshot is not None:
+        continuation = db.scalar(select(RepositorySnapshot).where(
+            RepositorySnapshot.id == continue_from_snapshot, RepositorySnapshot.user_id == user_id,
+            RepositorySnapshot.project_id == project_id, RepositorySnapshot.repository_id == repository_id,
+        ).options(selectinload(RepositorySnapshot.files)))
+        if continuation is None:
+            raise AppError(status_code=404, code='GITHUB_CONTINUATION_NOT_FOUND', message='续传快照不存在或不属于此仓库')
+        if requested_ref and requested_ref != continuation.ref:
+            raise AppError(status_code=409, code='GITHUB_CONTINUATION_REF_CONFLICT', message='续传必须沿用原快照的 ref 和固定提交')
     if (
         repository.provider != "github"
         or repository.remote_owner is None
@@ -413,7 +424,7 @@ def sync_github_repository(
         # Continue against GitHub's canonical coordinates after a transfer or rename.
         owner = quote(repository.remote_owner or "", safe="")
         name = quote(repository.remote_name or "", safe="")
-        selected_ref = requested_ref or repository_payload.get("default_branch")
+        selected_ref = continuation.ref if continuation else requested_ref or repository_payload.get("default_branch")
         if not isinstance(selected_ref, str) or not selected_ref:
             raise AppError(
                 status_code=502,
@@ -422,7 +433,7 @@ def sync_github_repository(
             )
         commit_payload = _get_json(
             client,
-            f"{base_url}/repos/{owner}/{name}/commits/{quote(selected_ref, safe='')}",
+            f"{base_url}/repos/{owner}/{name}/commits/{quote(continuation.commit_sha if continuation else selected_ref, safe='')}",
         )
         commit_sha = commit_payload.get("sha")
         if not isinstance(commit_sha, str) or not commit_sha:
@@ -431,14 +442,17 @@ def sync_github_repository(
                 code="GITHUB_PROVIDER_FAILED",
                 message="GitHub commit 响应缺少 SHA",
             )
+        if continuation and commit_sha != continuation.commit_sha:
+            raise AppError(status_code=409,code='GITHUB_CONTINUATION_COMMIT_CONFLICT',message='续传返回了不同提交，已拒绝混合快照')
 
-        previous_snapshot = _snapshot(
+        previous_snapshot = continuation or _snapshot(
             db, repository_id=repository.id, ref=selected_ref
         )
         if (
             previous_snapshot is not None
             and previous_snapshot.commit_sha == commit_sha
             and not rescan
+            and continuation is None
         ):
             reusable_types = {
                 item.id: source_type
@@ -465,17 +479,42 @@ def sync_github_repository(
                 code="GITHUB_PROVIDER_FAILED",
                 message="GitHub commit 响应缺少 tree SHA",
             )
-        tree_payload = _get_json(
-            client,
-            f"{base_url}/repos/{owner}/{name}/git/trees/{quote(tree_sha, safe='')}",
-            params={"recursive": "1"},
-        )
-        entries = _supported_tree_entries(tree_payload.get("tree"))
-        selected_entries = entries[:min(MAX_GITHUB_IMPORT_FILES, settings.github_import_max_files)]
-        truncated = bool(tree_payload.get("truncated")) or len(entries) > len(
+        if continuation and tree_sha != continuation.tree_sha:
+            raise AppError(status_code=409,code='GITHUB_CONTINUATION_TREE_CONFLICT',message='续传返回了不同文件树，已拒绝混合快照')
+        scan = github_tree.manifest(client,base=f'{base_url}/repos/{owner}/{name}',tree_sha=quote(tree_sha,safe=''),
+            previous=continuation.scan_state if continuation and continuation.tree_sha == tree_sha else None,
+            get_json=_get_json,supported=_supported_tree_entries)
+        entries = scan['entries']
+        completed_records = []
+        if continuation:
+            compatible = {item.id: source_type for item, source_type in _reusable_snapshot_files(
+                db, user_id=user_id, project_id=project_id, repository_id=repository.id,
+                blob_shas={entry['sha'] for entry in entries})}
+            current_blobs = {entry['path']:entry['sha'] for entry in entries}
+            completed_records = [item for item in continuation.files if item.status != 'deleted'
+                and current_blobs.get(item.path) == item.blob_sha and (
+                    compatible.get(item.id) == ingestion.SOURCE_TYPE_BY_SUFFIX.get(Path(item.path).suffix.lower())
+                    or (item.source_id is None and item.task_id is None and item.error_code in
+                        {'SOURCE_EMPTY', 'SOURCE_ENCODING_INVALID', 'SOURCE_PATH_INVALID', 'SOURCE_TOO_LARGE'}))]
+        completed_paths = {item.path for item in completed_records}
+        remaining_entries = [entry for entry in entries if entry['path'] not in completed_paths]
+        selected_entries = remaining_entries[:min(MAX_GITHUB_IMPORT_FILES, settings.github_import_max_files)]
+        truncated = not scan['complete'] or len(entries) > len(
             selected_entries
-        )
+        ) + len(completed_records)
         deletion_detection_complete = not truncated
+        completed_lookup = {item.path:item for item in completed_records}
+        if continuation and deletion_detection_complete:
+            # Reconcile the full immutable manifest against the previous commit, including paths
+            # processed on earlier pages, without downloading already imported blobs again.
+            baseline = db.scalar(select(RepositorySnapshot).where(RepositorySnapshot.user_id==user_id,
+                RepositorySnapshot.project_id==project_id,RepositorySnapshot.repository_id==repository.id,
+                RepositorySnapshot.ref==selected_ref,RepositorySnapshot.commit_sha!=commit_sha)
+                .order_by(RepositorySnapshot.deletion_detection_complete.desc(),RepositorySnapshot.created_at.desc(),RepositorySnapshot.id.desc())
+                .options(selectinload(RepositorySnapshot.files)).limit(1))
+            previous_snapshot=baseline
+            selected_entries=entries
+            completed_records=[]
 
         previous_files = (
             [item for item in previous_snapshot.files if item.status != "deleted"]
@@ -499,7 +538,7 @@ def sync_github_repository(
             if item.id in reusable_types:
                 previous_by_blob[(item.blob_sha, reusable_types[item.id])].append(item)
 
-        current_paths = {entry["path"] for entry in selected_entries}
+        current_paths = {entry["path"] for entry in entries}
         current_paths_by_blob: defaultdict[str, list[str]] = defaultdict(list)
         for entry in selected_entries:
             current_paths_by_blob[entry["sha"]].append(entry["path"])
@@ -507,6 +546,10 @@ def sync_github_repository(
         downloaded_bytes = 0
         items: list[GithubRepositorySyncItem] = []
         file_records: list[tuple[str, str, int, GithubRepositorySyncItem]] = []
+        for previous in completed_records:
+            file_records.append((previous.path, previous.blob_sha, previous.size_bytes,
+                GithubRepositorySyncItem(path=previous.path, source_id=previous.source_id, task_id=previous.task_id,
+                    status='unchanged' if previous.source_id else 'skipped', error_code=previous.error_code)))
         source_path_updates: list[tuple[uuid.UUID, str]] = []
 
         for entry in selected_entries:
@@ -514,6 +557,10 @@ def sync_github_repository(
             blob_sha = entry["sha"]
             size = entry["size"]
             source_type = ingestion.SOURCE_TYPE_BY_SUFFIX[Path(path).suffix.lower()]
+            cached = completed_lookup.get(path)
+            if cached and cached.source_id is None and cached.task_id is None:
+                item=GithubRepositorySyncItem(path=path,status='skipped',error_code=cached.error_code)
+                items.append(item);file_records.append((path,blob_sha,size,item));continue
             previous_at_path = previous_by_path.get(path)
             if (
                 previous_at_path is not None
@@ -694,6 +741,7 @@ def sync_github_repository(
             ref=selected_ref,
             commit_sha=commit_sha,
             tree_sha=tree_sha,
+            scan_state=scan,
             commit_url=commit_url,
             commit_message=(
                 commit_info.get("message")
@@ -749,4 +797,12 @@ def sync_github_repository(
         truncated=truncated,
         deletion_detection_complete=deletion_detection_complete,
         items=items,
+        continuation_snapshot_id=snapshot.id if truncated and not scan.get('blocked') else None,
+        total_supported_files=len(entries),
+        completed_files=sum(item.error_code != 'GITHUB_IMPORT_TOTAL_SIZE_EXCEEDED' for _, _, _, item in file_records if item.status != 'deleted'),
+        remaining_files=max(0, len(entries) - sum(item.error_code != 'GITHUB_IMPORT_TOTAL_SIZE_EXCEEDED' for _, _, _, item in file_records if item.status != 'deleted')),
+        access='private' if repository_payload.get('private') is True else 'public' if repository_payload.get('private') is False else 'unknown',
+        pending_directories=len(scan['frontier']),
+        tree_complete=scan['complete'],
+        traversal_blocked=scan.get('blocked',False),
     )

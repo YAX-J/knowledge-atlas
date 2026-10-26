@@ -12,6 +12,8 @@ from app.api.routes import (
     search,
     sources,
     tasks,
+    workspace,
+    conversations,
 )
 
 
@@ -27,4 +29,6 @@ api_router.include_router(evolution.router)
 api_router.include_router(retirement.router)
 api_router.include_router(search.router)
 api_router.include_router(questions.router)
+api_router.include_router(workspace.router)
+api_router.include_router(conversations.router)
 

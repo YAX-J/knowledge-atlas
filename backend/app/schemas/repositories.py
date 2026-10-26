@@ -54,6 +54,7 @@ class GithubRepositoryResolve(BaseModel):
 class GithubRepositorySync(BaseModel):
     ref: str | None = Field(default=None, max_length=255)
     rescan: bool = False
+    continue_from_snapshot: uuid.UUID | None = None
 
     @field_validator("ref", mode="before")
     @classmethod
@@ -97,6 +98,14 @@ class GithubRepositorySyncResult(BaseModel):
     truncated: bool
     deletion_detection_complete: bool
     items: list[GithubRepositorySyncItem]
+    continuation_snapshot_id: uuid.UUID | None = None
+    total_supported_files: int | None = None
+    completed_files: int | None = None
+    remaining_files: int | None = None
+    access: Literal['public', 'private', 'unknown'] = 'unknown'
+    pending_directories: int = 0
+    tree_complete: bool = True
+    traversal_blocked: bool = False
 
 
 class GithubWorkItemImport(BaseModel):

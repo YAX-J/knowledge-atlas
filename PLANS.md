@@ -1,5 +1,7 @@
 # Knowledge Atlas Implementation Plan
 
+2026-10-26 functional completion: audited identity aliases/merge/unmerge, historical withdrawal/reactivation and replacement groups, persistent grounded conversations, resumable fixed-commit GitHub traversal, and explicit Java/TypeScript/Go static compiler analysis are implemented. The real workbench is the default; questions now default to RRF (search API remains keyword; UI search BM25). Migration head `20261026_0018`. Public-v2 used 84 model / 61 embedding attempts cumulatively; human grading and private authorization acceptance remain pending. See [acceptance](docs/FUNCTIONAL_COMPLETION_20261026.md). Earlier dated checkpoints below are historical.
+
 Optimization 4–6 is complete: measured projected/batched reads, explicitly audited retirement preserving history, and scoped import/review/graph composables. Head `20261026_0017`; [acceptance](docs/OPTIMIZATION_456_20261026.md). Remaining source-navigation/evolution extraction and entity merging stay separate.
 
 Optimization items 1–3 are implemented: durable index-operation ownership/recovery, opt-in source-aware lexical retrieval with separate diagnostics, and verified native backup/schema recovery. Migration head is `20261025_0016`. Full fresh-database restore requires privileges absent from the current role; see [acceptance](docs/RELIABILITY_RETRIEVAL_RECOVERY_20261025.md).

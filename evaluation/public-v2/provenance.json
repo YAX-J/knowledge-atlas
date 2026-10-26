@@ -1,0 +1,72 @@
+[
+  {
+    "path": "fastapi/first_steps.py",
+    "repo": "fastapi/fastapi",
+    "commit": "79cab5bed28b24d92c185d236feb33f5783dfeb3",
+    "upstream": "docs_src/first_steps/tutorial001_py310.py",
+    "url": "https://github.com/fastapi/fastapi/blob/79cab5bed28b24d92c185d236feb33f5783dfeb3/docs_src/first_steps/tutorial001_py310.py"
+  },
+  {
+    "path": "fastapi/paths.py",
+    "repo": "fastapi/fastapi",
+    "commit": "79cab5bed28b24d92c185d236feb33f5783dfeb3",
+    "upstream": "docs_src/path_params/tutorial001_py310.py",
+    "url": "https://github.com/fastapi/fastapi/blob/79cab5bed28b24d92c185d236feb33f5783dfeb3/docs_src/path_params/tutorial001_py310.py"
+  },
+  {
+    "path": "fastapi/query.py",
+    "repo": "fastapi/fastapi",
+    "commit": "79cab5bed28b24d92c185d236feb33f5783dfeb3",
+    "upstream": "docs_src/query_params/tutorial001_py310.py",
+    "url": "https://github.com/fastapi/fastapi/blob/79cab5bed28b24d92c185d236feb33f5783dfeb3/docs_src/query_params/tutorial001_py310.py"
+  },
+  {
+    "path": "fastapi/dependencies.py",
+    "repo": "fastapi/fastapi",
+    "commit": "79cab5bed28b24d92c185d236feb33f5783dfeb3",
+    "upstream": "docs_src/dependencies/tutorial001_py310.py",
+    "url": "https://github.com/fastapi/fastapi/blob/79cab5bed28b24d92c185d236feb33f5783dfeb3/docs_src/dependencies/tutorial001_py310.py"
+  },
+  {
+    "path": "fastapi/body.py",
+    "repo": "fastapi/fastapi",
+    "commit": "79cab5bed28b24d92c185d236feb33f5783dfeb3",
+    "upstream": "docs_src/body/tutorial001_py310.py",
+    "url": "https://github.com/fastapi/fastapi/blob/79cab5bed28b24d92c185d236feb33f5783dfeb3/docs_src/body/tutorial001_py310.py"
+  },
+  {
+    "path": "fastapi/response.py",
+    "repo": "fastapi/fastapi",
+    "commit": "79cab5bed28b24d92c185d236feb33f5783dfeb3",
+    "upstream": "docs_src/response_model/tutorial001_py310.py",
+    "url": "https://github.com/fastapi/fastapi/blob/79cab5bed28b24d92c185d236feb33f5783dfeb3/docs_src/response_model/tutorial001_py310.py"
+  },
+  {
+    "path": "petclinic/Pet.java",
+    "repo": "spring-projects/spring-petclinic",
+    "commit": "500158f732419217507c7656904b8e6aa1bcc0d6",
+    "upstream": "src/main/java/org/springframework/samples/petclinic/owner/Pet.java",
+    "url": "https://github.com/spring-projects/spring-petclinic/blob/500158f732419217507c7656904b8e6aa1bcc0d6/src/main/java/org/springframework/samples/petclinic/owner/Pet.java"
+  },
+  {
+    "path": "petclinic/Visit.java",
+    "repo": "spring-projects/spring-petclinic",
+    "commit": "500158f732419217507c7656904b8e6aa1bcc0d6",
+    "upstream": "src/main/java/org/springframework/samples/petclinic/owner/Visit.java",
+    "url": "https://github.com/spring-projects/spring-petclinic/blob/500158f732419217507c7656904b8e6aa1bcc0d6/src/main/java/org/springframework/samples/petclinic/owner/Visit.java"
+  },
+  {
+    "path": "petclinic/PetType.java",
+    "repo": "spring-projects/spring-petclinic",
+    "commit": "500158f732419217507c7656904b8e6aa1bcc0d6",
+    "upstream": "src/main/java/org/springframework/samples/petclinic/owner/PetType.java",
+    "url": "https://github.com/spring-projects/spring-petclinic/blob/500158f732419217507c7656904b8e6aa1bcc0d6/src/main/java/org/springframework/samples/petclinic/owner/PetType.java"
+  },
+  {
+    "path": "petclinic/Owner.java",
+    "repo": "spring-projects/spring-petclinic",
+    "commit": "500158f732419217507c7656904b8e6aa1bcc0d6",
+    "upstream": "src/main/java/org/springframework/samples/petclinic/owner/Owner.java",
+    "url": "https://github.com/spring-projects/spring-petclinic/blob/500158f732419217507c7656904b8e6aa1bcc0d6/src/main/java/org/springframework/samples/petclinic/owner/Owner.java"
+  }
+]

@@ -129,3 +129,11 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0054: Audited knowledge retirement](0054-audited-knowledge-retirement.md)
 
 - [ADR 0055: Scoped workspace orchestration](0055-scoped-workspace-orchestration.md)
+
+- [ADR 0056: Audited identities and historical validity](0056-audited-identities-and-validity.md)
+
+- [ADR 0057: Grounded persistent conversations and measured defaults](0057-grounded-persistent-conversations.md)
+
+- [ADR 0058: Resumable immutable GitHub manifests](0058-resumable-immutable-github-manifests.md)
+
+- [ADR 0059: Explicit native static declaration analysis](0059-explicit-native-static-call-analysis.md)

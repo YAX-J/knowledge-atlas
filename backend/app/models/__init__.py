@@ -15,8 +15,10 @@ from app.models.graph import KnowledgeEmbedding, KnowledgeEntity, KnowledgeEvide
 from app.models.evolution import KnowledgeChange
 from app.models.embedding_job import EmbeddingJob
 from app.models.retirement import KnowledgeRetirement
+from app.models.workspace import Conversation, ConversationTurn, EntityAlias, EntityMerge, KnowledgeOperation, KnowledgePeriod
 
 __all__ = [
+    'Conversation', 'ConversationTurn', 'EntityAlias', 'EntityMerge', 'KnowledgeOperation', 'KnowledgePeriod',
     "KnowledgeRetirement",
     "EmbeddingJob",
     "CandidateKnowledge",

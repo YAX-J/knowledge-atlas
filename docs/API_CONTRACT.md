@@ -1,5 +1,27 @@
 # Knowledge Atlas 前后端接口草案
 
+2026-10-26 API additions (head `20261026_0018`; prefix `/api/v1`, existing scoped error envelope unchanged):
+
+| Method / project-relative path | Request / response |
+| --- | --- |
+| GET `/projects/{project_id}/overview` | Current scoped sources/ready_sources/pending_reviews/entities/relationships/pending_tasks counts |
+| POST `/projects/{project_id}/knowledge-operations` | `request_id` UUID, `action=alias\|merge\|unmerge\|withdraw\|reactivate\|reverse_change`, `kind=entity\|relationship` (entity default), `knowledge_id`, reason 1–2000; alias requires alias ≤255, merge requires target_id. reverse_change uses a confirmed change UUID |
+| GET `/projects/{project_id}/knowledge-operations` | page≥1/page_size 1–100, `{items,total,page,page_size}`; immutable payload/before/after/reason/created_at |
+| GET `/projects/{project_id}/knowledge/entities/{entity_id}/identity` | Optional timezone-aware valid_at; entity_id/canonical_id/aliases/member_ids |
+| POST `/projects/{project_id}/knowledge-change-groups` | request_id, old_entity_ids/new_entity_ids (each 1–10 distinct, disjoint), reason; audited atomic complete new×old replacement |
+| POST `/projects/{project_id}/conversations` | Optional title (1–120); 201 id/project_id/title/timestamps |
+| GET `/projects/{project_id}/conversations` | page/page_size, latest updated first |
+| GET `/projects/{project_id}/conversations/{conversation_id}/turns` | page/page_size, position ascending; running/succeeded/failed/interrupted, saved answer or null |
+| POST `/projects/{project_id}/conversations/{conversation_id}/turns` | request_id, question≤200, retrieval_mode default rrf, optional aware valid_at, retry_interrupted=false; returns saved turn. Same successful input returns same snapshot |
+
+Knowledge operations return 409 OPERATION_REQUEST_CONFLICT / ALIAS_AMBIGUOUS / MERGE_ENDPOINTS_INVALID / CHANGE_HAS_DEPENDENCIES / CHANGE_CYCLE for invalid transitions, 404 for inaccessible knowledge. Conversation conflicts include TURN_REQUEST_CONFLICT, CONVERSATION_BUSY, TURN_RETRY_REQUIRED, TURN_REPLACED and CONVERSATION_LIMIT. Failed/unknown calls are not automatically retried; explicit retry may charge again. User/project scope applies before IDs are resolved.
+
+GitHub sync adds optional `continue_from_snapshot` UUID; response adds `continuation_snapshot_id`, total_supported_files/completed_files/remaining_files, access public/private/unknown, pending_directories, tree_complete and traversal_blocked. Continuation pins the original commit/tree/ref and validates ownership. Every page creates an immutable snapshot; only a complete manifest/download sequence reconciles deletion. A truncated single directory is reported blocked, not silently complete.
+
+Call analysis adds `strategy=semantic` for Java/JS/JSX/TS/TSX/Go; no provider calls. Response adds candidate_generation/uncovered_call_count/semantic_diagnostics with syntax/type-context kinds. Missing native SDK is 503 SEMANTIC_BACKEND_UNAVAILABLE; duplicate path versions 409 SEMANTIC_SNAPSHOT_AMBIGUOUS; invalid paths 409 SEMANTIC_PATH_INVALID; other languages 422 SEMANTIC_LANGUAGE_UNSUPPORTED. Existing Agent modes retain ID/line validation and bounds.
+
+Questions now default to rrf; GET search still defaults keyword, real search UI BM25. Context never contributes citation IDs. Graph/search/evidence/index counts project current identity at the effective query time. See [acceptance](FUNCTIONAL_COMPLETION_20261026.md); earlier dated API notes below are historical.
+
 ## 多语言代码解析（已实现）
 
 - 上传新增 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，详见[扩展名和边界](MULTILANGUAGE_PARSING.zh-CN.md)。`source_type` 省略时由扩展名推断，显式填写仍须匹配。复用 `code_parsing`，无新迁移。
@@ -566,7 +588,7 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 }
 ```
 
-`question` 去除首尾空白后必须为 1–200 字符；`valid_at` 可选，提供时必须带时区。`retrieval_mode` 可选 hybrid/rrf/vector/bm25，默认 hybrid。最多选 5 个实体，按实体排名轮流取原文，每轮每实体一条，最多 12 段。使用 `(source_id,chunk_id,start_line,end_line,quote)` 去重，保留首条正式证据 ID/归属，不合并不同来源或版本。问题全文用于向量查询；关键词分支最多使用前 8 个不同空白分词。hybrid/rrf/vector 要求嵌入配置；bm25 检索不调用嵌入，但有证据时生成答案仍需 DeepSeek。retrieval 新增 mode/bm25_hits/unique_evidence_count/duplicate_evidence_count/truncated；vector_hits 统计具有向量得分的返回实体数，计数不代表答案可信度。
+`question` 去除首尾空白后必须为 1–200 字符；`valid_at` 可选，提供时必须带时区。`retrieval_mode` 可选 hybrid/rrf/vector/bm25/bm25_source，默认 rrf。最多选 5 个实体，按实体排名轮流取原文，每轮每实体一条，最多 12 段。使用 `(source_id,chunk_id,start_line,end_line,quote)` 去重，保留首条正式证据 ID/归属，不合并不同来源或版本。问题全文用于向量查询；关键词分支最多使用前 8 个不同空白分词。hybrid/rrf/vector 要求嵌入配置；bm25 检索不调用嵌入，但有证据时生成答案仍需 DeepSeek。retrieval 新增 mode/bm25_hits/unique_evidence_count/duplicate_evidence_count/truncated；vector_hits 统计具有向量得分的返回实体数，计数不代表答案可信度。
 
 ```json
 {
@@ -657,7 +679,7 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 
 `action` 当前只允许 `confirm` 和 `reject`。`changes` 可省略，只允许非空 `name`（最多 255 字符）和 `summary`（最多 2000 字符）；拒绝不能同时修改内容。返回更新后的候选对象，已确认时包含 `knowledge_id`；正式图谱对象通过图谱接口读取。确认时在同一事务内重新校验引用、写入正式实体/关系/证据，使用稳定 UUID 并按候选幂等。未处理候选只能处理一次，重复相同动作/相同修改返回原结果且不新增审核事件；改判或不同修改返回 HTTP 409 `REVIEW_ALREADY_RESOLVED`。关系确认前，两端同批实体必须已确认，否则 HTTP 409 `REVIEW_ENDPOINTS_UNCONFIRMED`。不可访问候选返回 HTTP 404。审核状态、`review_events` 前后记录和正式图谱写入同一事务提交。
 
-已确认但尚未生成正式记录的旧候选，可再次提交相同确认进行补写；该重放不重复模型调用，也不新增审核事件。当前不支持 `merge`、撤销、修改类型/证据/端点；实体消歧和问答仍属于后续设计。
+已确认但尚未生成正式记录的旧候选，可再次提交相同确认进行补写；该重放不重复模型调用，也不新增审核事件。候选 resolve 不支持 merge 或修改类型/证据/端点。已确认知识的身份整理、撤回/启用及独立替代撤销走 knowledge-operations，保留原确认审计；持久化问答走 conversations。
 
 ## 第一版接口优先级
 
@@ -671,7 +693,7 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 
 ## 可选排名融合（ADR 0045）
 
-`GET /projects/{id}/search?mode=rrf` 在同一时间与项目/类型作用域内各取最多 100 条 BM25 和向量结果，按 `sum(1/(60+rank))` 融合，分支缺席贡献为 0；不做图关系扩展。同分按名称/UUID 稳定排序。返回 `rrf_score,lexical_rank,vector_rank`、原始分数、lexical 扫描预算、indexed_count/eligible_count 和截断标记。要求有效嵌入配置，空索引不发嵌入请求，供应商错误不静默回退。分数不是概率或可回答性阈值。搜索默认仍为 keyword，问答默认仍为 hybrid。
+`GET /projects/{id}/search?mode=rrf` 在同一时间与项目/类型作用域内各取最多 100 条 BM25 和向量结果，按 `sum(1/(60+rank))` 融合，分支缺席贡献为 0；不做图关系扩展。同分按名称/UUID 稳定排序。返回 `rrf_score,lexical_rank,vector_rank`、原始分数、lexical 扫描预算、indexed_count/eligible_count 和截断标记。要求有效嵌入配置，空索引不发嵌入请求，供应商错误不静默回退。分数不是概率或可回答性阈值。搜索默认仍为 keyword，问答默认 rrf。
 
 抽取 POST 与状态 GET 的 `review_counts` 是同用户/项目/来源/抽取任务下整份候选的实时统计，不受候选列表分页影响；重复抽取不重新调用模型，但统计可随审核变化。
 
