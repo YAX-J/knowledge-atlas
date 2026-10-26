@@ -7,6 +7,7 @@ import SourceWorkspace from '../src/components/SourceWorkspace.vue'
 import ProjectGraph from '../src/components/ProjectGraph.vue'
 import CandidateReview from '../src/components/CandidateReview.vue'
 import KnowledgeEvolution from '../src/components/KnowledgeEvolution.vue'
+import KnowledgeRetirement from '../src/components/KnowledgeRetirement.vue'
 import * as api from '../src/api/knowledgeAtlas'
 import { project, source } from './fixtures'
 import type { EmbeddingIndexStatus, EmbeddingRebuildResult, EntityDetail, KnowledgeSearchResult, QuestionAnswer } from '../src/types'
@@ -16,7 +17,8 @@ vi.mock('../src/api/knowledgeAtlas', async importOriginal => {
   return { ...original, listProjects: vi.fn(), listSources: vi.fn(), listRepositories: vi.fn(), askQuestion: vi.fn(),
     getEmbeddingStatus: vi.fn(), getEmbeddingJob: vi.fn(), getProjectGraph: vi.fn(), listKnowledgeChanges: vi.fn(), getEntityDetail: vi.fn(),
     getSource: vi.fn(), listSourceChunks: vi.fn(), listCandidates: vi.fn(), getExtraction: vi.fn(),
-    searchKnowledge: vi.fn(), rebuildProjectEmbeddings: vi.fn() }
+    searchKnowledge: vi.fn(), rebuildProjectEmbeddings: vi.fn(), listKnowledgeRetirements: vi.fn(), retireKnowledge: vi.fn(),
+    uploadSource: vi.fn(), getTask: vi.fn(), resolveCandidatesBatch: vi.fn() }
 })
 
 it('keeps index status scoped to the selected project when an older inspection finishes late', async () => {
@@ -48,7 +50,10 @@ it('keeps index status scoped to the selected project when an older inspection f
   expect(wrapper.getComponent(ProjectGraph).props('indexStatus')).toEqual(current)
 })
 enableAutoUnmount(afterEach)
-beforeEach(() => { vi.resetAllMocks(); vi.mocked(api.getEmbeddingJob).mockResolvedValue(null) })
+beforeEach(() => {
+  vi.resetAllMocks(); vi.mocked(api.getEmbeddingJob).mockResolvedValue(null)
+  vi.mocked(api.listKnowledgeRetirements).mockResolvedValue({ items:[],total:0,page:1,page_size:20 })
+})
 
 async function openSearchGraph() {
   vi.mocked(api.listProjects).mockResolvedValue({ items: [project], total: 1, page: 1, page_size: 20 })
@@ -283,4 +288,50 @@ it('discards an older candidate filter result and retains source-wide review tot
   expect(api.listCandidates).toHaveBeenLastCalledWith(project.id, source.id, 1, filters)
   expect(wrapper.getComponent(CandidateReview).props('candidates')?.total).toBe(0)
   expect(wrapper.getComponent(CandidateReview).props('extraction')?.review_counts?.pending).toBe(3)
+})
+
+it('wires upload and atomic review modules through the existing App events', async () => {
+  vi.mocked(api.listProjects).mockResolvedValue({items:[project],total:1,page:1,page_size:20})
+  vi.mocked(api.listSources).mockResolvedValue({items:[],total:0,page:1,page_size:20})
+  vi.mocked(api.listRepositories).mockResolvedValue({items:[],total:0,page:1,page_size:20})
+  vi.mocked(api.getSource).mockResolvedValue({...source,source_type:'markdown'})
+  vi.mocked(api.getTask).mockResolvedValue({id:'task',status:'succeeded'} as api.ProcessingTask)
+  vi.mocked(api.listSourceChunks).mockResolvedValue({items:[],total:0,page:1,page_size:20})
+  vi.mocked(api.listCandidates).mockResolvedValue({items:[],total:0,page:1,page_size:20})
+  vi.mocked(api.getExtraction).mockResolvedValue({task:null,candidate_count:0})
+  vi.mocked(api.uploadSource).mockResolvedValue({source_id:source.id,task_id:'task',status:'queued'})
+  vi.mocked(api.resolveCandidatesBatch).mockResolvedValue({items:[],processed_count:1})
+  const wrapper=shallowMount(App,{global:{stubs:{SourceWorkspace:{template:'<div><slot name="reviews" /></div>'}}}})
+  wrapper.getComponent(SideRail).vm.$emit('change','sources');await flushPromises()
+  const file=new File(['# QA'],'qa.md')
+  Object.defineProperty(file,'webkitRelativePath',{value:''})
+  wrapper.getComponent(SourceWorkspace).vm.$emit('upload',[file]);await flushPromises()
+  expect(api.getSource).toHaveBeenLastCalledWith(source.id)
+  wrapper.getComponent(CandidateReview).vm.$emit('resolveBatch',['candidate'],'confirm');await flushPromises()
+  expect(api.resolveCandidatesBatch).toHaveBeenLastCalledWith(project.id,source.id,['candidate'],'confirm')
+  expect(wrapper.getComponent(CandidateReview).props('notice')).toContain('1')
+})
+
+it('locks navigation for retirement and refreshes the graph after success', async () => {
+  vi.mocked(api.listProjects).mockResolvedValue({items:[project],total:1,page:1,page_size:20})
+  vi.mocked(api.listSources).mockResolvedValue({items:[],total:0,page:1,page_size:20})
+  vi.mocked(api.listRepositories).mockResolvedValue({items:[],total:0,page:1,page_size:20})
+  vi.mocked(api.getProjectGraph).mockResolvedValue({nodes:[],edges:[],truncated:false})
+  vi.mocked(api.listKnowledgeChanges).mockResolvedValue({items:[],total:0,page:1,page_size:20})
+  let finish!: (value:Awaited<ReturnType<typeof api.retireKnowledge>>)=>void
+  vi.mocked(api.retireKnowledge).mockReturnValueOnce(new Promise(yes=>{finish=yes}))
+  const wrapper=shallowMount(App,{global:{stubs:{ProjectGraph:{template:'<div><slot name="evolution" /></div>'}}}})
+  wrapper.getComponent(SideRail).vm.$emit('change','sources');await flushPromises()
+  wrapper.getComponent(SourceWorkspace).vm.$emit('graph');await flushPromises()
+  const input={kind:'entity' as const,knowledge_id:'one',category:'correction' as const,reason:'Reviewed error'}
+  wrapper.getComponent(KnowledgeRetirement).vm.$emit('retire',input);await flushPromises()
+  expect(wrapper.getComponent(KnowledgeRetirement).props('busy')).toBe(true)
+  wrapper.getComponent(SideRail).vm.$emit('change','sources');await flushPromises()
+  expect(wrapper.findComponent(ProjectGraph).exists()).toBe(true)
+  finish({...input,id:'event',project_id:project.id,name:'one',effective_at:project.created_at,
+    before:{valid_from:project.created_at,valid_to:null},after:{valid_from:project.created_at,valid_to:project.created_at}})
+  await flushPromises()
+  expect(wrapper.getComponent(KnowledgeRetirement).props('notice')).toContain('已停用')
+  expect(wrapper.getComponent(KnowledgeRetirement).props('busy')).toBe(false)
+  expect(api.getProjectGraph).toHaveBeenCalledTimes(2)
 })

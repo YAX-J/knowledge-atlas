@@ -649,6 +649,16 @@ export function getEmbeddingJob(projectId: string) {
   return apiRequest<import('../types').EmbeddingJob | null>(`/projects/${projectId}/embeddings/rebuild-status`)
 }
 
+export function listKnowledgeRetirements(projectId: string, page = 1) {
+  return apiRequest<import('../types').RetirementList>(`/projects/${projectId}/knowledge-retirements?page=${page}&page_size=20`)
+}
+
+export function retireKnowledge(projectId: string, input: import('../types').RetirementInput & { request_id: string }) {
+  return apiRequest<import('../types').KnowledgeRetirement>(`/projects/${projectId}/knowledge-retirements`, {
+    method: 'POST', body: JSON.stringify(input),
+  })
+}
+
 export function rebuildProjectEmbeddings(projectId: string, retryInterrupted = false): Promise<EmbeddingRebuildResult> {
   return apiRequest<EmbeddingRebuildResult>(`/projects/${projectId}/embeddings/rebuild${retryInterrupted ? '?retry_interrupted=true' : ''}`, {
     method: 'POST', signal: AbortSignal.timeout(240_000),

@@ -1,5 +1,7 @@
 # Knowledge Atlas 前端开发说明
 
+2026-10-26（ADR 0054/0055）：导入写入、候选审核、图谱读取分别集中于 `useSourceImport` / `useCandidateReview` / `useProjectGraph`；同步上下文变化与卸载使旧响应失效，保持现有 props/events 与跨流程导航锁。`KnowledgeRetirement` 提供具名目标/原因/说明、二次确认、分页审计和历史详情入口，`useKnowledgeRetirement` 复用同输入重试 UUID，未知结果不自动重发。停用成功清理旧检索/问答/对照并刷新图谱。App 仍保留原文定位、仓库快照与演化；覆盖率统计只含配置范围。
+
 搜索模块读取持久化更新任务，跨页面刷新恢复 running/succeeded/failed/interrupted 显示，状态读取期间保留运行锁。ApiError 区分 READ_UNAVAILABLE 与 REQUEST_RESULT_UNKNOWN；未知更新结果转向状态查询，过期任务有明确重新更新按钮。向量检索/问答/单步 Agent/工具 Agent 等待为 240/420/240/900 秒。新增 bm25_source 选项与来源位置命中解释，仍只导航正式证据。
 
 SourceWorkspace 使用父级 SourceFilters 显式筛选文件名/路径、语言与资料状态，语言选项复用 sourceLanguages 注册表。App 保留已打开原文、独立记录 sourcesRequestedPage、隔离迟到响应并在页数收缩时回最后有效页；切换项目重置筛选。重试发出失败目标页，不使用旧响应页码。无结果与空项目分开提示，当前打开资料不在本页时明确说明。见 [ADR 0049](adr/0049-source-discovery-filters.zh-CN.md)。

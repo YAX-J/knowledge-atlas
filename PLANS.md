@@ -1,5 +1,7 @@
 # Knowledge Atlas Implementation Plan
 
+Optimization 4–6 is complete: measured projected/batched reads, explicitly audited retirement preserving history, and scoped import/review/graph composables. Head `20261026_0017`; [acceptance](docs/OPTIMIZATION_456_20261026.md). Remaining source-navigation/evolution extraction and entity merging stay separate.
+
 Optimization items 1–3 are implemented: durable index-operation ownership/recovery, opt-in source-aware lexical retrieval with separate diagnostics, and verified native backup/schema recovery. Migration head is `20261025_0016`. Full fresh-database restore requires privileges absent from the current role; see [acceptance](docs/RELIABILITY_RETRIEVAL_RECOVERY_20261025.md).
 
 Source discovery filters and recoverable source pagination are implemented (ADR 0049), preserving opened originals and provider-free reads. See [acceptance](docs/SOURCE_FILTERS_20261025.md).

@@ -173,3 +173,7 @@ python -m pytest tests/test_sources.py tests/test_parsing.py tests/test_source_l
 ## Source discovery filters (ADR 0049)
 
 Source listing accepts literal filename/relative-path q (max 200), registered source_type and source_status. Apply all conditions before count/pagination in the existing user/project/archive scope, and preserve parsing task links and GitHub provenance. Source status is not task status. Reads must not parse, extract or call providers. Focus tests/test_source_filters.py tests/test_sources.py; the native runner includes the filter suite.
+
+## Projected source pagination (ADR 0053)
+
+list_sources selects only list fields (omitted columns raiseload), keeps repository display and uses a scoped window rank to read one latest parsing task per visible source. Preserve existing supported task types, filters/count/page order and created_at/id descending ties; parsing/detail still read full content explicitly. SourceListItem must serialize without loading content or task error histories. Query-count/projection/latest-task regressions run in SQLite and native PostgreSQL (tests/test_read_performance.py).

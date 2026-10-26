@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import UploadFile
 from sqlalchemy import func, or_, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, load_only, selectinload
 
 from app.core.config import Settings
 from app.core.errors import AppError
@@ -254,19 +254,28 @@ def list_sources(
     total = db.scalar(select(func.count()).select_from(SourceDocument).where(*filters)) or 0
     sources = list(db.scalars(
         select(SourceDocument).where(*filters)
-        .options(selectinload(SourceDocument.repository))
+        .options(load_only(
+            SourceDocument.id, SourceDocument.project_id, SourceDocument.repository_id,
+            SourceDocument.original_name, SourceDocument.relative_path, SourceDocument.source_type,
+            SourceDocument.size_bytes, SourceDocument.status, SourceDocument.created_at, SourceDocument.updated_at,
+            raiseload=True,
+        ), selectinload(SourceDocument.repository))
         .order_by(SourceDocument.created_at.desc(), SourceDocument.id)
         .offset((page - 1) * page_size).limit(page_size)
     ))
     latest_tasks: dict[uuid.UUID, ProcessingTask] = {}
     if sources:
+        ranked = select(ProcessingTask.id, func.row_number().over(
+            partition_by=ProcessingTask.source_id,
+            order_by=(ProcessingTask.created_at.desc(), ProcessingTask.id.desc()),
+        ).label('position')).where(
+            ProcessingTask.user_id == user_id, ProcessingTask.project_id == project_id,
+            ProcessingTask.source_id.in_([source.id for source in sources]),
+            ProcessingTask.type.in_(PARSING_TASK_TYPES),
+        ).subquery()
         tasks = db.scalars(
-            select(ProcessingTask).where(
-                ProcessingTask.user_id == user_id,
-                ProcessingTask.project_id == project_id,
-                ProcessingTask.source_id.in_([source.id for source in sources]),
-                ProcessingTask.type.in_(PARSING_TASK_TYPES),
-            ).order_by(ProcessingTask.created_at.desc(), ProcessingTask.id.desc())
+            select(ProcessingTask).join(ranked, ranked.c.id == ProcessingTask.id).where(ranked.c.position == 1)
+            .options(load_only(ProcessingTask.id, ProcessingTask.source_id, ProcessingTask.status, raiseload=True))
         )
         for task in tasks:
             latest_tasks.setdefault(task.source_id, task)

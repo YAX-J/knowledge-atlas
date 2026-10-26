@@ -1,6 +1,8 @@
 # Knowledge Atlas
 
-新增服务端持久化索引更新状态与中断恢复、可选 `bm25_source` 来源位置检索，以及原生备份/隔离恢复校验。当前迁移为 `20261025_0016`；旧 40 题 Recall@5 两种词法模式均为 74.49%，不替换默认策略。见[本轮验收](docs/RELIABILITY_RETRIEVAL_RECOVERY_20261025.zh-CN.md)和[备份恢复](docs/BACKUP_RESTORE.zh-CN.md)。
+2026-10-26 优化 4–6：资料列表字段裁剪/最新任务与搜索证据批量读取已实测；当前知识支持说明理由后审计停用并保留历史；导入、审核、图谱读取已拆分为独立组合模块。当前迁移 `20261026_0017`，见[验收记录](docs/OPTIMIZATION_456_20261026.zh-CN.md)。
+
+新增服务端持久化索引更新状态与中断恢复、可选 `bm25_source` 来源位置检索，以及原生备份/隔离恢复校验。当前迁移为 `20261026_0017`；旧 40 题 Recall@5 两种词法模式均为 74.49%，不替换默认策略。见[本轮验收](docs/RELIABILITY_RETRIEVAL_RECOVERY_20261025.zh-CN.md)和[备份恢复](docs/BACKUP_RESTORE.zh-CN.md)。
 
 资料列表支持按文件名/仓库内路径、语言、资料解析状态组合筛选，保留已打开原文，并可准确重试失败页。见 [ADR 0049](docs/adr/0049-source-discovery-filters.zh-CN.md) 与[验收记录](docs/SOURCE_FILTERS_20261025.zh-CN.md)。
 

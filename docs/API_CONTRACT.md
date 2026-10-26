@@ -720,3 +720,12 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 搜索 mode 和问答 retrieval_mode 新增可选 bm25_source，LexicalSearchInfo.protocol 为 mixed-bm25-source-v1，matched_fields 可含 provenance。只把正式证据对应的 original_name/relative_path/heading_path 纳入既有有界词法预算；不扩展未审核来源、正式对象、问答历史或引用 ID。旧默认和旧模式协议不变。
 
 客户端网络/等待失败对读取报告 READ_UNAVAILABLE，对写入报告 REQUEST_RESULT_UNKNOWN；后者不能视为服务端回滚。索引更新以状态查询恢复，问答/调用分析仍非持久化。备份恢复仅提供本机 CLI，不新增恢复 API。
+
+
+## 2026-10-26: audited knowledge retirement (ADR 0054)
+
+- `POST /api/v1/projects/{project_id}/knowledge-retirements`: body `{request_id: UUID, kind: "entity" | "relationship", knowledge_id: UUID, category: "correction" | "obsolete", reason: string}`. Reason is trimmed/nonblank, max 2000 chars; extra fields rejected. Effective time is server-generated, never client-backdated. Only current active/unclosed scoped knowledge may retire. Relationships also require current endpoints. Under the project lock, graph service closes valid_to and saves one audit atomically. Status/review decisions/evidence remain unchanged, historical reads retain old intervals.
+- Response `{id, project_id, kind, knowledge_id, name, category, reason, effective_at, before, after}`. Snapshots include id/candidate_id/type/name/summary/confidence/status/valid_from/valid_to; relationship snapshots also include endpoint IDs. No user_id. Snapshot display is read-only.
+- Same project/user/request UUID and identical normalized input returns the original result. Changed input with the same UUID → 409 `RETIREMENT_REQUEST_CONFLICT`; already closed/stale knowledge or invisible relationship endpoints → 409 `KNOWLEDGE_NOT_CURRENT`; unknown/cross-project record or archived project → scoped 404.
+- `GET /api/v1/projects/{project_id}/knowledge-retirements?page=1&page_size=20`: response `{items, total, page, page_size}`, descending effective_at then stable ID; page_size 1–100. No provider calls. The audit's before.valid_from opens the original scoped historical detail/evidence route. No delete/edit/restore endpoints.
+- Source list and all search response shapes/order remain unchanged by ADR 0053. Omitted source body/task error fields are never lazily loaded during pagination; exact evidence and Git links are batch-resolved. Native query-count/semantic fingerprint regressions protect the read boundary.

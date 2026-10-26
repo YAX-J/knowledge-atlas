@@ -8,6 +8,7 @@ from app.api.routes import (
     projects,
     questions,
     repositories,
+    retirement,
     search,
     sources,
     tasks,
@@ -23,6 +24,7 @@ api_router.include_router(tasks.router)
 api_router.include_router(knowledge.router)
 api_router.include_router(graph.router)
 api_router.include_router(evolution.router)
+api_router.include_router(retirement.router)
 api_router.include_router(search.router)
 api_router.include_router(questions.router)
 

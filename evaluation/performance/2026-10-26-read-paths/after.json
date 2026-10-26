@@ -1,0 +1,256 @@
+{
+  "protocol": "native-read-path-v1",
+  "database_version": "17.10",
+  "fixture": {
+    "sources": 100,
+    "body_padding_bytes": 131072,
+    "parsing_tasks_per_source": 20,
+    "entities": 100
+  },
+  "timing_scope": "service+serialization; connection acquisition excluded; Python allocations, not RSS/server memory",
+  "providers": 0,
+  "operations": {
+    "sources_page_20": {
+      "samples": [
+        {
+          "queries": 8,
+          "elapsed_ms": 55.28,
+          "peak_python_bytes": 869883
+        },
+        {
+          "queries": 8,
+          "elapsed_ms": 19.361,
+          "peak_python_bytes": 387654
+        },
+        {
+          "queries": 8,
+          "elapsed_ms": 19.566,
+          "peak_python_bytes": 386442
+        }
+      ],
+      "median_ms": 19.566,
+      "max_peak_python_bytes": 869883,
+      "output_sha256": "9a8adf13245bbc307b0c8dac09d06d94a496f6af8f6de6471a39a9c56841ec32"
+    },
+    "sources_page_100": {
+      "samples": [
+        {
+          "queries": 8,
+          "elapsed_ms": 47.077,
+          "peak_python_bytes": 868419
+        },
+        {
+          "queries": 8,
+          "elapsed_ms": 46.385,
+          "peak_python_bytes": 868701
+        },
+        {
+          "queries": 8,
+          "elapsed_ms": 46.054,
+          "peak_python_bytes": 868824
+        }
+      ],
+      "median_ms": 46.385,
+      "max_peak_python_bytes": 868824,
+      "output_sha256": "1f467ba737f0097265ba745e7c938654202fecded3aaaec9bed98da95b209824"
+    },
+    "keyword_top_1": {
+      "samples": [
+        {
+          "queries": 8,
+          "elapsed_ms": 53.986,
+          "peak_python_bytes": 587684
+        },
+        {
+          "queries": 8,
+          "elapsed_ms": 24.184,
+          "peak_python_bytes": 330652
+        },
+        {
+          "queries": 8,
+          "elapsed_ms": 22.423,
+          "peak_python_bytes": 330420
+        }
+      ],
+      "median_ms": 24.184,
+      "max_peak_python_bytes": 587684,
+      "output_sha256": "d86a382cbd122ecb17dfa547f52078af055d55f7b17d56e8e6580518226badb3"
+    },
+    "keyword_top_10": {
+      "samples": [
+        {
+          "queries": 8,
+          "elapsed_ms": 28.122,
+          "peak_python_bytes": 431515
+        },
+        {
+          "queries": 8,
+          "elapsed_ms": 25.731,
+          "peak_python_bytes": 397051
+        },
+        {
+          "queries": 8,
+          "elapsed_ms": 25.044,
+          "peak_python_bytes": 397148
+        }
+      ],
+      "median_ms": 25.731,
+      "max_peak_python_bytes": 431515,
+      "output_sha256": "06ff113d15aa2a36572899273b6f9b5d710bbcd295c3d8a26cc26adca0fe4c3c"
+    },
+    "keyword_top_50": {
+      "samples": [
+        {
+          "queries": 8,
+          "elapsed_ms": 45.874,
+          "peak_python_bytes": 734609
+        },
+        {
+          "queries": 8,
+          "elapsed_ms": 44.57,
+          "peak_python_bytes": 733282
+        },
+        {
+          "queries": 8,
+          "elapsed_ms": 46.52,
+          "peak_python_bytes": 733082
+        }
+      ],
+      "median_ms": 45.874,
+      "max_peak_python_bytes": 734609,
+      "output_sha256": "1e9ee0d7e12db489f43b5b424301841c3903482f0ffa37f7215160ce8d71b3c6"
+    },
+    "bm25_top_1": {
+      "samples": [
+        {
+          "queries": 10,
+          "elapsed_ms": 50.474,
+          "peak_python_bytes": 786240
+        },
+        {
+          "queries": 10,
+          "elapsed_ms": 42.986,
+          "peak_python_bytes": 682884
+        },
+        {
+          "queries": 10,
+          "elapsed_ms": 42.342,
+          "peak_python_bytes": 685410
+        }
+      ],
+      "median_ms": 42.986,
+      "max_peak_python_bytes": 786240,
+      "output_sha256": "1f6f7416dbeec2192734cd949e140994904f6ca4f80514aee7d953d805703e04"
+    },
+    "bm25_top_10": {
+      "samples": [
+        {
+          "queries": 10,
+          "elapsed_ms": 45.921,
+          "peak_python_bytes": 726163
+        },
+        {
+          "queries": 10,
+          "elapsed_ms": 46.409,
+          "peak_python_bytes": 725110
+        },
+        {
+          "queries": 10,
+          "elapsed_ms": 46.363,
+          "peak_python_bytes": 725307
+        }
+      ],
+      "median_ms": 46.363,
+      "max_peak_python_bytes": 726163,
+      "output_sha256": "29066463f62b11c3ff6f03da6789672332f428401a3979e2b5e8eacb8997ea7d"
+    },
+    "bm25_top_50": {
+      "samples": [
+        {
+          "queries": 10,
+          "elapsed_ms": 67.202,
+          "peak_python_bytes": 978869
+        },
+        {
+          "queries": 10,
+          "elapsed_ms": 66.28,
+          "peak_python_bytes": 975498
+        },
+        {
+          "queries": 10,
+          "elapsed_ms": 65.724,
+          "peak_python_bytes": 977504
+        }
+      ],
+      "median_ms": 66.28,
+      "max_peak_python_bytes": 978869,
+      "output_sha256": "f817c77ac6280c292743947d73c36d547f99201d9e6bef3c2ae7f0975d259f15"
+    },
+    "bm25_source_top_1": {
+      "samples": [
+        {
+          "queries": 10,
+          "elapsed_ms": 48.825,
+          "peak_python_bytes": 697134
+        },
+        {
+          "queries": 10,
+          "elapsed_ms": 47.41,
+          "peak_python_bytes": 695307
+        },
+        {
+          "queries": 10,
+          "elapsed_ms": 47.572,
+          "peak_python_bytes": 694024
+        }
+      ],
+      "median_ms": 47.572,
+      "max_peak_python_bytes": 697134,
+      "output_sha256": "fbfb42816c24b5580cb607bbda7bf31984ff3ff4cf49e2d921a685b68a9d3d8a"
+    },
+    "bm25_source_top_10": {
+      "samples": [
+        {
+          "queries": 10,
+          "elapsed_ms": 48.761,
+          "peak_python_bytes": 738547
+        },
+        {
+          "queries": 10,
+          "elapsed_ms": 50.116,
+          "peak_python_bytes": 740196
+        },
+        {
+          "queries": 10,
+          "elapsed_ms": 50.867,
+          "peak_python_bytes": 740096
+        }
+      ],
+      "median_ms": 50.116,
+      "max_peak_python_bytes": 740196,
+      "output_sha256": "b8e7c1564f5c9a9f146b1096ddd32a1e4ac8e9173da70e0ad6c906e8c2f82eba"
+    },
+    "bm25_source_top_50": {
+      "samples": [
+        {
+          "queries": 10,
+          "elapsed_ms": 72.599,
+          "peak_python_bytes": 992237
+        },
+        {
+          "queries": 10,
+          "elapsed_ms": 73.029,
+          "peak_python_bytes": 991158
+        },
+        {
+          "queries": 10,
+          "elapsed_ms": 73.277,
+          "peak_python_bytes": 992780
+        }
+      ],
+      "median_ms": 73.029,
+      "max_peak_python_bytes": 992780,
+      "output_sha256": "eba68c3de3c437f3b99be20c81b783c1cdb934c3977c46a3d4c8fb27da9e5802"
+    }
+  }
+}

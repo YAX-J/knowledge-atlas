@@ -34,9 +34,10 @@ def reciprocal_rank_search(
     terms = set(local.lexical.query_terms)
     missing = [entity for entity, _ in vectors[:RRF_POOL_LIMIT] if entity.id not in hits]
     reads = {entity.id: entity for entity in graph._reads(db, missing)}
+    evidence_by_entity = graph.evidence_for_records(db, missing)
     for rank, (entity, similarity) in enumerate(vectors[:RRF_POOL_LIMIT], 1):
         if entity.id not in hits:
-            evidence = graph._evidence_read(db, entity)
+            evidence = evidence_by_entity[entity.id]
             evidence.sort(key=lambda item: (-len(set(lexical.tokenize(item.quote)) & terms),
                                             item.start_line, str(item.id)))
             hits[entity.id] = SearchHit(entity=reads[entity.id], matched_fields=[], evidence=evidence[:3])

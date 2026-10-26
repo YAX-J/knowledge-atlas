@@ -1,5 +1,7 @@
 # Knowledge Atlas 系统架构
 
+2026-10-26（ADR 0053–0055）：资料分页只读列表字段及每来源最新任务；搜索按同作用域/种类批量读取证据和 Git 链接。新增 `knowledge_retirements`，人工说明理由并二次确认后，在项目锁内原子关闭当前区间与保存快照，保留历史/证据。前端 `useSourceImport` / `useCandidateReview` / `useProjectGraph` / `useKnowledgeRetirement` 拥有各自请求隔离；App 保留导航、来源定位及演化编排。
+
 索引更新使用 `embedding_jobs` 每项目最近执行记录，项目锁认领、批次续租、写入前执行归属校验；不新增后台队列，浏览器结果未知时读取状态，过期任务仅明确重试。`bm25_source` 只扩展正式证据的位置排序文本，原默认保持；独立原生 CLI 以一致快照备份并在新目标恢复校验。见 ADR 0050–0052。
 
 前端搜索/索引状态集中到 `useKnowledgeSearch`，复用 `useLatestRequest` 丢弃迟到读取；项目与有效时间变更同步失效，索引更新另有按项目的在途锁。该锁只存在当前页面实例，服务端写入继续使用原边界；清空搜索不取消已发出的更新。不引入路由、状态库或后端 API 变化。

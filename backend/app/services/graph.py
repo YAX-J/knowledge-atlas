@@ -28,6 +28,18 @@ from app.services.source_links import github_file_urls, github_line_url
 MAX_EDGES = 500
 
 
+def apply_retirement(record, event):
+    """Called only by explicit retirement under the project lock; caller commits."""
+    event.before = {key: str(getattr(record, key)) if key in {'id', 'candidate_id'} else getattr(record, key)
+                    for key in ('id', 'candidate_id', 'type', 'name', 'summary', 'confidence', 'status')}
+    event.before.update(valid_from=(record.valid_from.replace(tzinfo=timezone.utc) if record.valid_from.tzinfo is None
+        else record.valid_from.astimezone(timezone.utc)).isoformat(), valid_to=None)
+    if isinstance(record, KnowledgeRelationship):
+        event.before.update(source_id=str(record.source_id), target_id=str(record.target_id))
+    record.valid_to = event.effective_at
+    event.after = {**event.before, 'valid_to': event.effective_at.isoformat()}
+
+
 def apply_reviewed_change(change, new, old, *, confirm: bool):
     """Evolution service validates evidence and holds the project lock; caller commits."""
     def snapshot(entity):
@@ -222,6 +234,18 @@ def get_graph(
 
 
 def _evidence_read(db: Session, record):
+    return evidence_for_records(db, [record])[record.id]
+
+
+def evidence_for_records(db: Session, records):
+    """Batch one homogeneous authorized scope; preserve each owner's evidence order."""
+    if not records:
+        return {}
+    record = records[0]
+    if any((item.user_id, item.project_id, isinstance(item, KnowledgeEntity)) !=
+           (record.user_id, record.project_id, isinstance(record, KnowledgeEntity)) for item in records):
+        raise ValueError('Evidence batch must share scope and owner kind')
+    result = {item.id: [] for item in records}
     owner = KnowledgeEvidence.entity_id if isinstance(record, KnowledgeEntity) else KnowledgeEvidence.relationship_id
     rows = list(db.execute(select(
         KnowledgeEvidence,
@@ -238,7 +262,7 @@ def _evidence_read(db: Session, record):
             SourceRepository.project_id == record.project_id,
         ),
     ).join(SourceChunk, SourceChunk.id == KnowledgeEvidence.chunk_id).where(
-        owner == record.id, KnowledgeEvidence.user_id == record.user_id, KnowledgeEvidence.project_id == record.project_id,
+        owner.in_(result), KnowledgeEvidence.user_id == record.user_id, KnowledgeEvidence.project_id == record.project_id,
         SourceDocument.user_id == record.user_id, SourceDocument.project_id == record.project_id,
         SourceChunk.source_id == KnowledgeEvidence.source_id,
         SourceChunk.user_id == record.user_id, SourceChunk.project_id == record.project_id,
@@ -249,7 +273,8 @@ def _evidence_read(db: Session, record):
         project_id=record.project_id,
         source_ids=list({item.source_id for item, *_ in rows}),
     )
-    return [FormalEvidenceRead(
+    for item, title, relative_path, repository_name in rows:
+        result[item.entity_id if isinstance(record, KnowledgeEntity) else item.relationship_id].append(FormalEvidenceRead(
         id=item.id, source_id=item.source_id, chunk_id=item.chunk_id,
         title=(
             f"{repository_name}/{relative_path}"
@@ -262,7 +287,8 @@ def _evidence_read(db: Session, record):
             end_line=item.end_line,
         ),
         start_line=item.start_line, end_line=item.end_line, heading_path=item.heading_path,
-    ) for item, title, relative_path, repository_name in rows]
+        ))
+    return result
 
 
 def entity_detail(db: Session, *, user_id: uuid.UUID, entity_id: uuid.UUID, valid_at: datetime | None) -> EntityDetail:

@@ -36,7 +36,7 @@ description: Knowledge Atlas 的 SQLAlchemy 模型与 Alembic 迁移。新增/�
 
 新增 `20261025_0016`：每项目最近一次索引更新归属、租约、状态与结果。
 
-当前 head 是 `20261025_0016`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
+当前 head 是 `20261026_0017`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
 
 原生临时 schema 验收使用 `python -m scripts.verify_native`：Alembic Config 必须设置 `attributes["version_table_schema"]`，`migrations/env.py` 传给在线 context；同时保留 public 以解析 vector。仅设置 `search_path=temp,public` 会回退到业务版本表和业务表，不能作为隔离保证。测试前检查所有核心表确在生成 schema 且初始项目为空；结束只删除自己生成的 schema 并核对业务迁移标记未变。不要对业务 schema 运行验收降级或清理。
 
@@ -109,3 +109,7 @@ python -m pytest tests/test_migrations.py
 ## Durable rebuild state and native recovery (ADR 0050/0052)
 
 Head 20261025_0016 adds embedding_jobs as one latest project operation, not formal knowledge. Migration upgrade/downgrade must preserve existing business data. Native runner checks physical ownership of all Base metadata tables before tests. For backups use scripts.database_backup with exported snapshot, checksum and structural/content fingerprints; restore only to a fresh validated ka_restore_* database/schema and never alter configured application targets. Schema rehearsal must remap every foreign key and prove none points to public before COPY. CREATEDB/extension privileges are required for full new-database restore; current local role lacks CREATEDB, so do not claim that path passed.
+
+## Audited retirement (ADR 0054)
+
+Head 20261026_0017 adds knowledge_retirements with scoped entity/relationship composite FKs, exclusive owner/category checks and before/after snapshots. Existing business rows must survive migration. Downgrade only removes audit storage and never reopens validity intervals; retain a verified backup before downgrade to preserve audits. Native suite covers retirement races and schema migration; final clean application backup/schema recovery now includes 19 tables. Temporary QA schemas must be cleaned before a public-only schema restore rehearsal; full fresh DB restore remains permission-limited.

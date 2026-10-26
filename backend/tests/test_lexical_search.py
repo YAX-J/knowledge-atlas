@@ -92,7 +92,8 @@ def test_bm25_scope_type_time_and_archived_boundaries(client, db_session, config
         assert client.get(url, params=params).status_code == 404
     finally:
         app.dependency_overrides.pop(get_current_user_id)
-    entity = db_session.scalar(select(KnowledgeEntity).where(KnowledgeEntity.name == 'PostgreSQL'))
+    entity = db_session.scalar(select(KnowledgeEntity).where(KnowledgeEntity.name == 'PostgreSQL',
+        KnowledgeEntity.project_id == uuid.UUID(project_id)))
     now = utc_now()
     entity.valid_from = now - timedelta(days=2)
     entity.valid_to = now - timedelta(days=1)

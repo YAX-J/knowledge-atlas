@@ -123,3 +123,9 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [0051: Optional source-aware lexical retrieval](0051-source-aware-lexical-retrieval.md)
 
 - [0052: Verified native backup and guarded restore](0052-verified-native-backups.md)
+
+- [ADR 0053: Projected source lists and batched search evidence](0053-batched-read-paths.md)
+
+- [ADR 0054: Audited knowledge retirement](0054-audited-knowledge-retirement.md)
+
+- [ADR 0055: Scoped workspace orchestration](0055-scoped-workspace-orchestration.md)

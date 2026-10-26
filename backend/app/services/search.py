@@ -101,9 +101,10 @@ def _keyword_search(
     truncated = len(rows) > top_k
     rows = rows[:top_k]
     entities = graph._reads(db, [row[0] for row in rows])
+    evidence_by_entity = graph.evidence_for_records(db, [row[0] for row in rows])
     items = []
     for row, entity in zip(rows, entities, strict=True):
-        quotes = graph._evidence_read(db, row[0])
+        quotes = evidence_by_entity[row[0].id]
         quotes.sort(key=lambda item: not any(term in item.quote.lower() for term in terms))
         items.append(SearchHit(
             entity=entity, keyword_score=row[1],
@@ -178,9 +179,10 @@ def _bm25_search(
     truncated = bool(reasons) or len(ranked) > top_k
     ranked = ranked[:top_k]
     reads = graph._reads(db, [item[0] for item in ranked])
+    evidence_by_entity = graph.evidence_for_records(db, [item[0] for item in ranked])
     items = []
     for (entity, score, fields), read in zip(ranked, reads, strict=True):
-        evidence = graph._evidence_read(db, entity)
+        evidence = evidence_by_entity[entity.id]
         evidence.sort(key=lambda item: (-len(set(lexical.tokenize(item.quote +
             (' ' + item.title + ' ' + ' '.join(item.heading_path) if provenance else ''))) & set(terms)), item.start_line, str(item.id)))
         items.append(SearchHit(entity=read, bm25_score=round(score, 6), matched_fields=fields, evidence=evidence[:3]))
@@ -250,11 +252,12 @@ def _vector_search(
     truncated = len(ranked) > top_k
     ranked = ranked[:top_k]
     reads = graph._reads(db, [item[0] for item in ranked])
+    evidence_by_entity = graph.evidence_for_records(db, [item[0] for item in ranked])
     items = [SearchHit(
         entity=read,
         vector_score=round(score, 6),
         matched_fields=[],
-        evidence=graph._evidence_read(db, entity)[:3],
+        evidence=evidence_by_entity[entity.id][:3],
     ) for (entity, score), read in zip(ranked, reads, strict=True)]
     return SearchRead(
         query=normalized, mode='vector', items=items, truncated=truncated,
@@ -359,6 +362,7 @@ def _hybrid_search(
     truncated = graph_truncated or len(ranked) > top_k
     ranked = ranked[:top_k]
     reads = graph._reads(db, [item[0].entity for item in ranked])
+    evidence_by_entity = graph.evidence_for_records(db, [item[0].entity for item in ranked])
     items = []
     for item, read in zip(ranked, reads, strict=True):
         candidate, keyword_component, vector_component, graph_score, hybrid_score = item
@@ -371,7 +375,7 @@ def _hybrid_search(
             graph_score=round(graph_score, 6), hybrid_score=round(hybrid_score, 6),
             matched_fields=candidate.matched_fields,
             graph_connections=candidate.graph_connections,
-            evidence=graph._evidence_read(db, candidate.entity)[:3],
+            evidence=evidence_by_entity[candidate.entity.id][:3],
         ))
     return SearchRead(
         query=normalized, mode='hybrid', items=items, truncated=truncated,

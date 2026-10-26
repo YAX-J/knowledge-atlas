@@ -197,6 +197,29 @@ export interface RelationshipDetail {
 export type KnowledgeSearchMode = 'keyword' | 'bm25' | 'bm25_source' | 'vector' | 'hybrid' | 'rrf'
 export type QuestionRetrievalMode = Exclude<KnowledgeSearchMode, 'keyword'>
 
+export interface RetirementInput {
+  kind: 'entity' | 'relationship'
+  knowledge_id: string
+  category: 'correction' | 'obsolete'
+  reason: string
+}
+
+export interface KnowledgeRetirement extends RetirementInput {
+  id: string
+  project_id: string
+  name: string
+  effective_at: string
+  before: { valid_from: string; valid_to: string | null; [key: string]: unknown }
+  after: { valid_from: string; valid_to: string | null; [key: string]: unknown }
+}
+
+export interface RetirementList {
+  items: KnowledgeRetirement[]
+  page: number
+  page_size: number
+  total: number
+}
+
 export interface KnowledgeSearchResult {
   query: string
   mode: KnowledgeSearchMode

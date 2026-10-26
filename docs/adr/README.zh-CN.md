@@ -123,3 +123,9 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [0051: 可选来源位置词法检索](0051-source-aware-lexical-retrieval.zh-CN.md)
 
 - [0052: 可验证原生备份与受控恢复](0052-verified-native-backups.zh-CN.md)
+
+- [ADR 0053: 资料列表与搜索证据批量读取](0053-batched-read-paths.zh-CN.md)
+
+- [ADR 0054: 保留历史的审计停用](0054-audited-knowledge-retirement.zh-CN.md)
+
+- [ADR 0055: 按上下文分离工作台编排](0055-scoped-workspace-orchestration.zh-CN.md)

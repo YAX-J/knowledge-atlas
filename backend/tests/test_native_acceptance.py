@@ -91,6 +91,24 @@ def test_native_rebuild_job_serializes_duplicate_requests_and_persists_status(mo
         assert client.get(url + '/rebuild-status').json()['status'] == 'succeeded'
 
 
+def test_native_retirement_serializes_competing_and_repeated_requests(configured, monkeypatch):
+    from tests.test_retirement import prepared, request
+    from app.models.retirement import KnowledgeRetirement
+    with independent_client() as (client, engine):
+        project, records = prepared(client, monkeypatch)
+        selected = next(item for item in records if item['kind'] == 'entity')
+        url = f'/api/v1/projects/{project}/knowledge-retirements'
+        payloads = [request(selected), request(selected)]
+        responses = race(lambda payload:client.post(url,json=payload),payloads)
+        assert sorted(item.status_code for item in responses) == [200,409]
+        winner = next(payload for payload,response in zip(payloads,responses) if response.status_code == 200)
+        repeated = race(lambda _:client.post(url,json=winner),range(3))
+        assert all(item.status_code == 200 and item.json() == repeated[0].json() for item in repeated)
+        with Session(engine) as db:
+            assert db.scalar(select(func.count()).select_from(KnowledgeRetirement).where(
+                KnowledgeRetirement.project_id == uuid.UUID(project))) == 1
+
+
 def test_native_concurrent_upload_and_replacement_are_idempotent(configured, monkeypatch):
     with independent_client() as (client, engine):
         project = create_project(client)

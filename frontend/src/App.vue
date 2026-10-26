@@ -13,32 +13,36 @@ import SnapshotFiles from './components/SnapshotFiles.vue'
 import CandidateReview from './components/CandidateReview.vue'
 import ProjectGraph from './components/ProjectGraph.vue'
 import KnowledgeEvolution from './components/KnowledgeEvolution.vue'
+import KnowledgeRetirement from './components/KnowledgeRetirement.vue'
 import QuestionWorkspace from './components/QuestionWorkspace.vue'
 import { ApiError } from './api/client'
 import { useLatestRequest } from './composables/useLatestRequest'
+import { useSourceImport } from './composables/useSourceImport'
+import { useCandidateReview } from './composables/useCandidateReview'
+import { useProjectGraph } from './composables/useProjectGraph'
+import { useKnowledgeRetirement } from './composables/useKnowledgeRetirement'
 import { useKnowledgeSearch } from './composables/useKnowledgeSearch'
-import type { GovernanceKind, QuestionRetrievalMode, ReviewFilters, SourceFilters } from './types'
+import type { GovernanceKind, KnowledgeRetirement as RetirementEvent, QuestionRetrievalMode, SourceFilters } from './types'
 import { isCodeSource } from './sourceLanguages'
 import {
   createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
-  runTask, uploadSource, extractKnowledge, getExtraction, listCandidates, resolveCandidate, resolveCandidatesBatch,
-  getProjectGraph, getEntityDetail, getRelationshipDetail, askQuestion,
+  getEntityDetail, askQuestion,
   getKnowledgeHistory, inspectGovernance, listKnowledgeChanges, proposeKnowledgeChange, resolveKnowledgeChange,
   getJavaCodeStructure, getProjectSourceChunk,
   analyzeAgentCalls,
   searchCodeSymbols,
   listRepositorySnapshots, listSnapshotFiles, importSnapshotCommit,
-  importGithubWorkItems, listRepositories, resolveGithubRepository, resolveLocalRepository, syncGithubRepository,
+  listRepositories,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
-  AgentCallAnalysis, CandidateList, ExtractionResult, JavaCodeStructure, SourceRepositoryList, SourceUploadResult,
+  AgentCallAnalysis, JavaCodeStructure, SourceRepositoryList,
   CodeSymbolHit, CodeSymbolSearchInput, CodeSymbolSearchResult,
   RepositorySnapshotList, RepositorySnapshotFileList, RepositorySnapshotFile, SourceRepository,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
 import type { GovernanceResult, KnowledgeChangeInput, KnowledgeChangeList, KnowledgeHistory } from './types'
-import type { EvidenceLocator, IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, ReviewDecision, ProjectGraphData, EntityDetail, RelationshipDetail, QuestionAnswer } from './types'
+import type { EvidenceLocator, IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, EntityDetail, QuestionAnswer } from './types'
 
 const selectedId = ref('event-driven')
 const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'graph')
@@ -252,8 +256,6 @@ let codeOpenRequest = 0
 let codeSearchInput: CodeSymbolSearchInput | null = null
 watch(activeNav, value => {
   if (value !== 'projectGraph') {
-    graphRequest++; graphDetailRequest++
-    graphLoading.value = graphDetailLoading.value = false
     clearEvolution()
   }
   if (value !== 'sources' && value !== 'projects') {
@@ -311,6 +313,12 @@ async function openCodeSymbol(hit: CodeSymbolHit) {
 const notice = ref('')
 const loading = reactive<IngestionLoading>({ projects: false, create: false, repositories: false, remote: false, sync: false, activity: false, commit: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false, agent: false })
 const errors = reactive<IngestionErrors>({ projects: '', create: '', repositories: '', remote: '', sync: '', activity: '', commit: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '', agent: '' })
+const { registerGithubRepository, syncRegisteredGithubRepository, importRegisteredGithubActivity, uploadFiles, parseSource } = useSourceImport({
+  project, repositories, sources, selectedSourceId, selectedTaskId, task, notice, loading, errors,
+  locked: () => reviewBusy.value || changeBusy.value,
+  prepareSource: () => { sourcesRequest++; clearSourceSelection() },
+  loadSources: page => loadSources(page), loadRepositories: page => loadRepositories(page), refreshSource: () => refreshSource(), errorMessage,
+})
 let projectsRequest = 0
 let repositoriesRequest = 0
 let sourcesRequest = 0
@@ -318,30 +326,17 @@ let detailRequest = 0
 let chunksRequest = 0
 let structureRequest = 0
 let agentCallRequest = 0
-let reviewsRequest = 0
-let reviewAction = 0
-const candidates = ref<CandidateList | null>(null)
-const reviewFilters = ref<ReviewFilters>({ status: '', kind: '', query: '' })
-const extraction = ref<ExtractionResult | null>(null)
-const reviewsLoading = ref(false)
-const extracting = ref(false)
-const resolving = ref('')
-const reviewBusy = computed(() => extracting.value || Boolean(resolving.value))
-const reviewsError = ref('')
-const reviewsNotice = ref('')
-const realGraph = ref<ProjectGraphData | null>(null)
-const realEntityDetail = ref<EntityDetail | null>(null)
-const realRelationshipDetail = ref<RelationshipDetail | null>(null)
-const graphLoading = ref(false)
-const graphDetailLoading = ref(false)
-const graphError = ref('')
-const graphDetailError = ref('')
-const graphSelectedId = ref('')
-const graphSelectionKind = ref<'entity' | 'relationship'>('entity')
-const graphCenter = ref('')
-const graphType = ref('')
-const graphDepth = ref(1)
-const graphValidAt = ref('')
+const {
+  candidates, reviewFilters, extraction, reviewsLoading, extracting, resolving, reviewBusy, reviewsError, reviewsNotice,
+  clearReviews, applyReviewFilters, loadReviews, extractSource, reviewCandidate, reviewCandidatesBatch,
+} = useCandidateReview(project, selectedSourceId, () => clearIndexStatus(), errorMessage)
+const {
+  realGraph, realEntityDetail, realRelationshipDetail, graphLoading, graphDetailLoading, graphError, graphDetailError,
+  graphSelectedId, graphCenter, graphType, graphDepth, graphValidAt,
+  clearProjectGraph, loadRealGraph, selectGraphEntity, selectGraphRelationship, retryGraphDetail, filterGraph, setGraphDepth,
+} = useProjectGraph(() => ({ projectId:project.value?.id, active:activeNav.value === 'projectGraph' }), errorMessage,
+  () => { historyRequest++; history.value = null; evolutionLoading.history = false; evolutionError.history = '' },
+  () => { void loadHistory() })
 const history = ref<KnowledgeHistory | null>(null)
 const knowledgeChanges = ref<KnowledgeChangeList | null>(null)
 const governance = ref<GovernanceResult | null>(null)
@@ -372,6 +367,31 @@ const evolutionLoading = reactive({ history: false, changes: false, governance: 
 const evolutionError = reactive({ history: '', changes: '', governance: '', action: '' })
 const changeBusy = ref(false)
 const changeNotice = ref('')
+const {
+  retirements, retirementsLoading, retirementsError, retirementError, retirementNotice,
+  loadRetirements, retireKnowledge,
+} = useKnowledgeRetirement(() => ({ projectId: project.value?.id, active: activeNav.value === 'projectGraph', validAt: graphValidAt.value }),
+  changeBusy, errorMessage, async () => {
+    clearSearch(); clearQuestion(); closeComparison()
+    governanceRequest++; governance.value = null; evolutionLoading.governance = false
+    historyRequest++; history.value = null
+    graphSelectedId.value = ''; graphType.value = ''
+    await Promise.all([loadRealGraph(''), loadIndexStatus()])
+  })
+const retirementSelection = computed(() => {
+  const record = realEntityDetail.value?.entity ?? realRelationshipDetail.value?.relationship
+  return record ? { kind: realEntityDetail.value ? 'entity' as const : 'relationship' as const,
+    id: record.id, name: record.name, current: record.status === 'active' && !record.valid_to } : null
+})
+async function visitRetiredKnowledge(event: RetirementEvent) {
+  if (changeBusy.value || event.project_id !== project.value?.id) return
+  const projectId = project.value.id
+  if (event.kind === 'entity') await setGraphTime(event.before.valid_from, event.knowledge_id)
+  else {
+    await setGraphTime(event.before.valid_from)
+    if (project.value?.id === projectId && activeNav.value === 'projectGraph') await selectGraphRelationship(event.knowledge_id)
+  }
+}
 let historyRequest = 0
 let changesRequest = 0
 let governanceRequest = 0
@@ -465,8 +485,6 @@ async function setGraphTime(value: string, entityId = '') {
   graphType.value = ''
   await loadRealGraph(entityId)
 }
-let graphRequest = 0
-let graphDetailRequest = 0
 const {
   searchResult, searchLoading, searchError, searchRebuilding, searchErrorAction, searchNotice,
   indexStatus, indexStatusLoading, indexStatusError, loadIndexStatus, clearIndexStatus,
@@ -525,13 +543,7 @@ function clearSourceSelection() {
   clearEvidenceNavigation()
   codeOpenRequest++
   focusedChunkId.value = ''
-  reviewsRequest++
-  reviewAction++
-  candidates.value = null
-  reviewFilters.value = { status: '', kind: '', query: '' }
-  extraction.value = null
-  reviewsLoading.value = extracting.value = false
-  resolving.value = reviewsError.value = reviewsNotice.value = ''
+  clearReviews()
   detailRequest++
   chunksRequest++
   structureRequest++
@@ -574,12 +586,7 @@ function selectProject(value: ApiProject) {
   clearCodeSearch()
   project.value = value
   clearSearch()
-  graphRequest++
-  graphDetailRequest++
-  realGraph.value = null
-  realEntityDetail.value = realRelationshipDetail.value = null
-  graphSelectedId.value = graphCenter.value = graphType.value = ''
-  graphLoading.value = graphDetailLoading.value = false
+  clearProjectGraph()
   repositories.value = null
   repositoriesRequest++
   sources.value = null
@@ -662,113 +669,6 @@ async function loadRepositories(page = 1) {
     if (request === repositoriesRequest) errors.repositories = errorMessage(error)
   } finally {
     if (request === repositoriesRequest) loading.repositories = false
-  }
-}
-
-async function registerGithubRepository(input: {
-  remoteUrl: string
-  localRepositoryId?: string
-}) {
-  const projectId = project.value?.id
-  if (!projectId || loading.remote || loading.sync || loading.activity || loading.upload || loading.task || loading.commit) return
-  loading.remote = true
-  errors.remote = ''
-  notice.value = ''
-  try {
-    const repository = await resolveGithubRepository(
-      projectId, input.remoteUrl, input.localRepositoryId,
-    )
-    if (project.value?.id !== projectId) return
-    notice.value = repository.kind === 'local_folder'
-      ? `已把本地仓库“${repository.name}”关联到 ${repository.remote_url}。`
-      : `已登记 GitHub 仓库“${repository.name}”，尚未导入远程文件。`
-    await loadRepositories(1)
-  } catch (error) {
-    if (project.value?.id === projectId) errors.remote = errorMessage(error)
-  } finally {
-    loading.remote = false
-  }
-}
-
-async function syncRegisteredGithubRepository(input: {
-  repositoryId: string
-  ref?: string
-  rescan?: boolean
-}) {
-  const projectId = project.value?.id
-  if (!projectId || loading.sync || loading.activity || loading.remote || loading.upload || loading.task || loading.commit) return
-  loading.sync = true
-  errors.sync = errors.activity = ''
-  notice.value = '正在从 GitHub 读取仓库快照…'
-  try {
-    const result = await syncGithubRepository(projectId, input.repositoryId, input.ref, input.rescan)
-    if (project.value?.id !== projectId) return
-    const selected = [...result.items].reverse().find(
-      item => item.status !== 'deleted' && item.source_id && item.task_id,
-    )
-    if (selected?.source_id && selected.task_id) {
-      sourcesRequest++
-      clearSourceSelection()
-      selectedSourceId.value = selected.source_id
-      selectedTaskId.value = selected.task_id
-    }
-    notice.value = `GitHub ${result.ref}@${result.commit_sha.slice(0, 7)} 同步完成：新增 ${result.imported_count}、复用 ${result.reused_count}、未变 ${result.unchanged_count}、重命名 ${result.renamed_count}、删除 ${result.deleted_count}、跳过 ${result.skipped_count}${result.truncated ? '；结果达到导入上限' : ''}${result.deletion_detection_complete ? '' : '；本次无法完整判断删除'}。`
-    await Promise.all([loadSources(1), loadRepositories(repositories.value?.page ?? 1)])
-    if (selectedSourceId.value) await refreshSource()
-  } catch (error) {
-    if (project.value?.id === projectId) {
-      notice.value = ''
-      errors.sync = errorMessage(error)
-    }
-  } finally {
-    loading.sync = false
-  }
-}
-
-async function importRegisteredGithubActivity(repositoryId: string) {
-  const projectId = project.value?.id
-  if (!projectId || loading.activity || loading.sync || loading.remote || loading.upload || loading.task || loading.commit) return
-  loading.activity = true
-  errors.activity = errors.sync = ''
-  notice.value = '正在从 GitHub 读取最近更新的 Issue、Pull Request、Review 与 thread 状态…'
-  try {
-    const result = await importGithubWorkItems(projectId, repositoryId)
-    if (project.value?.id !== projectId) return
-    const selected = [...result.items].reverse().find(
-      item => item.status !== 'skipped' && item.source_id && item.task_id,
-    )
-    if (selected?.source_id && selected.task_id) {
-      sourcesRequest++
-      clearSourceSelection()
-      selectedSourceId.value = selected.source_id
-      selectedTaskId.value = selected.task_id
-    }
-    const truncatedComments = result.items.filter(item => item.comments_truncated).length
-    const truncatedReviews = result.items.filter(
-      item => item.reviews_truncated || item.review_comments_truncated,
-    ).length
-    const truncatedThreads = result.items.filter(item => item.review_threads_truncated).length
-    const tokenRequiredThreads = result.items.filter(
-      item => item.review_threads_status === 'token_required',
-    ).length
-    const reviewThreadCount = result.items.reduce(
-      (total, item) => total + item.review_threads_count,
-      0,
-    )
-    const resolvedReviewThreadCount = result.items.reduce(
-      (total, item) => total + item.resolved_review_threads_count,
-      0,
-    )
-    notice.value = `GitHub Issue/PR 导入完成：工作项新增 ${result.imported_count}、复用 ${result.reused_count}、跳过 ${result.skipped_count}；Review 快照新增 ${result.review_imported_count}、复用 ${result.review_reused_count}、跳过 ${result.review_skipped_count}；Review thread ${reviewThreadCount} 个（已解决 ${resolvedReviewThreadCount}）${result.truncated ? '；结果达到 20 项上限' : ''}${truncatedComments ? `；${truncatedComments} 项普通评论达到导入上限` : ''}${truncatedReviews ? `；${truncatedReviews} 项 Review 活动达到导入上限` : ''}${truncatedThreads ? `；${truncatedThreads} 项 thread 状态达到导入上限` : ''}${tokenRequiredThreads ? `；${tokenRequiredThreads} 项 thread 状态需要后端 GITHUB_TOKEN` : ''}。`
-    await Promise.all([loadSources(1), loadRepositories(repositories.value?.page ?? 1)])
-    if (selectedSourceId.value) await refreshSource()
-  } catch (error) {
-    if (project.value?.id === projectId) {
-      notice.value = ''
-      errors.activity = errorMessage(error)
-    }
-  } finally {
-    loading.activity = false
   }
 }
 
@@ -864,190 +764,6 @@ async function runAgentCallAnalysis(strategy: 'single_step' | 'tools' = 'single_
   }
 }
 
-async function uploadFiles(files: File[]) {
-  const projectId = project.value?.id
-  if (!projectId || !files.length || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
-  loading.upload = true
-  errors.upload = ''
-  notice.value = ''
-  // Prevent an older automatic selection from replacing the upload result.
-  sourcesRequest++
-  clearSourceSelection()
-  const failures: string[] = []
-  let lastResult: SourceUploadResult | null = null
-  const folderPath = files[0]?.webkitRelativePath ?? ''
-  const folderRoot = folderPath.split('/').filter(Boolean)[0] ?? ''
-  let repositoryId: string | undefined
-  let repositoryName = ''
-  if (folderRoot) {
-    try {
-      const repository = await resolveLocalRepository(projectId, folderRoot)
-      repositoryId = repository.id
-      repositoryName = repository.name
-      notice.value = `已识别本地仓库“${repository.name}”，正在接收资料。`
-    } catch (error) {
-      errors.upload = errorMessage(error)
-      loading.upload = false
-      return
-    }
-  }
-  for (const [index, file] of files.entries()) {
-    const fileLabel = file.webkitRelativePath || file.name
-    notice.value = `正在接收第 ${index + 1} / ${files.length} 份资料：${fileLabel}`
-    try {
-      const pathParts = file.webkitRelativePath.split('/').filter(Boolean)
-      const repositoryPath = repositoryId
-        ? pathParts.slice(1).join('/') || file.name
-        : undefined
-      lastResult = await uploadSource(
-        projectId, file, repositoryPath, repositoryId,
-      )
-    } catch (error) {
-      failures.push(`${fileLabel}：${errorMessage(error)}`)
-    }
-  }
-  const succeeded = files.length - failures.length
-  if (repositoryId) await loadRepositories(1)
-  if (lastResult) {
-    selectedSourceId.value = lastResult.source_id
-    selectedTaskId.value = lastResult.task_id
-    notice.value = `${repositoryId ? `本地仓库“${repositoryName}”` : '单文件'}已接收 ${succeeded} / ${files.length} 份资料。相同仓库中的相同内容会复用已有资料，请查看当前解析状态。`
-    await Promise.all([loadSources(1), refreshSource()])
-  } else {
-    notice.value = ''
-  }
-  if (failures.length) {
-    const visibleFailures = failures.slice(0, 3).join('；')
-    errors.upload = `有 ${failures.length} 份资料上传失败：${visibleFailures}${failures.length > 3 ? `；另有 ${failures.length - 3} 份未列出` : ''}`
-  }
-  loading.upload = false
-  loading.sources = false
-}
-
-async function parseSource() {
-  const taskId = selectedTaskId.value
-  if (!taskId || loading.create || loading.task || loading.upload || loading.sync || loading.activity || loading.commit) return
-  loading.task = true
-  errors.task = ''
-  try {
-    task.value = await runTask(taskId)
-    if (task.value.status === 'failed') {
-      const message = task.value.error?.message
-      errors.task = typeof message === 'string' ? message : '解析失败，请重试。'
-    }
-    await Promise.all([refreshSource(), loadSources(sources.value?.page ?? 1)])
-    if (task.value?.status === 'failed') errors.task = '解析失败，请重试解析。'
-  } catch (error) {
-    errors.task = errorMessage(error)
-  } finally {
-    loading.task = false
-  }
-}
-
-async function applyReviewFilters(filters: ReviewFilters) {
-  if (reviewBusy.value) return
-  const projectId = project.value?.id
-  const sourceId = selectedSourceId.value
-  reviewFilters.value = { ...filters }
-  const applied = reviewFilters.value
-  candidates.value = null
-  await loadReviews(1)
-  await nextTick()
-  if (project.value?.id !== projectId || selectedSourceId.value !== sourceId || reviewFilters.value !== applied) return
-  const heading = document.getElementById('candidate-title')
-  heading?.focus({ preventScroll: true })
-  heading?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
-}
-
-async function loadReviews(page = candidates.value?.page ?? 1) {
-  const sourceId = selectedSourceId.value
-  const projectId = project.value?.id
-  if (!sourceId || !projectId) return
-  const request = ++reviewsRequest
-  reviewsLoading.value = true
-  reviewsError.value = ''
-  const filters = { ...reviewFilters.value }
-  try {
-    const [batch, status] = await Promise.all([listCandidates(projectId, sourceId, page, filters), getExtraction(sourceId)])
-    if (request !== reviewsRequest || sourceId !== selectedSourceId.value) return
-    const lastPage = Math.max(1, Math.ceil(batch.total / batch.page_size))
-    if (page > lastPage) { await loadReviews(lastPage); return }
-    candidates.value = batch
-    extraction.value = status
-    if (status.task?.status === 'failed') {
-      const message = status.task.error?.message
-      reviewsError.value = typeof message === 'string' ? message : '提取失败，请重试。'
-    }
-  } catch (error) {
-    if (request === reviewsRequest) reviewsError.value = errorMessage(error)
-  } finally {
-    if (request === reviewsRequest) reviewsLoading.value = false
-  }
-}
-
-async function extractSource() {
-  const sourceId = selectedSourceId.value
-  if (!sourceId || extracting.value || resolving.value) return
-  const action = ++reviewAction
-  reviewsRequest++
-  reviewsLoading.value = false
-  extracting.value = true
-  reviewsError.value = reviewsNotice.value = ''
-  try {
-    const result = await extractKnowledge(sourceId)
-    if (action !== reviewAction || sourceId !== selectedSourceId.value) return
-    extraction.value = result
-    await loadReviews(1)
-    if (action === reviewAction && result.task?.status === 'succeeded') reviewsNotice.value = `已生成 ${result.candidate_count} 条候选知识，请逐项核对证据。`
-  } catch (error) {
-    if (action === reviewAction) reviewsError.value = errorMessage(error)
-  } finally {
-    if (action === reviewAction) extracting.value = false
-  }
-}
-
-async function reviewCandidate(decision: ReviewDecision) {
-  if (extracting.value || resolving.value) return
-  const action = ++reviewAction
-  reviewsRequest++
-  reviewsLoading.value = false
-  resolving.value = decision.id
-  reviewsError.value = reviewsNotice.value = ''
-  try {
-    await resolveCandidate(decision)
-    if (action !== reviewAction) return
-    clearIndexStatus()
-    await loadReviews()
-    if (action === reviewAction) reviewsNotice.value = decision.action === 'confirm' ? '知识已写入项目图谱，审核记录已保存。' : '候选知识已拒绝，审核记录已保存。'
-  } catch (error) {
-    if (action === reviewAction) reviewsError.value = errorMessage(error)
-  } finally {
-    if (action === reviewAction) resolving.value = ''
-  }
-}
-
-async function reviewCandidatesBatch(ids: string[], decision: 'confirm' | 'reject') {
-  const projectId = project.value?.id
-  const sourceId = selectedSourceId.value
-  if (!projectId || !sourceId || !ids.length || extracting.value || resolving.value) return
-  const action = ++reviewAction
-  reviewsRequest++
-  reviewsLoading.value = false
-  resolving.value = 'batch'
-  reviewsError.value = reviewsNotice.value = ''
-  try {
-    const result = await resolveCandidatesBatch(projectId, sourceId, ids, decision)
-    if (action !== reviewAction || project.value?.id !== projectId || selectedSourceId.value !== sourceId) return
-    clearIndexStatus()
-    await loadReviews()
-    if (action === reviewAction) reviewsNotice.value = `已${decision === 'confirm' ? '确认' : '拒绝'} ${result.processed_count} 条候选，整批审核记录已保存。`
-  } catch (error) {
-    if (action === reviewAction) reviewsError.value = errorMessage(error)
-  } finally {
-    if (action === reviewAction) resolving.value = ''
-  }
-}
-
 function openProjectGraph() {
   if (!project.value || reviewBusy.value) return
   clearSearch()
@@ -1059,81 +775,6 @@ function openProjectGraph() {
   void loadChanges(1)
   void loadRealGraph('')
 }
-
-async function loadRealGraph(center = graphCenter.value) {
-  const projectId = project.value?.id
-  if (!projectId) return
-  const request = ++graphRequest
-  graphDetailRequest++
-  graphLoading.value = true
-  graphDetailLoading.value = false
-  graphError.value = graphDetailError.value = ''
-  realGraph.value = null
-  realEntityDetail.value = null
-  realRelationshipDetail.value = null
-  graphCenter.value = center
-  try {
-    const result = await getProjectGraph(projectId, { centerId: center || undefined, depth: graphDepth.value, types: graphType.value, validAt: graphValidAt.value })
-    if (request !== graphRequest || project.value?.id !== projectId) return
-    realGraph.value = result
-    const selected = result.nodes.find(item => item.id === graphSelectedId.value) ?? result.nodes[0]
-    graphSelectedId.value = selected?.id ?? ''
-    if (selected) await selectGraphEntity(selected.id)
-  } catch (error) {
-    if (request === graphRequest) graphError.value = errorMessage(error)
-  } finally {
-    if (request === graphRequest) graphLoading.value = false
-  }
-}
-
-async function selectGraphEntity(id: string) {
-  historyRequest++; history.value = null; evolutionLoading.history = false; evolutionError.history = ''
-  if (!realGraph.value?.nodes.some(item => item.id === id)) {
-    graphType.value = ''
-    await loadRealGraph(id)
-    return
-  }
-  const request = ++graphDetailRequest
-  graphSelectedId.value = id
-  graphSelectionKind.value = 'entity'
-  graphDetailLoading.value = true
-  graphDetailError.value = ''
-  realEntityDetail.value = realRelationshipDetail.value = null
-  try {
-    const result = await getEntityDetail(id, graphValidAt.value)
-    if (request === graphDetailRequest) { realEntityDetail.value = result; void loadHistory() }
-  } catch (error) {
-    if (request === graphDetailRequest) graphDetailError.value = errorMessage(error)
-  } finally {
-    if (request === graphDetailRequest) graphDetailLoading.value = false
-  }
-}
-
-async function selectGraphRelationship(id: string) {
-  historyRequest++; history.value = null; evolutionLoading.history = false; evolutionError.history = ''
-  const request = ++graphDetailRequest
-  graphSelectedId.value = id
-  graphSelectionKind.value = 'relationship'
-  graphDetailLoading.value = true
-  graphDetailError.value = ''
-  realEntityDetail.value = realRelationshipDetail.value = null
-  try {
-    const result = await getRelationshipDetail(id, graphValidAt.value)
-    if (request === graphDetailRequest) realRelationshipDetail.value = result
-  } catch (error) {
-    if (request === graphDetailRequest) graphDetailError.value = errorMessage(error)
-  } finally {
-    if (request === graphDetailRequest) graphDetailLoading.value = false
-  }
-}
-
-function retryGraphDetail() {
-  if (graphSelectionKind.value === 'entity') void selectGraphEntity(graphSelectedId.value)
-  else void selectGraphRelationship(graphSelectedId.value)
-}
-
-function filterGraph(type: string) { graphType.value = type; void loadRealGraph('') }
-function setGraphDepth(depth: number) { graphDepth.value = depth; void loadRealGraph() }
 
 onMounted(() => {
   if (activeNav.value !== 'graph') void loadProjects()
@@ -1262,7 +903,11 @@ function setTimeline(value: number) {
       @back="activeNav = 'sources'" @demo="activeNav = 'graph'" @refresh="loadRealGraph()"
       @select-entity="selectGraphEntity" @select-relationship="selectGraphRelationship" @neighborhood="loadRealGraph"
       @reset="loadRealGraph('')" @filter-type="filterGraph" @depth="setGraphDepth" @retry-detail="retryGraphDetail" @open-evidence="openEvidence">
-      <template #evolution><KnowledgeEvolution :nodes="realGraph?.nodes ?? []" :selected="realEntityDetail" :history="history"
+      <template #evolution>
+        <KnowledgeRetirement :selected="retirementSelection" :records="retirements" :loading="retirementsLoading"
+          :error="retirementsError" :action-error="retirementError" :notice="retirementNotice" :busy="changeBusy" :historical="Boolean(graphValidAt)"
+          @retire="retireKnowledge" @page="loadRetirements" @visit="visitRetiredKnowledge" />
+        <KnowledgeEvolution :nodes="realGraph?.nodes ?? []" :selected="realEntityDetail" :history="history"
         :changes="knowledgeChanges" :governance="governance" :history-loading="evolutionLoading.history" :changes-loading="evolutionLoading.changes"
         :governance-loading="evolutionLoading.governance" :history-error="evolutionError.history" :changes-error="evolutionError.changes"
         :governance-error="evolutionError.governance" :action-error="evolutionError.action" :notice="changeNotice" :busy="changeBusy" :historical="Boolean(graphValidAt)"

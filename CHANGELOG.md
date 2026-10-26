@@ -10,6 +10,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Projected source pagination/latest tasks and batched search evidence with native measurements; explicit reasoned knowledge retirement with audit/history; scoped import/review/graph orchestration modules (ADR 0053–0055).
+
 - Persisted server-side index rebuild ownership, refresh recovery and explicit interrupted retry, with uncertain-result transport errors and bounded model request budgets.
 - Optional source-aware BM25 plus new regression/diagnostic artifacts; verified PostgreSQL snapshot backup and guarded fresh-target recovery tools.
 

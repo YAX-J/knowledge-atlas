@@ -85,7 +85,7 @@ description: Knowledge Atlas 的候选审核与正式图谱写入。确认/拒�
 
 ## 禁止事项
 
-- 不要在 `promote_candidate` 之外创建 `knowledge_entities` / `knowledge_relationships` / `knowledge_evidence`；唯一有效期/状态更新例外是显式人工演化审核的 `apply_reviewed_change`，不能绕过服务或项目锁。
+- 不要在 `promote_candidate` 之外创建 `knowledge_entities` / `knowledge_relationships` / `knowledge_evidence`；有效期/状态更新例外是显式人工演化审核的 `apply_reviewed_change` 及人工停用的 `apply_retirement`，不能绕过服务或项目锁。
 - 不要跳过项目锁和条件更新；否则并发确认会重复审核或重复写入。
 - 不要通过 API 暴露 `user_id`、数据库内部 ID 或画布坐标。
 - 不要把 `SUPERSEDES` 方向写反：新知识指向旧知识。
@@ -139,3 +139,7 @@ List reviews enriches relation endpoints in one bounded query, independently of 
 ## Source-aware lexical retrieval (ADR 0051)
 
 Optional bm25_source/mixed-bm25-source-v1 adds filename/path/heading metadata only through scoped formal evidence. Preserve v1 ranking/defaults, canonical evidence IDs, type/time/user/project visibility and budgets; source metadata is location context, not semantic support. Independent development regressions live under evaluation/regressions/source-location-v1; the separate old-40 diagnostic has equal Recall@5 and must not be reported as general improvement or held-out quality.
+
+## Measured reads and audited retirement (ADR 0053/0054)
+
+Search evidence is read in homogeneous scoped batches via graph.evidence_for_records; preserve exact IDs/order/quotes/Git links, ranking and budgets. Source list projections must never lazy-load omitted bodies/errors, and latest task ties retain created_at/id descending. Regressions: tests/test_read_performance.py plus native. Explicit human retirement is an additional allowed graph mutation boundary: retirement.retire holds the project lock and graph.apply_retirement closes only valid_to atomically with knowledge_retirements snapshots. Preserve original reviews/evidence/status/vectors, current exclusion and historical visibility; stale evolution cannot revive closed endpoints. Require scoped UUID idempotence and reason; no merge, hard archive, reactivation or original-decision reversal. Tests: tests/test_retirement.py and native independent-session races.
