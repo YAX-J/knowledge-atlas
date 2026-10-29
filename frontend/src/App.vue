@@ -147,7 +147,7 @@ const errors = reactive<IngestionErrors>({ projects: '', create: '', repositorie
 const {
   snapshotRepository, snapshots, snapshotsLoading, snapshotsError, snapshotsPage, importingSnapshotId,
   filesSnapshotId, snapshotFiles, snapshotFilesLoading, snapshotFilesError, snapshotFilesPage,
-  clearSnapshotFiles, closeSnapshotFiles, loadSnapshotFilePage, openSnapshotFile, clearSnapshots, loadSnapshots, saveSnapshotCommit,
+  closeSnapshotFiles, loadSnapshotFilePage, openSnapshotFile, clearSnapshots, loadSnapshots, saveSnapshotCommit,
 } = useRepositorySnapshots({ project, activeNav, loading, errors, notice, selectedSourceId, selectedTaskId,
   clearSourceSelection, selectSource, loadSources, refreshSource, errorMessage })
 const { evidenceTarget, evidenceNavigationLoading, evidenceNavigationError, clearEvidenceNavigation, openEvidence } = useEvidenceNavigation({ project, activeNav, errors, chunks, focusedChunkId, notice, selectedSourceId, selectedTaskId,

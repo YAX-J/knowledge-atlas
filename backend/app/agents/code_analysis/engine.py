@@ -5,7 +5,6 @@ import uuid
 from dataclasses import dataclass
 
 
-from app.core.config import Settings
 from app.core.errors import AppError
 from app.agents.base import SourceFile as SourceDocument
 from app.agents.runtime import invoke_model
@@ -18,7 +17,6 @@ from app.llm.providers import deepseek
 from app.agents.code_analysis import graph as call_tools
 from app.services.code_source import CodeCallSite, analyze_code
 from app.services.java_source import JavaSourceInput, analyze_java, java_symbols
-from app.services.source_languages import CODE_SOURCE_TYPES
 from app.services import code_bindings, code_semantics
 
 

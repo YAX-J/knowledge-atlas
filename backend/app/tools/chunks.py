@@ -1,5 +1,4 @@
 """Only immutable chunks already authorized by the extraction service are readable."""
-import json
 import uuid
 from pydantic import BaseModel, ConfigDict
 

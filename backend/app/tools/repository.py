@@ -1,5 +1,4 @@
 """Read-only tools over an authorized immutable snapshot."""
-import json
 import re
 import uuid
 from pydantic import Field, ValidationError

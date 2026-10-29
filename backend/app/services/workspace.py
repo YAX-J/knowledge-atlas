@@ -7,7 +7,7 @@ from app.core.errors import AppError
 from app.models.domain import Project, utc_now
 from app.models.graph import KnowledgeEntity, KnowledgeRelationship
 from app.models.evolution import KnowledgeChange
-from app.models.workspace import EntityAlias, EntityMerge, KnowledgeOperation, KnowledgePeriod
+from app.models.workspace import EntityAlias, EntityMerge, KnowledgeOperation
 from app.schemas.workspace import IdentityRead, OperationList, OperationRead
 from app.services import graph, identities
 from app.services.evolution import aware, valid_evidence

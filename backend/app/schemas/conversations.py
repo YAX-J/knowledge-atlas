@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, AwareDatetime, field_validator
+from pydantic import BaseModel, ConfigDict, StringConstraints, AwareDatetime, field_validator
 from typing import Annotated, Literal
 from app.schemas.questions import QuestionRead, QuestionText
 

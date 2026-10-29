@@ -14,7 +14,6 @@ from app.models.domain import Project, utc_now
 from app.models.graph import KnowledgeEmbedding, KnowledgeEntity, KnowledgeEvidence
 from app.services.projects import get_project
 from app.schemas.search import EmbeddingStatusRead
-from app.services import identities
 
 
 class EmbeddingError(Exception):

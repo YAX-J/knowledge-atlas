@@ -1,9 +1,6 @@
 """Time-aware identity projection; original entities, edges and quotes stay intact."""
-import uuid
-
 from sqlalchemy import func, or_, select
 
-from app.models.domain import utc_now
 from app.models.workspace import EntityAlias, EntityMerge
 from app.core.names import normalize_name as normalized
 

@@ -6,7 +6,7 @@ from sqlalchemy import CheckConstraint, DateTime, ForeignKey, ForeignKeyConstrai
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
-from app.models.domain import TimestampMixin, utc_now
+from app.models.domain import TimestampMixin
 
 
 class ScopedRecord(TimestampMixin):

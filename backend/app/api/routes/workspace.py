@@ -6,7 +6,7 @@ from app.schemas.workspace import EvolutionGroupCreate, IdentityRead, OperationC
 from app.services import workspace
 from sqlalchemy import func, select
 from app.models.domain import CandidateKnowledge, SourceDocument, ProcessingTask, utc_now
-from app.models.graph import KnowledgeEntity, KnowledgeRelationship
+from app.models.graph import KnowledgeEntity
 from app.services import graph
 from app.services.projects import get_project
 

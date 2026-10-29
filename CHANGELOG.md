@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Removed unused frontend bindings and backend imports; cleaned local build/test caches and one-off diagnostics while preserving dependency environments, database backups, provider budgets, grading files and experiment records. Ignore coverage shards/reports to keep generated files out of commits.
+
 - Single-project code/extraction/evidence agents with bounded LangGraph tools and shared budgets; saved collaboration tasks, explicit human review/resume, source/evidence navigation and read-before-resend. Migration0019; legacy interfaces remain compatible. Provider quality and human grading are separate acceptance (ADR0064–0065).
 
 ### Added
