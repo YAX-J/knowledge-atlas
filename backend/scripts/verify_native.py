@@ -77,7 +77,8 @@ def main():
                  "tests/test_batch_reviews.py", "tests/test_embedding_status.py", "tests/test_knowledge_discovery.py",
                  "tests/test_source_filters.py", "tests/test_embedding_jobs.py", "tests/test_source_retrieval.py",
                  "tests/test_read_performance.py", "tests/test_retirement.py", "tests/test_workspace_completion.py",
-                 "tests/test_conversations.py", "tests/test_github_continuation.py"]
+                 "tests/test_conversations.py", "tests/test_github_continuation.py", "tests/test_project_workflow.py",
+                 "tests/test_code_context.py", "tests/test_embedding_plan.py", "tests/test_holdout_v3.py"]
         if args.github:
             env["KA_GITHUB_ACCEPTANCE"] = "1"
             report = root.parent / "output" / "native-acceptance" / f"github-{uuid.uuid4().hex}.json"
@@ -86,7 +87,7 @@ def main():
             tests.append("tests/test_github_public_acceptance.py")
             print(f"Explicit public GitHub read-only acceptance enabled; report: {report}", flush=True)
         # Providers are stubbed inside these tests. No API key or URL is passed in argv.
-        result = subprocess.run([sys.executable, "-m", "pytest", *tests, "-q", "--tb=short", "--show-capture=no"],
+        result = subprocess.run([sys.executable, "-m", "pytest", *tests, "-o", "addopts=", "-q", "--tb=short", "--show-capture=no"],
                                 cwd=root, env=env, check=False)
         return result.returncode
     finally:

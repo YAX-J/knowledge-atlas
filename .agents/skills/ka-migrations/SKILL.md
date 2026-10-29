@@ -117,3 +117,7 @@ Head 20261026_0017 adds knowledge_retirements with scoped entity/relationship co
 ## 2026-10-26 功能补全更新
 
 当前 head `20261026_0018`：六张身份/时序/会话表与 repository_snapshots.scan_state。升级加表/可空列；降级删除新增历史/会话，不可用于业务撤销。原生隔离验证必须检查 Base 全表实际位于本任务 schema。
+
+## 2026-10-29 当前优化边界
+
+ADR 0060: readiness validates physically owned version table, exact expected head, six workspace tables and snapshot scan_state. Keep expected-head regression synchronized. Existing app upgrade requires backup and verified isolated recovery; compare old table content using UTC-normalized fingerprints and exclude migration marker/added column. Never auto-upgrade in readiness. Local application is now0018; old0017 status announcements are historical.

@@ -20,7 +20,8 @@ vi.mock('../src/api/knowledgeAtlas', async importOriginal => {
     getEmbeddingStatus: vi.fn(), getEmbeddingJob: vi.fn(), getProjectGraph: vi.fn(), listKnowledgeChanges: vi.fn(), getEntityDetail: vi.fn(),
     getSource: vi.fn(), listSourceChunks: vi.fn(), listCandidates: vi.fn(), getExtraction: vi.fn(),
     searchKnowledge: vi.fn(), rebuildProjectEmbeddings: vi.fn(), listKnowledgeRetirements: vi.fn(), retireKnowledge: vi.fn(),
-    uploadSource: vi.fn(), getTask: vi.fn(), resolveCandidatesBatch: vi.fn() }
+    uploadSource: vi.fn(), getTask: vi.fn(), resolveCandidatesBatch: vi.fn(), getProject: vi.fn(),
+    getCodeAnalysisContexts: vi.fn() }
 })
 
 it('keeps index status scoped to the selected project when an older inspection finishes late', async () => {
@@ -53,8 +54,33 @@ it('keeps index status scoped to the selected project when an older inspection f
 })
 enableAutoUnmount(afterEach)
 beforeEach(() => {
+  window.history.replaceState(null, '', '/')
   vi.resetAllMocks(); vi.mocked(api.getEmbeddingJob).mockResolvedValue(null)
   vi.mocked(api.listKnowledgeRetirements).mockResolvedValue({ items:[],total:0,page:1,page_size:20 })
+})
+
+it('restores a source deep link from a project outside the first project page and refuses a foreign source', async () => {
+  const selected={...project,id:'second-project'}
+  vi.mocked(api.listProjects).mockResolvedValue({items:[project],total:21,page:1,page_size:20})
+  vi.mocked(api.getProject).mockResolvedValue(selected)
+  vi.mocked(api.listSources).mockResolvedValue({items:[],total:0,page:1,page_size:20})
+  vi.mocked(api.listRepositories).mockResolvedValue({items:[],total:0,page:1,page_size:20})
+  const document={...source,project_id:selected.id,source_type:'markdown'}
+  vi.mocked(api.getSource).mockResolvedValue(document)
+  vi.mocked(api.listSourceChunks).mockResolvedValue({items:[],total:0,page:1,page_size:20})
+  vi.mocked(api.listCandidates).mockResolvedValue({items:[],total:0,page:1,page_size:20})
+  vi.mocked(api.getExtraction).mockResolvedValue({task:null,candidate_count:0})
+  window.history.replaceState(null,'',`/#/sources?project=${selected.id}&source=${source.id}`)
+  const wrapper=shallowMount(App)
+  await flushPromises()
+  expect(api.getProject).toHaveBeenCalledWith(selected.id)
+  expect(wrapper.getComponent(SourceWorkspace).props('project')?.id).toBe(selected.id)
+  expect(wrapper.getComponent(SourceWorkspace).props('source')?.id).toBe(source.id)
+  vi.mocked(api.getSource).mockResolvedValue({...document,id:'foreign',project_id:project.id})
+  window.history.replaceState(null,'',`/#/sources?project=${selected.id}&source=foreign`)
+  window.dispatchEvent(new PopStateEvent('popstate'));await flushPromises()
+  expect(wrapper.get('[role=alert]').text()).toContain('不属于 URL 中的项目')
+  expect(wrapper.getComponent(SourceWorkspace).props('source')?.id).toBe(source.id)
 })
 
 async function openSearchGraph() {

@@ -1,24 +1,16 @@
 # Knowledge Atlas 系统架构
 
-2026-10-26 功能补全：已实现身份别名/合并/解除、保留历史间隔的撤回/启用及分组替代、持久化证据会话、固定提交 GitHub 文件/目录续扫，以及显式 Java/TypeScript/Go 编译器静态分析。默认真实工作台；问答默认 RRF（搜索 API 保留 keyword，界面搜索默认 BM25）。迁移 head `20261026_0018`。公开实验累计 84 次模型 / 61 次嵌入；真实人工评分与私有授权验收仍待外部条件。
+当前说明见本轮验收与 ADR 0060–0063；迁移 head `20261026_0018`。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](OPTIMIZATION_20261029.zh-CN.md)
 
-新增 `models/workspace.py` 六表；`services/identities.py` 提供有效时间的身份投影，`workspace.py` 在项目行锁内执行幂等人工操作。正式 UUID/证据归属不变，读取时投影；向量保存原实体文本，查询时映射，避免未来合并信息污染历史。`conversations.py` 在网络前提交短租约，通过独立 execution UUID 隔离过期结果；历史上下文不能生成可引用证据。`github_tree.py` 保存提交固定的 manifest/frontier。编译器 helper 不运行用户代码。详细决策见 ADR 0056–0059；[验收](FUNCTIONAL_COMPLETION_20261026.zh-CN.md)。
+## 当前模块边界（ADR 0060–0063）
 
-2026-10-26（ADR 0053–0055）：资料分页只读列表字段及每来源最新任务；搜索按同作用域/种类批量读取证据和 Git 链接。新增 `knowledge_retirements`，人工说明理由并二次确认后，在项目锁内原子关闭当前区间与保存快照，保留历史/证据。前端 `useSourceImport` / `useCandidateReview` / `useProjectGraph` / `useKnowledgeRetirement` 拥有各自请求隔离；App 保留导航、来源定位及演化编排。
+就绪检查区分连接和结构，检查实际 schema 版本/关键结构，不自动升级。已有库升级先备份并隔离恢复核验。
 
-索引更新使用 `embedding_jobs` 每项目最近执行记录，项目锁认领、批次续租、写入前执行归属校验；不新增后台队列，浏览器结果未知时读取状态，过期任务仅明确重试。`bm25_source` 只扩展正式证据的位置排序文本，原默认保持；独立原生 CLI 以一致快照备份并在新目标恢复校验。见 ADR 0050–0052。
+代码分析通过 `services/code_context.py` 在任何编译器/供应商调用前固定提交或本地单版本路径。元数据先于有界正文；快照原路径只构造只读视图，不改写来源。结构解析和正式图谱仍分开。
 
-前端搜索/索引状态集中到 `useKnowledgeSearch`，复用 `useLatestRequest` 丢弃迟到读取；项目与有效时间变更同步失效，索引更新另有按项目的在途锁。该锁只存在当前页面实例，服务端写入继续使用原边界；清空搜索不取消已发出的更新。不引入路由、状态库或后端 API 变化。
+前端 `useWorkspaceRoute` 恢复 ID/时间/任务区；`useEvidenceNavigation`、`useRepositorySnapshots`、`useKnowledgeEvolution` 分别管理原文、提交文件、时序与治理状态。App 连接上下文/写锁，模块卸载或切上下文使迟到请求失效。
 
-发现流程扩展见 [ADR 0047](adr/0047-filtered-discovery-evidence-attribution.zh-CN.md)：候选筛选在分页之前；治理类别筛选在截断之前；前端双实体比较复用既有只读详情 API 并校验项目。问答保留规范引用，补充同一原文的检索实体归属，不写权威知识。
-
-批量审核通过项目锁和单次提交复用原审核服务；正式知识仍只由 promotion 边界写入。索引状态只读，使用现有 canonical entity text 哈希检查内容，最多 1000 个实体，不触发供应商。详见 [ADR 0046](adr/0046-atomic-batch-review-index-status.zh-CN.md)。
-
-可选 RRF 融合由 `services/fusion.py` 读取现有 BM25 与向量结果，最多各 100 个候选，以 `sum(1/(60+rank))` 合并排名，不扩展图邻居。在线问答按原文位置去重并轮流选证据；原有 keyword/bm25/vector/hybrid 排序协议不变。见 [ADR 0045](adr/0045-opt-in-rank-fusion.zh-CN.md)。
-
-多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。默认解析只做语法结构，不执行代码、不调用模型也不自动入图；独立显式 Agent 操作可在后端静态候选范围内分析跨文件调用。旧 GitHub 完整同提交快照可显式 `rescan=true` 发现新语言。复用来源/任务/分块模型；仅缓存不可变语法 Language，每次解析独立 Parser，见 [ADR 0040](adr/0040-multilanguage-source-parsing.zh-CN.md) 与 [ADR 0041](adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。
-
-本文描述 Knowledge Atlas 的当前架构、组件边界和关键数据流。已实现多语言导入、显式单轮或有界只读工具 Agent、候选抽取/人工审核、PostgreSQL 图谱、关键词/向量/一跳混合检索与同步证据问答。人工身份整理与六轮证据会话已实现；完整构建/运行时语义与通用规划仍不在范围。当前只使用 PostgreSQL/pgvector，不引入 Neo4j 或 LangGraph，见 ADR 0005、[ADR 0043](adr/0043-bounded-read-only-tool-agent.zh-CN.md)。
+索引规划每批 500 实体读证据，只读已有嵌入的模型/维度/哈希；待更新项使用 UUID 而非跨提交过期的 ORM 对象。原始归属文本保留历史向量语义。1k/10k 原生合成测量与冻结文档测试集分别归档，均不冒充真实人工答案评分。
 
 ## 架构目标
 

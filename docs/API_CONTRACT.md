@@ -1,26 +1,31 @@
 # Knowledge Atlas 前后端接口草案
 
-2026-10-26 API additions (head `20261026_0018`; prefix `/api/v1`, existing scoped error envelope unchanged):
+当前说明见本轮验收与 ADR 0060–0063；迁移 head `20261026_0018`。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](OPTIMIZATION_20261029.zh-CN.md)
 
-| Method / project-relative path | Request / response |
-| --- | --- |
-| GET `/projects/{project_id}/overview` | Current scoped sources/ready_sources/pending_reviews/entities/relationships/pending_tasks counts |
-| POST `/projects/{project_id}/knowledge-operations` | `request_id` UUID, `action=alias\|merge\|unmerge\|withdraw\|reactivate\|reverse_change`, `kind=entity\|relationship` (entity default), `knowledge_id`, reason 1–2000; alias requires alias ≤255, merge requires target_id. reverse_change uses a confirmed change UUID |
-| GET `/projects/{project_id}/knowledge-operations` | page≥1/page_size 1–100, `{items,total,page,page_size}`; immutable payload/before/after/reason/created_at |
-| GET `/projects/{project_id}/knowledge/entities/{entity_id}/identity` | Optional timezone-aware valid_at; entity_id/canonical_id/aliases/member_ids |
-| POST `/projects/{project_id}/knowledge-change-groups` | request_id, old_entity_ids/new_entity_ids (each 1–10 distinct, disjoint), reason; audited atomic complete new×old replacement |
-| POST `/projects/{project_id}/conversations` | Optional title (1–120); 201 id/project_id/title/timestamps |
-| GET `/projects/{project_id}/conversations` | page/page_size, latest updated first |
-| GET `/projects/{project_id}/conversations/{conversation_id}/turns` | page/page_size, position ascending; running/succeeded/failed/interrupted, saved answer or null |
-| POST `/projects/{project_id}/conversations/{conversation_id}/turns` | request_id, question≤200, retrieval_mode default rrf, optional aware valid_at, retry_interrupted=false; returns saved turn. Same successful input returns same snapshot |
+## 本轮新增契约（ADR 0060–0063）
 
-Knowledge operations return 409 OPERATION_REQUEST_CONFLICT / ALIAS_AMBIGUOUS / MERGE_ENDPOINTS_INVALID / CHANGE_HAS_DEPENDENCIES / CHANGE_CYCLE for invalid transitions, 404 for inaccessible knowledge. Conversation conflicts include TURN_REQUEST_CONFLICT, CONVERSATION_BUSY, TURN_RETRY_REQUIRED, TURN_REPLACED and CONVERSATION_LIMIT. Failed/unknown calls are not automatically retried; explicit retry may charge again. User/project scope applies before IDs are resolved.
+`GET /api/v1/health/ready` 连接成功后还检查当前 schema 实际拥有的 `alembic_version=20261026_0018`、六张工作台表及快照 `scan_state` 列。成功返回 `dependencies.postgresql` 和 `dependencies.schema` 均为 `up`；未迁移/落后/关键结构缺失时 503，数据库连通仍显示 `postgresql=up`、`schema=down`。不自动迁移、不调用模型；`/health/live` 不变。
 
-GitHub sync adds optional `continue_from_snapshot` UUID; response adds `continuation_snapshot_id`, total_supported_files/completed_files/remaining_files, access public/private/unknown, pending_directories, tree_complete and traversal_blocked. Continuation pins the original commit/tree/ref and validates ownership. Every page creates an immutable snapshot; only a complete manifest/download sequence reconciles deletion. A truncated single directory is reported blocked, not silently complete.
+`GET /api/v1/sources/{source_id}/analysis-contexts` 仅支持已就绪代码来源，返回：
 
-Call analysis adds `strategy=semantic` for Java/JS/JSX/TS/TSX/Go; no provider calls. Response adds candidate_generation/uncovered_call_count/semantic_diagnostics with syntax/type-context kinds. Missing native SDK is 503 SEMANTIC_BACKEND_UNAVAILABLE; duplicate path versions 409 SEMANTIC_SNAPSHOT_AMBIGUOUS; invalid paths 409 SEMANTIC_PATH_INVALID; other languages 422 SEMANTIC_LANGUAGE_UNSUPPORTED. Existing Agent modes retain ID/line validation and bounds.
+```json
+{
+  "default_snapshot_id": "UUID or null",
+  "snapshots": [{"id":"UUID","commit_sha":"SHA","ref":"main","truncated":false}],
+  "version_groups": [{"path":"helper.ts","versions":[{"id":"UUID","created_at":"ISO","size_bytes":100}],"truncated":false}],
+  "truncated": false
+}
+```
 
-Questions now default to rrf; GET search still defaults keyword, real search UI BM25. Context never contributes citation IDs. Graph/search/evidence/index counts project current identity at the effective query time. See [acceptance](FUNCTIONAL_COMPLETION_20261026.md); earlier dated API notes below are historical.
+只读且免费。作用域是当前用户/项目/仓库/兼容语言；最多 50 快照、100 重复路径组、每组 20 版本，元数据扫描上限 2000；超出明确截断。
+
+`POST /api/v1/sources/{source_id}/agent-call-analysis?strategy=semantic&snapshot_id=UUID` 新增可选 `snapshot_id`，或本地版本模式的重复 `version_ids=UUID`（最多 99 个）。不传按最近完整快照选择，否则最近部分快照；无快照时每路径最新就绪版本，主来源固定。所有策略返回额外 `context: {snapshot_id, commit_sha, policy}`，policy 为 `fixed_commit` / `local_latest_with_explicit_overrides`。快照路径不受后续改名影响。超出 99 相关文件/20MiB、存在未就绪成员或部分扫描时明确截断，先检查元数据再读正文。
+
+越权快照/版本返回 404 `ANALYSIS_SNAPSHOT_NOT_FOUND` / `ANALYSIS_VERSION_NOT_FOUND`；混用或每路径重复版本为 409 `ANALYSIS_CONTEXT_INVALID`；主来源不在快照、同来源多路径、显式版本超预算分别为 409 `ANALYSIS_SOURCE_NOT_IN_SNAPSHOT` / `ANALYSIS_SNAPSHOT_PATH_AMBIGUOUS` / `ANALYSIS_CONTEXT_LIMIT`。无效输入为 422。拒绝发生在工具/模型调用前，解析 Worker 不使用此接口。
+
+身份操作 `alias` 需同时满足原始及 NFKC/casefold/空白规范化后的长度 ≤255，禁止 NUL/空白。合并若原名称规范化后无法保存为别名，返回 409 `MERGE_ALIAS_TOO_LONG` 并整笔回滚。已有别名冲突和作用域约束仍生效。
+
+索引重建响应不变；原始归属证据每 500 个实体批量读取，哈希顺序、向量模型、重试归属与显式操作规则保持一致。
 
 ## 多语言代码解析（已实现）
 

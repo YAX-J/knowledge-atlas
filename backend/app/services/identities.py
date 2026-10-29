@@ -1,15 +1,11 @@
 """Time-aware identity projection; original entities, edges and quotes stay intact."""
-import unicodedata
 import uuid
 
 from sqlalchemy import func, or_, select
 
 from app.models.domain import utc_now
 from app.models.workspace import EntityAlias, EntityMerge
-
-
-def normalized(value):
-    return ' '.join(unicodedata.normalize('NFKC', value).casefold().split())
+from app.core.names import normalize_name as normalized
 
 
 def active_merge(user_id, project_id, at):

@@ -67,7 +67,7 @@ def main(port,frontend_origin):
             try:
                 with Session(engine) as db:
                     embeddings.rebuild_project_embeddings(db,user_id=USER,project_id=uuid.UUID(prepared['project_id']),settings=native)
-                print(f'Disposable browser workspace ready on port {port}; providers are local stubs; no application schema writes.',flush=True)
+                print(f'Disposable browser workspace ready on port {port}; schema={schema}; providers are local stubs; no application schema writes.',flush=True)
                 uvicorn.run(app,host='127.0.0.1',port=port,log_level='warning')
             finally:
                 app.dependency_overrides.pop(get_db,None)

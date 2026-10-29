@@ -181,3 +181,7 @@ list_sources selects only list fields (omitted columns raiseload), keeps reposit
 ## 2026-10-26 功能补全更新
 
 GitHub continue_from_snapshot 固定提交/tree/ref，缓存 scan_state/frontier；每步 10 目录及 50 文件/20 MiB，旧快照不可变；仅完整序列判断删除。单目录截断/清单上限明确 blocked。前端本地文件夹最多 10,000 份顺序导入并复用相同内容。
+
+## 2026-10-29 当前优化边界
+
+ADR 0061: code analysis resolves snapshot membership/immutable paths or explicit local one-version-per-path before helpers/providers. Metadata precedes bounded body reads (2000 metadata, 99 related, total20MiB); unready snapshot members mean partial. Do not apply DISTINCT to full JSON-bearing snapshot rows in PostgreSQL; use membership subqueries. Normal structure parsing remains separate. Regressions include renamed paths, repeated versions, budgets and native PostgreSQL.

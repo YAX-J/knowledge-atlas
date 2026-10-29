@@ -1,0 +1,220 @@
+{
+  "fixture_id": "upstream-notes-holdout-v3",
+  "version": "3.0.0",
+  "dataset_id": "knowledge-atlas-holdout-v3",
+  "dataset_fingerprint_sha256": "3215df76dd621e2fe8c9a7bc60fe640d6d7d171fe8be141b061f067fe12d1801",
+  "provenance": "Agent-authored gold, not human review. Commit availability clocks are research replay only; no production backdating.",
+  "sources": [
+    {
+      "source": "corpus/notes/background-tasks.md",
+      "available_at": "2026-10-29T00:00:00Z",
+      "entities": [
+        {
+          "id": "background",
+          "type": "Concept",
+          "name": "后台任务执行时机",
+          "lines": [
+            3
+          ]
+        },
+        {
+          "id": "background-functions",
+          "type": "Concept",
+          "name": "后台任务函数形式",
+          "lines": [
+            28
+          ]
+        },
+        {
+          "id": "background-sharing",
+          "type": "Concept",
+          "name": "后台任务依赖共享",
+          "lines": [
+            52
+          ]
+        },
+        {
+          "id": "background-heavy",
+          "type": "Concept",
+          "name": "重型后台任务工具",
+          "lines": [
+            78
+          ]
+        }
+      ],
+      "relations": []
+    },
+    {
+      "source": "corpus/notes/dependencies-current.md",
+      "available_at": "2026-10-29T00:00:00Z",
+      "entities": [
+        {
+          "id": "dependency-call",
+          "type": "Concept",
+          "name": "依赖函数传入方式",
+          "lines": [
+            80
+          ]
+        },
+        {
+          "id": "dependency-functions",
+          "type": "Concept",
+          "name": "当前依赖函数定义形式",
+          "lines": [
+            147
+          ]
+        },
+        {
+          "id": "dependency-alias",
+          "type": "Concept",
+          "name": "Annotated 类型别名",
+          "lines": [
+            133
+          ]
+        },
+        {
+          "id": "dependency-version",
+          "type": "Concept",
+          "name": "Annotated 版本要求",
+          "lines": [
+            60
+          ]
+        }
+      ],
+      "relations": []
+    },
+    {
+      "source": "corpus/notes/sub-dependencies.md",
+      "available_at": "2026-10-29T00:00:00Z",
+      "entities": [
+        {
+          "id": "cache",
+          "type": "Concept",
+          "name": "每请求依赖缓存",
+          "lines": [
+            59
+          ]
+        },
+        {
+          "id": "cache-disable",
+          "type": "Concept",
+          "name": "禁用依赖缓存",
+          "lines": [
+            63
+          ]
+        }
+      ],
+      "relations": []
+    },
+    {
+      "source": "corpus/notes/handling-errors.md",
+      "available_at": "2026-10-29T00:00:00Z",
+      "entities": [
+        {
+          "id": "errors-raise",
+          "type": "Concept",
+          "name": "抛出 HTTPException",
+          "lines": [
+            34
+          ]
+        },
+        {
+          "id": "errors-detail",
+          "type": "Concept",
+          "name": "错误详情 JSON 类型",
+          "lines": [
+            64
+          ]
+        },
+        {
+          "id": "errors-validation",
+          "type": "Concept",
+          "name": "请求校验错误",
+          "lines": [
+            122
+          ]
+        },
+        {
+          "id": "errors-404",
+          "type": "Concept",
+          "name": "不存在资源的响应",
+          "lines": [
+            40
+          ]
+        }
+      ],
+      "relations": []
+    },
+    {
+      "source": "corpus/notes/response-status.md",
+      "available_at": "2026-10-29T00:00:00Z",
+      "entities": [
+        {
+          "id": "status-location",
+          "type": "Concept",
+          "name": "状态码参数位置",
+          "lines": [
+            15
+          ]
+        },
+        {
+          "id": "status-201",
+          "type": "Concept",
+          "name": "创建资源状态码",
+          "lines": [
+            79
+          ]
+        },
+        {
+          "id": "status-204",
+          "type": "Concept",
+          "name": "无内容响应",
+          "lines": [
+            60
+          ]
+        }
+      ],
+      "relations": []
+    },
+    {
+      "source": "corpus/notes/dependencies-0941.md",
+      "available_at": "2023-03-14T02:27:11Z",
+      "entities": [
+        {
+          "id": "old-history",
+          "type": "Concept",
+          "name": "历史依赖函数定义",
+          "lines": [
+            133
+          ]
+        }
+      ],
+      "relations": []
+    },
+    {
+      "source": "corpus/notes/dependencies-0950.md",
+      "available_at": "2023-03-18T19:37:42Z",
+      "entities": [
+        {
+          "id": "new-history",
+          "type": "Concept",
+          "name": "历史依赖函数定义",
+          "lines": [
+            246,
+            234
+          ]
+        }
+      ],
+      "relations": []
+    }
+  ],
+  "changes": [
+    {
+      "new": "new-history",
+      "old": "old-history",
+      "effective_at": "2023-03-18T19:37:42Z",
+      "evidence_line": 246,
+      "reason": "The 0.95.0 documentation snapshot replaces the 0.94.1 snapshot for this replay; not an assertion that the previous API became invalid."
+    }
+  ]
+}

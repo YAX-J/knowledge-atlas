@@ -1,32 +1,14 @@
 # Knowledge Atlas Backend
 
-2026-10-26 functional completion: audited identity aliases/merge/unmerge, historical withdrawal/reactivation and replacement groups, persistent grounded conversations, resumable fixed-commit GitHub traversal, and explicit Java/TypeScript/Go static compiler analysis are implemented. The real workbench is the default; questions now default to RRF (search API remains keyword; UI search BM25). Migration head `20261026_0018`. Public-v2 used 84 model / 61 embedding attempts cumulatively; human grading and private authorization acceptance remain pending. See [acceptance](../docs/FUNCTIONAL_COMPLETION_20261026.md). Earlier dated checkpoints below are historical.
-
-2026-10-26: projected source lists/latest tasks and batched search evidence (ADR 0053); explicit current entity/relationship retirement plus paginated immutable audit snapshots (ADR 0054). Apply head `20261026_0017`. See [acceptance](../docs/OPTIMIZATION_456_20261026.md) and [read measurements](../evaluation/performance/2026-10-26-read-paths/README.md).
-
-Added durable rebuild status/explicit interrupted retry (migration `20261025_0016`), opt-in `bm25_source` search/questions, and `python -m scripts.database_backup` backup/restore tools. See [operations](../docs/BACKUP_RESTORE.md) and ADR 0050–0052. Apply `alembic upgrade head` and restart a running API to load the new routes.
-
-Source listing accepts optional `q` (literal filename/path substring, max 200), registered `source_type` and `source_status`. Filters precede count/pagination and preserve scope, task links and provenance; status refers to the source record. No parsing, provider call or migration (ADR 0049).
-
-Review listing includes scoped relation `endpoints` snapshots (id/name/review_status), independent of list filters and pages. One bounded lookup checks entity kind and exact user/project/source/task; missing endpoints are omitted. Resolve responses default to an empty snapshot. Promotion and transaction rules remain unchanged (ADR 0048).
-
-Review listing accepts optional kind=entity|relation and literal q filters. Governance accepts kind and returns category counts before limiting results. Question passages expose related_entities and provide entity_names to the answer model while retaining canonical citation IDs. No migration (ADR 0047).
-
-Added atomic `POST /projects/{id}/reviews/resolve-batch` (same source, 1–100 unique IDs, confirm/reject) and provider-free `GET /projects/{id}/embeddings/status?valid_at=...`. Index counts cover the complete effective scope; hash freshness is inspected for at most 1000 entities. No migration or new provider configuration.
-
-Added `search?mode=rrf` and question `retrieval_mode=hybrid|rrf|vector|bm25` (default hybrid). Online questions deduplicate exact source locations and report evidence-budget counts. Extraction status includes source-wide `review_counts`; governance findings include entity summaries. No migration. New fusion quality has not been evaluated with real providers.
-
-`GET /projects/{id}/search?mode=bm25` now provides bounded offline Chinese/English lexical search without provider configuration or migrations. Empty matching vector indexes skip query embedding, with configuration errors preserved. Run `scripts.run_evaluation --modes keyword bm25` without provider flags against a prepared corpus project. Formula, scope and limits: [ADR 0044](../docs/adr/0044-bounded-offline-bm25-search.md); [development results and failures](../evaluation/results/2026-10-25-bm25/README.md).
-
-Graduation delivery items 3–8 add optional `strategy=tools` on `POST /sources/{source_id}/agent-call-analysis` (default `single_step`). Read-only snapshot tools are capped at four provider turns/eight tools; results remain validated and non-persistent. See [ADR 0043](../docs/adr/0043-bounded-read-only-tool-agent.md). Install `.[dev,evaluation]` for coverage and chart rendering; `scripts.model_acceptance` requires explicit provider authorization, while `scripts.render_experiments` and `scripts.import_grades` are offline. Real synthetic results and pending human grading: [report](../evaluation/results/2026-10-24-models/REPORT.md). Complete native/optional Compose demo and CI: [delivery guide](../docs/DEMO.md).
-
-Stage 6 provides `python -m scripts.prepare_evaluation --dataset ../evaluation --validate-only`, followed by `--output-dir ../output/evaluation/preparation --accept-curated-fixture` to create a new synthetic experiment project through normal parsing/review services. `python -m scripts.run_baselines` explicitly builds the index and compares keyword/vector/hybrid retrieval without answer calls. Existing projects/outputs are refused and actual graph/index fingerprints are recorded. Requires migration `20261023_0015`; full flags, annotations and limits: [evaluation instructions](../evaluation/README.md), ADR 0042.
-
-Multi-language V1 extends the existing Markdown/Java pipeline to Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: single-file/folder/GitHub imports, Worker, exact chunks, outlines and symbol search. Parsing remains syntax-only and makes no model call. `POST /sources/{source_id}/agent-call-analysis` is an explicit bounded model action over same-repository server-curated candidates; output IDs and exact source lines are validated and never written to the formal graph. See [supported extensions and limits](../docs/MULTILANGUAGE_PARSING.md).
-
 [简体中文](README.zh-CN.md)
 
-FastAPI service for Knowledge Atlas persistence, Markdown/Java ingestion, evidence-validated candidate extraction/review, and bounded read-only project-graph queries.
+Current behavior is specified by the optimization report and ADR 0060–0063; migration head `20261026_0018`. Historical checkpoint announcements have been archived. [验收 / Acceptance](../docs/OPTIMIZATION_20261029.md)
+
+## Current context and runtime checks
+
+`GET /sources/{id}/analysis-contexts` lists saved commits/duplicate local versions without providers. Explicit call analysis accepts snapshot_id or repeated version_ids and returns actual context; all strategies use immutable paths, bounded bodies and user/project/repository scope. Alias limits are checked after normalization, with merge-chain/unmerge retrieval regressions. Readiness checks physical0018 schema and critical tables/columns.
+
+Index planning reads original-owner evidence in batches500 without changing hashes or paid-operation rules. Reproduce: `python -m scripts.benchmark_scale --output ../output/scale-new-run.json --repeats 20`; disposable native schema, no providers. See [API fields](../docs/API_CONTRACT.md) and [measurement scope](../evaluation/performance/2026-10-29-scale/README.md).
 
 ## Implemented behavior
 

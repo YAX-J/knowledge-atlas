@@ -72,6 +72,8 @@ def operate(db, *, user_id, project_id, request):
                 _fail('MERGE_ENDPOINTS_INVALID', '请选择同类型的两个不同当前实体')
             if not valid_evidence(db, record) or not valid_evidence(db, target):
                 _fail('MERGE_EVIDENCE_INVALID', '合并双方均须保留可核验原文')
+            if any(len(identities.normalized(item.name))>255 for item in (record,target)):
+                _fail('MERGE_ALIAS_TOO_LONG', '实体名称规范化后超过 255 字符，请核对名称并通过正常审核修正后再合并')
             members = list(db.scalars(select(EntityMerge).where(*identities.active_merge(user_id, project_id, now),
                 EntityMerge.target_id == record.id)))
             target_members = db.scalar(select(func.count()).select_from(EntityMerge).where(

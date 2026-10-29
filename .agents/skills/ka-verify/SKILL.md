@@ -195,3 +195,7 @@ Focus tests/test_read_performance.py tests/test_retirement.py plus migration/gra
 ## 2026-10-26 功能补全更新
 
 功能补全检查包含 workspace/conversations/GitHub continuation、KA_NATIVE_COMPILERS=1 的 Java/TS/Go 实机测试，以及独立 schema 的 verify_native。付费公开实验累计账本有 120/160 上限，失败/未知也计入，不得重置；离线盲评空白不能冒充真实人工评分。
+
+## 2026-10-29 当前优化边界
+
+Final scope now includes criticalFlows, workspaceRoute, projectGraphFlow and orchestration frontend regressions; snapshot/identity/embedding-plan/holdout backend regressions; native verify includes code contexts. Prefer native schema testing to catch PostgreSQL JSON DISTINCT differences. benchmark_scale creates/removes its own schema for1k/10k normal-reviewed synthetic fixtures,20 warm samples, no providers; record p95/SQL/Python allocations, not RSS or production SLA. Cold embedding batch counts are estimates, not calls/authorization. Human blind grading remains explicitly deferred.

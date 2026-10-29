@@ -152,3 +152,7 @@ Question retrieval accepts bm25_source without embeddings, but supported answer 
 ## 2026-10-26 功能补全更新
 
 持久化会话每轮重新检索，六轮历史是提示，不能提供可引用证据；请求 UUID 与 execution UUID 分开，未知结果先查询，明确付费重试。问答默认 RRF，仍可 BM25。public-v2 金标为 Agent 编制，真实人工评分不得自动生成。
+
+## 2026-10-29 当前优化边界
+
+holdout-v3 contains genuine pinned public documentation, not private personal notes; 24 Agent-authored cases/gold annotations are not human grades. Keep v1/public-v2 development and v3 test separate; never tune against v3. Current cumulative paid ledger is84 model/61 embedding (authorization120/160), not reset per directory. User explicitly defers human grading. No new provider experiment or score is implied by fixture validation/replay.

@@ -1,0 +1,17 @@
+{
+  "dataset_id": "knowledge-atlas-holdout-v3",
+  "version": "3.0.0",
+  "language": "zh-CN",
+  "created_at": "2026-10-29",
+  "source_count": 7,
+  "case_count": 24,
+  "category_counts": {
+    "direct_fact": 8,
+    "cross_document": 8,
+    "temporal": 4,
+    "unanswerable": 4
+  },
+  "corpus_root": "corpus",
+  "cases_file": "cases.jsonl",
+  "license": "Upstream FastAPI MIT; see LICENSE-fastapi.txt and pinned provenance.json"
+}

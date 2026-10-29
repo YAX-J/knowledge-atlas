@@ -1,16 +1,8 @@
 # Knowledge Atlas Development Setup
 
-2026-10-26 functional completion: audited identity aliases/merge/unmerge, historical withdrawal/reactivation and replacement groups, persistent grounded conversations, resumable fixed-commit GitHub traversal, and explicit Java/TypeScript/Go static compiler analysis are implemented. The real workbench is the default; questions now default to RRF (search API remains keyword; UI search BM25). Migration head `20261026_0018`. Public-v2 used 84 model / 61 embedding attempts cumulatively; human grading and private authorization acceptance remain pending. See [acceptance](FUNCTIONAL_COMPLETION_20261026.md). Earlier dated checkpoints below are historical.
-
-For the complete native Windows launcher, optional nginx/API/Worker/pgvector Compose stack and CI commands, use [the demo guide](DEMO.md). `npm ci` installs the locked frontend test toolchain; `npm run test:coverage` runs component/API regressions. Backend `pip install -e ".[dev,evaluation]"` adds coverage and offline chart rendering. These commands do not require provider keys; real model acceptance remains explicitly authorized and is recorded separately from human grading.
-
-For reproducible Stage 6 projects and three retrieval baselines, follow [evaluation setup](../evaluation/README.md). The standalone commands reuse the migrated native PostgreSQL database, create only new `[EVAL]` projects and require explicit fixture acceptance/embedding-call flags. Run `--validate-only` without database access. No new migration or frontend configuration is required.
-
-Multi-language parsing requires the pinned Tree-sitter/language wheels. From `backend`, run `.\.venv\Scripts\python.exe -m pip install -e ".[dev]"`. No additional service/migration is required; parsing is offline after installation. See [language scope](MULTILANGUAGE_PARSING.md).
-
 [简体中文](DEVELOPMENT_SETUP.zh-CN.md)
 
-This guide describes the repository setup that exists today and reserves conventions for the planned backend. Commands are written to work from the repository root unless noted otherwise.
+Current head: `20261026_0018`. Before upgrading existing data, [back up and verify isolated recovery](BACKUP_RESTORE.md). `/health/ready` checks connection and critical schema without auto-migration. See the [launcher](DEMO.md) and [current acceptance](OPTIMIZATION_20261029.md). Real workbench is the default; provider actions remain explicit.
 
 ## Prerequisites
 

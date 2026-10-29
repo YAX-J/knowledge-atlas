@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+from app.core.names import normalize_name as normalized
 
 
 class OperationCreate(BaseModel):
@@ -20,8 +21,15 @@ class OperationCreate(BaseModel):
     def nonempty(cls, value):
         if value is not None:
             value = value.strip()
-            if not value:
+            if not value or '\x00' in value:
                 raise ValueError('Text must not be blank')
+        return value
+
+    @field_validator('alias')
+    @classmethod
+    def normalized_alias_length(cls, value):
+        if value is not None and len(normalized(value)) > 255:
+            raise ValueError('Normalized alias must contain at most 255 characters')
         return value
 
 

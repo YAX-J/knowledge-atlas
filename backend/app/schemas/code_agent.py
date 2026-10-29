@@ -1,7 +1,34 @@
 import uuid
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+class AnalysisSnapshotChoice(BaseModel):
+    id: uuid.UUID
+    commit_sha: str
+    ref: str
+    truncated: bool
+
+
+class AnalysisVersionChoice(BaseModel):
+    id: uuid.UUID
+    created_at: datetime
+    size_bytes: int
+
+
+class AnalysisVersionGroup(BaseModel):
+    path: str
+    versions: list[AnalysisVersionChoice]
+    truncated: bool
+
+
+class CodeAnalysisContextsRead(BaseModel):
+    default_snapshot_id: uuid.UUID | None
+    snapshots: list[AnalysisSnapshotChoice]
+    version_groups: list[AnalysisVersionGroup]
+    truncated: bool
 
 
 class AgentCallDecisionDraft(BaseModel):
@@ -58,6 +85,7 @@ class AgentCrossFileCallRead(BaseModel):
 
 
 class AgentCallAnalysisRead(BaseModel):
+    context: dict = Field(default_factory=dict)
     source_id: uuid.UUID
     language: str
     model: str | None

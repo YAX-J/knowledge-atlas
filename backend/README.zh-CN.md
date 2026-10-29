@@ -1,32 +1,14 @@
 # Knowledge Atlas 后端
 
-2026-10-26 功能补全：已实现身份别名/合并/解除、保留历史间隔的撤回/启用及分组替代、持久化证据会话、固定提交 GitHub 文件/目录续扫，以及显式 Java/TypeScript/Go 编译器静态分析。默认真实工作台；问答默认 RRF（搜索 API 保留 keyword，界面搜索默认 BM25）。迁移 head `20261026_0018`。公开实验累计 84 次模型 / 61 次嵌入；真实人工评分与私有授权验收仍待外部条件。见[验收](../docs/FUNCTIONAL_COMPLETION_20261026.zh-CN.md)。下方较早检查点按历史记录保留，不代表本轮最新状态。
-
-2026-10-26：资料列表字段裁剪/最新任务及搜索证据批量读取（ADR 0053）；当前实体/关系可人工停用并分页读取不可变审计快照（ADR 0054）。应用 head `20261026_0017`，见[验收](../docs/OPTIMIZATION_456_20261026.zh-CN.md)与[读取测量](../evaluation/performance/2026-10-26-read-paths/README.zh-CN.md)。
-
-新增持久化更新状态/显式中断重试（迁移 `20261025_0016`）、可选 `bm25_source` 检索/问答，以及 `python -m scripts.database_backup` 备份恢复工具。见[操作指南](../docs/BACKUP_RESTORE.zh-CN.md)及 ADR 0050–0052。执行 `alembic upgrade head`，已运行的 API 重启后加载新接口。
-
-资料列表支持可选 `q`（文件名/路径字面子串，最多 200 字符）、已注册 `source_type` 和 `source_status`。先筛选再计数/分页，保留作用域、任务引用与溯源；状态指资料记录。不触发解析、供应商或迁移（ADR 0049）。
-
-候选列表新增关系 `endpoints` 快照（id/name/review_status），独立于列表筛选和分页；一次有界读取校验实体类别及用户/项目/资料/任务，缺失端点省略。审核动作响应默认快照为空，提升与事务规则不变（ADR 0048）。
-
-候选列表接受 kind=entity|relation 与字面文字 q；治理接受 kind，并在结果截断前统计类别。问答片段返回 related_entities，并给模型提供 entity_names，规范引用 ID 保持不变。不新增迁移（ADR 0047）。
-
-新增同来源、1–100 个不同候选的原子 `POST /projects/{id}/reviews/resolve-batch`（confirm/reject），及零供应商 `GET /projects/{id}/embeddings/status?valid_at=...`。索引数量覆盖整个有效范围，哈希新鲜度最多检查 1000 个实体；不新增迁移或供应商配置。
-
-新增 `search?mode=rrf` 和问答 `retrieval_mode=hybrid|rrf|vector|bm25`（默认 hybrid）。问答去重保留精确来源/位置，返回实际证据预算统计。抽取状态新增整份资料 `review_counts`，治理建议新增 `entities` 摘要。无迁移；新融合排序未进行真实供应商质量实验。
-
-新增 `GET /projects/{id}/search?mode=bm25` 的有界中英离线词法检索，无需供应商配置或迁移。空的匹配向量索引不再请求查询嵌入，配置错误仍保留。已准备语料项目可通过 `scripts.run_evaluation --modes keyword bm25` 零供应商授权测评。公式、隔离与上限见 [ADR 0044](../docs/adr/0044-bounded-offline-bm25-search.zh-CN.md)，[开发结果与失败案例](../evaluation/results/2026-10-25-bm25/README.zh-CN.md)单独保存。
-
-毕业补强清单 3—8 新增 `POST /sources/{source_id}/agent-call-analysis?strategy=tools`，默认兼容 `single_step`。只读快照工具最多 4 轮模型/8 次工具，结果继续校验且不持久化，见 [ADR 0043](../docs/adr/0043-bounded-read-only-tool-agent.zh-CN.md)。覆盖率与图表安装 `.[dev,evaluation]`；`scripts.model_acceptance` 需显式模型授权，`scripts.render_experiments` 与 `scripts.import_grades` 离线运行。真实合成结果与待人工评分见[报告](../evaluation/results/2026-10-24-models/REPORT.zh-CN.md)，原生/可选 Compose 完整演示与 CI 见[交付说明](../docs/DEMO.zh-CN.md)。
-
-阶段六可运行 `python -m scripts.prepare_evaluation --dataset ../evaluation --validate-only`，再添加 `--output-dir ../output/evaluation/preparation --accept-curated-fixture`，经普通解析/审核服务新建合成实验项目。`python -m scripts.run_baselines` 显式建立索引并对比关键词/向量/混合纯检索，不调用回答模型。拒绝已有项目/输出，记录实际图谱/索引指纹。前置迁移 `20261023_0015`，完整参数、标注与边界见[实验说明](../evaluation/README.zh-CN.md)和 ADR 0042。
-
-多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#。默认解析只做语法结构且不调用模型；`POST /sources/{source_id}/agent-call-analysis` 是显式有界模型操作，只能从同仓库后端候选中选择目标，返回 ID 与精确源码行会再次校验，且不写正式图谱。见[扩展名和边界](../docs/MULTILANGUAGE_PARSING.zh-CN.md)。
-
 [English](README.md)
 
-为 Knowledge Atlas 持久化、Markdown/Java 导入、带证据校验的候选提取与审核，以及有界只读项目图谱查询提供服务的 FastAPI 后端。
+当前说明见本轮验收与 ADR 0060–0063；迁移 head `20261026_0018`。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](../docs/OPTIMIZATION_20261029.zh-CN.md)
+
+## 本轮上下文与运行检查
+
+`GET /sources/{id}/analysis-contexts` 只读列出可选提交/重复路径版本；显式调用分析接受 snapshot_id 或重复 version_ids，返回实际 context。所有策略使用固定原路径、有界正文和用户/项目/仓库隔离。别名长度按规范化值再次校验；合并链/解除检索有回归。就绪状态检查实际 schema0018 与关键表/列。
+
+索引规划原始归属证据每500实体读取，不改变哈希或付费规则。规模复现：`python -m scripts.benchmark_scale --output ../output/scale-new-run.json --repeats 20`；仅自有临时原生schema，无供应商。API字段见[契约](../docs/API_CONTRACT.md)，测量边界见[报告](../evaluation/performance/2026-10-29-scale/README.zh-CN.md)。
 
 ## 已实现能力
 

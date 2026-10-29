@@ -10,6 +10,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ### Added
 
+- Schema/version-aware readiness; fixed-commit and explicit local-version code analysis; normalized identity regressions; restorable URLs and graph task sections; a separate genuine public-document holdout-v3; native 1k/10k measurements and batched index evidence. Current documentation is separated from historical checkpoints; real blind grading is deferred by the user (ADR 0060–0063).
+
 - Audited identity aliases/merge/unmerge and lifecycle reactivation/reversal with preserved temporal intervals; atomic split/merge replacements. Persistent grounded conversations, real workbench/navigation and contextual search; resumable pinned GitHub manifests. Explicit Java/TypeScript/Go static compiler paths. Separate public-v2 online experiment and offline blind review; question default RRF, human/private acceptance pending (ADR 0056–0059).
 
 - Projected source pagination/latest tasks and batched search evidence with native measurements; explicit reasoned knowledge retirement with audit/history; scoped import/review/graph orchestration modules (ADR 0053–0055).

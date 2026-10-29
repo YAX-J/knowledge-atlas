@@ -4,7 +4,6 @@ import json
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -81,43 +80,6 @@ def _excerpt(content: str, call_lines: set[int]) -> str:
         selected.update(range(max(1, line - 3), min(len(lines), line + 3) + 1))
     rendered = "\n".join(f"{line}: {lines[line - 1]}" for line in sorted(selected))
     return rendered[:MAX_EXCERPT_CHARS]
-
-
-def _related_sources(
-    db: Session, *, source: SourceDocument,
-) -> tuple[list[SourceDocument], bool]:
-    repository_filter = (
-        SourceDocument.repository_id == source.repository_id
-        if source.repository_id is not None
-        else SourceDocument.repository_id.is_(None)
-    )
-    compatible = LANGUAGE_FAMILIES[source.source_type]
-    metadata = list(db.execute(
-        select(SourceDocument.id, SourceDocument.size_bytes).where(
-            SourceDocument.user_id == source.user_id,
-            SourceDocument.project_id == source.project_id,
-            SourceDocument.source_type.in_(tuple(compatible)),
-            SourceDocument.status == SourceStatus.READY,
-            SourceDocument.id != source.id,
-            repository_filter,
-        ).order_by(SourceDocument.created_at, SourceDocument.id).limit(MAX_RELATED_SOURCES + 1)
-    ))
-    truncated = len(metadata) > MAX_RELATED_SOURCES
-    selected: list[uuid.UUID] = []
-    size = 0
-    for source_id, source_size in metadata[:MAX_RELATED_SOURCES]:
-        if size + source_size > MAX_RELATED_BYTES:
-            truncated = True
-            break
-        selected.append(source_id)
-        size += source_size
-    if not selected:
-        return [], truncated
-    by_id = {
-        item.id: item
-        for item in db.scalars(select(SourceDocument).where(SourceDocument.id.in_(selected)))
-    }
-    return [by_id[source_id] for source_id in selected], truncated
 
 
 def _target(source: SourceDocument, symbol) -> _Target:
@@ -225,7 +187,7 @@ def _java_candidates(
 
 def analyze_calls(
     db: Session, *, settings: Settings, user_id: uuid.UUID, source_id: uuid.UUID,
-    strategy: str = "single_step",
+    strategy: str = "single_step", snapshot_id: uuid.UUID | None = None, version_ids: list[uuid.UUID] | None = None,
 ) -> AgentCallAnalysisRead:
     source = ingestion.get_source(db, user_id=user_id, source_id=source_id)
     get_project(db, user_id=user_id, project_id=source.project_id)
@@ -234,9 +196,11 @@ def analyze_calls(
     if source.status != SourceStatus.READY:
         raise AppError(status_code=409, code="SOURCE_NOT_PARSED", message="请先完成代码资料解析")
 
-    related, related_truncated = _related_sources(db, source=source)
+    from app.services import code_context
+    source,related,related_truncated,context=code_context.select_context(db,source,LANGUAGE_FAMILIES[source.source_type],
+        snapshot_id=snapshot_id,version_ids=version_ids,max_sources=MAX_RELATED_SOURCES,max_bytes=MAX_RELATED_BYTES)
     return analyze_snapshot(source=source, related=related, settings=settings,
-                            strategy=strategy, related_truncated=related_truncated)
+                            strategy=strategy, related_truncated=related_truncated).model_copy(update={'context':context})
 
 
 def analyze_snapshot(*, source, related, settings, strategy="single_step", related_truncated=False):

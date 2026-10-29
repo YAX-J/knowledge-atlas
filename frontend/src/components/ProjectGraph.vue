@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import KnowledgeSearch from './KnowledgeSearch.vue'
+import type { GraphSection } from '../composables/useWorkspaceRoute'
 import type { ApiProject } from '../api/knowledgeAtlas'
 import type { EmbeddingJob, EmbeddingIndexStatus, EntityDetail, EvidenceLocator, FormalKnowledgeEdge, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail } from '../types'
 
 const props = defineProps<{
   project: ApiProject | null
+  section?: GraphSection
   graph: ProjectGraphData | null
   entityDetail: EntityDetail | null
   relationshipDetail: RelationshipDetail | null
@@ -50,6 +52,7 @@ const emit = defineEmits<{
   openEvidence: [locator: EvidenceLocator]
   time: [value: string]
   inspectIndex: []
+  section: [value: GraphSection]
 }>()
 const localTime = ref('')
 watch(() => props.validAt, value => {
@@ -93,12 +96,15 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
       <div><span class="graph-kicker">项目知识 / 已确认</span><h1 id="project-graph-title">{{ project?.name ?? '项目图谱' }}</h1><p>沿着关系找回原文，让每条知识都有依据。</p></div>
       <div class="graph-actions"><button type="button" :disabled="mutationBusy" @click="emit('back')">返回资料</button><button type="button" :disabled="mutationBusy" @click="emit('demo')">演示图谱</button><button type="button" :disabled="loading || mutationBusy" @click="emit('refresh')">刷新图谱</button></div>
     </header>
+    <nav class="graph-sections" aria-label="知识工作区"><button v-for="tab in ([['relations','关系图'],['search','知识检索'],['identity','身份整理'],['evolution','演化与治理'],['retirement','停用记录']] as const)" :key="tab[0]" type="button" :aria-current="(section ?? 'relations') === tab[0] ? 'page' : undefined" :disabled="mutationBusy" @click="emit('section',tab[0])">{{ tab[1] }}</button></nav>
+    <div v-show="!section || section === 'search'">
     <KnowledgeSearch :key="project?.id" :result="searchResult" :loading="searchLoading" :error="searchError" :error-action="searchErrorAction" :labels="labels"
       :rebuilding="searchRebuilding" :notice="searchNotice"
       :index-status="indexStatus" :index-status-loading="indexStatusLoading" :index-status-error="indexStatusError" @inspect-index="emit('inspectIndex')"
       :embedding-job="embeddingJob" :embedding-job-error="embeddingJobError"
       @search="(query, types, mode) => emit('search', query, types, mode)" @rebuild="retry => emit('rebuildSearch', retry)"
       @clear="emit('clearSearch')" @retry="emit('retrySearch')" @select="id => emit('selectSearchEntity', id)" @open-evidence="emit('openEvidence', $event)" />
+    </div>
     <div class="graph-toolbar">
       <span class="graph-real-label">真实项目图谱</span>
       <form class="time-query" @submit.prevent="applyTime"><label>历史时间 <input v-model="localTime" type="datetime-local" step="0.001" :disabled="loading || mutationBusy" /></label><button type="submit" :disabled="loading || mutationBusy">查询该时刻</button><button v-if="validAt" type="button" :disabled="loading || mutationBusy" @click="emit('time', '')">返回当前知识</button></form>
@@ -111,7 +117,7 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
     <p v-if="loading" class="graph-message" role="status">正在读取已确认知识…</p>
     <div v-else-if="error" class="graph-message graph-error" role="alert"><p>{{ error }}</p><button type="button" @click="emit('refresh')">重试加载图谱</button></div>
     <div v-else-if="graph?.nodes.length === 0" class="graph-empty"><span aria-hidden="true">◇</span><h2>这里还没有符合条件的知识</h2><p>在资料中提取并确认实体，再确认它们之间的关系。已确认的旧候选可点击“补写入图谱”。</p><button type="button" @click="emit('back')">前往资料审核</button></div>
-    <template v-else-if="graph">
+    <div v-else-if="graph" v-show="!section || section === 'relations'">
       <p v-if="graph.truncated" class="graph-message" role="status">当前只展示部分知识。可按类型筛选，或选择节点后查看它的一跳、二跳邻域。</p>
       <div class="real-graph-layout">
         <section class="real-graph-canvas" aria-label="已确认知识关系图">
@@ -144,12 +150,14 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
           </template>
         </aside>
       </div>
-    </template>
+    </div>
+    <label v-if="section && !['relations','search'].includes(section) && graph?.nodes.length" class="context-node-picker">当前知识<select :value="entityDetail?.entity.id ?? ''" :disabled="mutationBusy || detailLoading" @change="emit('selectEntity', ($event.target as HTMLSelectElement).value)"><option value="" disabled>选择要整理的知识</option><option v-for="node in graph.nodes" :key="node.id" :value="node.id">{{ node.name }}</option></select></label>
     <slot name="evolution" />
   </main>
 </template>
 
 <style scoped>
+.graph-sections { display:flex;flex-wrap:wrap;gap:10px;margin-top:20px; }.graph-sections [aria-current=page] { background:var(--ink);color:white; }.context-node-picker { display:flex;gap:12px;align-items:center;font-size:13px; }.context-node-picker select { max-width:70%; }.route-error { color:var(--rose); }
 .time-query { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }.time-query input { min-width: 0; max-width: 100%; min-height: 40px; padding: 6px; border: 1px solid #aabec0; border-radius: 5px; color: var(--ink); background: var(--paper); box-sizing: border-box; }.time-query input:focus-visible { outline: 2px solid var(--rose); outline-offset: 3px; }
 .project-graph-page { height: calc(100% - 86px); overflow: auto; padding: 30px 30px 60px 100px; background: #edf3f3; color: var(--ink); }
 .graph-page-heading { display: flex; justify-content: space-between; gap: 20px; align-items: center; }

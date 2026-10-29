@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { isCodeSource, sourceFileAccept, sourceLanguageHint, sourceTypeForFile, sourceTypeLabel, sourceTypes } from '../sourceLanguages'
 import type {
   AgentCallAnalysis, ApiProject, ApiProjectList, ApiSource, JavaCodeStructure, ProcessingTask, SourceChunkList, SourceList, SourceListItem, SourceRepository, SourceRepositoryList,
+  CodeAnalysisContexts, CodeAnalysisSelection,
 } from '../api/knowledgeAtlas'
 import type { IngestionErrors, IngestionLoading, SourceFilters } from '../types'
 
@@ -18,6 +19,8 @@ const props = defineProps<{
   chunks: SourceChunkList | null
   codeStructure: JavaCodeStructure | null
   agentCallAnalysis: AgentCallAnalysis | null
+  analysisContexts?: CodeAnalysisContexts | null
+  analysisContextError?: string
   focusedChunkId?: string
   loading: IngestionLoading
   errors: IngestionErrors
@@ -43,7 +46,7 @@ const emit = defineEmits<{
   run: []
   refresh: []
   chunksPage: [page: number]
-  analyzeCalls: [strategy: 'single_step' | 'tools' | 'semantic']
+  analyzeCalls: [strategy: 'single_step' | 'tools' | 'semantic', selection?: CodeAnalysisSelection]
   graph: []
 }>()
 const name = ref('')
@@ -58,6 +61,18 @@ const fileError = ref('')
 const selectionNote = ref('')
 const uploadKind = ref<'file' | 'folder' | ''>('')
 const agentStrategy = ref<'single_step' | 'tools' | 'semantic'>('single_step')
+const analysisSnapshot = ref('')
+const analysisVersions = reactive<Record<string,string>>({})
+watch(() => props.analysisContexts, value => {
+  analysisSnapshot.value = value?.default_snapshot_id ?? ''
+  Object.keys(analysisVersions).forEach(key => delete analysisVersions[key])
+  for (const group of value?.version_groups ?? []) analysisVersions[group.path] = group.versions[0]?.id ?? ''
+}, { immediate: true })
+function analyzeCalls() {
+  if (props.analysisContexts) emit('analyzeCalls',agentStrategy.value,{ snapshotId:analysisSnapshot.value || undefined,
+    versionIds:analysisSnapshot.value ? [] : Object.values(analysisVersions).filter(Boolean) })
+  else emit('analyzeCalls',agentStrategy.value)
+}
 const projectPages = computed(() => Math.max(1, Math.ceil((props.projects?.total ?? 0) / (props.projects?.page_size ?? 20))))
 const repositoryPages = computed(() => Math.max(1, Math.ceil((props.repositories?.total ?? 0) / (props.repositories?.page_size ?? 20))))
 const sourcePages = computed(() => Math.max(1, Math.ceil((props.sources?.total ?? 0) / (props.sources?.page_size ?? 20))))
@@ -417,9 +432,15 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                         <option v-if="['java','javascript','jsx','typescript','tsx','go'].includes(source.source_type)" value="semantic">编译器静态解析 · 无模型</option>
                       </select>
                     </label>
-                    <button type="button" class="primary-button" :disabled="locked || loading.structure" @click="emit('analyzeCalls', agentStrategy)">{{ loading.agent ? '正在分析调用…' : agentStrategy === 'semantic' ? '解析静态调用声明' : 'Agent 分析跨文件调用' }}</button>
+                    <button type="button" class="primary-button" :disabled="locked || loading.structure || !!analysisContextError" @click="analyzeCalls">{{ loading.agent ? '正在分析调用…' : agentStrategy === 'semantic' ? '解析静态调用声明' : 'Agent 分析跨文件调用' }}</button>
                   </div>
                   <p class="source-upload-hint">结构关系由本地规则推导，不会自动写入已审核的正式知识图谱。</p>
+                  <p v-if="analysisContextError" role="alert">{{ analysisContextError }} 请刷新资料以重新读取分析范围。</p>
+                  <div v-if="analysisContexts" class="source-analysis-context">
+                    <label v-if="analysisContexts.snapshots.length">固定提交<select v-model="analysisSnapshot" :disabled="locked" aria-label="分析提交快照"><option v-for="item in analysisContexts.snapshots" :key="item.id" :value="item.id">{{ item.ref }} @ {{ item.commit_sha.slice(0,12) }}{{ item.truncated ? ' · 部分快照' : '' }}</option></select></label>
+                    <template v-else><p class="source-upload-hint">当前文件保持所选版本；其他本地文件默认取最新已解析版本。</p><label v-for="group in analysisContexts.version_groups" :key="group.path">{{ group.path }}<select v-model="analysisVersions[group.path]" :disabled="locked" :aria-label="`分析版本 ${group.path}`"><option v-for="item in group.versions" :key="item.id" :value="item.id">{{ new Date(item.created_at).toLocaleString() }} · {{ item.id.slice(0,8) }}</option></select></label></template>
+                    <p v-if="analysisContexts.truncated" class="source-upload-hint">版本选择清单达到显示上限，请缩小仓库或选择固定提交。</p>
+                  </div>
                   <p v-if="agentStrategy === 'semantic'" class="source-upload-hint">使用本机 JDK、TypeScript 或 Go 类型检查器分析当前源码；Go 限同包文件。禁用构建脚本、注解处理和项目代码执行；缺失依赖与运行时动态行为仍可能无法确定。</p>
                   <p v-if="agentStrategy !== 'semantic' && source.source_type !== 'java'" class="source-upload-hint">{{ sourceTypeLabel(source.source_type) }} 默认只做语法结构解析；显式运行 Agent 后，才会在同仓库静态候选中分析跨文件调用并产生模型费用。</p>
                   <p v-else-if="agentStrategy !== 'semantic'" class="source-upload-hint">Java 保留本地确定性调用提示；显式运行 Agent 可对已有仓库内候选进一步消歧。</p>
@@ -469,8 +490,9 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                         <span v-if="agentCallAnalysis" class="muted-copy">扫描 {{ agentCallAnalysis.scanned_source_count }} 个文件 · {{ agentCallAnalysis.candidate_call_count }} 个候选调用 · {{ agentCallAnalysis.provider_call_count }} 次模型调用 · {{ agentCallAnalysis.tool_call_count }} 次工具调用</span>
                       </div>
                       <p v-if="loading.agent" class="muted-copy" role="status">Agent 正在核对导入、接收者、文件路径和候选声明…</p>
-                      <p v-else-if="errors.agent" class="inline-error" role="alert">{{ errors.agent }} <button type="button" class="text-button" @click="emit('analyzeCalls', agentStrategy)">重试分析</button></p>
+                      <p v-else-if="errors.agent" class="inline-error" role="alert">{{ errors.agent }} <button type="button" class="text-button" @click="analyzeCalls">重试分析</button></p>
                       <template v-else-if="agentCallAnalysis">
+                        <p v-if="agentCallAnalysis.context" class="source-analysis-result-context">本次分析范围：{{ agentCallAnalysis.context.commit_sha ? `固定提交 ${agentCallAnalysis.context.commit_sha}` : '本地文件单路径版本' }}。切换选择后请重新分析。</p>
                         <p class="source-upload-hint">分析依据：{{ agentCallAnalysis.candidate_generation || '语法候选' }}；未覆盖调用 {{ agentCallAnalysis.uncovered_call_count ?? 0 }} 个。<span v-if="agentCallAnalysis.semantic_diagnostics?.length">编译上下文仍有 {{ agentCallAnalysis.semantic_diagnostics.length }} 项诊断，请结合原文核对。</span></p>
                         <details v-if="agentCallAnalysis.tool_trace?.length" class="agent-tool-trace"><summary>查看工具执行记录</summary><ol><li v-for="(entry, index) in agentCallAnalysis.tool_trace" :key="index">{{ entry.name }} · {{ entry.status === 'ok' ? '成功' : '参数或范围被拒绝' }} · {{ entry.duration_ms }} ms</li></ol></details>
                         <p v-if="agentCallAnalysis.truncated" class="inline-error">仓库或候选达到分析上限，结果可能不完整。</p>

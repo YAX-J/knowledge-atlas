@@ -17,6 +17,7 @@
   --amber-soft: #f5e7be;
 }
 
+.route-error { position:fixed;z-index:40;top:112px;right:24px;max-width:min(620px,90vw);padding:16px;background:#fff4f7;border:1px solid var(--rose);color:var(--ink);font-size:13px; }
 /* Real workspaces adopt the v3 prototype's top navigation and paper/ink layout. */
 .app-shell.app-shell > .app-header { height: 58px; grid-template-columns: 220px minmax(240px, 620px) minmax(0,1fr); gap: 24px; padding: 0 28px; }
 .app-shell .global-search { height: 36px; border-radius: 4px; box-shadow: none; }

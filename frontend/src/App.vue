@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import AppHeader from './components/AppHeader.vue'
 import SideRail from './components/SideRail.vue'
@@ -28,30 +28,34 @@ import { useCandidateReview } from './composables/useCandidateReview'
 import { useProjectGraph } from './composables/useProjectGraph'
 import { useKnowledgeRetirement } from './composables/useKnowledgeRetirement'
 import { useKnowledgeSearch } from './composables/useKnowledgeSearch'
-import type { GovernanceKind, KnowledgeRetirement as RetirementEvent, QuestionRetrievalMode, SourceFilters } from './types'
+import { useRepositorySnapshots } from './composables/useRepositorySnapshots'
+import { useEvidenceNavigation } from './composables/useEvidenceNavigation'
+import { useKnowledgeEvolution } from './composables/useKnowledgeEvolution'
+import { useWorkspaceRoute, type GraphSection } from './composables/useWorkspaceRoute'
+import type { KnowledgeRetirement as RetirementEvent, QuestionRetrievalMode, SourceFilters } from './types'
 import { isCodeSource } from './sourceLanguages'
 import {
-  createProject, getSource, getTask, listProjects, listSourceChunks, listSources,
-  getEntityDetail, askQuestion,
-  getKnowledgeHistory, inspectGovernance, listKnowledgeChanges, proposeKnowledgeChange, resolveKnowledgeChange,
-  getJavaCodeStructure, getProjectSourceChunk,
+  createProject, getProject, getSource, getTask, listProjects, listSourceChunks, listSources,
+  askQuestion,
+  getJavaCodeStructure,
   analyzeAgentCalls,
+  getCodeAnalysisContexts,
   searchCodeSymbols,
-  listRepositorySnapshots, listSnapshotFiles, importSnapshotCommit,
   listRepositories,
 } from './api/knowledgeAtlas'
 import type {
   ApiProject, ApiProjectList, ApiSource, ProcessingTask, SourceChunkList, SourceList,
   AgentCallAnalysis, JavaCodeStructure, SourceRepositoryList,
   CodeSymbolHit, CodeSymbolSearchInput, CodeSymbolSearchResult,
-  RepositorySnapshotList, RepositorySnapshotFileList, RepositorySnapshotFile, SourceRepository,
+  CodeAnalysisContexts, CodeAnalysisSelection,
 } from './api/knowledgeAtlas'
 import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/data'
-import type { GovernanceResult, KnowledgeChangeInput, KnowledgeChangeList, KnowledgeHistory } from './types'
-import type { EvidenceLocator, IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, EntityDetail, QuestionAnswer } from './types'
+import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, QuestionAnswer } from './types'
 
 const selectedId = ref('event-driven')
 const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'mock' ? 'graph' : import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'workbench')
+const graphSection = ref<GraphSection>('relations')
+const conversationId = ref('')
 const timelineIndex = ref(timelinePoints.length - 1)
 const panelOpen = ref(true)
 const filterOpen = ref(false)
@@ -60,132 +64,6 @@ const visibleTypes = ref<NodeType[]>([...allTypes])
 const projects = ref<ApiProjectList | null>(null)
 const project = ref<ApiProject | null>(null)
 const repositories = ref<SourceRepositoryList | null>(null)
-const snapshotRepository = ref<SourceRepository | null>(null)
-const snapshots = ref<RepositorySnapshotList | null>(null)
-const snapshotsLoading = ref(false)
-const snapshotsError = ref('')
-const snapshotsPage = ref(1)
-const importingSnapshotId = ref('')
-let snapshotsRequest = 0
-const filesSnapshotId = ref('')
-const snapshotFiles = ref<RepositorySnapshotFileList | null>(null)
-const snapshotFilesLoading = ref(false)
-const snapshotFilesError = ref('')
-const snapshotFilesPage = ref(1)
-let snapshotFilesRequest = 0
-
-function clearSnapshotFiles() {
-  snapshotFilesRequest++
-  filesSnapshotId.value = ''
-  snapshotFiles.value = null
-  snapshotFilesLoading.value = false
-  snapshotFilesError.value = ''
-  snapshotFilesPage.value = 1
-}
-
-async function closeSnapshotFiles() {
-  const snapshotId = filesSnapshotId.value
-  clearSnapshotFiles()
-  await nextTick()
-  document.querySelector<HTMLButtonElement>(`[data-snapshot-files="${snapshotId}"]`)?.focus()
-}
-
-async function loadSnapshotFilePage(snapshotId: string, page = 1) {
-  const projectId = project.value?.id
-  const repositoryId = snapshotRepository.value?.id
-  if (!projectId || !repositoryId) return
-  const request = ++snapshotFilesRequest
-  filesSnapshotId.value = snapshotId
-  snapshotFilesPage.value = page
-  snapshotFiles.value = null
-  snapshotFilesLoading.value = true
-  snapshotFilesError.value = ''
-  await nextTick()
-  if (request === snapshotFilesRequest) {
-    const panel = document.getElementById('snapshot-files-panel')
-    panel?.focus({ preventScroll: true })
-    panel?.scrollIntoView({ block: 'start', behavior: 'instant' })
-  }
-  try {
-    const result = await listSnapshotFiles(projectId, repositoryId, snapshotId, page)
-    if (request === snapshotFilesRequest && project.value?.id === projectId) snapshotFiles.value = result
-  } catch (error) {
-    if (request === snapshotFilesRequest) snapshotFilesError.value = errorMessage(error)
-  } finally {
-    if (request === snapshotFilesRequest) snapshotFilesLoading.value = false
-  }
-}
-
-async function openSnapshotFile(file: RepositorySnapshotFile) {
-  if (!file.source_id || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
-  const projectId = project.value?.id
-  await selectSource(file.source_id, file.task_id)
-  await nextTick()
-  if (project.value?.id !== projectId || selectedSourceId.value !== file.source_id || (activeNav.value !== 'sources' && activeNav.value !== 'projects')) return
-  const reader = document.getElementById('source-reader')
-  reader?.focus({ preventScroll: true })
-  reader?.scrollIntoView({ block: 'start', behavior: 'instant' })
-}
-
-function clearSnapshots() {
-  clearSnapshotFiles()
-  snapshotsRequest++
-  snapshotRepository.value = null
-  snapshots.value = null
-  snapshotsError.value = ''
-  snapshotsLoading.value = false
-  snapshotsPage.value = 1
-}
-
-async function loadSnapshots(repository: SourceRepository, page = 1) {
-  const projectId = project.value?.id
-  if (!projectId) return
-  const request = ++snapshotsRequest
-  clearSnapshotFiles()
-  snapshotsPage.value = page
-  snapshotRepository.value = repository
-  snapshots.value = null
-  snapshotsLoading.value = true
-  snapshotsError.value = ''
-  try {
-    const result = await listRepositorySnapshots(projectId, repository.id, page, 10)
-    if (request === snapshotsRequest && project.value?.id === projectId) snapshots.value = result
-  } catch (error) {
-    if (request === snapshotsRequest && project.value?.id === projectId) snapshotsError.value = errorMessage(error)
-  } finally {
-    if (request === snapshotsRequest) snapshotsLoading.value = false
-  }
-}
-
-async function saveSnapshotCommit(snapshotId: string) {
-  const projectId = project.value?.id
-  const repository = snapshotRepository.value
-  if (!projectId || !repository || loading.commit || loading.upload || loading.task || loading.sync || loading.activity || loading.remote) return
-  loading.commit = true
-  errors.commit = ''
-  importingSnapshotId.value = snapshotId
-  const page = snapshots.value?.page ?? 1
-  try {
-    const result = await importSnapshotCommit(projectId, repository.id, snapshotId)
-    if (project.value?.id !== projectId) return
-    notice.value = result.reused ? '已复用提交资料与解析任务，请核对当前状态。' : '提交说明已加入资料。解析后可显式抽取并审核知识。'
-    clearSourceSelection()
-    selectedSourceId.value = result.source_id
-    selectedTaskId.value = result.task_id
-    await Promise.all([loadSources(1), refreshSource(), loadSnapshots(repository, page)])
-    await nextTick()
-    if (project.value?.id === projectId && (activeNav.value === 'sources' || activeNav.value === 'projects')) {
-      const reader = document.getElementById('source-reader')
-      reader?.focus({ preventScroll: true })
-      reader?.scrollIntoView({ block: 'start', behavior: 'instant' })
-    }
-  } catch (error) {
-    if (project.value?.id === projectId) errors.commit = errorMessage(error)
-  } finally {
-    loading.commit = false
-    importingSnapshotId.value = ''
-  }
-}
 const sources = ref<SourceList | null>(null)
 const sourceFilters = ref<SourceFilters>({ query: '', type: '', status: '' })
 const sourcesRequestedPage = ref(1)
@@ -196,67 +74,12 @@ const task = ref<ProcessingTask | null>(null)
 const chunks = ref<SourceChunkList | null>(null)
 const codeStructure = ref<JavaCodeStructure | null>(null)
 const agentCallAnalysis = ref<AgentCallAnalysis | null>(null)
+const analysisContexts = ref<CodeAnalysisContexts | null>(null)
+const analysisContextError = ref('')
 const codeSearchResult = ref<CodeSymbolSearchResult | null>(null)
 const codeSearchLoading = ref(false)
 const codeSearchError = ref('')
 const focusedChunkId = ref('')
-const evidenceTarget = ref<EvidenceLocator | null>(null)
-const evidenceNavigationLoading = ref(false)
-const evidenceNavigationError = ref('')
-let evidenceNavigationRequest = 0
-
-function clearEvidenceNavigation() {
-  evidenceNavigationRequest++
-  evidenceTarget.value = null
-  evidenceNavigationLoading.value = false
-  evidenceNavigationError.value = ''
-}
-
-async function openEvidence(locator: EvidenceLocator) {
-  if (!project.value || changeBusy.value || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
-  const projectId = project.value.id
-  clearSourceSelection()
-  notice.value = ''
-  evidenceTarget.value = { source_id: locator.source_id, chunk_id: locator.chunk_id }
-  evidenceNavigationLoading.value = true
-  activeNav.value = 'sources'
-  const request = ++evidenceNavigationRequest
-  const current = () => request === evidenceNavigationRequest && project.value?.id === projectId
-  try {
-    const chunk = await getProjectSourceChunk(projectId, locator.source_id, locator.chunk_id)
-    if (!current()) return
-    selectedSourceId.value = chunk.source_id
-    selectedTaskId.value = null // Evidence reads do not require a surviving parsing task.
-    await refreshSource(Math.floor(chunk.position / 20) + 1)
-    if (!current()) return
-    if (!chunks.value?.items.some(item => item.id === chunk.id)) {
-      evidenceNavigationError.value = errors.detail || errors.chunks || '证据分块未能在当前解析结果中定位，请刷新资料后重试。'
-      return
-    }
-    focusedChunkId.value = chunk.id
-    await nextTick()
-    if (!current()) return
-    const target = document.getElementById(`source-chunk-${chunk.id}`)
-    if (!target) {
-      evidenceNavigationError.value = '当前资料尚不能展示此分块，请检查解析状态后重试。'
-      return
-    }
-    clearEvidenceNavigation()
-    notice.value = `已定位证据原文第 ${chunk.start_line}–${chunk.end_line} 行。`
-    target.focus({ preventScroll: true })
-    target.scrollIntoView({ block: 'center', behavior: 'instant' })
-  } catch (error) {
-    if (current()) evidenceNavigationError.value = errorMessage(error)
-  } finally {
-    if (current()) {
-      evidenceNavigationLoading.value = false
-      if (evidenceNavigationError.value) {
-        await nextTick()
-        if (current()) document.getElementById('evidence-navigation')?.focus()
-      }
-    }
-  }
-}
 let codeSearchRequest = 0
 let codeOpenRequest = 0
 let codeSearchInput: CodeSymbolSearchInput | null = null
@@ -319,6 +142,15 @@ async function openCodeSymbol(hit: CodeSymbolHit) {
 const notice = ref('')
 const loading = reactive<IngestionLoading>({ projects: false, create: false, repositories: false, remote: false, sync: false, activity: false, commit: false, sources: false, upload: false, detail: false, task: false, chunks: false, structure: false, agent: false })
 const errors = reactive<IngestionErrors>({ projects: '', create: '', repositories: '', remote: '', sync: '', activity: '', commit: '', sources: '', upload: '', detail: '', task: '', chunks: '', structure: '', agent: '' })
+const {
+  snapshotRepository, snapshots, snapshotsLoading, snapshotsError, snapshotsPage, importingSnapshotId,
+  filesSnapshotId, snapshotFiles, snapshotFilesLoading, snapshotFilesError, snapshotFilesPage,
+  clearSnapshotFiles, closeSnapshotFiles, loadSnapshotFilePage, openSnapshotFile, clearSnapshots, loadSnapshots, saveSnapshotCommit,
+} = useRepositorySnapshots({ project, activeNav, loading, errors, notice, selectedSourceId, selectedTaskId,
+  clearSourceSelection, selectSource, loadSources, refreshSource, errorMessage })
+const { evidenceTarget, evidenceNavigationLoading, evidenceNavigationError, clearEvidenceNavigation, openEvidence } = useEvidenceNavigation({ project, activeNav, errors, chunks, focusedChunkId, notice, selectedSourceId, selectedTaskId,
+  locked: () => changeBusy.value || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit,
+  clearSourceSelection, refreshSource, errorMessage })
 const { githubContinuations, registerGithubRepository, syncRegisteredGithubRepository, importRegisteredGithubActivity, uploadFiles, parseSource } = useSourceImport({
   project, repositories, sources, selectedSourceId, selectedTaskId, task, notice, loading, errors,
   locked: () => reviewBusy.value || changeBusy.value,
@@ -336,51 +168,29 @@ const {
   candidates, reviewFilters, extraction, reviewsLoading, extracting, resolving, reviewBusy, reviewsError, reviewsNotice,
   clearReviews, applyReviewFilters, loadReviews, extractSource, reviewCandidate, reviewCandidatesBatch,
 } = useCandidateReview(project, selectedSourceId, () => clearIndexStatus(), errorMessage)
+const changeBusy = ref(false)
 const {
   realGraph, realEntityDetail, realRelationshipDetail, graphLoading, graphDetailLoading, graphError, graphDetailError,
-  graphSelectedId, graphCenter, graphType, graphDepth, graphValidAt,
+  graphSelectedId, graphSelectionKind, graphCenter, graphType, graphDepth, graphValidAt,
   clearProjectGraph, loadRealGraph, selectGraphEntity, selectGraphRelationship, retryGraphDetail, filterGraph, setGraphDepth,
 } = useProjectGraph(() => ({ projectId:project.value?.id, active:activeNav.value === 'projectGraph' }), errorMessage,
-  () => { historyRequest++; history.value = null; evolutionLoading.history = false; evolutionError.history = '' },
+  () => clearHistory(),
   () => { void loadHistory() })
-const history = ref<KnowledgeHistory | null>(null)
-const knowledgeChanges = ref<KnowledgeChangeList | null>(null)
-const governance = ref<GovernanceResult | null>(null)
-const governanceKind = ref<GovernanceKind | ''>('')
-const comparisonState = useLatestRequest<EntityDetail[]>(errorMessage)
-const { result: comparison, loading: comparisonLoading, error: comparisonError } = comparisonState
-let comparisonIds: string[] = []
-function closeComparison() { comparisonState.clear(); comparisonIds = [] }
-async function compareKnowledge(ids = comparisonIds) {
-  const projectId = project.value?.id
-  const unique = [...new Set(ids)]
-  if (!projectId || changeBusy.value || unique.length !== 2) return
-  comparisonIds = unique
-  await comparisonState.run(async () => {
-    const details = await Promise.all(unique.map(id => getEntityDetail(id)))
-    if (details.some((detail, index) => detail.entity.project_id !== projectId || detail.entity.id !== unique[index])) {
-      throw new Error('Comparison context changed')
-    }
-    return details
-  }, () => project.value?.id === projectId && activeNav.value === 'projectGraph')
-  await nextTick()
-  if (project.value?.id === projectId && comparison.value?.every((detail, index) => detail.entity.id === unique[index])) {
-    const panel = document.getElementById('knowledge-comparison')
-    panel?.focus({ preventScroll: true }); panel?.scrollIntoView({ block: 'nearest', behavior: 'instant' })
-  }
-}
-const evolutionLoading = reactive({ history: false, changes: false, governance: false })
-const evolutionError = reactive({ history: '', changes: '', governance: '', action: '' })
-const changeBusy = ref(false)
-const changeNotice = ref('')
+const {
+  history, knowledgeChanges, governance, governanceKind, comparison, comparisonLoading, comparisonError,
+  closeComparison, compareKnowledge, evolutionLoading, evolutionError, changeNotice, clearEvolution,
+  clearHistory, clearGovernance, loadHistory, loadChanges, runGovernance, proposeChange, resolveChange,
+} = useKnowledgeEvolution(
+  () => ({ projectId: project.value?.id, entityId: realEntityDetail.value?.entity.id, active: activeNav.value === 'projectGraph', validAt: graphValidAt.value }),
+  changeBusy, { clearSearch: () => clearSearch(), loadRealGraph, selectEntityId: id => { graphSelectedId.value = id } }, errorMessage)
 const {
   retirements, retirementsLoading, retirementsError, retirementError, retirementNotice,
   loadRetirements, retireKnowledge,
 } = useKnowledgeRetirement(() => ({ projectId: project.value?.id, active: activeNav.value === 'projectGraph', validAt: graphValidAt.value }),
   changeBusy, errorMessage, async () => {
     clearSearch(); clearQuestion(); closeComparison()
-    governanceRequest++; governance.value = null; evolutionLoading.governance = false
-    historyRequest++; history.value = null
+    clearGovernance()
+    clearHistory()
     graphSelectedId.value = ''; graphType.value = ''
     await Promise.all([loadRealGraph(''), loadIndexStatus()])
   })
@@ -394,7 +204,7 @@ const { identity: managedIdentity, operations: managementOperations, loading: ma
   () => ({ projectId: project.value?.id, entityId: realEntityDetail.value?.entity.id,
     active: activeNav.value === 'projectGraph', validAt: graphValidAt.value }), changeBusy, async () => {
     clearSearch(); clearQuestion(); closeComparison()
-    governanceRequest++; governance.value = null
+    clearGovernance()
     clearProjectGraph()
     await Promise.all([loadRealGraph(''), loadIndexStatus(), loadChanges(1), loadRetirements()])
   })
@@ -417,92 +227,10 @@ async function visitRetiredKnowledge(event: RetirementEvent) {
     if (project.value?.id === projectId && activeNav.value === 'projectGraph') await selectGraphRelationship(event.knowledge_id)
   }
 }
-let historyRequest = 0
-let changesRequest = 0
-let governanceRequest = 0
-
-function clearEvolution() {
-  historyRequest++; changesRequest++; governanceRequest++
-  history.value = null; knowledgeChanges.value = null; governance.value = null
-  evolutionLoading.history = evolutionLoading.changes = evolutionLoading.governance = false
-  evolutionError.history = evolutionError.changes = evolutionError.governance = evolutionError.action = ''
-  changeNotice.value = ''
-  closeComparison(); governanceKind.value = ''
-}
-
-async function loadHistory() {
-  const projectId = project.value?.id, entityId = realEntityDetail.value?.entity.id
-  const request = ++historyRequest
-  history.value = null; evolutionError.history = ''
-  if (!projectId || !entityId) { evolutionLoading.history = false; return }
-  evolutionLoading.history = true
-  try {
-    const result = await getKnowledgeHistory(projectId, entityId)
-    if (request === historyRequest && project.value?.id === projectId) history.value = result
-  } catch (error) { if (request === historyRequest) evolutionError.history = errorMessage(error) }
-  finally { if (request === historyRequest) evolutionLoading.history = false }
-}
-
-async function loadChanges(page = 1) {
-  const projectId = project.value?.id
-  if (!projectId) return
-  const request = ++changesRequest
-  evolutionLoading.changes = true; evolutionError.changes = ''
-  try {
-    const result = await listKnowledgeChanges(projectId, page)
-    if (request === changesRequest && project.value?.id === projectId) knowledgeChanges.value = result
-  } catch (error) { if (request === changesRequest) evolutionError.changes = errorMessage(error) }
-  finally { if (request === changesRequest) evolutionLoading.changes = false }
-}
-
-async function runGovernance(kind = governanceKind.value) {
-  const projectId = project.value?.id
-  if (!projectId || changeBusy.value) return
-  const request = ++governanceRequest
-  governanceKind.value = kind
-  closeComparison()
-  governance.value = null; evolutionLoading.governance = true; evolutionError.governance = ''
-  try {
-    const result = await inspectGovernance(projectId, kind)
-    if (request === governanceRequest && project.value?.id === projectId) governance.value = result
-  } catch (error) { if (request === governanceRequest) evolutionError.governance = errorMessage(error) }
-  finally { if (request === governanceRequest) evolutionLoading.governance = false }
-}
-
-async function proposeChange(input: KnowledgeChangeInput) {
-  const projectId = project.value?.id
-  if (!projectId || changeBusy.value || graphValidAt.value) return
-  changeBusy.value = true; evolutionError.action = ''; changeNotice.value = ''
-  try {
-    await proposeKnowledgeChange(projectId, input)
-    if (project.value?.id !== projectId) return
-    changeNotice.value = '建议已保存，尚未改变正式知识。请核对原文后单独确认。'
-    await loadChanges(1)
-  } catch (error) { if (project.value?.id === projectId) evolutionError.action = errorMessage(error) }
-  finally { changeBusy.value = false }
-}
-
-async function resolveChange(id: string, action: 'confirm' | 'reject') {
-  const projectId = project.value?.id
-  if (!projectId || changeBusy.value || graphValidAt.value) return
-  changeBusy.value = true; evolutionError.action = ''; changeNotice.value = ''
-  try {
-    const result = await resolveKnowledgeChange(projectId, id, action)
-    if (project.value?.id !== projectId) return
-    changeNotice.value = action === 'reject' ? '建议已拒绝，知识保持不变。' : '建议已确认，审核前后快照已保存。'
-    clearSearch()
-    governanceRequest++; governance.value = null; evolutionLoading.governance = false
-    closeComparison()
-    if (action === 'confirm' && result.kind === 'SUPERSEDES') graphSelectedId.value = result.new_entity_id
-    await Promise.all([loadChanges(knowledgeChanges.value?.page ?? 1), loadRealGraph('')])
-  } catch (error) { if (project.value?.id === projectId) evolutionError.action = errorMessage(error) }
-  finally { changeBusy.value = false }
-}
-
 async function setGraphTime(value: string, entityId = '') {
   if (changeBusy.value) return
   graphValidAt.value = value
-  governanceRequest++; governance.value = null; evolutionLoading.governance = false
+  clearGovernance()
   closeComparison(); governanceKind.value = ''
   clearSearch()
   void loadIndexStatus()
@@ -580,6 +308,7 @@ function clearSourceSelection() {
   chunks.value = null
   codeStructure.value = null
   agentCallAnalysis.value = null
+  analysisContexts.value = null; analysisContextError.value = ''
   errors.detail = errors.task = errors.chunks = errors.structure = errors.agent = ''
   loading.detail = loading.chunks = loading.structure = loading.agent = false
 }
@@ -603,6 +332,7 @@ async function loadProjects(page = 1) {
 function selectProject(value: ApiProject) {
   if (reviewBusy.value || changeBusy.value || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
   clearEvolution()
+  conversationId.value = ''
   graphValidAt.value = ''
   clearQuestion()
   clearIndexStatus()
@@ -717,6 +447,7 @@ async function refreshSource(chunkPage = 1) {
       getSource(sourceId), taskId ? getTask(taskId) : Promise.resolve(null),
     ])
     if (request !== detailRequest || sourceId !== selectedSourceId.value) return
+    if (sourceResult.project_id !== project.value?.id) throw new Error('资料不属于当前项目，请重新选择资料。')
     source.value = sourceResult
     task.value = taskResult
     const item = sources.value?.items.find((item) => item.id === sourceId)
@@ -727,7 +458,7 @@ async function refreshSource(chunkPage = 1) {
     }
     if (sourceResult.status === 'ready') {
       const requests: Promise<void>[] = [loadChunks(chunkPage), loadReviews(1)]
-      if (isCodeSource(sourceResult.source_type)) requests.push(loadCodeStructure())
+      if (isCodeSource(sourceResult.source_type)) requests.push(loadCodeStructure(), loadAnalysisContexts())
       await Promise.all(requests)
     }
   } catch (error) {
@@ -770,7 +501,16 @@ async function loadCodeStructure() {
   }
 }
 
-async function runAgentCallAnalysis(strategy: 'single_step' | 'tools' | 'semantic' = 'single_step') {
+async function loadAnalysisContexts() {
+  const id = selectedSourceId.value, captured = detailRequest
+  if (!id) return
+  analysisContextError.value = ''
+  try {
+    const result = await getCodeAnalysisContexts(id)
+    if (captured === detailRequest && selectedSourceId.value === id) analysisContexts.value = result
+  } catch (error) { if (captured === detailRequest && selectedSourceId.value === id) analysisContextError.value = errorMessage(error) }
+}
+async function runAgentCallAnalysis(strategy: 'single_step' | 'tools' | 'semantic' = 'single_step', selection: CodeAnalysisSelection = {}) {
   const sourceId = selectedSourceId.value
   if (!sourceId || loading.agent || source.value?.status !== 'ready') return
   const request = ++agentCallRequest
@@ -778,7 +518,7 @@ async function runAgentCallAnalysis(strategy: 'single_step' | 'tools' | 'semanti
   errors.agent = ''
   agentCallAnalysis.value = null
   try {
-    const result = await analyzeAgentCalls(sourceId, strategy)
+    const result = await analyzeAgentCalls(sourceId, strategy, selection)
     if (request === agentCallRequest && sourceId === selectedSourceId.value) {
       agentCallAnalysis.value = result
     }
@@ -801,10 +541,6 @@ function openProjectGraph() {
   void loadRealGraph('')
 }
 
-onMounted(() => {
-  if (activeNav.value !== 'graph') void loadProjects()
-})
-
 const selectedNode = computed(() => nodes.find((node) => node.id === selectedId.value) ?? nodes[0])
 const currentDate = computed(() => timelinePoints[timelineIndex.value]?.date ?? timelinePoints.at(-1)!.date)
 const timeFilteredNodes = computed(() => nodes.filter((node) => node.validFrom <= currentDate.value))
@@ -818,6 +554,7 @@ function selectNode(id: string) {
 
 function changeNav(value: string) {
   if (changeBusy.value || reviewBusy.value) return
+  cancelRouteRestore()
   if (value === 'demo') { activeNav.value = 'graph'; return }
   if (value === 'review') {
     activeNav.value = 'sources'
@@ -827,6 +564,7 @@ function changeNav(value: string) {
   if (value === 'search' || value === 'govern') {
     if (!project.value) { activeNav.value = 'sources'; return }
     openProjectGraph()
+    graphSection.value = value === 'search' ? 'search' : 'identity'
     void nextTick(() => document.getElementById(value === 'search' ? 'project-knowledge-query' : 'knowledge-management-title')?.focus())
     return
   }
@@ -840,6 +578,7 @@ function changeNav(value: string) {
     return
   }
   if (value === 'graph') {
+    graphSection.value = 'relations'
     if (project.value) openProjectGraph()
     else { activeNav.value = 'sources'; ElMessage({ message: '请先选择或创建项目，再打开真实图谱。', type: 'info' }) }
     return
@@ -854,6 +593,7 @@ async function searchCurrentProject(query: string) {
   if (reviewBusy.value || changeBusy.value) return
   if (!project.value) { activeNav.value = 'sources'; ElMessage({ message: '请先选择项目。', type: 'info' }); return }
   openProjectGraph()
+  graphSection.value = 'search'
   await nextTick()
   await runSearch(query, '', 'bm25_source')
 }
@@ -881,15 +621,47 @@ function setTimeline(value: number) {
   timelineIndex.value = value
   ensureVisibleSelection(timelinePoints[value]!.date)
 }
+
+const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:activeNav.value,projectId:project.value?.id,
+  sourceId:selectedSourceId.value || undefined,entityId:graphSelectionKind.value==='entity'?graphSelectedId.value || undefined:undefined,
+  relationshipId:graphSelectionKind.value==='relationship'?graphSelectedId.value || undefined:undefined,
+  validAt:graphValidAt.value || undefined,conversationId:conversationId.value || undefined,section:graphSection.value}),async (route,current)=>{
+  if(route.nav==='graph'){activeNav.value='graph';return}
+  activeNav.value=route.nav
+  if(!projects.value)await loadProjects()
+  if(!current())return
+  if(route.projectId && route.projectId!==project.value?.id){
+    const selected=projects.value?.items.find(item=>item.id===route.projectId) ?? await getProject(route.projectId)
+    if(!current())return
+    selectProject(selected)
+  }
+  if(route.sourceId && route.sourceId!==selectedSourceId.value){
+    const document=await getSource(route.sourceId)
+    if(!current())return
+    if(document.project_id!==project.value?.id)throw new Error('此资料不属于 URL 中的项目。')
+    await selectSource(route.sourceId,null)
+  }
+  if(!current())return
+  conversationId.value=route.conversationId ?? ''
+  graphSection.value=route.section ?? 'relations'
+  if(route.nav==='projectGraph' && project.value){
+    graphValidAt.value=route.validAt ?? ''
+    graphSelectedId.value=route.entityId ?? ''
+    await loadRealGraph(route.entityId ?? '')
+    if(current() && route.relationshipId)await selectGraphRelationship(route.relationshipId)
+    if(current())await Promise.all([loadIndexStatus(),loadChanges(1)])
+  }
+},()=>reviewBusy.value || changeBusy.value || loading.upload || loading.task || loading.sync || loading.activity || loading.commit)
 </script>
 
 <template>
   <div class="app-shell">
     <AppHeader :nodes="nodes" :selected-id="selectedId" :graph-active="activeNav === 'graph'" :project-name="project?.name" @select="selectNode" @search="searchCurrentProject" />
     <SideRail :active="activeNav === 'projectGraph' ? 'graph' : activeNav" @change="changeNav" />
+    <div v-if="routeError" class="route-error" role="alert">{{ routeError }} <button type="button" @click="retryRoute">重试恢复位置</button></div>
 
     <Workbench v-if="activeNav === 'workbench'" :project="project" :projects="projects" :overview="overviewState.result.value" :loading="overviewState.loading.value || loading.projects" :error="overviewState.error.value || errors.projects" @navigate="changeNav" @select-project="selectProject" @refresh="project ? refreshOverview() : loadProjects()" />
-    <ConversationsWorkspace v-else-if="activeNav === 'conversations'" :project="project" :projects="projects" :projects-loading="loading.projects" :projects-error="errors.projects" @select-project="selectProject" @retry-projects="loadProjects()" @open-entity="openQuestionEntity" @open-evidence="openEvidence" />
+    <ConversationsWorkspace v-else-if="activeNav === 'conversations'" :project="project" :projects="projects" :projects-loading="loading.projects" :projects-error="errors.projects" :conversation-id="conversationId" @conversation="conversationId = $event" @select-project="selectProject" @retry-projects="loadProjects()" @open-entity="openQuestionEntity" @open-evidence="openEvidence" />
     <SourceWorkspace
       v-else-if="activeNav === 'projects' || activeNav === 'sources'"
       :view="activeNav" :projects="projects" :project="project" :repositories="repositories" :sources="sources"
@@ -898,6 +670,7 @@ function setTimeline(value: number) {
       :selected-source-id="selectedSourceId" :source="source" :task="task" :chunks="chunks"
       :code-structure="codeStructure"
       :agent-call-analysis="agentCallAnalysis"
+      :analysis-contexts="analysisContexts" :analysis-context-error="analysisContextError"
       :focused-chunk-id="focusedChunkId"
       :loading="loading" :errors="errors" :notice="notice" :review-busy="reviewBusy"
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
@@ -939,6 +712,7 @@ function setTimeline(value: number) {
       </template>
     </SourceWorkspace>
     <ProjectGraph v-else-if="activeNav === 'projectGraph'" :project="project" :graph="realGraph"
+      :section="graphSection" @section="graphSection = $event"
       :valid-at="graphValidAt" :mutation-busy="changeBusy" @time="setGraphTime"
       :search-result="searchResult" :search-loading="searchLoading" :search-error="searchError"
       :search-rebuilding="searchRebuilding" :search-notice="searchNotice" :search-error-action="searchErrorAction"
@@ -952,10 +726,13 @@ function setTimeline(value: number) {
       @select-entity="selectGraphEntity" @select-relationship="selectGraphRelationship" @neighborhood="loadRealGraph"
       @reset="loadRealGraph('')" @filter-type="filterGraph" @depth="setGraphDepth" @retry-detail="retryGraphDetail" @open-evidence="openEvidence">
       <template #evolution>
+        <div v-show="graphSection === 'identity'">
         <KnowledgeManagement :nodes="realGraph?.nodes ?? []" :selected="retirementSelection" :identity="managedIdentity" :operations="managementOperations" :retirements="retirements?.items ?? []" :changes="knowledgeChanges" :historical="Boolean(graphValidAt)" :busy="changeBusy" :loading="managementLoading" :error="managementError" :notice="managementNotice" @apply="applyManagement" @refresh="refreshManagement" />
+        </div><div v-show="graphSection === 'retirement'">
         <KnowledgeRetirement :selected="retirementSelection" :records="retirements" :loading="retirementsLoading"
           :error="retirementsError" :action-error="retirementError" :notice="retirementNotice" :busy="changeBusy" :historical="Boolean(graphValidAt)"
           @retire="retireKnowledge" @page="loadRetirements" @visit="visitRetiredKnowledge" />
+        </div><div v-show="graphSection === 'evolution'">
         <KnowledgeEvolution :nodes="realGraph?.nodes ?? []" :selected="realEntityDetail" :history="history"
         :changes="knowledgeChanges" :governance="governance" :history-loading="evolutionLoading.history" :changes-loading="evolutionLoading.changes"
         :governance-loading="evolutionLoading.governance" :history-error="evolutionError.history" :changes-error="evolutionError.changes"
@@ -963,7 +740,7 @@ function setTimeline(value: number) {
         :governance-kind="governanceKind" :comparison="comparison" :comparison-loading="comparisonLoading" :comparison-error="comparisonError"
         @history="loadHistory" @changes="loadChanges" @inspect="runGovernance" @propose="proposeChange" @resolve="resolveChange"
         @compare="compareKnowledge" @close-comparison="closeComparison" @retry-comparison="compareKnowledge()"
-        @open-evidence="openEvidence" @open-entity="openQuestionEntity" @visit-version="(id, at) => setGraphTime(at, id)" /></template>
+        @open-evidence="openEvidence" @open-entity="openQuestionEntity" @visit-version="(id, at) => setGraphTime(at, id)" /></div></template>
     </ProjectGraph>
     <QuestionWorkspace v-else-if="activeNav === 'questions'" :key="project?.id ?? 'no-project'"
       :projects="projects" :project="project" :projects-loading="loading.projects" :projects-error="errors.projects"

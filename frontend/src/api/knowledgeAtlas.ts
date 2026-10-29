@@ -124,6 +124,7 @@ export interface JavaCodeStructure {
 }
 
 export interface AgentCallAnalysis {
+  context?: { snapshot_id: string | null; commit_sha: string | null; policy: string }
   source_id: string
   language: string
   model: string | null
@@ -413,6 +414,10 @@ export function createProject(input: {
   })
 }
 
+export function getProject(projectId: string): Promise<ApiProject> {
+  return apiRequest(`/projects/${encodeURIComponent(projectId)}`)
+}
+
 export function uploadSource(
   projectId: string,
   file: File,
@@ -549,8 +554,21 @@ export function getJavaCodeStructure(sourceId: string): Promise<JavaCodeStructur
   return apiRequest<JavaCodeStructure>(`/sources/${sourceId}/code-structure`)
 }
 
-export function analyzeAgentCalls(sourceId: string, strategy: 'single_step' | 'tools' | 'semantic' = 'single_step'): Promise<AgentCallAnalysis> {
-  return apiRequest<AgentCallAnalysis>(`/sources/${sourceId}/agent-call-analysis?strategy=${strategy}`, {
+export interface CodeAnalysisContexts {
+  default_snapshot_id: string | null
+  snapshots: { id: string; commit_sha: string; ref: string; truncated: boolean }[]
+  version_groups: { path: string; versions: { id: string; created_at: string; size_bytes: number }[]; truncated: boolean }[]
+  truncated: boolean
+}
+export interface CodeAnalysisSelection { snapshotId?: string; versionIds?: string[] }
+export function getCodeAnalysisContexts(sourceId: string): Promise<CodeAnalysisContexts> {
+  return apiRequest(`/sources/${sourceId}/analysis-contexts`)
+}
+export function analyzeAgentCalls(sourceId: string, strategy: 'single_step' | 'tools' | 'semantic' = 'single_step', selection: CodeAnalysisSelection = {}): Promise<AgentCallAnalysis> {
+  const query = new URLSearchParams({ strategy })
+  if (selection.snapshotId) query.set('snapshot_id', selection.snapshotId)
+  for (const identifier of selection.versionIds ?? []) query.append('version_ids', identifier)
+  return apiRequest<AgentCallAnalysis>(`/sources/${sourceId}/agent-call-analysis?${query}`, {
     method: 'POST', signal: AbortSignal.timeout(strategy === 'tools' ? 900_000 : 240_000),
   })
 }

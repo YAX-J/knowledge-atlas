@@ -1,0 +1,61 @@
+{
+  "sources": [
+    {
+      "path": "corpus/notes/dependencies-current.md",
+      "repository": "fastapi/fastapi",
+      "commit": "79cab5bed28b24d92c185d236feb33f5783dfeb3",
+      "url": "https://github.com/fastapi/fastapi/blob/79cab5bed28b24d92c185d236feb33f5783dfeb3/docs/en/docs/tutorial/dependencies/index.md",
+      "available_at": "2026-10-29T00:00:00Z",
+      "material": "upstream technical documentation, full text; code include directives are not expanded"
+    },
+    {
+      "path": "corpus/notes/sub-dependencies.md",
+      "repository": "fastapi/fastapi",
+      "commit": "79cab5bed28b24d92c185d236feb33f5783dfeb3",
+      "url": "https://github.com/fastapi/fastapi/blob/79cab5bed28b24d92c185d236feb33f5783dfeb3/docs/en/docs/tutorial/dependencies/sub-dependencies.md",
+      "available_at": "2026-10-29T00:00:00Z",
+      "material": "upstream technical documentation, full text; code include directives are not expanded"
+    },
+    {
+      "path": "corpus/notes/background-tasks.md",
+      "repository": "fastapi/fastapi",
+      "commit": "79cab5bed28b24d92c185d236feb33f5783dfeb3",
+      "url": "https://github.com/fastapi/fastapi/blob/79cab5bed28b24d92c185d236feb33f5783dfeb3/docs/en/docs/tutorial/background-tasks.md",
+      "available_at": "2026-10-29T00:00:00Z",
+      "material": "upstream technical documentation, full text; code include directives are not expanded"
+    },
+    {
+      "path": "corpus/notes/handling-errors.md",
+      "repository": "fastapi/fastapi",
+      "commit": "79cab5bed28b24d92c185d236feb33f5783dfeb3",
+      "url": "https://github.com/fastapi/fastapi/blob/79cab5bed28b24d92c185d236feb33f5783dfeb3/docs/en/docs/tutorial/handling-errors.md",
+      "available_at": "2026-10-29T00:00:00Z",
+      "material": "upstream technical documentation, full text; code include directives are not expanded"
+    },
+    {
+      "path": "corpus/notes/response-status.md",
+      "repository": "fastapi/fastapi",
+      "commit": "79cab5bed28b24d92c185d236feb33f5783dfeb3",
+      "url": "https://github.com/fastapi/fastapi/blob/79cab5bed28b24d92c185d236feb33f5783dfeb3/docs/en/docs/tutorial/response-status-code.md",
+      "available_at": "2026-10-29T00:00:00Z",
+      "material": "upstream technical documentation, full text; code include directives are not expanded"
+    },
+    {
+      "path": "corpus/notes/dependencies-0941.md",
+      "repository": "fastapi/fastapi",
+      "commit": "ef176c663195489b44030bfe1fb94a317762c8d5",
+      "url": "https://github.com/fastapi/fastapi/blob/ef176c663195489b44030bfe1fb94a317762c8d5/docs/en/docs/tutorial/dependencies/index.md",
+      "available_at": "2023-03-14T02:27:11Z",
+      "material": "upstream technical documentation, full text; code include directives are not expanded"
+    },
+    {
+      "path": "corpus/notes/dependencies-0950.md",
+      "repository": "fastapi/fastapi",
+      "commit": "d666ccb62216e45ca78643b52c235ba0d2c53986",
+      "url": "https://github.com/fastapi/fastapi/blob/d666ccb62216e45ca78643b52c235ba0d2c53986/docs/en/docs/tutorial/dependencies/index.md",
+      "available_at": "2023-03-18T19:37:42Z",
+      "material": "upstream technical documentation, full text; code include directives are not expanded"
+    }
+  ],
+  "annotation": "Agent-authored questions and gold, not human quality scores. Historical dates are release-commit availability, not a claim about each line's invention."
+}

@@ -1,14 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import type { ApiProject, ApiProjectList } from '../api/knowledgeAtlas'
 import type { EvidenceLocator, QuestionRetrievalMode } from '../types'
 import QuestionWorkspace from './QuestionWorkspace.vue'
 import { useConversations } from '../composables/useConversations'
 
-const props = defineProps<{ project: ApiProject | null; projects: ApiProjectList | null; projectsLoading: boolean; projectsError: string }>()
-const emit = defineEmits<{ selectProject: [project: ApiProject]; retryProjects: []; openEntity: [id: string]; openEvidence: [locator: EvidenceLocator] }>()
+const props = defineProps<{ project: ApiProject | null; projects: ApiProjectList | null; projectsLoading: boolean; projectsError: string; conversationId?: string }>()
+const emit = defineEmits<{ selectProject: [project: ApiProject]; retryProjects: []; openEntity: [id: string]; openEvidence: [locator: EvidenceLocator]; conversation: [id:string] }>()
 const { conversations, turns, selectedId, result, loading, sending, busy, error, unknown, retryTurn, refresh, select, start, send } = useConversations(() => props.project?.id)
 const retryConfirmed = ref(false)
+watch(()=>[props.project?.id,props.conversationId],()=>{
+  if(props.project && props.conversationId && props.conversationId!==selectedId.value)void select(props.conversationId)
+},{immediate:true})
+watch(selectedId,value=>emit('conversation',value))
 function retry() {
   const turn = retryTurn.value
   if (!turn || !retryConfirmed.value) return

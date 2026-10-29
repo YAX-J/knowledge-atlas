@@ -147,3 +147,7 @@ Search evidence is read in homogeneous scoped batches via graph.evidence_for_rec
 ## 2026-10-26 功能补全更新
 
 新增身份/时序操作走 workspace 服务的项目锁/请求 UUID/理由/前后快照。不得物理移动证据或改写原边；读取按 valid_at 投影身份。重新启用保存 KnowledgePeriod，保证失效空档；独立替代撤销必须检查依赖，分组替代检查循环。见 ADR 0056。
+
+## 2026-10-29 当前优化边界
+
+Identity aliases validate NFKC/casefold/whitespace length <=255, including normalization expansion and NUL/blank refusal. Merges must preflight stored aliases and atomically refuse overlong normalized names. Preserve original evidence ownership. Regression: alias conflict, A→B→C flattening, keyword/BM25/source retrieval and ownership after unmerge. Index planning reads original-owner quotes in batches500 and hashes in stable evidence-ID order.

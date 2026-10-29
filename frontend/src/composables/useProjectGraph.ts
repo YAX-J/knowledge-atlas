@@ -69,6 +69,7 @@ export function useProjectGraph(context: () => { projectId: string | undefined; 
     realEntityDetail.value = realRelationshipDetail.value = null
     try {
       const result = await getEntityDetail(id, graphValidAt.value)
+      if (result.entity.project_id !== context().projectId) throw new Error('知识不属于当前项目。')
       if (request === graphDetailRequest) { realEntityDetail.value = result; onEntityLoaded() }
     } catch (error) {
       if (request === graphDetailRequest) graphDetailError.value = errorMessage(error)
@@ -88,6 +89,7 @@ export function useProjectGraph(context: () => { projectId: string | undefined; 
     realEntityDetail.value = realRelationshipDetail.value = null
     try {
       const result = await getRelationshipDetail(id, graphValidAt.value)
+      if (result.relationship.project_id !== context().projectId) throw new Error('关系不属于当前项目。')
       if (request === graphDetailRequest) realRelationshipDetail.value = result
     } catch (error) {
       if (request === graphDetailRequest) graphDetailError.value = errorMessage(error)

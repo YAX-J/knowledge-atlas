@@ -157,14 +157,24 @@ describe('cross-file Agent workspace', () => {
     expect(wrapper.get('[aria-label="跨文件调用分析方式"]').attributes('disabled')).toBeDefined()
     expect(wrapper.text()).toContain('正在分析调用')
   })
-  it('shows empty analysis and sanitized tool trace as text', () => {
+  it('sends the selected immutable commit with the chosen analysis strategy', async () => {
+    const wrapper=mount(SourceWorkspace,{props:{...sourceProps,analysisContexts:{default_snapshot_id:'new',truncated:false,
+      snapshots:[{id:'new',commit_sha:'a'.repeat(40),ref:'main',truncated:false},{id:'old',commit_sha:'b'.repeat(40),ref:'main',truncated:false}],version_groups:[]}}})
+    await wrapper.get('[aria-label="分析提交快照"]').setValue('old')
+    await wrapper.get('[aria-label="跨文件调用分析方式"]').setValue('tools')
+    await wrapper.findAll('button').find(item=>item.text()==='Agent 分析跨文件调用')!.trigger('click')
+    expect(wrapper.emitted('analyzeCalls')).toEqual([['tools',{snapshotId:'old',versionIds:[]}]])
+  })
+  it('shows empty analysis, its immutable context and sanitized tool trace as text', () => {
     const wrapper = mount(SourceWorkspace, { props: { ...sourceProps, agentCallAnalysis: {
       source_id: source.id, language: 'python', model: 'test', prompt_version: 'test', detected_call_count: 0,
       strategy: 'tools', scanned_source_count: 1, candidate_call_count: 0, provider_call_count: 0,
       related_symbols: [], calls: [], truncated: false, has_syntax_errors: false, tool_call_count: 1,
+      context: { snapshot_id:'old',commit_sha:'b'.repeat(40),policy:'fixed_commit' },
       tool_trace: [{ name: '<script>untrusted</script>', status: 'error', duration_ms: 0, result_characters: 0 }],
     } } })
     expect(wrapper.text()).toContain('本次未调用模型')
+    expect(wrapper.get('.source-analysis-result-context').text()).toContain('b'.repeat(40))
     expect(wrapper.get('.agent-tool-trace').text()).toContain('参数或范围被拒绝')
     expect(wrapper.find('script').exists()).toBe(false)
   })

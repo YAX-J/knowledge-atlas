@@ -135,6 +135,39 @@ def project_embedding_status(db: Session, *, user_id: uuid.UUID, project_id: uui
         scanned_count=len(entities), scan_limit=INDEX_STATUS_SCAN_LIMIT, truncated=eligible > len(entities))
 
 
+def plan_project_embeddings(db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, settings: Settings):
+    """Provider-free plan; bounded evidence reads preserve original-owner digest order."""
+    entities = list(db.scalars(select(KnowledgeEntity).where(
+        KnowledgeEntity.user_id == user_id,
+        KnowledgeEntity.project_id == project_id,
+        KnowledgeEntity.status != "archived",
+    ).order_by(KnowledgeEntity.id)))
+    existing = {row.entity_id: row for row in db.execute(select(KnowledgeEmbedding.entity_id,
+        KnowledgeEmbedding.model, KnowledgeEmbedding.dimensions, KnowledgeEmbedding.content_sha256).where(
+        KnowledgeEmbedding.user_id == user_id,
+        KnowledgeEmbedding.project_id == project_id,
+    ))}
+    pending: list[tuple[uuid.UUID, str, str]] = []
+    # Keep immutable original-owner text: a current merge must never put future facts in a historical vector.
+    owner = KnowledgeEvidence.entity_id
+    for offset in range(0, len(entities), 500):
+        batch = entities[offset:offset + 500]
+        quotes = {}
+        for entity_id, quote in db.execute(select(owner, KnowledgeEvidence.quote).where(
+            owner.in_([entity.id for entity in batch]),
+            KnowledgeEvidence.user_id == user_id,
+            KnowledgeEvidence.project_id == project_id,
+        ).order_by(KnowledgeEvidence.id)):
+            quotes.setdefault(entity_id, []).append(quote)
+        for entity in batch:
+            text = entity_text(entity, quotes.get(entity.id, []))
+            digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+            current = existing.get(entity.id)
+            if not current or current.model != settings.embedding_model or current.dimensions != settings.embedding_dimensions or current.content_sha256 != digest:
+                pending.append((entity.id, text, digest))
+    return len(entities), pending
+
+
 def rebuild_project_embeddings(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, settings: Settings, checkpoint=None,
 ) -> dict:
@@ -143,31 +176,7 @@ def rebuild_project_embeddings(
         _require_configuration(settings)
     except EmbeddingError as exc:
         raise AppError(status_code=503, code=exc.code, message=exc.message) from exc
-
-    entities = list(db.scalars(select(KnowledgeEntity).where(
-        KnowledgeEntity.user_id == user_id,
-        KnowledgeEntity.project_id == project_id,
-        KnowledgeEntity.status != "archived",
-    ).order_by(KnowledgeEntity.id)))
-    existing = {row.entity_id: row for row in db.scalars(select(KnowledgeEmbedding).where(
-        KnowledgeEmbedding.user_id == user_id,
-        KnowledgeEmbedding.project_id == project_id,
-    ))}
-    pending: list[tuple[KnowledgeEntity, str, str]] = []
-    at = utc_now()
-    # Keep immutable original-owner text: a current merge must never put future facts in a historical vector.
-    owner = KnowledgeEvidence.entity_id
-    for entity in entities:
-        quotes = list(db.scalars(select(KnowledgeEvidence.quote).where(
-            owner == entity.id,
-            KnowledgeEvidence.user_id == user_id,
-            KnowledgeEvidence.project_id == project_id,
-        ).order_by(KnowledgeEvidence.id)))
-        text = entity_text(entity, quotes)
-        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
-        current = existing.get(entity.id)
-        if not current or current.model != settings.embedding_model or current.dimensions != settings.embedding_dimensions or current.content_sha256 != digest:
-            pending.append((entity, text, digest))
+    eligible, pending = plan_project_embeddings(db, user_id=user_id, project_id=project_id, settings=settings)
 
     # Release the read transaction before the external request. Persistence is
     # serialized only after vectors return, so project writes are not blocked by network latency.
@@ -191,14 +200,14 @@ def rebuild_project_embeddings(
         if project is None:
             raise AppError(status_code=404, code="PROJECT_NOT_FOUND", message="项目不存在")
     current = {row.entity_id: row for row in db.scalars(select(KnowledgeEmbedding).where(
-        KnowledgeEmbedding.entity_id.in_([item[0].id for item in pending]),
+        KnowledgeEmbedding.entity_id.in_([item[0] for item in pending]),
         KnowledgeEmbedding.user_id == user_id,
         KnowledgeEmbedding.project_id == project_id,
     ))} if pending else {}
-    for (entity, _, digest), vector in zip(pending, vectors, strict=True):
-        row = current.get(entity.id)
+    for (entity_id, _, digest), vector in zip(pending, vectors, strict=True):
+        row = current.get(entity_id)
         if row is None:
-            row = KnowledgeEmbedding(entity_id=entity.id, user_id=user_id, project_id=project_id)
+            row = KnowledgeEmbedding(entity_id=entity_id, user_id=user_id, project_id=project_id)
             db.add(row)
         row.model = settings.embedding_model
         row.dimensions = settings.embedding_dimensions
@@ -208,7 +217,7 @@ def rebuild_project_embeddings(
     return {
         "model": settings.embedding_model,
         "dimensions": settings.embedding_dimensions,
-        "eligible_count": len(entities),
+        "eligible_count": eligible,
         "updated_count": len(pending),
-        "reused_count": len(entities) - len(pending),
+        "reused_count": eligible - len(pending),
     }

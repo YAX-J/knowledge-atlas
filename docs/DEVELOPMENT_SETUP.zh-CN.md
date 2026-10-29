@@ -1,16 +1,8 @@
 # Knowledge Atlas 开发环境配置
 
-2026-10-26 功能补全：已实现身份别名/合并/解除、保留历史间隔的撤回/启用及分组替代、持久化证据会话、固定提交 GitHub 文件/目录续扫，以及显式 Java/TypeScript/Go 编译器静态分析。默认真实工作台；问答默认 RRF（搜索 API 保留 keyword，界面搜索默认 BM25）。迁移 head `20261026_0018`。公开实验累计 84 次模型 / 61 次嵌入；真实人工评分与私有授权验收仍待外部条件。见[验收](FUNCTIONAL_COMPLETION_20261026.zh-CN.md)。下方较早检查点按历史记录保留，不代表本轮最新状态。
-
-完整 Windows 原生启动器、可选 nginx/API/Worker/pgvector Compose 及 CI 命令见[演示说明](DEMO.zh-CN.md)。前端 `npm ci` 安装锁定测试工具链，`npm run test:coverage` 运行组件/API 回归。后端 `pip install -e ".[dev,evaluation]"` 增加覆盖率与离线图表；这些检查不需供应商密钥，真实模型验收必须显式授权，且与人工评分分开记录。
-
-阶段六可复现实验项目和三组检索基线见[实验环境说明](../evaluation/README.zh-CN.md)。独立命令复用已迁移的本机 PostgreSQL，仅创建新 `[EVAL]` 项目，分别要求接受夹具和允许嵌入调用；`--validate-only` 无需数据库。不新增迁移或前端配置。
-
-多语言解析新增固定 Tree-sitter/语言 wheel。在 `backend` 运行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev]"` 更新依赖；不新增服务或迁移，安装后离线解析。详见[语言范围](MULTILANGUAGE_PARSING.zh-CN.md)。
-
 [English](DEVELOPMENT_SETUP.md)
 
-本文说明当前仓库的环境配置，并为后续后端开发保留约定。除非另有说明，命令从仓库根目录执行。
+当前 head `20261026_0018`；已有库升级前先[备份/隔离恢复](BACKUP_RESTORE.zh-CN.md)。`/health/ready` 同时检查连接与关键结构，失败不会自动迁移。完整启动见[演示](DEMO.zh-CN.md)，能力/验证见[当前验收](OPTIMIZATION_20261029.zh-CN.md)。默认真实 workbench，模型操作显式执行。
 
 ## 环境要求
 

@@ -137,3 +137,11 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0058: Resumable immutable GitHub manifests](0058-resumable-immutable-github-manifests.md)
 
 - [ADR 0059: Explicit native static declaration analysis](0059-explicit-native-static-call-analysis.md)
+
+- [ADR 0060: Schema-aware readiness](0060-schema-aware-readiness.md)
+
+- [ADR 0061: Immutable analysis context](0061-immutable-analysis-context.md)
+
+- [ADR 0062: Restorable workspace composition](0062-restorable-workspace-composition.md)
+
+- [ADR 0063: Measured index planning](0063-measured-index-planning.md)

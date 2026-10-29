@@ -9,12 +9,14 @@ export default defineConfig({
     restoreMocks: true,
     coverage: {
       provider: 'v8',
-      include: ['src/api/client.ts', 'src/components/{SourceWorkspace,QuestionWorkspace,KnowledgeSearch,CandidateReview}.vue',
+      include: ['src/App.vue', 'src/api/{client,knowledgeAtlas}.ts', 'src/components/{SourceWorkspace,QuestionWorkspace,KnowledgeSearch,CandidateReview,ProjectGraph,KnowledgeEvolution}.vue',
         'src/components/{KnowledgeRetirement,KnowledgeManagement,ConversationsWorkspace,Workbench}.vue', 'src/api/workspace.ts',
-        'src/composables/{useKnowledgeSearch,useCandidateReview,useProjectGraph,useSourceImport,useKnowledgeRetirement,useConversations,useKnowledgeManagement}.ts'],
+        'src/composables/{useKnowledgeSearch,useCandidateReview,useProjectGraph,useSourceImport,useKnowledgeRetirement,useConversations,useKnowledgeManagement,useWorkspaceRoute,useEvidenceNavigation,useRepositorySnapshots,useKnowledgeEvolution}.ts'],
       reporter: ['text', 'json-summary', 'lcov'],
       reportsDirectory: '../output/frontend-coverage',
-      thresholds: { statements: 45, branches: 40, functions: 25, lines: 45 },
+      thresholds: { statements: 55, branches: 50, functions: 35, lines: 60,
+        'src/components/ConversationsWorkspace.vue': { lines: 80 },
+        'src/composables/useConversations.ts': { lines: 90, branches: 80 } },
     },
   },
 })

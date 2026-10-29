@@ -23,7 +23,7 @@ from app.schemas.sources import (
     SourceListItem,
     SourceUploadResponse,
 )
-from app.schemas.code_agent import AgentCallAnalysisRead
+from app.schemas.code_agent import AgentCallAnalysisRead, CodeAnalysisContextsRead
 from app.services import code_agent, code_search, ingestion, parsing
 from app.services.java_source import JavaSourceInput, analyze_java
 from app.services.code_source import analyze_code
@@ -253,6 +253,8 @@ def run_agent_call_analysis(
     db: DatabaseSession,
     user_id: CurrentUserId,
     strategy: Literal["single_step", "tools", "semantic"] = Query(default="single_step"),
+    snapshot_id: uuid.UUID | None = None,
+    version_ids: list[uuid.UUID] | None = Query(default=None, max_length=99),
 ) -> AgentCallAnalysisRead:
     return code_agent.analyze_calls(
         db,
@@ -260,5 +262,17 @@ def run_agent_call_analysis(
         user_id=user_id,
         source_id=source_id,
         strategy=strategy,
+        snapshot_id=snapshot_id, version_ids=version_ids,
     )
+
+
+@router.get('/sources/{source_id}/analysis-contexts', response_model=CodeAnalysisContextsRead)
+def analysis_contexts(source_id: uuid.UUID, db: DatabaseSession, user_id: CurrentUserId) -> CodeAnalysisContextsRead:
+    from app.services import code_agent, code_context
+    source=ingestion.get_source(db,user_id=user_id,source_id=source_id)
+    if source.source_type not in CODE_SOURCE_TYPES:
+        raise AppError(status_code=409,code='CALL_AGENT_UNAVAILABLE',message='请选择代码来源')
+    if source.status != SourceStatus.READY:
+        raise AppError(status_code=409,code='CALL_AGENT_SOURCE_NOT_READY',message='请先解析当前代码来源')
+    return CodeAnalysisContextsRead.model_validate(code_context.describe(db,source,code_agent.LANGUAGE_FAMILIES[source.source_type]))
 

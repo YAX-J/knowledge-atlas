@@ -7,3 +7,6 @@
 *.webp binary
 *.pdf binary
 *.docx binary
+
+# Keep pinned upstream corpus bytes, including their original final blank lines.
+evaluation/holdout-v3/corpus/notes/*.md whitespace=-blank-at-eof

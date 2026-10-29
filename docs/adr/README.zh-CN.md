@@ -137,3 +137,11 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0058: 可续扫的不可变 GitHub 清单](0058-resumable-immutable-github-manifests.zh-CN.md)
 
 - [ADR 0059: 显式原生静态声明分析](0059-explicit-native-static-call-analysis.zh-CN.md)
+
+- [ADR 0060: 数据库结构就绪检查](0060-schema-aware-readiness.zh-CN.md)
+
+- [ADR 0061: 不可变分析上下文](0061-immutable-analysis-context.zh-CN.md)
+
+- [ADR 0062: 可恢复工作台与模块编排](0062-restorable-workspace-composition.zh-CN.md)
+
+- [ADR 0063: 实测索引规划](0063-measured-index-planning.zh-CN.md)

@@ -167,3 +167,7 @@ useSourceImport owns upload/parse/explicit remote mutations with typed refs/refr
 ## 2026-10-26 功能补全更新
 
 默认 workbench 读取真实 overview；mock 仅显式演示。useConversations/useKnowledgeManagement 管理 API 和上下文隔离，具名预览/二次确认/历史写锁。顶部搜索同步结果但不覆盖更新的未提交草稿。可见 UI 验收使用独立临时 schema/浏览器，不能污染业务项目。
+
+## 2026-10-29 当前优化边界
+
+ADR 0062 supersedes earlier App-only orchestration. useWorkspaceRoute owns hash ID/time/task restoration; useEvidenceNavigation / useRepositorySnapshots / useKnowledgeEvolution own their request/disposal generations. Preserve shared mutation locks and exact evidence focus. URLs must not persist source/question text. Test restoration/cancellation and historical writes; coverage includes all extracted modules. Code analysis GET contexts, fixed snapshots/local duplicate choices and actual context feedback must stay explicit. Default is workbench, not Mock; conversations have persisted history.

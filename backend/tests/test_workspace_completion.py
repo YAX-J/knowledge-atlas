@@ -144,3 +144,34 @@ def test_ambiguous_identity_and_invalid_groups_are_atomic(client, db_session, co
     overview=client.get(base+'/overview')
     assert overview.status_code==200 and overview.json()['entities']==2
     assert client.get(base+'/knowledge-operations').json()['total']==0
+
+
+def test_normalized_alias_bounds_and_merge_chain_retrieval(client, db_session, configured, monkeypatch):
+    project,old,new=pair(client,monkeypatch)
+    third=reviewed_decision(client,monkeypatch,project,3)
+    base=f'/api/v1/projects/{project}'
+    old_id,new_id,third_id=old['entity']['id'],new['entity']['id'],third['entity']['id']
+    response=client.post(base+'/knowledge-operations',json=dict(request_id=str(uuid.uuid4()),knowledge_id=old_id,
+        action='alias',alias='ß'*255,reason='Expansion must fail before persistence'))
+    assert response.status_code==422
+    operation(client,project,old_id,'alias',alias='Ｓｈａｒｅｄ Identity')
+    conflict=client.post(base+'/knowledge-operations',json=dict(request_id=str(uuid.uuid4()),knowledge_id=new_id,
+        action='alias',alias='shared identity',reason='Casefold collision'))
+    assert conflict.status_code==409 and conflict.json()['error']['code']=='ALIAS_AMBIGUOUS'
+    operation(client,project,old_id,'merge',target_id=new_id)
+    operation(client,project,new_id,'merge',target_id=third_id)
+    assert set(client.get(base+f'/knowledge/entities/{third_id}/identity').json()['member_ids'])=={old_id,new_id,third_id}
+    for mode in ('keyword','bm25','bm25_source'):
+        result=client.get(base+'/search',params={'q':'Identity','mode':mode})
+        assert result.status_code==200 and result.json()['items'][0]['entity']['id']==third_id
+    operation(client,project,old_id,'unmerge')
+    for mode in ('keyword','bm25','bm25_source'):
+        result=client.get(base+'/search',params={'q':'Identity','mode':mode})
+        assert result.json()['items'][0]['entity']['id']==old_id
+    from app.models.graph import KnowledgeEntity
+    db_session.get(KnowledgeEntity,uuid.UUID(new_id)).name='ß'*255
+    db_session.commit()
+    operation(client,project,new_id,'unmerge')
+    failed=client.post(base+'/knowledge-operations',json=dict(request_id=str(uuid.uuid4()),knowledge_id=new_id,
+        action='merge',target_id=third_id,reason='Long canonical alias must roll back safely'))
+    assert failed.status_code==409 and failed.json()['error']['code']=='MERGE_ALIAS_TOO_LONG'

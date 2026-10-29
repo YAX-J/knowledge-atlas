@@ -102,3 +102,7 @@ description: Knowledge Atlas 的双语文档同步。修改 API、知识模型�
 ## 2026-10-26 功能补全更新
 
 2026-10-26 功能状态以 FUNCTIONAL_COMPLETION_20261026 双语报告与 ADR 0056–0059 为准；旧日期检查点保留历史数字。区分已实现、临时 schema 功能验证、真实公开模型实验、私有授权待验收及人工覆盖率 0%。
+
+## 2026-10-29 当前优化边界
+
+Current root README/PLANS/ROADMAP/FRONTEND consolidate capabilities; pre-20261029 snapshots live under docs/archive/pre-optimization-20261029 with corrected relative links. Preserve dated experiment/acceptance numbers. Update ADR0060–0063, exact API context/error shape, schema readiness, holdout separation and benchmark scope in paired language docs. Do not convert deferred human grading into achieved quality. Report current database0018 separately from older historical checkpoints.

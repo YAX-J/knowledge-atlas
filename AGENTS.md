@@ -1,6 +1,6 @@
 # Knowledge Atlas Repository Instructions
 
-2026-10-26 functional completion: audited identity aliases/merge/unmerge, historical withdrawal/reactivation and replacement groups, persistent grounded conversations, resumable fixed-commit GitHub traversal, and explicit Java/TypeScript/Go static compiler analysis are implemented. The real workbench is the default; questions now default to RRF (search API remains keyword; UI search BM25). Migration head `20261026_0018`. Public-v2 used 84 model / 61 embedding attempts cumulatively; human grading and private authorization acceptance remain pending. See [current acceptance](docs/FUNCTIONAL_COMPLETION_20261026.md). Earlier dated constraints describing these capabilities as absent are superseded by ADR 0056–0059. Original graph mutations remain human-only; compiler/Agent output never writes formal knowledge.
+Current status, 2026-10-29: migration head and local application database are `20261026_0018`; readiness checks physical schema. Code analysis first fixes a commit or one local version per path, with metadata before bounded bodies. URLs restore project/source/knowledge/time/conversation; App connects evidence/snapshot/evolution composables. Index evidence uses batches of 500, with archived 1k/10k native measurements. Identity/history/conversations follow ADR 0056–0059; this extension follows ADR 0060–0063 and [current acceptance](docs/OPTIMIZATION_20261029.md). Public paid usage stays 84 model /61 embedding attempts; no new calls this turn. Untested holdout-v3 must not tune ranking. Human grading is deferred to the user; private authorization acceptance remains pending. Formal writes remain human-only.
 
 Offline lexical search now includes explicit `mode=bm25` (ADR 0044), separate from the default literal keyword and fixed hybrid modes. Preserve tenant/project/type/time scope and scan/text limits, return truncation metadata, and never imply its scores establish answerability. Empty semantic indexes skip query embedding after local configuration validation. New experiments belong in separate versioned result directories; the 2026-10-25 results are development diagnostics, not held-out human-quality scores.
 
@@ -72,7 +72,7 @@ Index: `.agents/skills/README.md`. Skills describe procedures; the rules in this
 - Keep TypeScript strict and avoid `any` unless an integration boundary makes it unavoidable.
 - Put reusable domain types in `frontend/src/types.ts`.
 - Keep demo fixtures in `frontend/src/mock/`; do not mix Mock records into components.
-- Components should receive data through props and emit user intent. Keep page orchestration in `App.vue` until routing or a state store is justified.
+- Components should receive data through props and emit user intent. App connects project/navigation/shared locks; scoped composables own read/write lifecycle (ADR 0062). Keep route state in useWorkspaceRoute; never restore by replaying mutations.
 - Preserve the technical-drawing visual language: cool paper background, dark teal ink, rose selection, amber project accents, and restrained motion.
 - Maintain keyboard access, visible focus, reduced-motion support, and responsive behavior.
 - Do not require the backend to return canvas coordinates. Layout is a frontend or view-preference concern.

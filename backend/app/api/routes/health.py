@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.dependencies import DatabaseSession
 from app.core.config import get_settings
+from app.core.schema_version import schema_status
 from app.schemas.health import DependencyHealth, LivenessResponse, ReadinessResponse
 
 
@@ -24,8 +25,11 @@ def readiness(db: DatabaseSession):
     try:
         db.execute(text("SELECT 1"))
         dependencies["postgresql"] = DependencyHealth(status="up")
+        valid, detail = schema_status(db)
+        dependencies['schema'] = DependencyHealth(status='up' if valid else 'down', detail=detail)
     except SQLAlchemyError:
-        dependencies["postgresql"] = DependencyHealth(
+        name = 'schema' if 'postgresql' in dependencies else 'postgresql'
+        dependencies[name] = DependencyHealth(
             status="down", detail="database connection failed"
         )
 

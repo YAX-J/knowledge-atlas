@@ -1,144 +1,26 @@
-# Knowledge Atlas Implementation Plan
-
-2026-10-26 functional completion: audited identity aliases/merge/unmerge, historical withdrawal/reactivation and replacement groups, persistent grounded conversations, resumable fixed-commit GitHub traversal, and explicit Java/TypeScript/Go static compiler analysis are implemented. The real workbench is the default; questions now default to RRF (search API remains keyword; UI search BM25). Migration head `20261026_0018`. Public-v2 used 84 model / 61 embedding attempts cumulatively; human grading and private authorization acceptance remain pending. See [acceptance](docs/FUNCTIONAL_COMPLETION_20261026.md). Earlier dated checkpoints below are historical.
-
-Optimization 4–6 is complete: measured projected/batched reads, explicitly audited retirement preserving history, and scoped import/review/graph composables. Head `20261026_0017`; [acceptance](docs/OPTIMIZATION_456_20261026.md). Remaining source-navigation/evolution extraction and entity merging stay separate.
-
-Optimization items 1–3 are implemented: durable index-operation ownership/recovery, opt-in source-aware lexical retrieval with separate diagnostics, and verified native backup/schema recovery. Migration head is `20261025_0016`. Full fresh-database restore requires privileges absent from the current role; see [acceptance](docs/RELIABILITY_RETRIEVAL_RECOVERY_20261025.md).
-
-Source discovery filters and recoverable source pagination are implemented (ADR 0049), preserving opened originals and provider-free reads. See [acceptance](docs/SOURCE_FILTERS_20261025.md).
-
-Relation review dependency snapshots and pre-submit guidance are implemented (ADR 0048), preserving explicit batch selection and backend final validation. See [acceptance](docs/REVIEW_DEPENDENCIES_20261025.md).
-
-Search/index request orchestration now lives in `useKnowledgeSearch`, with project/time round-trip invalidation and per-project in-flight rebuild guards that survive clearing search. App integration and lifecycle regressions are implemented; remaining import/graph orchestration extraction is deferred. See [acceptance](docs/SEARCH_STATE_OPTIMIZATION_20261025.md).
-
-Current optimization: server-side review filters, category-scoped governance and read-only two-entity evidence comparison are implemented. Deduplicated question passages retain all retrieved entity attributions. No merge, undo or provider-quality experiment is included (ADR 0047).
-
-Current optimization: explicit atomic batch review and provider-free embedding index status are implemented (ADR 0046). Previewed selections retain per-item review/promotion rules. Index inspection reports scope counts, content freshness and scan truncation. Review undo, merging and automatic indexing remain future work.
-
-2026-10-25 workflow optimization: opt-in BM25/vector RRF, selectable question retrieval with source-location deduplication, source-wide review totals, summary-group duplicate checks and shared latest-request state. Existing defaults remain stable. See [ADR 0045](docs/adr/0045-opt-in-rank-fusion.md). This is implementation/regression work, not a new model-quality result.
-
-Multi-language V1 extends the existing Markdown/Java pipeline to Python, JavaScript/JSX, TypeScript/TSX, Go, C, C++ and C#: single-file/folder/GitHub imports, Worker, exact chunks, outlines and symbol search. Default parsing is syntax-only and makes no model call. An explicit bounded Agent action now compares repository-local call sites with server-curated declaration candidates across compatible language families; every returned ID and exact source line is validated, and results remain ephemeral outside the formal graph. See [ADR 0040](docs/adr/0040-multilanguage-source-parsing.md) and [ADR 0041](docs/adr/0041-bounded-multilanguage-agent-call-analysis.md).
+# Knowledge Atlas implementation plan
 
 [简体中文](PLANS.zh-CN.md)
 
-This file identifies the active implementation phase and points to the detailed roadmap. It does not replace `docs/ROADMAP.md`.
+## Current scope
 
-## Current state
+The user's ordered P0/P1/P2 optimization is implemented in code. Acceptance evidence and limits live in [the current report](docs/OPTIMIZATION_20261029.md). Historical phase/checkpoint prose is preserved in [the archive](docs/archive/pre-optimization-20261029/PLANS.md); it is not the current capability specification.
 
-Completed:
+| Priority | Result |
+| --- | --- |
+| P0 | Schema-aware readiness, verified backup/schema restore, application upgrade to `20261026_0018`, and a provider-stubbed native workflow |
+| P1 | Immutable commit/local version code context; normalized identity bounds and merge-chain regressions; critical frontend integration checks |
+| P1 evaluation | Separate 7-document/24-question holdout-v3 frozen before provider use; real blind grading explicitly deferred by the user |
+| P2 navigation | Restorable project/source/entity/relationship/time/conversation URLs; shorter graph task sections |
+| P2 performance | Native 1k/10k reviewed synthetic fixtures; before/after plan fingerprints, SQL counts, p95, Python memory and request estimates; evidence batches of 500 |
+| P2 maintenance | Evidence navigation, snapshots and evolution composables; current documentation separated from historical checkpoints |
 
-- Repository purpose and graduation-project scope defined.
-- Interactive Vue Mock frontend implemented.
-- Desktop and mobile knowledge-graph workflows verified.
-- Architecture, knowledge model, API draft, and development roadmap documented.
-- Repository collaboration and decision-recording files initialized.
-- FastAPI application, health endpoints, error envelope, and request IDs implemented.
-- Project, Markdown source, and queued-task APIs implemented.
-- PostgreSQL-oriented models, initial Alembic migration, and local service composition added.
-- Backend interface tests implemented with an isolated SQLite database.
-- Typed frontend API client foundation added while Mock remains the default.
-- Explicit Markdown parsing tasks, persistent line-addressable chunks, and chunk pagination implemented.
-- Identical-byte upload reuse, deterministic chunk IDs, idempotent task execution, and failed-task retry implemented.
-- Frontend project creation/listing, source listing/upload, parsing/retry, source preview, and paginated evidence chunks integrated with real APIs while preserving the Mock graph.
-- Optional database-backed parsing worker, leased execution, stale-result fencing, interrupted-task recovery, and bounded automatic attempts implemented.
-- Explicit DeepSeek extraction with evidence validation, audited review, and promotion of confirmed candidates into scoped PostgreSQL entities, relationships, and evidence.
-- Read-only project graph, entity-detail, and relationship-detail APIs with user/project/time scoping and node/edge limits, plus a real project-graph frontend page.
-- Evidence-backed project keyword search over formal entity names, summaries, and quotes, with ranking, type/time filters, bounded results, and graph/detail navigation.
-- Explicit 1024-dimensional formal-entity semantic indexing, pgvector cosine retrieval, content-hash reuse, and frontend keyword/vector mode switching.
-- Explainable hybrid retrieval with fixed keyword/vector/one-hop graph weights, bounded candidates, visible-relationship filtering, and per-hit score composition.
-- Synchronous evidence-grounded questions with bounded hybrid retrieval, strict DeepSeek output, application-validated citation UUIDs, and a real frontend workspace.
-- A frozen Stage 6 evaluation set with 30 synthetic sources and 40 direct, cross-document, code-location, temporal, and unanswerable questions; every answerable case has line-exact gold evidence, a gold answer, deterministic validation, and prediction scoring for retrieval, citations, answer review, latency, and explainability.
-- Explicit bounded Agent-assisted cross-file call analysis across every supported code language. Static parsing supplies same-repository candidate IDs and exact source lines; the model may only classify those candidates, and output remains non-persistent derived code structure. Real-provider quality and C/C++ build-context accuracy remain pending.
-- Local UTF-8 Java source upload with deterministic `code`/`comment`/`type`/`method` chunks, exact source lines, and reuse of the existing parsing worker and evidence pipeline.
-- Separate desktop single-file and folder-upload entry points; folders contribute up to 50 supported Markdown/Java files, uploaded sequentially with persisted relative paths, per-file deduplication, and partial-success retention.
-- Bounded repository-scoped Java `extends`/`implements` resolution across ready sources using package and import rules, shown with target paths and lines outside the formal graph.
-- Project-scoped local-folder repository identities, repository-relative paths, repository-aware duplicate reuse, and repository-bounded Java type resolution.
-- Normalized project-scoped GitHub HTTPS/SSH remote identities, optional linking to an existing local-folder repository, remote-only registration, and a repository list UI. Registration performs no GitHub request or clone.
-- Explicit bounded GitHub snapshot synchronization for the default branch or a requested ref, importing at most 50 Markdown/Java blobs with a 20 MiB aggregate budget through existing repository-scoped deduplication and parsing tasks.
-- Persisted GitHub commit/tree snapshots with per-file blob provenance, complete same-commit short-circuiting, retryable incomplete snapshots, source-type-aware blob/task reuse, conservative rename/deletion records, and provider-ID-backed repository rename handling.
-- Derived immutable GitHub source/evidence URLs from persisted snapshots, with commit-pinned files, exact line fragments, local-source null fallback, and last-existing-snapshot behavior after remote deletion.
-- Explicit bounded GitHub Issue/Pull Request import as deterministic Markdown, with up to 20 recent items and 20 issue comments per item, plus independent content-digest review snapshots containing up to 20 reviews, 20 inline review comments, and token-backed current state for 20 Review threads per selected PR, canonical conversation links, and desktop controls.
-- Bounded repository-scoped Java method-call targets for explicitly typed direct type, current-type field, method-parameter, and direct method-local receivers, with conservative shadowing, target paths, exact lines, and ambiguity surfaced outside the formal graph.
+## External work still pending
 
-- Explicitly typed and constructor-initialized `var` local receivers resolve within ordinary/if/else/while brace blocks, preserving declaration order, lexical lifetimes, sibling isolation, and conservative unknown shadowing; see [ADR 0025](docs/adr/0025-constructor-initialized-java-var-receivers.md) and [ADR 0026](docs/adr/0026-scoped-java-local-receivers.md).
-- Ordinary method-local `var` receivers initialized by complete type-qualified static factory calls resolve when accessible repository-local candidates agree on one return qualified name; unsupported or ambiguous factories remain unknown. See [ADR 0036](docs/adr/0036-bounded-java-static-factory-var-receivers.md).
-- Braced enhanced-for bodies resolve explicitly typed element receivers; unknown `var`/array elements suppress fallback only within the loop body, and header calls remain omitted. See [ADR 0027](docs/adr/0027-enhanced-for-java-receivers.md).
-- Repository-local Java structure/call analysis V1 bundles lexical/header scopes (classic for and resource try included), inherited candidates, and conservative arity filtering. See [V1 acceptance scope](docs/JAVA_ANALYSIS_V1.md) and [ADR 0029](docs/adr/0029-java-analysis-v1.md). This does not complete all Stage 4 GitHub/semantic work.
+The user will complete [the existing blind review](evaluation/holdout-v3/README.md). Do not invent grades or represent Agent-authored gold data as human evaluation. Genuine personal technical notes were not supplied; v3 uses genuine public upstream documents and is labeled accordingly. Paid v3 testing requires the existing cumulative budget ledger, separate versioned output and an unchanged test split. No v3 quality score exists yet.
 
-## Active phase
-
-2026-10-25 optimization checkpoint: bounded provider-free BM25 search/UI and runner support are implemented; empty matching vector indexes skip query embedding while configuration errors remain explicit. The same frozen corpus/graph/index gives development Recall@5 74.49% versus literal keyword 0%, with zero provider requests; all six code-location cases still miss and four unanswerable cases retrieve text. Historical defaults/reports remain unchanged. See [review and next priorities](docs/OPTIMIZATION_REVIEW.md) and [diagnostic](evaluation/results/2026-10-25-bm25/README.md). Independent data/human review precede further fusion selection.
-
-Current checkpoint (2026-10-24, supersedes the earlier deferral below): the user authorized delivery items 3–8 and a bounded real DeepSeek run. Item 3: 30 source snippets / 50 line-exact call cases / ten languages. Item 4: optional read-only tool Agent, at most four provider turns. Item 5: 112 real requests, 120 blind-review rows and two extraction evidence checks; actual human grades remain pending. Item 6: five PNG/SVG figures, source hashes and a limited vector-versus-fixed-hybrid component comparison. Item 7: architecture/API/status and bilingual delivery docs synchronized. Item 8: frontend component tests, coverage, CI definition, native launcher and optional full Compose stack. Native checks/builds are recorded separately; Docker builds and hosted CI have not run here. See [experiment report](evaluation/results/2026-10-24-models/REPORT.md) and [demo](docs/DEMO.md). The next required external action is real human grading, not more unapproved provider calls.
-
-Earlier checkpoint (before this round's authorization):
-
-On 2026-10-24, the graduation-delivery sequence completed reproducible project initialization and the three real-embedding retrieval baselines. `scripts.prepare_evaluation` replays corpus annotations through normal parsing/review services: 30 sources, 44 entities, 10 relationships, 54 reviews and one historical replacement. `scripts.run_baselines` freezes actual knowledge/index fingerprints and saves 120 predictions, per-hit diagnostics and comparisons. The user allowed embedding calls for this round; DeepSeek remains deferred. Complete Chinese questions have zero keyword recall and hybrid underperforms vector; preserve the results without claiming general hybrid superiority. Next comes a multi-language cross-file call gold set, then a tool-calling Agent; see Stage 6 and ADR 0042.
-
-Stage 6 evaluation-set construction is complete as a reproducible synthetic V1. The corpus and gold cases are under `evaluation/`; `python -m scripts.evaluate_dataset` validates exact evidence and scores complete exports. The runner uses one exact 30-source project and explicit provider-call flags, rejecting incomplete indexes, external evidence and mid-run data changes. The first real-embedding retrieval results are under `evaluation/results/2026-10-24-v101/`; human grading, charts and real-answer quality remain pending.
-
-User-approved completion scope (2026-10-23): finish Stage 4 code/GitHub core, Stage 5 temporal/governance, then integrated acceptance. Reviewed cross-source evolution, temporal graph/search UI and read-only governance are now implemented (ADR 0039, head `20261023_0015`). A 40-file synthetic repository integration and isolated native PostgreSQL contention/lease checks are available. Real public petclinic acceptance passed with a 30-file truncated budget; private-token and model/embedding-quality acceptance remain deferred. See [core acceptance](docs/CORE_ACCEPTANCE.md). The following paragraphs record the Stage 4 implementation baseline, not additional mandatory Java/compiler scope.
-
-Stage 4 now supports factory-initialized `var` in braced classic-for and resource-try headers, processing declarations in source/resource order and limiting resolved bindings to the body. Header calls remain omitted and catch/finally/sibling scopes restore outer bindings. See [ADR 0038](docs/adr/0038-java-header-factory-receivers.md).
-
-Stage 4 now extends factory-local `var` inference to unqualified current/inherited static members and explicit/wildcard static imports, preserving member-name precedence, lexical shadowing, agreed return types and original method evidence. Shadowed type qualifiers and method type parameters suppress false inference. See [ADR 0037](docs/adr/0037-unqualified-java-factory-receivers.md).
-
-Graph details, knowledge search and question citations now open exact local source chunks by scoped UUID, automatically selecting the correct chunk page and focusing/highlighting the original. Missing or inaccessible targets fail explicitly; no model, graph write or migration is added. This closes a source-provenance navigation gap while Stage 4 remains active; see [ADR 0035](docs/adr/0035-exact-evidence-source-navigation.md).
-
-Saved snapshots now expose paginated per-file provenance with safe source/task navigation, exact selected-commit file links, and explicit deletion/skip/truncation states. This is a read-only extension of Stage 4, not a Git diff or complete repository listing; no migration/provider call is added. See [ADR 0034](docs/adr/0034-snapshot-file-provenance.md).
-
-Saved GitHub synchronization snapshots now have a desktop history panel and an explicit commit-message-to-Markdown action. Sources reuse the normal parsing/extraction/review pipeline and canonical commit links, without fetching patches, introducing formal Commit entities, or automatically asserting the message's claims. This slice introduced migration `20261022_0014`; see [ADR 0033](docs/adr/0033-saved-commit-evidence-sources.md). This Stage 4 baseline is integrated.
-
-The source workspace now provides bounded Java symbol search by name/path, repository and kind, reusing outline IDs and opening the correct original chunk page. This advances the Stage 4 file/symbol lookup criterion without introducing authoritative code entities; see [ADR 0032](docs/adr/0032-bounded-code-symbol-search.md).
-
-Stage 4 now also supports repository-local explicit/wildcard static-import method calls as a bounded Java V1 extension, preserving original method symbols, member-name precedence, ambiguity, and the reviewed-knowledge boundary; see [ADR 0030](docs/adr/0030-java-static-import-calls.md). This Stage 4 baseline is integrated.
-
-Stage 4 code ingestion baseline: Its bounded local-file slice accepts Java files, uses `code_parsing`, preserves exact source lines in structural chunks, persists local-folder repository identities and repository-relative paths, and reuses the existing worker and evidence workflow. It resolves a small repository-local subset of cross-file type relationships and calls through explicitly typed direct type, field, method-parameter and method-local receivers, constructor-initialized `var`, and uniquely returned type-qualified static-factory `var`, registers normalized GitHub owner/repository coordinates, explicitly imports bounded default-branch or requested-ref snapshots, and imports recent Issue/Pull Request plus PR review-activity versions as Markdown. GitHub synchronization persists commit/tree and file/blob provenance, reuses unchanged or already-known blobs, records conservative renames/deletions, follows provider-ID-backed repository coordinate changes, and derives immutable source/evidence links from that history. Work items use provider ID plus `updated_at`; PR review activity uses an independent rendered-content digest so review edits and token-backed Review-thread current-state changes are versioned even when the PR timestamp is unchanged. It does not claim a complete Java AST or symbol/call graph, general factory/chained inference, reassigned local-variable types, argument-type overload selection or runtime dispatch, authoritative Review-thread event timestamps, webhooks, polling, force-push reachability analysis, or destructive source invalidation. See [ADR 0012](docs/adr/0012-bounded-java-source-ingestion.md), [ADR 0014](docs/adr/0014-bounded-cross-file-java-types.md), [ADR 0015](docs/adr/0015-local-folder-repository-identity.md), [ADR 0016](docs/adr/0016-normalized-github-remote-identity.md), [ADR 0017](docs/adr/0017-bounded-cross-file-java-method-calls.md), [ADR 0018](docs/adr/0018-bounded-github-snapshot-import.md), [ADR 0019](docs/adr/0019-incremental-github-commit-snapshots.md), [ADR 0020](docs/adr/0020-derived-immutable-github-evidence-links.md), [ADR 0021](docs/adr/0021-versioned-github-work-items.md), [ADR 0022](docs/adr/0022-bounded-java-declared-receiver-calls.md), [ADR 0023](docs/adr/0023-versioned-github-pull-reviews.md), [ADR 0024](docs/adr/0024-bounded-github-review-thread-state.md), and [ADR 0036](docs/adr/0036-bounded-java-static-factory-var-receivers.md).
-
-Implemented in this slice:
-
-- `.java` upload validation and `source_type=java`, with source type included in duplicate-reuse semantics.
-- A deterministic local parser for top-level types and conventional direct-member methods, including comment/string/text-block shielding while retaining exact chunk text.
-- Stable one-based inclusive line ranges, hashes, structure paths, and chunk UUIDs for `code`, `comment`, `type`, and `method` chunks, with type annotations grouped into the type.
-- `code_parsing` support in manual execution and the leased database worker.
-- Desktop source-workspace upload, MD/JAVA labels, and Java chunk-kind display.
-- A bounded source-structure endpoint and desktop outline for stable type/field/method symbols plus same-file unqualified/`this.` call hints, kept outside the formal graph.
-- Separate desktop single-file and folder upload; folders ignore unsupported/empty files and import up to 50 Markdown/Java sources while persisting normalized relative paths. Failures are reported per file without rolling back successful uploads.
-- Project-scoped top-level `extends`/`implements` resolution across at most 100 ready Java sources using explicit imports, same-package lookup, and wildcard imports, with ambiguity and truncation surfaced in the source outline.
-- A stable local-folder repository UUID resolved from project, kind, and folder-root name; folder sources store repository-relative paths, deduplicate within that repository, and do not resolve Java types across repository boundaries.
-- GitHub HTTPS, SCP-style SSH, and `ssh://` remotes normalize to a project-scoped owner/repository identity and canonical URL; users can register remote-only repositories or link an existing local-folder repository without contacting GitHub.
-- A registered GitHub repository can be synchronized explicitly at its default branch or a requested ref; up to 50 supported blobs and 20 MiB enter the same immutable source/task workflow, with partial skips and truncation reported.
-- Successful GitHub synchronization persists a commit/tree snapshot and per-file blob/status records; consecutive identical commits short-circuit only for complete, compatible snapshots. Incomplete/size-limited snapshots can be explicitly retried, retaining successful typed source/task reuse and immutable history; see [ADR 0031](docs/adr/0031-recoverable-typed-github-snapshots.md). Complete selections conservatively record renames/deletions; GitHub provider IDs preserve identity across remote coordinate changes.
-- Source list/detail and formal graph/search/question evidence derive commit-pinned GitHub URLs from the latest non-deleted source occurrence; evidence links include exact line fragments while `project://` remains available.
-- An explicit activity import reads at most 20 recently updated GitHub Issues/Pull Requests and 20 issue comments per item, plus 20 reviews, 20 inline review comments, and with a token 20 current-state Review threads per selected PR. Work-item versions follow `updated_at`; review snapshots follow their rendered-content digest. Both open the canonical conversation from source/evidence views.
-- Direct type-qualified, current-type field, explicitly typed parameter, and direct method-local receiver calls resolve by imports/package to methods declared in other ready sources in the same repository, with conservative shadowing, name-only overload ambiguity, and bounded target metadata.
-
-Acceptance still needed:
-
-- Manually upload and parse representative Java files, including comments, string literals, text blocks, multiple top-level types, constructors, methods, and syntax the bounded parser intentionally leaves as type/code text.
-- Configure a local DeepSeek key and verify a real model response against a short public Markdown note.
-- Review evidence quality and model output on representative inputs; simulated tests do not establish real extraction quality.
-- Verify the real project graph against native PostgreSQL in a browser, including empty, truncated, filtered, and time-filtered states.
-- Native PostgreSQL independent-session upload/review contention, lease recovery and stale Worker fencing have passed in a disposable schema; these are not production failure drills.
-- Evaluate semantic and hybrid ranking on representative native-PostgreSQL data with confirmed relationships; the current real-provider smoke project has seven indexed entities but no confirmed edges.
-
-Project keyword, semantic-vector, explainable one-hop graph hybrid retrieval, and first-pass evidence-grounded answers are implemented. Entity disambiguation, question history, multi-turn Agent behavior, and streaming remain future work. See [ADR 0011](docs/adr/0011-synchronous-evidence-grounded-questions.md).
-
-## Later phases
-
-1. Representative real-answer acceptance and retrieval/prompt quality evaluation.
-2. Extend Java resolution beyond the supported lexical blocks, constructor initializers and bounded static factories (type-qualified, member or imported), and evaluate webhook-backed authoritative GitHub Review-thread events beyond the bounded GraphQL state snapshot.
-3. Experiments, optional model-assisted governance extensions, and deployment; reviewed temporal evolution and rule-based read-only governance are implemented.
-
-Markdown parsing, schema-constrained review, and confirmed-candidate graph persistence are complete as bounded slices.
-
-Detailed deliverables, risks, and twelve-week scheduling are maintained in `docs/ROADMAP.md`.
+Private repository acceptance, privileged fresh-database recovery, Docker and remote CI need their actual environments. They remain explicit limits, not hidden assumptions about completion.
 
 ## Planning rules
 
-- Work on one bounded phase at a time.
-- Confirm architecture-impacting choices with an ADR.
-- Keep acceptance criteria observable and testable.
-- Update this file when the active phase changes, not after every small task.
-- Do not mark a phase complete only because documentation or scaffolding exists.
+Preserve evidence, user/project scope, explicit human graph writes and additive migration safety. Proposed future work should follow measured failures: bounded full-text pagination beyond 1k, representative semantic/vector benchmarks, then index/caching decisions. Current warm synthetic results do not establish production capacity. No push/deployment or new major phase is authorized by this plan alone.

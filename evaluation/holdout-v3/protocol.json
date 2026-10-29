@@ -1,0 +1,27 @@
+{
+  "dataset": {
+    "dataset_id": "knowledge-atlas-holdout-v3",
+    "version": "3.0.0",
+    "source_count": 7,
+    "case_count": 24,
+    "answerable_count": 20,
+    "category_counts": {
+      "cross_document": 8,
+      "direct_fact": 8,
+      "temporal": 4,
+      "unanswerable": 4
+    },
+    "fingerprint_sha256": "3215df76dd621e2fe8c9a7bc60fe640d6d7d171fe8be141b061f067fe12d1801"
+  },
+  "development_datasets": [
+    "knowledge-atlas-eval-v1",
+    "knowledge-atlas-public-v2"
+  ],
+  "test_dataset": "knowledge-atlas-holdout-v3",
+  "split_unit": "source family; both historical versions stay in the test split",
+  "ranking_tuned_on_this_set": false,
+  "provider_calls": 0,
+  "human_coverage": 0,
+  "temporal_scope": "Release-commit document availability, not real personal-note chronology",
+  "primary_metric": "macro evidence Recall@5; report temporal and cross-document categories separately"
+}
