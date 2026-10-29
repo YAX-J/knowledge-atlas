@@ -1,6 +1,6 @@
 # Knowledge Atlas Repository Instructions
 
-Current status, 2026-10-29: migration head and local application database are `20261026_0018`; readiness checks physical schema. Code analysis first fixes a commit or one local version per path, with metadata before bounded bodies. URLs restore project/source/knowledge/time/conversation; App connects evidence/snapshot/evolution composables. Index evidence uses batches of 500, with archived 1k/10k native measurements. Identity/history/conversations follow ADR 0056–0059; this extension follows ADR 0060–0063 and [current acceptance](docs/OPTIMIZATION_20261029.md). Public paid usage stays 84 model /61 embedding attempts; no new calls this turn. Untested holdout-v3 must not tune ranking. Human grading is deferred to the user; private authorization acceptance remains pending. Formal writes remain human-only.
+Current status, 2026-10-29: application database and migration head are `20261029_0019`; scoped agents and durable human-reviewed workflows follow ADR 0064–0065 and [the implementation guide](docs/MULTI_AGENT.md). Keep one project. Canonical modules are agents/, workflows/, tools/, analysis/ and llm/; moved services remain import aliases. Three roles share bounded attempted-request budgets; human review alone writes formal knowledge. Same-UUID replay/read/resume must never automatically repeat paid calls. Native compiler and immutable version rules from ADR0061 remain. Public paid usage remains 84 model /61 embedding attempts, with zero new provider calls in this refactor. Human blind grading remains assigned to the user; holdout-v3 must not tune ranking. Prior optimization measurements remain [historical evidence](docs/OPTIMIZATION_20261029.md).
 
 Offline lexical search now includes explicit `mode=bm25` (ADR 0044), separate from the default literal keyword and fixed hybrid modes. Preserve tenant/project/type/time scope and scan/text limits, return truncation metadata, and never imply its scores establish answerability. Empty semantic indexes skip query embedding after local configuration validation. New experiments belong in separate versioned result directories; the 2026-10-25 results are development diagnostics, not held-out human-quality scores.
 
@@ -53,7 +53,7 @@ Index: `.agents/skills/README.md`. Skills describe procedures; the rules in this
 - `.agents/skills/`: repository-local agent skills for task procedures.
 - `compose.yaml`: local PostgreSQL/pgvector, API, and parsing-worker services.
 - `backend/app/worker.py`: independent database-backed parsing consumer; shares backend models and services.
-- `evaluation/`: frozen synthetic corpus, gold cases, corpus-only reviewed annotations and versioned experiment results; standalone preparation/baseline commands live under `backend/scripts/` (ADR 0042). Prompt-asset extraction remains future work.
+- `evaluation/`: frozen synthetic corpus, gold cases, corpus-only reviewed annotations and versioned experiment results; standalone preparation/baseline commands live under `backend/scripts/` (ADR 0042). Prompts and provider integration now live under app/llm; evaluation data remains frozen.
 
 ## Non-negotiable domain rules
 

@@ -45,7 +45,7 @@ export interface TimelinePoint {
   label: string
 }
 
-export type WorkspaceNav = 'graph' | 'projectGraph' | 'projects' | 'sources' | 'questions' | 'workbench' | 'conversations'
+export type WorkspaceNav = 'graph' | 'projectGraph' | 'projects' | 'sources' | 'questions' | 'workbench' | 'conversations' | 'agents'
 
 export type IngestionOperation = 'projects' | 'create' | 'repositories' | 'remote' | 'sync' | 'activity' | 'commit' | 'sources' | 'upload' | 'detail' | 'task' | 'chunks' | 'structure' | 'agent'
 export type IngestionLoading = Record<IngestionOperation, boolean>

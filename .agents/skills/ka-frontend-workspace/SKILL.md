@@ -171,3 +171,7 @@ useSourceImport owns upload/parse/explicit remote mutations with typed refs/refr
 ## 2026-10-29 当前优化边界
 
 ADR 0062 supersedes earlier App-only orchestration. useWorkspaceRoute owns hash ID/time/task restoration; useEvidenceNavigation / useRepositorySnapshots / useKnowledgeEvolution own their request/disposal generations. Preserve shared mutation locks and exact evidence focus. URLs must not persist source/question text. Test restoration/cancellation and historical writes; coverage includes all extracted modules. Code analysis GET contexts, fixed snapshots/local duplicate choices and actual context feedback must stay explicit. Default is workbench, not Mock; conversations have persisted history.
+
+## Single-project multi-agent extension (ADR0064–0065)
+
+AgentWorkspace is a page inside the existing App/SideRail. useAgentRuns owns paginated history, three-second GET polling, project generation guards and sessionStorage pending UUIDs. Unknown POST results require status inspection and explicit same-UUID resend; reload/route restore never POST. #/agents includes project/source/run IDs, no question/body/secret. Candidate review opens the exact source and returns to saved run; refresh before free resume. Derived code shows actual commit/truncation/uncovered calls; QA uses existing evidence navigation. Verify frontend/tests/agentRuns.test.ts and workspaceRoute.test.ts plus full coverage/build and desktop native-stub walkthrough.

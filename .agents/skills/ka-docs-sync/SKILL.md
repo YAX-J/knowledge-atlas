@@ -106,3 +106,7 @@ description: Knowledge Atlas 的双语文档同步。修改 API、知识模型�
 ## 2026-10-29 当前优化边界
 
 Current root README/PLANS/ROADMAP/FRONTEND consolidate capabilities; pre-20261029 snapshots live under docs/archive/pre-optimization-20261029 with corrected relative links. Preserve dated experiment/acceptance numbers. Update ADR0060–0063, exact API context/error shape, schema readiness, holdout separation and benchmark scope in paired language docs. Do not convert deferred human grading into achieved quality. Report current database0018 separately from older historical checkpoints.
+
+## Single-project multi-agent extension (ADR0064–0065)
+
+Current extension is ADR0064–0065, docs/MULTI_AGENT.md and .zh-CN.md, with agent_runs migration0019. Update actual canonical tree and legacy aliases, shared/per-role attempted-call limits, explicit human resume, synchronous event persistence and lack of crash-node recovery. Keep root/backend/setup/API/frontend/knowledge-model/plan/changelog paired where companions exist. Preserve historical0018 reports and frozen experiments. Do not describe stub protocol tests as new real-provider quality or completed human grading.

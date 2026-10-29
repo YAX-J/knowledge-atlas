@@ -1,8 +1,10 @@
 # Knowledge Atlas 开发环境配置
 
+单项目 Agent 协作已接通。更新依赖后使用迁移 `20261029_0019`；新增固定版本 LangGraph，继续使用现有虚拟环境，执行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"`（backend 目录）。已有数据先备份与隔离恢复核验，再 `alembic upgrade head`。三个角色、四个协作接口和同步/人工审核边界见[实现说明](MULTI_AGENT.zh-CN.md)。
+
 [English](DEVELOPMENT_SETUP.md)
 
-当前 head `20261026_0018`；已有库升级前先[备份/隔离恢复](BACKUP_RESTORE.zh-CN.md)。`/health/ready` 同时检查连接与关键结构，失败不会自动迁移。完整启动见[演示](DEMO.zh-CN.md)，能力/验证见[当前验收](OPTIMIZATION_20261029.zh-CN.md)。默认真实 workbench，模型操作显式执行。
+当前 head `20261029_0019`；已有库升级前先[备份/隔离恢复](BACKUP_RESTORE.zh-CN.md)。`/health/ready` 同时检查连接与关键结构，失败不会自动迁移。完整启动见[演示](DEMO.zh-CN.md)，能力/验证见[当前验收](OPTIMIZATION_20261029.zh-CN.md)。默认真实 workbench，模型操作显式执行。
 
 ## 环境要求
 
@@ -88,7 +90,7 @@ uvicorn app.main:app --reload
 
 在 OpenAPI 界面验证导入时，依次创建项目、上传 UTF-8 Markdown 或 Java 源文件、调用 `POST /api/v1/tasks/{task_id}/run`，并查询 `GET /api/v1/sources/{source_id}/chunks`。也可以在另一个已激活环境的终端中，从 `backend/` 运行 `python -m app.worker`，自动消费上传任务。先应用包含执行租约与图谱表的最新迁移。`python -m app.worker --once` 最多处理一个符合条件的任务后退出。配置、恢复规则、退出码和解析限制见 [后端说明](../backend/README.zh-CN.md)。
 
-验证本机服务配置时，从 `backend/` 运行 `alembic current`，预期版本为 `20261026_0018`；查询 `/api/v1/health/ready`，PostgreSQL 应为 `up`。随后使用真实本地数据库验证项目创建、上传、自动解析、重复复用、重启持久化，以及 Worker/API 竞争。SQLite 测试不能验证原生服务联通、PostgreSQL 锁或 pgvector 距离运算。
+验证本机服务配置时，从 `backend/` 运行 `alembic current`，预期版本为 `20261029_0019`；查询 `/api/v1/health/ready`，PostgreSQL 应为 `up`。随后使用真实本地数据库验证项目创建、上传、自动解析、重复复用、重启持久化，以及 Worker/API 竞争。SQLite 测试不能验证原生服务联通、PostgreSQL 锁或 pgvector 距离运算。
 
 如果选择容器方案，从仓库根目录运行 `docker compose up -d --build` 可启动完整环境。Worker 等待 API 应用迁移并通过存活检查后启动。Docker 不是验收前提。
 

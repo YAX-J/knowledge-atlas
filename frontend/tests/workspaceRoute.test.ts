@@ -5,6 +5,11 @@ import { encodeWorkspaceRoute, parseWorkspaceRoute, useWorkspaceRoute, type Work
 
 enableAutoUnmount(afterEach)
 afterEach(()=>window.history.replaceState(null,'','#'))
+it('restores the saved collaboration run without carrying its ID to another workspace',()=>{
+  const route:WorkspaceRoute={nav:'agents',projectId:'project-1',sourceId:'source-1',runId:'run-1'}
+  expect(parseWorkspaceRoute(encodeWorkspaceRoute(route))).toMatchObject(route)
+  expect(encodeWorkspaceRoute({...route,nav:'sources'})).not.toContain('run=')
+})
 it('round trips project/source/history context and rejects invalid route inputs',()=>{
   const route:WorkspaceRoute={nav:'projectGraph',projectId:'project-1',sourceId:'source-1',entityId:'entity-1',validAt:'2023-03-20T00:00:00.000Z',section:'identity'}
   expect(parseWorkspaceRoute(encodeWorkspaceRoute(route))).toMatchObject(route)

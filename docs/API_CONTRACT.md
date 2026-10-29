@@ -1,10 +1,14 @@
 # Knowledge Atlas 前后端接口草案
 
-当前说明见本轮验收与 ADR 0060–0063；迁移 head `20261026_0018`。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](OPTIMIZATION_20261029.zh-CN.md)
+当前说明见本轮验收与 ADR 0060–0063；迁移 head `20261029_0019`。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](OPTIMIZATION_20261029.zh-CN.md)
+
+## Agent 协作契约（ADR 0064–0065）
+
+新增 POST/GET `/api/v1/projects/{project_id}/agent-runs`、GET `/{run_id}` 与 POST `/{run_id}/resume`。启动必须带 `request_id` UUID 和 `knowledge_pipeline|question_pipeline`；同 UUID 相同输入只读复用，不同输入 409，越权 404。状态为 running/awaiting_review/succeeded/failed/interrupted。同步结束保存 result/events/usage/error_code/review_counts；读取不调用供应商。完整请求字段、预算、历史/代码上下文限制与错误见[协作 API](MULTI_AGENT.zh-CN.md#运行和持久化契约)。旧接口保持兼容；抽取 GET 展示最近创建的单轮/工具任务，旧 POST 保留单轮策略。
 
 ## 本轮新增契约（ADR 0060–0063）
 
-`GET /api/v1/health/ready` 连接成功后还检查当前 schema 实际拥有的 `alembic_version=20261026_0018`、六张工作台表及快照 `scan_state` 列。成功返回 `dependencies.postgresql` 和 `dependencies.schema` 均为 `up`；未迁移/落后/关键结构缺失时 503，数据库连通仍显示 `postgresql=up`、`schema=down`。不自动迁移、不调用模型；`/health/live` 不变。
+`GET /api/v1/health/ready` 连接成功后还检查当前 schema 实际拥有的 `alembic_version=20261029_0019`、七张工作台表（包含 `agent_runs`）及快照 `scan_state` 列。成功返回 `dependencies.postgresql` 和 `dependencies.schema` 均为 `up`；未迁移/落后/关键结构缺失时 503，数据库连通仍显示 `postgresql=up`、`schema=down`。不自动迁移、不调用模型；`/health/live` 不变。
 
 `GET /api/v1/sources/{source_id}/analysis-contexts` 仅支持已就绪代码来源，返回：
 

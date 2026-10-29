@@ -36,7 +36,7 @@ description: Knowledge Atlas 的 SQLAlchemy 模型与 Alembic 迁移。新增/�
 
 新增 `20261025_0016`：每项目最近一次索引更新归属、租约、状态与结果。
 
-当前 head 是 `20261026_0018`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
+当前 head 是 `20261029_0019`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
 
 原生临时 schema 验收使用 `python -m scripts.verify_native`：Alembic Config 必须设置 `attributes["version_table_schema"]`，`migrations/env.py` 传给在线 context；同时保留 public 以解析 vector。仅设置 `search_path=temp,public` 会回退到业务版本表和业务表，不能作为隔离保证。测试前检查所有核心表确在生成 schema 且初始项目为空；结束只删除自己生成的 schema 并核对业务迁移标记未变。不要对业务 schema 运行验收降级或清理。
 
@@ -121,3 +121,7 @@ Head 20261026_0017 adds knowledge_retirements with scoped entity/relationship co
 ## 2026-10-29 当前优化边界
 
 ADR 0060: readiness validates physically owned version table, exact expected head, six workspace tables and snapshot scan_state. Keep expected-head regression synchronized. Existing app upgrade requires backup and verified isolated recovery; compare old table content using UTC-normalized fingerprints and exclude migration marker/added column. Never auto-upgrade in readiness. Local application is now0018; old0017 status announcements are historical.
+
+## Single-project multi-agent extension (ADR0064–0065)
+
+Current head/application are 20261029_0019: additive agent_runs table with scope/request hash/result/events/usage/execution lease, indexed by user/project/creation. Readiness includes agent_runs plus prior workspace tables. Test upgrade/downgrade/upgrade only in physically owned disposable schema; downgrade deletes execution history and is not business undo. Application upgraded after verified backup/schema restore;24 existing business-table content fingerprints were unchanged. Never auto-upgrade at readiness or downgrade application data for testing.

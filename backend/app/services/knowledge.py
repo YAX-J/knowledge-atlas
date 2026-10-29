@@ -24,8 +24,8 @@ from app.services.projects import get_project
 EXTRACTION_TASK_TYPE = "knowledge_candidates"
 
 
-def extraction_task_id(source_id: uuid.UUID) -> uuid.UUID:
-    return uuid.uuid5(source_id, deepseek.PROMPT_VERSION)
+def extraction_task_id(source_id: uuid.UUID, strategy='single_step') -> uuid.UUID:
+    return uuid.uuid5(source_id, deepseek.PROMPT_VERSION+(':tools-v1' if strategy=='tools' else ''))
 
 
 def lease_is_active(expires_at: datetime | None, now: datetime) -> bool:
@@ -42,15 +42,15 @@ def _source(db: Session, user_id: uuid.UUID, source_id: uuid.UUID) -> SourceDocu
     return source
 
 
-def get_extraction(db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID) -> ExtractionRead:
+def get_extraction(db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID, strategy=None) -> ExtractionRead:
     source = _source(db, user_id, source_id)
     task = db.scalar(select(ProcessingTask).where(
-        ProcessingTask.id == extraction_task_id(source.id),
+        ProcessingTask.id.in_([extraction_task_id(source.id,mode) for mode in ([strategy] if strategy else ['single_step','tools'])]),
         ProcessingTask.user_id == user_id,
         ProcessingTask.project_id == source.project_id,
         ProcessingTask.source_id == source.id,
         ProcessingTask.type == EXTRACTION_TASK_TYPE,
-    ).execution_options(populate_existing=True))
+    ).order_by(ProcessingTask.created_at.desc(),ProcessingTask.id).limit(1).execution_options(populate_existing=True))
     counts = {'pending': 0, 'confirmed': 0, 'rejected': 0}
     rows = db.execute(select(CandidateKnowledge.review_status, func.count()).where(
         CandidateKnowledge.task_id == task.id,
@@ -65,7 +65,7 @@ def get_extraction(db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID) -> 
 
 
 def run_extraction(
-    db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID, settings: Settings,
+    db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID, settings: Settings, strategy='single_step', code_findings=None,
 ) -> ExtractionRead:
     source = _source(db, user_id, source_id)
     # Serialize short claims only. The model call runs after this transaction commits.
@@ -73,12 +73,14 @@ def run_extraction(
         SourceDocument.id == source.id, SourceDocument.user_id == user_id,
         SourceDocument.project_id == source.project_id,
     ).with_for_update())
-    current = get_extraction(db, user_id=user_id, source_id=source.id)
+    if strategy not in {'single_step','tools'}:
+        raise AppError(status_code=422,code='EXTRACTION_STRATEGY_INVALID',message='不支持的抽取策略')
+    current = get_extraction(db, user_id=user_id, source_id=source.id,strategy=strategy)
     if current.task and current.task.status == TaskStatus.SUCCEEDED:
         db.commit()
         return current
     now = utc_now()
-    task = db.get(ProcessingTask, extraction_task_id(source.id))
+    task = db.get(ProcessingTask, extraction_task_id(source.id,strategy))
     if task and task.status == TaskStatus.RUNNING and lease_is_active(task.lease_expires_at, now):
         raise AppError(status_code=409, code="EXTRACTION_RUNNING", message="知识提取正在执行，请稍后刷新候选状态")
     if source.status != SourceStatus.READY:
@@ -101,7 +103,7 @@ def run_extraction(
     execution_id = uuid.uuid4()
     if task is None:
         task = ProcessingTask(
-            id=extraction_task_id(source.id), user_id=user_id,
+            id=extraction_task_id(source.id,strategy), user_id=user_id,
             project_id=source.project_id, source_id=source.id, type=EXTRACTION_TASK_TYPE,
             attempt_count=0,
         )
@@ -123,7 +125,8 @@ def run_extraction(
     records: list[CandidateKnowledge] = []
     error: dict[str, str] | None = None
     try:
-        result = deepseek.extract_candidates(settings, model_input)
+        from app.agents.registry import get_agent
+        result = get_agent('knowledge_extraction').run(strategy,dict(settings=settings,chunks=model_input,code_findings=code_findings))
         ids = {draft.local_id: uuid.uuid5(task.id, draft.local_id)
                for draft in [*result.entities, *result.relations]}
         entities = {draft.local_id: draft for draft in result.entities}
@@ -146,7 +149,7 @@ def run_extraction(
             payload = {
                 "kind": "relation" if relation else "entity",
                 "local_id": draft.local_id, "evidence": evidence,
-                "model": settings.deepseek_model, "prompt_version": deepseek.PROMPT_VERSION,
+                "model": settings.deepseek_model, "prompt_version": deepseek.PROMPT_VERSION+(':tools-v1' if strategy=='tools' else ''),
             }
             if relation:
                 payload.update(source_candidate_id=str(ids[draft.source]), target_candidate_id=str(ids[draft.target]))
@@ -161,6 +164,9 @@ def run_extraction(
             ))
     except deepseek.ExtractionError as exc:
         error = {"code": exc.code, "message": exc.message}
+    except AppError as exc:
+        # A shared budget failure must release the extraction lease as a failed task.
+        error = {'code':exc.code,'message':exc.message}
     try:
         finished = db.execute(update(ProcessingTask).where(
             ProcessingTask.id == task.id, ProcessingTask.user_id == user_id,
@@ -181,7 +187,7 @@ def run_extraction(
     except Exception:
         db.rollback()
         raise
-    return get_extraction(db, user_id=user_id, source_id=source.id)
+    return get_extraction(db, user_id=user_id, source_id=source.id,strategy=strategy)
 
 
 def _review_query(user_id: uuid.UUID):

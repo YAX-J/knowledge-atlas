@@ -4,10 +4,10 @@ import type { WorkspaceNav } from '../types'
 export type GraphSection = 'relations' | 'search' | 'identity' | 'evolution' | 'retirement'
 export interface WorkspaceRoute {
   nav: WorkspaceNav; projectId?: string; sourceId?: string; entityId?: string
-  relationshipId?: string; validAt?: string; conversationId?: string; section?: GraphSection
+  relationshipId?: string; validAt?: string; conversationId?: string; runId?:string; section?: GraphSection
 }
 const paths: Record<WorkspaceNav,string> = {workbench:'workbench',sources:'sources',projects:'projects',
-  projectGraph:'graph',graph:'demo',conversations:'conversations',questions:'questions'}
+  projectGraph:'graph',graph:'demo',conversations:'conversations',questions:'questions',agents:'agents'}
 const sections:GraphSection[] = ['relations','search','identity','evolution','retirement']
 const identifier=(value:string|null) => value && /^[a-zA-Z0-9-]{1,80}$/.test(value) ? value : undefined
 export function parseWorkspaceRoute(hash:string,fallback:WorkspaceNav='workbench'):WorkspaceRoute {
@@ -17,13 +17,13 @@ export function parseWorkspaceRoute(hash:string,fallback:WorkspaceNav='workbench
   const time=params.get('at'), section=params.get('section') as GraphSection
   return {nav,projectId:identifier(params.get('project')),sourceId:identifier(params.get('source')),
     entityId:identifier(params.get('entity')),relationshipId:identifier(params.get('relationship')),
-    conversationId:identifier(params.get('conversation')),validAt:time && !Number.isNaN(Date.parse(time)) ? new Date(time).toISOString() : undefined,
+    conversationId:identifier(params.get('conversation')),runId:identifier(params.get('run')),validAt:time && !Number.isNaN(Date.parse(time)) ? new Date(time).toISOString() : undefined,
     section:sections.includes(section)?section:'relations'}
 }
 export function encodeWorkspaceRoute(route:WorkspaceRoute) {
   const query=new URLSearchParams()
   for(const [key,value] of Object.entries({project:route.projectId,source:route.sourceId,entity:route.entityId,
-    relationship:route.relationshipId,at:route.validAt,conversation:route.conversationId,
+    relationship:route.relationshipId,at:route.validAt,conversation:route.conversationId,run:route.nav==='agents'?route.runId:undefined,
     section:route.nav==='projectGraph' && route.section!=='relations'?route.section:undefined})) {
     if(value)query.set(key,value)
   }

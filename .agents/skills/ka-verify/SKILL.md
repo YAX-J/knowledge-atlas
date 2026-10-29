@@ -199,3 +199,7 @@ Focus tests/test_read_performance.py tests/test_retirement.py plus migration/gra
 ## 2026-10-29 当前优化边界
 
 Final scope now includes criticalFlows, workspaceRoute, projectGraphFlow and orchestration frontend regressions; snapshot/identity/embedding-plan/holdout backend regressions; native verify includes code contexts. Prefer native schema testing to catch PostgreSQL JSON DISTINCT differences. benchmark_scale creates/removes its own schema for1k/10k normal-reviewed synthetic fixtures,20 warm samples, no providers; record p95/SQL/Python allocations, not RSS or production SLA. Cold embedding batch counts are estimates, not calls/authorization. Human blind grading remains explicitly deferred.
+
+## Single-project multi-agent extension (ADR0064–0065)
+
+Multi-agent checks: tests/test_multi_agent.py and test_agent_tools.py; full backend KA_NATIVE_COMPILERS=1 coverage>=90%, scripts.verify_native owned-schema migration roundtrip and scoped workflows; frontend agentRuns/workspaceRoute plus coverage/build. Native tests share committed fixture schema: assertions must filter their own project/source. Browser qa_workspace supplies local tool-call protocol stubs and requires zero real provider calls; start/list/read, reload, review/resume, QA/evidence links, focus/empty/scroll/overflow. Stop only recorded owned processes, clean only recorded schema before public-only backup. Keep frozen evaluation files and84/61 cumulative ledger unchanged.

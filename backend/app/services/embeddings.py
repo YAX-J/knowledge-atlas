@@ -36,6 +36,8 @@ def embed_texts(settings: Settings, texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
     key = _require_configuration(settings)
+    from app.agents.runtime import embedding_attempt
+    embedding_attempt()
     try:
         response = httpx.post(
             settings.embedding_base_url.rstrip("/") + "/embeddings",

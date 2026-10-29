@@ -147,7 +147,7 @@ Exact source/chunk/line/quote deduplication retains related_entities from retrie
 
 ## Question source-aware mode and uncertain outcomes
 
-Question retrieval accepts bm25_source without embeddings, but supported answer generation still requires explicit provider use. Retain citation UUID and evidence/support validation. New misleading-overlap refusal cases use stub answers and are not real model-quality grades. Questions and call analysis remain non-persistent; durable embedding_jobs does not create question history or resume Agents. Client writes with lost results are uncertain and must never be described as rolled back.
+Question retrieval accepts bm25_source without embeddings, but supported answer generation still requires explicit provider use. Retain citation UUID and evidence/support validation. New misleading-overlap refusal cases use stub answers and are not real model-quality grades. Legacy one-shot questions and call analysis remain non-persistent; durable embedding_jobs does not create question history or resume Agents. Client writes with lost results are uncertain and must never be described as rolled back.
 
 ## 2026-10-26 功能补全更新
 
@@ -156,3 +156,7 @@ Question retrieval accepts bm25_source without embeddings, but supported answer 
 ## 2026-10-29 当前优化边界
 
 holdout-v3 contains genuine pinned public documentation, not private personal notes; 24 Agent-authored cases/gold annotations are not human grades. Keep v1/public-v2 development and v3 test separate; never tune against v3. Current cumulative paid ledger is84 model/61 embedding (authorization120/160), not reset per directory. User explicitly defers human grading. No new provider experiment or score is implied by fixture validation/replay.
+
+## Single-project multi-agent extension (ADR0064–0065)
+
+Canonical prompts/provider/usage are app/llm/{prompts.py,providers/deepseek.py,usage.py}; old services imports alias these modules. Extraction and QA now delegate to registry agents. Legacy single-step API keeps old prompt/task identity; tools extraction uses :tools-v1 and exact same evidence validation. Default extraction GET selects the most recently created legacy/tools task. Shared runtime counts failed model/embedding attempts before requests. Code hints cannot become evidence; empty QA refuses before providers, unknown citations fail. Coordinated candidates wait for existing human review. API read/list/resume never call providers; do not invent human evaluation scores.

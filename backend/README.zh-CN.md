@@ -1,12 +1,14 @@
 # Knowledge Atlas 后端
 
+单项目 Agent 协作已接通。更新依赖后使用迁移 `20261029_0019`；新增固定版本 LangGraph，继续使用现有虚拟环境，执行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"`（backend 目录）。已有数据先备份与隔离恢复核验，再 `alembic upgrade head`。三个角色、四个协作接口和同步/人工审核边界见[实现说明](../docs/MULTI_AGENT.zh-CN.md)。
+
 [English](README.md)
 
-当前说明见本轮验收与 ADR 0060–0063；迁移 head `20261026_0018`。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](../docs/OPTIMIZATION_20261029.zh-CN.md)
+当前说明见本轮验收与 ADR 0060–0063；迁移 head `20261029_0019`。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](../docs/OPTIMIZATION_20261029.zh-CN.md)
 
 ## 本轮上下文与运行检查
 
-`GET /sources/{id}/analysis-contexts` 只读列出可选提交/重复路径版本；显式调用分析接受 snapshot_id 或重复 version_ids，返回实际 context。所有策略使用固定原路径、有界正文和用户/项目/仓库隔离。别名长度按规范化值再次校验；合并链/解除检索有回归。就绪状态检查实际 schema0018 与关键表/列。
+`GET /sources/{id}/analysis-contexts` 只读列出可选提交/重复路径版本；显式调用分析接受 snapshot_id 或重复 version_ids，返回实际 context。所有策略使用固定原路径、有界正文和用户/项目/仓库隔离。别名长度按规范化值再次校验；合并链/解除检索有回归。就绪状态检查实际 schema0019 与关键表/列。
 
 索引规划原始归属证据每500实体读取，不改变哈希或付费规则。规模复现：`python -m scripts.benchmark_scale --output ../output/scale-new-run.json --repeats 20`；仅自有临时原生schema，无供应商。API字段见[契约](../docs/API_CONTRACT.md)，测量边界见[报告](../evaluation/performance/2026-10-29-scale/README.zh-CN.md)。
 
@@ -35,7 +37,7 @@
 
 ### 演化审核与原生验收
 
-使用时间/演化/治理面板前先应用 head `20261026_0018`。跨来源建议与抽取候选分离；仅人工确认才可关闭旧有效期并开始新有效期。历史保留证据，治理只读；不能回溯提升前或定时至未来。见 [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.zh-CN.md)。
+使用时间/演化/治理面板前先应用 head `20261029_0019`。跨来源建议与抽取候选分离；仅人工确认才可关闭旧有效期并开始新有效期。历史保留证据，治理只读；不能回溯提升前或定时至未来。见 [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.zh-CN.md)。
 
 在 `backend/` 运行 `.\.venv\Scripts\python.exe -m scripts.verify_native`，在临时 schema 验证迁移/API/竞争/Worker。要求配置的原生 PostgreSQL、已在 `public` 安装 pgvector，以及 `CREATE SCHEMA` 权限。脚本显式限定 Alembic 版本表 schema，测试前检查本地表，最后只删除自己生成的 schema。既有业务资料不是测试数据。`--github` 另允许真实只读公开 petclinic 导入/检索/重复/Commit 追溯验收，不调用模型或使用 GitHub 令牌。普通 `pytest` 跳过这些显式验收；不验证模型/嵌入质量或私有令牌。
 
@@ -136,7 +138,7 @@ Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose 
 
 ## DeepSeek 候选提取与审核
 
-审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261026_0018`。只在后端 `.env` 中配置：
+审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261029_0019`。只在后端 `.env` 中配置：
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key

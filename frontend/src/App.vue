@@ -17,6 +17,7 @@ import KnowledgeRetirement from './components/KnowledgeRetirement.vue'
 import QuestionWorkspace from './components/QuestionWorkspace.vue'
 import ConversationsWorkspace from './components/ConversationsWorkspace.vue'
 import Workbench from './components/Workbench.vue'
+import AgentWorkspace from './pages/AgentWorkspace.vue'
 import KnowledgeManagement from './components/KnowledgeManagement.vue'
 import { useKnowledgeManagement } from './composables/useKnowledgeManagement'
 import { getOverview } from './api/workspace'
@@ -56,6 +57,7 @@ const selectedId = ref('event-driven')
 const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'mock' ? 'graph' : import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'workbench')
 const graphSection = ref<GraphSection>('relations')
 const conversationId = ref('')
+const agentRunId = ref('')
 const timelineIndex = ref(timelinePoints.length - 1)
 const panelOpen = ref(true)
 const filterOpen = ref(false)
@@ -333,6 +335,7 @@ function selectProject(value: ApiProject) {
   if (reviewBusy.value || changeBusy.value || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
   clearEvolution()
   conversationId.value = ''
+  agentRunId.value = ''
   graphValidAt.value = ''
   clearQuestion()
   clearIndexStatus()
@@ -583,7 +586,7 @@ function changeNav(value: string) {
     else { activeNav.value = 'sources'; ElMessage({ message: '请先选择或创建项目，再打开真实图谱。', type: 'info' }) }
     return
   }
-  if (value === 'projects' || value === 'sources' || value === 'questions' || value === 'workbench' || value === 'conversations') {
+  if (value === 'projects' || value === 'sources' || value === 'questions' || value === 'workbench' || value === 'conversations' || value === 'agents') {
     activeNav.value = value
     filterOpen.value = false
     if (!projects.value && !loading.projects) void loadProjects()
@@ -625,7 +628,7 @@ function setTimeline(value: number) {
 const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:activeNav.value,projectId:project.value?.id,
   sourceId:selectedSourceId.value || undefined,entityId:graphSelectionKind.value==='entity'?graphSelectedId.value || undefined:undefined,
   relationshipId:graphSelectionKind.value==='relationship'?graphSelectedId.value || undefined:undefined,
-  validAt:graphValidAt.value || undefined,conversationId:conversationId.value || undefined,section:graphSection.value}),async (route,current)=>{
+  validAt:graphValidAt.value || undefined,conversationId:conversationId.value || undefined,runId:agentRunId.value||undefined,section:graphSection.value}),async (route,current)=>{
   if(route.nav==='graph'){activeNav.value='graph';return}
   activeNav.value=route.nav
   if(!projects.value)await loadProjects()
@@ -643,6 +646,7 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
   }
   if(!current())return
   conversationId.value=route.conversationId ?? ''
+  agentRunId.value=route.runId ?? ''
   graphSection.value=route.section ?? 'relations'
   if(route.nav==='projectGraph' && project.value){
     graphValidAt.value=route.validAt ?? ''
@@ -661,6 +665,9 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
     <div v-if="routeError" class="route-error" role="alert">{{ routeError }} <button type="button" @click="retryRoute">重试恢复位置</button></div>
 
     <Workbench v-if="activeNav === 'workbench'" :project="project" :projects="projects" :overview="overviewState.result.value" :loading="overviewState.loading.value || loading.projects" :error="overviewState.error.value || errors.projects" @navigate="changeNav" @select-project="selectProject" @refresh="project ? refreshOverview() : loadProjects()" />
+    <AgentWorkspace v-else-if="activeNav === 'agents'" :key="project?.id" :project="project" :projects="projects" :source="source" :run-id="agentRunId"
+      @select-project="selectProject" @run="agentRunId=$event" @open-evidence="openEvidence"
+      @open-source="activeNav='sources';selectSource($event,null)" />
     <ConversationsWorkspace v-else-if="activeNav === 'conversations'" :project="project" :projects="projects" :projects-loading="loading.projects" :projects-error="errors.projects" :conversation-id="conversationId" @conversation="conversationId = $event" @select-project="selectProject" @retry-projects="loadProjects()" @open-entity="openQuestionEntity" @open-evidence="openEvidence" />
     <SourceWorkspace
       v-else-if="activeNav === 'projects' || activeNav === 'sources'"

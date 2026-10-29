@@ -185,3 +185,7 @@ GitHub continue_from_snapshot 固定提交/tree/ref，缓存 scan_state/frontier
 ## 2026-10-29 当前优化边界
 
 ADR 0061: code analysis resolves snapshot membership/immutable paths or explicit local one-version-per-path before helpers/providers. Metadata precedes bounded body reads (2000 metadata, 99 related, total20MiB); unready snapshot members mean partial. Do not apply DISTINCT to full JSON-bearing snapshot rows in PostgreSQL; use membership subqueries. Normal structure parsing remains separate. Regressions include renamed paths, repeated versions, budgets and native PostgreSQL.
+
+## Single-project multi-agent extension (ADR0064–0065)
+
+Canonical deterministic parsing now lives in app/analysis/{languages.py,parsers/{markdown.py,java.py,tree_sitter.py},bindings.py,compilers/adapter.py}; services paths remain module aliases for compatibility. Compiler helpers stay under backend/scripts and use existing frontend dependencies. Worker still parses without models. Agents get frozen SourceFile snapshots through services/agent_workflows, immutable selection stays in services/code_context. Do not pass DB sessions into agent contexts or run imported source/build scripts.

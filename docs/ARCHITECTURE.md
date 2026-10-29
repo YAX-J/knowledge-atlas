@@ -1,6 +1,10 @@
 # Knowledge Atlas 系统架构
 
-当前说明见本轮验收与 ADR 0060–0063；迁移 head `20261026_0018`。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](OPTIMIZATION_20261029.zh-CN.md)
+当前说明见本轮验收与 ADR 0060–0063；迁移 head `20261029_0019`。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](OPTIMIZATION_20261029.zh-CN.md)
+
+## 单项目 Agent 边界（ADR 0064–0065）
+
+`agents` 负责角色与有界 LangGraph 工具循环，`workflows` 显式连接依赖，`tools` 提供只读仓库/原文/证据访问；`llm` 集中供应商、提示词和用量，`analysis` 保留确定性解析。`services/agent_workflows.py` 验证用户/项目范围、固定源码、管理任务事务。Agent 不接收数据库 Session。旧模块别名维持兼容。详见[实际目录与持久化边界](MULTI_AGENT.zh-CN.md)。
 
 ## 当前模块边界（ADR 0060–0063）
 

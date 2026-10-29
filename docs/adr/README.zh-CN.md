@@ -145,3 +145,7 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0062: 可恢复工作台与模块编排](0062-restorable-workspace-composition.zh-CN.md)
 
 - [ADR 0063: 实测索引规划](0063-measured-index-planning.zh-CN.md)
+
+- [ADR 0064: 单项目受限 Agent 模块](0064-scoped-agent-modules.zh-CN.md)
+
+- [ADR 0065: 持久化协作与人工检查点](0065-durable-reviewed-workflows.zh-CN.md)

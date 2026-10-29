@@ -1,8 +1,10 @@
 # Knowledge Atlas Development Setup
 
+Scoped multi-agent workflows now share this application. Update the existing environment with `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"` from backend; this installs pinned LangGraph. Back up/rehearse recovery before `alembic upgrade head` to `20261029_0019`. See [roles, API and synchronous human-review boundaries](MULTI_AGENT.md).
+
 [简体中文](DEVELOPMENT_SETUP.zh-CN.md)
 
-Current head: `20261026_0018`. Before upgrading existing data, [back up and verify isolated recovery](BACKUP_RESTORE.md). `/health/ready` checks connection and critical schema without auto-migration. See the [launcher](DEMO.md) and [current acceptance](OPTIMIZATION_20261029.md). Real workbench is the default; provider actions remain explicit.
+Current head: `20261029_0019`. Before upgrading existing data, [back up and verify isolated recovery](BACKUP_RESTORE.md). `/health/ready` checks connection and critical schema without auto-migration. See the [launcher](DEMO.md) and [current acceptance](OPTIMIZATION_20261029.md). Real workbench is the default; provider actions remain explicit.
 
 ## Prerequisites
 
@@ -86,7 +88,7 @@ Useful endpoints:
 
 To verify ingestion in the OpenAPI interface, create a project, upload UTF-8 Markdown or Java source, call `POST /api/v1/tasks/{task_id}/run`, and query `GET /api/v1/sources/{source_id}/chunks`. Alternatively, run `python -m app.worker` from `backend/` in a second activated terminal to consume uploads automatically. Apply the latest migration first, including execution lease and graph tables. `python -m app.worker --once` handles at most one eligible task and exits. See [backend instructions](../backend/README.md) for configuration, recovery rules, exit codes, and parsing limitations.
 
-Validate the native service setup by running `alembic current` from `backend/` (expected `20261026_0018`) and querying `/api/v1/health/ready`; PostgreSQL must report `up`. Then verify project creation, upload, automatic parsing, duplicate reuse, restart persistence, and worker/API contention against the real local database. SQLite tests do not validate native connectivity, PostgreSQL locking, or pgvector distance operations.
+Validate the native service setup by running `alembic current` from `backend/` (expected `20261029_0019`) and querying `/api/v1/health/ready`; PostgreSQL must report `up`. Then verify project creation, upload, automatic parsing, duplicate reuse, restart persistence, and worker/API contention against the real local database. SQLite tests do not validate native connectivity, PostgreSQL locking, or pgvector distance operations.
 
 For optional container use, `docker compose up -d --build` from the repository root starts the complete stack. The worker waits for the API to apply migrations and pass its liveness check. Docker is not a prerequisite for acceptance.
 

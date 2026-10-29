@@ -2,6 +2,10 @@
 
 Vue 3 Composition API、TypeScript、Vite、Element Plus 和原生 SVG。默认 `VITE_DATA_SOURCE=workbench` 打开真实项目概览；`api` 直接开资料；`mock` 打开独立演示。真实请求失败时展示错误，不回退 Mock。
 
+## 协作页面
+
+“协作任务”由 `pages/AgentWorkspace.vue`、`useAgentRuns`、`api/agents` 和 `components/agent` 接入当前 App。显式执行两条流程、显示请求计数/实际代码范围/最终事件，转到原文审核后刷新并恢复。`#/agents?project=UUID&source=UUID&run=UUID` 通过 GET 恢复；未知提交 UUID 保存在 sessionStorage，先读状态再显式重发，轮询不产生新模型请求。切项目/卸载使迟到响应失效。问答引用复用原文定位。详细限制见[协作说明](MULTI_AGENT.zh-CN.md)。
+
 ## 页面与导航
 
 工作台 → 资料/解析/候选审核 → 图谱 → 证据会话沿用同一项目。Ctrl+K 聚焦项目搜索，Enter 显式运行来源位置 BM25。图谱按“关系图 / 知识检索 / 身份整理 / 演化与治理 / 停用记录”显示，保留历史时间和当前知识上下文，减少长页面滚动。

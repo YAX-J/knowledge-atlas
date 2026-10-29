@@ -1,5 +1,6 @@
 """Disposable native browser workspace with clearly synthetic providers and real API persistence."""
 import argparse
+import json
 from pathlib import Path
 import uuid
 from unittest.mock import patch
@@ -40,6 +41,26 @@ def vectors(_settings,texts):
     return result
 
 
+def agent_turn(_settings,messages,tools,**kwargs):
+    """Local protocol substitute, never a model-quality result."""
+    names={item['function']['name'] for item in tools}
+    initial=json.loads(messages[1]['content'])
+    if 'read_chunk' in names:
+        if messages[-1]['role']=='user':
+            return {'tool_calls':[dict(id='qa-read',type='function',function=dict(name='read_chunk',
+                arguments=json.dumps(dict(chunk_id=initial['chunks'][-1]['chunk_id']))))]}
+        chunk=json.loads(messages[-1]['content'])
+        return {'content':extraction(_settings,[chunk]).model_dump_json()}
+    if 'read_evidence' in names:
+        evidence=initial['initial_evidence']
+        if messages[-1]['role']=='user':
+            return {'tool_calls':[dict(id='qa-evidence',type='function',function=dict(name='read_evidence',
+                arguments=json.dumps(dict(evidence_id=evidence[0]['id']))))]}
+        return {'content':answer(_settings,initial['question'],evidence).model_dump_json()}
+    return {'content':json.dumps(dict(decisions=[dict(call_id=item['id'],target_ids=[],resolution='unresolved',
+        confidence=0.0,resolution_basis='本地验收替身不推断真实调用目标') for item in initial['calls']]))}
+
+
 def main(port,frontend_origin):
     base=configuration.get_settings()
     with isolated_workspace(base) as (engine,native,schema):
@@ -57,7 +78,7 @@ def main(port,frontend_origin):
             raise deepseek.CallAgentError('QA_PROVIDER_DISABLED','本地验收使用模型替身；真实代码 Agent 已在公开源码单独验收。')
         with (patch.object(configuration,'get_settings',lambda:native),patch.object(deepseek,'extract_candidates',extraction),
              patch.object(deepseek,'answer_question',answer),patch.object(embeddings,'embed_texts',vectors),
-             patch.object(deepseek,'analyze_cross_file_calls',no_remote),patch.object(deepseek,'call_agent_turn',no_remote)):
+             patch.object(deepseek,'analyze_cross_file_calls',no_remote),patch.object(deepseek,'call_agent_turn',agent_turn)):
             from app.main import app
             from app.db.session import get_db
             def db_session():

@@ -2,6 +2,10 @@
 
 [English](PLANS.md)
 
+## 多 Agent 扩展
+
+已实现用户认可的单项目改造：三个注册 Agent、两条显式 LangGraph 流程、共享范围/预算、持久化任务、先读后重试及人工审核检查点。迁移 head/应用库为 `20261029_0019`。见[架构与契约](docs/MULTI_AGENT.zh-CN.md)；下文实验边界继续保留。
+
 ## 当前范围
 
 用户指定顺序的 P0/P1/P2 优化已落实到代码；验收证据与边界见[本轮报告](docs/OPTIMIZATION_20261029.zh-CN.md)。早期逐轮计划已移入[历史归档](docs/archive/pre-optimization-20261029/PLANS.zh-CN.md)，不再作为当前能力说明。

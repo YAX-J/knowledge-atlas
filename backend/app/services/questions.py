@@ -29,12 +29,52 @@ def _retrieval_summary(result) -> RetrievalSummary:
 def answer_question(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, question: str,
     valid_at, settings: Settings, retrieval_mode: str = 'rrf',
-    context: list[dict] | None = None, retrieval_query: str | None = None,
+    context: list[dict] | None = None, retrieval_query: str | None = None, strategy: str = 'single_step', code_findings=None,
 ) -> QuestionRead:
     result = search_knowledge(
         db, user_id=user_id, project_id=project_id, query=retrieval_query or question, types=[],
         valid_at=valid_at, top_k=MAX_ANSWER_ENTITIES, mode=retrieval_mode, settings=settings,
     )
+    evidence_by_id, retrieval = collect_evidence(result)
+
+    if not evidence_by_id:
+        return QuestionRead(
+            id=uuid.uuid4(), question=question, supported=False,
+            answer='现有已确认知识中没有足够的原文证据回答这个问题。', confidence=0,
+            entity_ids=[], evidence=[], retrieval=retrieval,
+            missing_information=['请补充并确认包含答案的项目资料。'],
+        )
+    if settings.deepseek_api_key is None:
+        raise AppError(
+            status_code=503, code='QUESTION_NOT_CONFIGURED',
+            message='证据问答尚未配置 DeepSeek API 密钥',
+        )
+
+    evidence_payload = [{
+        'id': str(item.id), 'entity_name': item.entity_name, 'title': item.title,
+        'start_line': item.start_line, 'end_line': item.end_line, 'quote': item.quote,
+        'entity_names': [entity.name for entity in item.related_entities],
+    } for item in evidence_by_id.values()]
+    try:
+        from app.agents.registry import get_agent
+        from app.tools.evidence import EvidenceTools
+        def search_more(query,mode):
+            found=search_knowledge(db,user_id=user_id,project_id=project_id,query=query,types=[],
+                valid_at=valid_at,top_k=MAX_ANSWER_ENTITIES,mode=mode,settings=settings)
+            records,summary=collect_evidence(found)
+            retrieval.truncated |= summary.truncated
+            return records
+        tools=EvidenceTools(search_more,evidence_by_id)
+        draft = get_agent('evidence_qa').run(strategy,dict(settings=settings,question=question,
+            evidence=evidence_payload,conversation=context,tools=tools,code_findings=code_findings))
+        retrieval.unique_evidence_count=len(evidence_by_id)
+    except deepseek.QuestionError as exc:
+        raise AppError(status_code=503, code=exc.code, message=exc.message) from exc
+
+    return validated_answer(question,evidence_by_id,retrieval,draft)
+
+
+def collect_evidence(result):
     retrieval = _retrieval_summary(result)
     evidence_by_id: dict[uuid.UUID, QuestionEvidenceRead] = {}
     passage_ids = {}
@@ -64,30 +104,10 @@ def answer_question(
             passage_ids[key] = item.id
     retrieval.unique_evidence_count = len(evidence_by_id)
 
-    if not evidence_by_id:
-        return QuestionRead(
-            id=uuid.uuid4(), question=question, supported=False,
-            answer='现有已确认知识中没有足够的原文证据回答这个问题。', confidence=0,
-            entity_ids=[], evidence=[], retrieval=retrieval,
-            missing_information=['请补充并确认包含答案的项目资料。'],
-        )
-    if settings.deepseek_api_key is None:
-        raise AppError(
-            status_code=503, code='QUESTION_NOT_CONFIGURED',
-            message='证据问答尚未配置 DeepSeek API 密钥',
-        )
+    return evidence_by_id,retrieval
 
-    evidence_payload = [{
-        'id': str(item.id), 'entity_name': item.entity_name, 'title': item.title,
-        'start_line': item.start_line, 'end_line': item.end_line, 'quote': item.quote,
-        'entity_names': [entity.name for entity in item.related_entities],
-    } for item in evidence_by_id.values()]
-    try:
-        draft = (deepseek.answer_question(settings, question, evidence_payload, context=context)
-                 if context else deepseek.answer_question(settings, question, evidence_payload))
-    except deepseek.QuestionError as exc:
-        raise AppError(status_code=503, code=exc.code, message=exc.message) from exc
 
+def validated_answer(question,evidence_by_id,retrieval,draft):
     unknown = set(draft.citation_ids) - set(evidence_by_id)
     if unknown:
         raise AppError(

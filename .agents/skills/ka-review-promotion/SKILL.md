@@ -151,3 +151,7 @@ Search evidence is read in homogeneous scoped batches via graph.evidence_for_rec
 ## 2026-10-29 当前优化边界
 
 Identity aliases validate NFKC/casefold/whitespace length <=255, including normalization expansion and NUL/blank refusal. Merges must preflight stored aliases and atomically refuse overlong normalized names. Preserve original evidence ownership. Regression: alias conflict, A→B→C flattening, keyword/BM25/source retrieval and ownership after unmerge. Index planning reads original-owner quotes in batches500 and hashes in stable evidence-ID order.
+
+## Single-project multi-agent extension (ADR0064–0065)
+
+agent_runs is execution history, not formal knowledge. knowledge_pipeline saves extraction task/candidate IDs and stops awaiting_review. Resume must check user/project/source hash, original task membership, complete candidate accounting and no pending decisions; rejected candidates count as reviewed. Only existing audited review/promotion writes formal entities/relations/evidence. Resume itself is free and must not invoke embeddings/indexing or re-extract. Preserve project lock ordering and tenant fences.

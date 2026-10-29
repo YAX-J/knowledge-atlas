@@ -51,7 +51,7 @@ def test_readiness_refuses_unmigrated_and_behind_database(client, db_session):
     assert result.status_code==503 and result.json()['dependencies']['postgresql']['status']=='up'
     stamp(db_session,'20261026_0017')
     result=client.get('/api/v1/health/ready')
-    assert result.status_code==503 and '20261026_0018' in result.json()['dependencies']['schema']['detail']
+    assert result.status_code==503 and EXPECTED_REVISION in result.json()['dependencies']['schema']['detail']
 
 
 def test_readiness_refuses_falsely_stamped_incomplete_schema(client, db_session, monkeypatch):

@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Single-project code/extraction/evidence agents with bounded LangGraph tools and shared budgets; saved collaboration tasks, explicit human review/resume, source/evidence navigation and read-before-resend. Migration0019; legacy interfaces remain compatible. Provider quality and human grading are separate acceptance (ADR0064–0065).
+
 ### Added
 
 - Schema/version-aware readiness; fixed-commit and explicit local-version code analysis; normalized identity regressions; restorable URLs and graph task sections; a separate genuine public-document holdout-v3; native 1k/10k measurements and batched index evidence. Current documentation is separated from historical checkpoints; real blind grading is deferred by the user (ADR 0060–0063).

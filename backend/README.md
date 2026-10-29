@@ -1,12 +1,14 @@
 # Knowledge Atlas Backend
 
+Scoped multi-agent workflows now share this application. Update the existing environment with `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"` from backend; this installs pinned LangGraph. Back up/rehearse recovery before `alembic upgrade head` to `20261029_0019`. See [roles, API and synchronous human-review boundaries](../docs/MULTI_AGENT.md).
+
 [简体中文](README.zh-CN.md)
 
-Current behavior is specified by the optimization report and ADR 0060–0063; migration head `20261026_0018`. Historical checkpoint announcements have been archived. [验收 / Acceptance](../docs/OPTIMIZATION_20261029.md)
+Current behavior is specified by the optimization report and ADR 0060–0063; migration head `20261029_0019`. Historical checkpoint announcements have been archived. [验收 / Acceptance](../docs/OPTIMIZATION_20261029.md)
 
 ## Current context and runtime checks
 
-`GET /sources/{id}/analysis-contexts` lists saved commits/duplicate local versions without providers. Explicit call analysis accepts snapshot_id or repeated version_ids and returns actual context; all strategies use immutable paths, bounded bodies and user/project/repository scope. Alias limits are checked after normalization, with merge-chain/unmerge retrieval regressions. Readiness checks physical0018 schema and critical tables/columns.
+`GET /sources/{id}/analysis-contexts` lists saved commits/duplicate local versions without providers. Explicit call analysis accepts snapshot_id or repeated version_ids and returns actual context; all strategies use immutable paths, bounded bodies and user/project/repository scope. Alias limits are checked after normalization, with merge-chain/unmerge retrieval regressions. Readiness checks physical0019 schema and critical tables/columns.
 
 Index planning reads original-owner evidence in batches500 without changing hashes or paid-operation rules. Reproduce: `python -m scripts.benchmark_scale --output ../output/scale-new-run.json --repeats 20`; disposable native schema, no providers. See [API fields](../docs/API_CONTRACT.md) and [measurement scope](../evaluation/performance/2026-10-29-scale/README.md).
 
@@ -35,7 +37,7 @@ Explicit DeepSeek extraction, review, formal graph promotion, project keyword/ve
 
 ### Reviewed evolution and native acceptance
 
-Apply head `20261026_0018` before using the time/evolution/governance panels. Cross-source proposals are separate from extraction candidates; only human confirmation can close the old interval and start the new one. History retains evidence, governance is read-only, and dates cannot precede promotion or be scheduled in the future. See [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.md).
+Apply head `20261029_0019` before using the time/evolution/governance panels. Cross-source proposals are separate from extraction candidates; only human confirmation can close the old interval and start the new one. History retains evidence, governance is read-only, and dates cannot precede promotion or be scheduled in the future. See [ADR 0039](../docs/adr/0039-reviewed-knowledge-evolution.md).
 
 From `backend/`, run `.\.venv\Scripts\python.exe -m scripts.verify_native` for disposable-schema migration/API/contention/Worker checks. Requires configured native PostgreSQL, pgvector already in `public`, and `CREATE SCHEMA` permission. It explicitly qualifies the Alembic version schema, verifies local tables before tests and removes only its generated schema. Existing business data is not test data. `--github` additionally permits real read-only public petclinic import/search/repeat/commit-provenance acceptance; it never calls models or uses a GitHub token. Ordinary `pytest` skips these opt-in checks. Model/embedding quality and private-token acceptance are not covered.
 
@@ -136,7 +138,7 @@ Docker Compose is an optional alternative: from the repository root, `docker com
 
 ## DeepSeek candidate extraction and review
 
-Apply `alembic upgrade head` (expected `20261026_0018`) before review or semantic-index operations. Configure only the backend `.env`:
+Apply `alembic upgrade head` (expected `20261029_0019`) before review or semantic-index operations. Configure only the backend `.env`:
 
 ```dotenv
 DEEPSEEK_API_KEY=your_local_key

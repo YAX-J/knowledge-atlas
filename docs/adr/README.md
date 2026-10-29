@@ -145,3 +145,7 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0062: Restorable workspace composition](0062-restorable-workspace-composition.md)
 
 - [ADR 0063: Measured index planning](0063-measured-index-planning.md)
+
+- [ADR 0064: Scoped agent modules](0064-scoped-agent-modules.md)
+
+- [ADR 0065: Durable reviewed workflows](0065-durable-reviewed-workflows.md)
