@@ -27,6 +27,8 @@ Private repository acceptance, privileged fresh-database recovery, Docker and re
 
 ## Planning rules
 
+ADR 0068 completes explicit collaboration-page retrieval/time/code selection, context-fenced read-only metadata loading, draft previews and saved scope projection. Preserve the BM25 default and same-UUID replay behavior; historical questions exclude current code. Focused/full/native/frontend/browser acceptance is recorded in that ADR; genuine answer-quality evaluation remains separate.
+
 The next reliability slice (ADR 0067) persists per-event call reservations and validated step checkpoints, fences/renews active executions and keeps partials on failure. The user retained Agent verification; focused/full/native/frontend/browser results are recorded in the ADR. Execution remains synchronous and interrupted tasks are read-only on replay; automatic node continuation is outside this change.
 
 The 2026-10-30 lexical coverage change replaces the 1k window with 200-entity keyset batches and a 50k explicit scan budget, shared global BM25 statistics, bounded per-entity evidence and v2 protocol metadata (ADR 0066). Regression/acceptance results are recorded in that ADR after execution; historical experiments and the holdout remain unchanged.

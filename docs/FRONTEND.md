@@ -4,6 +4,8 @@ Vue 3 Composition API、TypeScript、Vite、Element Plus 和原生 SVG。默认 
 
 ## 协作页面
 
+ADR 0068 为 `AgentWorkspace` 接通检索方式、浏览器本地知识时间、固定提交/本地相关版本与提交前范围预览；选中记录显示后端白名单 `scope`，不将历史记录自动填成新草稿。`useCodeContextSelection` 复用 `useLatestRequest` 读取既有代码上下文接口；项目/来源/开关变化同步失效，拒绝迟到响应和失效选择，失败只读重试。历史时间清除并禁用当前代码；当前文件版本固定，未覆盖的本地相关文件在执行时取最新已解析版本。提交上限为 99 个显式相关文件版本，清单截断另行提示。覆盖率包括新组合模块，回归见 `tests/agentScope.test.ts`。
+
 “协作任务”由 `pages/AgentWorkspace.vue`、`useAgentRuns`、`api/agents` 和 `components/agent` 接入当前 App。显式执行两条流程、显示请求计数/实际代码范围/已保存事件，转到原文审核后刷新并恢复。`#/agents?project=UUID&source=UUID&run=UUID` 通过 GET 恢复；未知提交 UUID 保存在 sessionStorage，先读状态再显式重发，轮询不产生新模型请求。切项目/卸载使迟到响应失效。问答引用复用原文定位。后端现逐事件保存进度和校验后的步骤结果（ADR 0067），仍以顶层任务状态判定完成，不将部分结果当作整个流程完成。详细限制见[协作说明](MULTI_AGENT.zh-CN.md)。
 
 ## 页面与导航
@@ -35,6 +37,7 @@ Vue 3 Composition API、TypeScript、Vite、Element Plus 和原生 SVG。默认 
 | `useKnowledgeManagement` / `useKnowledgeRetirement` | 具名二次确认、同输入重试 UUID、历史写锁、审计列表 |
 | `useConversations` | 保存会话、轮次分页、有限上下文、超时未知结果先检查及显式重试 |
 | `useWorkspaceRoute` | URL 编解码、作用域恢复、历史导航、写锁和恢复失效 |
+| `useCodeContextSelection` | 协作代码版本只读加载、固定提交/本地覆盖、跨上下文失效和提交前校验 |
 
 组件通过 props/emit 接收状态和表达意图；API 请求放在编排模块中。API 类型在 `api/knowledgeAtlas.ts`，领域类型在 `types.ts`，语言注册表在 `sourceLanguages.ts`，Mock 仅在 `mock/`。
 

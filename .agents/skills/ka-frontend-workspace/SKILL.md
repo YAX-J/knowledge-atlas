@@ -179,3 +179,7 @@ AgentWorkspace is a page inside the existing App/SideRail. useAgentRuns owns pag
 ## Progress checkpoint display (ADR 0067)
 
 AgentRunTrace localizes code_checkpoint/extraction_checkpoint/answer_checkpoint as saved code/candidate/answer results and saved as 已保存. Render top-level task status independently of a partial result. Existing GET refresh can expose committed progress; reading/reload must not POST or imply automatic node continuation. Verify the workflow component plus real desktop local-stub extraction and compiler/QA checkpoints, focus and event-panel scrolling; backend persistence and provider quality remain separate checks.
+
+## Explicit workflow scope (ADR 0068)
+
+AgentWorkspace selects retrieval mode, browser-local historical time and fixed-snapshot/local overrides; useCodeContextSelection reuses useLatestRequest for read-only metadata fencing, error retry and membership/99-override validation. History clears code, source changes reset code choices/strategy, and project changes clear question/time/mode. Unspecified local related files use latest parsed versions at execution. Keep draft preview separate from saved allowlisted scope; reload/read never submits it. Verify agentScope.test.ts plus scoped coverage/build and desktop real-API local-stub local-version/synthetic-snapshot/history/error/retry/focus/long-path checks. Native datetime CLI fill may not populate the input; inspect its actual value and use native setter/input events for handler testing, without claiming popup acceptance.

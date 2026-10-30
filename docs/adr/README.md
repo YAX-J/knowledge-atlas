@@ -153,3 +153,5 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0066: Batched global lexical retrieval](0066-batched-global-lexical-retrieval.md)
 
 - [ADR 0067: Durable agent progress](0067-durable-agent-progress.md)
+
+- [ADR 0068: Explicit workflow scope](0068-explicit-workflow-scope.md)

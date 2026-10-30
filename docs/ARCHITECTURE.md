@@ -4,6 +4,8 @@
 
 ## 单项目 Agent 边界（ADR 0064–0065）
 
+ADR 0068 在既有任务请求上接通检索/时间/代码版本范围，并从存量 `AgentRun.request` 白名单投影 `scope`，不新增表或返回原始请求。前端 `useCodeContextSelection` 只读加载和校验版本选择；新草稿与已保存范围分开，历史时间清除当前代码。最终源码范围仍由既有 `code_context` 在编译器/供应商调用前固定，见[范围契约](adr/0068-explicit-workflow-scope.zh-CN.md)。
+
 过程持久化的后续边界见 [ADR 0067](adr/0067-durable-agent-progress.zh-CN.md)：`services/agent_progress.py` 在无待提交业务写入的事务边界保存事件、预留用量和校验后的步骤结果，以用户/项目/执行 UUID/有效租约防护更新。Agent 只收到回调，不持有数据库 Session；保存失败会阻止后续调用。每个事件提交独立于后续业务事务，最终失败保留部分结果。同步执行、人工正式写入、同 UUID 不自动付费重放和 schema0019 均保持。
 
 `agents` 负责角色与有界 LangGraph 工具循环，`workflows` 显式连接依赖，`tools` 提供只读仓库/原文/证据访问；`llm` 集中供应商、提示词和用量，`analysis` 保留确定性解析。`services/agent_workflows.py` 验证用户/项目范围、固定源码、管理任务事务。Agent 不接收数据库 Session。旧模块别名维持兼容。详见[实际目录与持久化边界](MULTI_AGENT.zh-CN.md)。

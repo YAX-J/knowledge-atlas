@@ -44,6 +44,15 @@ class RunEvent(BaseModel):
     tool_name: str|None=None
 
 
+class WorkflowScopeRead(BaseModel):
+    retrieval_mode: Literal['bm25','bm25_source','rrf','hybrid','vector']|None=None
+    valid_at: AwareDatetime|None=None
+    include_code_analysis: bool=False
+    code_strategy: Literal['single_step','tools','semantic']|None=None
+    snapshot_id: uuid.UUID|None=None
+    version_ids: list[uuid.UUID]=Field(default_factory=list)
+
+
 class WorkflowRead(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
@@ -57,6 +66,7 @@ class WorkflowRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     review_counts: dict[str,int]=Field(default_factory=dict)
+    scope: WorkflowScopeRead|None=None
 
 
 class WorkflowList(BaseModel):

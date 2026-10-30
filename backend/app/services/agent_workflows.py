@@ -17,7 +17,7 @@ from datetime import timedelta, timezone
 from sqlalchemy import func, select, update
 from app.models.agent_run import AgentRun
 from app.models.domain import CandidateKnowledge, Project, utc_now
-from app.workflows.contracts import WorkflowList, WorkflowRead
+from app.workflows.contracts import WorkflowList, WorkflowRead, WorkflowScopeRead
 
 
 def aware(value):
@@ -47,9 +47,20 @@ def read_run(db,*,user_id,project_id,run_id):
     item=_record(db,user_id,project_id,run_id)
     status=item.status
     if status=='running' and (item.lease_until is None or aware(item.lease_until)<=utc_now()):status='interrupted'
+    request = item.request or {}
+    question = item.kind == 'question_pipeline'
+    include_code = bool(request.get('include_code_analysis', False))
+    scope = WorkflowScopeRead(
+        retrieval_mode=request.get('retrieval_mode', 'bm25') if question else None,
+        valid_at=request.get('valid_at') if question else None,
+        include_code_analysis=include_code,
+        code_strategy=request.get('code_strategy', 'single_step') if include_code else None,
+        snapshot_id=request.get('snapshot_id') if include_code else None,
+        version_ids=(request.get('version_ids') or []) if include_code else [],
+    )
     return WorkflowRead(id=item.id,project_id=item.project_id,source_id=item.source_id,kind=item.kind,status=status,
         result=item.result,events=item.events,usage=item.usage,error_code=item.error_code,
-        created_at=item.created_at,updated_at=item.updated_at,review_counts=_counts(db,item))
+        created_at=item.created_at,updated_at=item.updated_at,review_counts=_counts(db,item),scope=scope)
 
 
 def list_runs(db,*,user_id,project_id,page,page_size):

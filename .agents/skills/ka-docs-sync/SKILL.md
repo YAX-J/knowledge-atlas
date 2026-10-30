@@ -118,3 +118,7 @@ Current BM25/source-aware BM25 and the RRF lexical leg use v2 identifiers, 200-e
 ## Durable agent progress (ADR 0067)
 
 Current agent events and call reservations persist during synchronous execution; validated code/answer and committed extraction IDs have checkpoints. Replace current end-only persistence descriptions, preserve historical acceptance reports, and describe primary status vs partial result, pending-write refusal, lease fencing, conservative reservations and lack of automatic paid continuation. Schema/head remains0019. Sync API, MULTI_AGENT, architecture, frontend labels, backend READMEs, plans, changelog and paired ADR; stub integration is not provider quality.
+
+## Explicit workflow scope (ADR 0068)
+
+WorkflowRead.scope projects only retrieval_mode/valid_at/include_code_analysis/code_strategy/snapshot_id/version_ids from existing requests; do not document raw request exposure or a migration. Current UI supports choices, timezone-aware history, draft vs saved scope and read-only context retry, replacing the initial default-context-only page description. Keep BM25 default, unspecified-local-latest-at-execution semantics, truncation, backend validation and no automatic replay explicit. Pair MULTI_AGENT/backend README/plans/changelog/ADR updates; synthetic snapshot browser fixtures are not new remote acceptance.
