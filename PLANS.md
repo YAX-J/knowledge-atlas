@@ -27,4 +27,6 @@ Private repository acceptance, privileged fresh-database recovery, Docker and re
 
 ## Planning rules
 
-Preserve evidence, user/project scope, explicit human graph writes and additive migration safety. Proposed future work should follow measured failures: bounded full-text pagination beyond 1k, representative semantic/vector benchmarks, then index/caching decisions. Current warm synthetic results do not establish production capacity. No push/deployment or new major phase is authorized by this plan alone.
+The 2026-10-30 lexical coverage change replaces the 1k window with 200-entity keyset batches and a 50k explicit scan budget, shared global BM25 statistics, bounded per-entity evidence and v2 protocol metadata (ADR 0066). Regression/acceptance results are recorded in that ADR after execution; historical experiments and the holdout remain unchanged.
+
+Preserve evidence, user/project scope, explicit human graph writes and additive migration safety. Future work should measure the v2 batch scan and representative semantic/vector workloads before index/caching decisions. The synchronous scan is not a resumable cross-request job. Current warm synthetic results do not establish production capacity. No push/deployment or new major phase is authorized by this plan alone.

@@ -8,6 +8,8 @@
 
 ## 本轮上下文与运行检查
 
+BM25/来源位置 BM25 使用 `mixed-bm25-v2` / `mixed-bm25-source-v2`：每批 200 个实体按键分页，在最多 50,000 个作用域内可见实体上统一统计和打分；每实体最多 32 条排序证据、每条 2000 字符、排序文本 4000 字符。`lexical.matched_count` 与 `results_truncated` 区分 Top K 结果和扫描/文本省略；RRF 词法路使用同一实现。不新增供应商请求、迁移、持久化索引或正式图谱写入。见 [ADR 0066](../docs/adr/0066-batched-global-lexical-retrieval.zh-CN.md)。旧实验分数不是 v2 测量。
+
 `GET /sources/{id}/analysis-contexts` 只读列出可选提交/重复路径版本；显式调用分析接受 snapshot_id 或重复 version_ids，返回实际 context。所有策略使用固定原路径、有界正文和用户/项目/仓库隔离。别名长度按规范化值再次校验；合并链/解除检索有回归。就绪状态检查实际 schema0019 与关键表/列。
 
 索引规划原始归属证据每500实体读取，不改变哈希或付费规则。规模复现：`python -m scripts.benchmark_scale --output ../output/scale-new-run.json --repeats 20`；仅自有临时原生schema，无供应商。API字段见[契约](../docs/API_CONTRACT.md)，测量边界见[报告](../evaluation/performance/2026-10-29-scale/README.zh-CN.md)。

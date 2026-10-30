@@ -313,7 +313,7 @@ def run_evaluation(
             "answer": settings.deepseek_model if with_answers else None,
         },
         "successful_provider_call_counts": {"embedding": 0, "answer": 0},
-        "retrieval_protocols": {mode: 'mixed-bm25-source-v1' if mode == 'bm25_source' else lexical.PROTOCOL if mode == 'bm25' else 'bm25-vector-rrf-v1' if mode == 'rrf' else 'legacy-v1' for mode in modes},
+        "retrieval_protocols": {mode: lexical.SOURCE_PROTOCOL if mode == 'bm25_source' else lexical.PROTOCOL if mode == 'bm25' else 'bm25-vector-rrf-v2' if mode == 'rrf' else 'legacy-v1' for mode in modes},
         "outputs": {},
     }
     manifest_path = output_dir / "run.json"

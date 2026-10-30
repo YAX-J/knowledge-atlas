@@ -74,13 +74,15 @@ def test_bm25_handles_chinese_questions_without_changing_literal_mode(client, co
     assert data['items'][0]['matched_fields'] == ['summary']
     assert data['items'][0]['bm25_score'] > 0
     assert data['items'][0]['keyword_score'] is None
-    assert data['lexical']['protocol'] == 'mixed-bm25-v1'
+    assert data['lexical']['protocol'] == 'mixed-bm25-v2'
     assert '资料' in data['lexical']['query_terms']
     assert data == client.get(url, params={'q': query, 'mode': 'bm25'}).json()
     assert client.get(url, params={'q': '%', 'mode': 'bm25'}).status_code == 422
 
 
-def test_bm25_scope_type_time_and_archived_boundaries(client, db_session, configured, monkeypatch):
+@pytest.mark.parametrize('batch_size', [1, 200])
+def test_bm25_scope_type_time_and_archived_boundaries(client, db_session, configured, monkeypatch, batch_size):
+    monkeypatch.setattr(search, 'BM25_BATCH_SIZE', batch_size)
     project_id, _ = confirmed(client, monkeypatch)
     url = f'/api/v1/projects/{project_id}/search'
     params = {'q': '中文资料', 'mode': 'bm25'}
@@ -109,8 +111,7 @@ def test_bm25_scope_type_time_and_archived_boundaries(client, db_session, config
     assert client.get(url, params=params).status_code == 404
 
 
-@pytest.mark.parametrize('limit,reason', [('BM25_ENTITY_LIMIT', 'entity_limit'),
-                                          ('BM25_EVIDENCE_LIMIT', 'evidence_limit'), ('BM25_TEXT_LIMIT', 'text_limit')])
+@pytest.mark.parametrize('limit,reason', [('BM25_ENTITY_LIMIT', 'entity_limit'), ('BM25_TEXT_LIMIT', 'text_limit')])
 def test_bm25_reports_scan_and_text_truncation(client, configured, monkeypatch, limit, reason):
     project_id, _ = confirmed(client, monkeypatch)
     monkeypatch.setattr(search, limit, 1)

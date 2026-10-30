@@ -72,7 +72,7 @@ def main():
         print("Native migration upgrade/downgrade/upgrade: PASS", flush=True)
         env = {**os.environ, "DATABASE_URL": rendered, "KA_ACCEPTANCE_SCHEMA": schema}
         tests = ["tests/test_evolution.py", "tests/test_stage_four_workflow.py", "tests/test_native_acceptance.py",
-                 "tests/test_prepare_evaluation.py", "tests/test_lexical_search.py",
+                 "tests/test_prepare_evaluation.py", "tests/test_lexical_search.py", "tests/test_batched_lexical.py",
                  "tests/test_retrieval_optimization.py", "tests/test_maintenance_optimization.py",
                  "tests/test_batch_reviews.py", "tests/test_embedding_status.py", "tests/test_knowledge_discovery.py",
                  "tests/test_source_filters.py", "tests/test_embedding_jobs.py", "tests/test_source_retrieval.py",

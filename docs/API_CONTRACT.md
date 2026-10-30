@@ -572,7 +572,7 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 
 返回 `{ "query": "规范化空白后的查询", "mode": "keyword", "items": [...], "truncated": false }`。每条 `items` 包含 `entity`、相关模式的分数字段、`matched_fields`、`graph_connections` 及最多 3 条 `evidence`。向量和混合模式还返回 `indexed_count` 与 `eligible_count`；混合模式另返回 `weights`。结果仅含正式实体，不含待审核/拒绝候选或关系。
 
-`bm25` 使用 Han 单字/相邻二字片段、casefold Unicode 单词及标识符/部分，允许多词软匹配，不套用旧模式 8 词 AND 规则。纯标点查询返回 422 `SEARCH_QUERY_INVALID`（符号精确检索可用 `keyword`）。每项新增可空 `bm25_score`；顶层 `lexical` 包含 `protocol=mixed-bm25-v1`、`query_terms`、`scanned_count`、`entity_limit=1000`、`text_limit_per_entity=4000`、`truncated_reasons`（`entity_limit/evidence_limit/text_limit`）。仅在作用域/有效时间内的正式实体上统计；最多 5000 条排序证据、每条最多 2000 字符。语料、证据或排序文本省略也使 `truncated=true`，不能把它只解释为 Top K 截断。`eligible_count` 是可见实体总数，`indexed_count=null`，并非“语义索引未完成”。返回证据仍是精确原文，BM25 不写图谱、不调用外部服务。详见 [ADR 0044](adr/0044-bounded-offline-bm25-search.zh-CN.md)。
+`bm25` 使用 Han 单字/相邻二字片段、casefold Unicode 单词及标识符/部分，允许多词软匹配，不套用旧模式 8 词 AND 规则。纯标点查询返回 422 `SEARCH_QUERY_INVALID`（符号精确检索可用 `keyword`）。每项含可空 `bm25_score`；顶层 `lexical` 使用 `protocol=mixed-bm25-v2`，包含 `query_terms`、累计 `scanned_count`、`entity_limit=50000`、`batch_size=200`、`evidence_limit_per_entity=32`、`text_limit_per_entity=4000`、扫描文本内的正分 `matched_count`、`results_truncated` 和 `truncated_reasons`（`entity_limit/evidence_limit/text_limit`）。名称/UUID 按键分页中的全部已扫描正式实体共同贡献 BM25 全局统计，包含空文本与无命中文档，分批不改变语料统计口径。每个规范实体独享最多 32 条排序证据、每条最多 2000 字符；超预算独立报告，不挤占同批其他实体。`results_truncated` 仅指词法匹配数超过词法 Top K，`truncated_reasons` 表达排序输入省略；总 `truncated` 为两者并集。RRF 的词法元数据指其词法候选池，最终融合 Top K 另由总 `truncated` 表达。`eligible_count` 是可见实体总数，`indexed_count=null`，并非“语义索引未完成”。返回证据仍是精确原文，BM25 不写图谱、不调用外部服务。同步分页不提供跨请求恢复或可重复读快照。旧 v1 协议值仍可解析，既有实验结果不改写；当前协议见 [ADR 0066](adr/0066-batched-global-lexical-retrieval.zh-CN.md)。
 
 向量分支先本地校验嵌入配置、统计同模型/维度的可见索引，为零则直接返回空向量结果，避免空项目/空索引仍付费请求查询嵌入。混合的字面/图分支仍可返回命中。未配置、错误维度、供应商故障的错误语义保留，不静默回退；有匹配索引时仍正常调用查询嵌入。
 
@@ -748,7 +748,7 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 
 `POST .../embeddings/rebuild` 仍同步返回原结果，在项目锁内持久化认领。运行中重复请求返回 409 EMBEDDING_REBUILD_RUNNING；900 秒租约过期的运行记录返回 interrupted=true，普通 POST 返回 409 EMBEDDING_REBUILD_INTERRUPTED，只有明确 `?retry_interrupted=true` 可接手。每批续租、落库前校验执行 UUID；旧执行返回 409 EMBEDDING_REBUILD_REPLACED，不覆盖新归属。不自动重试，不承诺供应商计费严格一次。
 
-搜索 mode 和问答 retrieval_mode 新增可选 bm25_source，LexicalSearchInfo.protocol 为 mixed-bm25-source-v1，matched_fields 可含 provenance。只把正式证据对应的 original_name/relative_path/heading_path 纳入既有有界词法预算；不扩展未审核来源、正式对象、问答历史或引用 ID。旧默认和旧模式协议不变。
+搜索 mode 和问答 retrieval_mode 支持可选 bm25_source，当前 LexicalSearchInfo.protocol 为 mixed-bm25-source-v2，matched_fields 可含 provenance；分批与预算规则同上。只把正式证据对应的 original_name/relative_path/heading_path 纳入有界词法预算；不扩展未审核来源、正式对象、问答历史或引用 ID。默认模式不变，历史 mixed-bm25-source-v1 实验保持原样。
 
 客户端网络/等待失败对读取报告 READ_UNAVAILABLE，对写入报告 REQUEST_RESULT_UNKNOWN；后者不能视为服务端回滚。索引更新以状态查询恢复，问答/调用分析仍非持久化。备份恢复仅提供本机 CLI，不新增恢复 API。
 

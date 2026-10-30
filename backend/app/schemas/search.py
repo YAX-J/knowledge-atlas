@@ -40,11 +40,15 @@ class SearchHit(BaseModel):
 
 
 class LexicalSearchInfo(BaseModel):
-    protocol: Literal['mixed-bm25-v1', 'mixed-bm25-source-v1'] = 'mixed-bm25-v1'
+    protocol: Literal['mixed-bm25-v1', 'mixed-bm25-source-v1', 'mixed-bm25-v2', 'mixed-bm25-source-v2'] = 'mixed-bm25-v2'
     query_terms: list[str]
     scanned_count: int
     entity_limit: int
     text_limit_per_entity: int
+    batch_size: int | None = None
+    evidence_limit_per_entity: int | None = None
+    matched_count: int | None = None
+    results_truncated: bool = False
     truncated_reasons: list[Literal['entity_limit', 'evidence_limit', 'text_limit']]
 
 

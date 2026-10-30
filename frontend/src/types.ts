@@ -260,11 +260,15 @@ export interface KnowledgeSearchResult {
   eligible_count: number | null
   weights: { keyword: number; vector: number; graph: number } | null
   lexical?: {
-    protocol: 'mixed-bm25-v1' | 'mixed-bm25-source-v1'
+    protocol: 'mixed-bm25-v1' | 'mixed-bm25-source-v1' | 'mixed-bm25-v2' | 'mixed-bm25-source-v2'
     query_terms: string[]
     scanned_count: number
     entity_limit: number
     text_limit_per_entity: number
+    batch_size?: number | null
+    evidence_limit_per_entity?: number | null
+    matched_count?: number | null
+    results_truncated?: boolean
     truncated_reasons: ('entity_limit' | 'evidence_limit' | 'text_limit')[]
   } | null
 }

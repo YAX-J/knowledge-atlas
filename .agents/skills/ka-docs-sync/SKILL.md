@@ -110,3 +110,7 @@ Current root README/PLANS/ROADMAP/FRONTEND consolidate capabilities; pre-2026102
 ## Single-project multi-agent extension (ADR0064–0065)
 
 Current extension is ADR0064–0065, docs/MULTI_AGENT.md and .zh-CN.md, with agent_runs migration0019. Update actual canonical tree and legacy aliases, shared/per-role attempted-call limits, explicit human resume, synchronous event persistence and lack of crash-node recovery. Keep root/backend/setup/API/frontend/knowledge-model/plan/changelog paired where companions exist. Preserve historical0018 reports and frozen experiments. Do not describe stub protocol tests as new real-provider quality or completed human grading.
+
+## Batched lexical v2 (ADR 0066)
+
+Current BM25/source-aware BM25 and the RRF lexical leg use v2 identifiers, 200-entity keyset batches, a 50k scan ceiling, global corpus statistics, 32 ranking quotes per canonical entity and the existing text limits. Document matched_count/results_truncated separately from omitted scan/text. Update API/current plans/backend README and bilingual ADR/changelog together; keep v1 experiment assets and historical performance/quality reports unchanged. Synchronous batching does not establish cross-request resume, repeatable-read isolation or measured v2 production capacity.

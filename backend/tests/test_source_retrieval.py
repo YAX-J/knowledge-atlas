@@ -39,7 +39,7 @@ def test_independent_source_location_cases(client, db_session, configured, monke
     url = f'/api/v1/projects/{project}/search'
     before = client.get(url, params={'q': case['query'], 'mode': 'bm25'}).json()
     after = client.get(url, params={'q': case['query'], 'mode': 'bm25_source'}).json()
-    assert after['lexical']['protocol'] == 'mixed-bm25-source-v1'
+    assert after['lexical']['protocol'] == 'mixed-bm25-source-v2'
     assert bool(after['items']) == case.get('retrieval_match', case['answerable'])
     if case.get('retrieval_match', case['answerable']):
         assert after['items'][0]['evidence'][0]['chunk_id'] == items[0]['evidence'][0]['chunk_id']

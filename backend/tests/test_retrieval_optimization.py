@@ -24,7 +24,7 @@ def test_rrf_combines_ranks_and_keeps_legacy_modes(client, configured, monkeypat
     legacy = client.get(url, params={'q': 'PostgreSQL', 'mode': 'hybrid'}).json()
     data = client.get(url, params={'q': 'PostgreSQL', 'mode': 'rrf'}).json()
     assert data['mode'] == 'rrf' and data['weights'] is None
-    assert data['lexical']['protocol'] == 'mixed-bm25-v1'
+    assert data['lexical']['protocol'] == 'mixed-bm25-v2'
     assert data['indexed_count'] == data['eligible_count'] == 2
     for hit in data['items']:
         expected = sum(1 / (60 + hit[key]) for key in ('lexical_rank', 'vector_rank') if hit[key])

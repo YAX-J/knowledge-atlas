@@ -1,4 +1,5 @@
 import math
+import heapq
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -22,8 +23,9 @@ from app.services.projects import get_project
 HYBRID_POOL_LIMIT = 100
 HYBRID_EDGE_LIMIT = 500
 HYBRID_WEIGHTS = SearchWeights(keyword=0.3, vector=0.4, graph=0.3)
-BM25_ENTITY_LIMIT = 1000
-BM25_EVIDENCE_LIMIT = 5000
+BM25_ENTITY_LIMIT = 50000
+BM25_BATCH_SIZE = 200
+BM25_EVIDENCE_LIMIT = 32  # Per canonical entity, not shared by a batch.
 BM25_TEXT_LIMIT = 4000
 BM25_QUOTE_LIMIT = 2000
 
@@ -119,32 +121,24 @@ def _keyword_search(
     return SearchRead(query=normalized, mode='keyword', items=items, truncated=truncated)
 
 
-def _bm25_search(
-    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, query: str,
-    types: list[str], valid_at: datetime | None, top_k: int, provenance: bool = False,
-) -> SearchRead:
-    normalized = ' '.join(query.split())
-    if not lexical.tokenize(normalized):
-        raise AppError(status_code=422, code='SEARCH_QUERY_INVALID', message='请输入包含文字或标识符的问题；符号精确匹配请使用关键词模式')
-    at = valid_at or utc_now()
-    conditions = _base_conditions(user_id, project_id, at, types)
-    eligible = db.scalar(select(func.count()).select_from(KnowledgeEntity).where(*conditions)) or 0
-    entities = list(db.scalars(select(KnowledgeEntity).where(*conditions).order_by(
-        KnowledgeEntity.name, KnowledgeEntity.id,
-    ).limit(BM25_ENTITY_LIMIT)))
-    reasons = {'entity_limit'} if eligible > len(entities) else set()
+def _bm25_documents(db, *, user_id, project_id, at, entities, provenance):
+    """Read bounded ranking text for one batch; never load source bodies."""
+    reasons: set[str] = set()
     ids = [entity.id for entity in entities]
     aliases = identities.alias_names(db, user_id, project_id, at, ids)
     evidence_owner = identities.canonical(KnowledgeEvidence.entity_id, user_id, project_id, at)
     quotes: dict[uuid.UUID, list[str]] = {}
     locations: dict[uuid.UUID, list[str]] = {}
     if ids:
-        rows = db.execute(select(
-            evidence_owner,
-            func.substr(KnowledgeEvidence.quote, 1, BM25_QUOTE_LIMIT),
-            func.length(KnowledgeEvidence.quote),
+        ranked_evidence = select(
+            evidence_owner.label('owner'),
+            func.substr(KnowledgeEvidence.quote, 1, BM25_QUOTE_LIMIT).label('quote'),
+            func.length(KnowledgeEvidence.quote).label('quote_length'),
             SourceDocument.original_name, SourceDocument.relative_path,
             SourceChunk.heading_path,
+            func.row_number().over(partition_by=evidence_owner, order_by=(
+                KnowledgeEvidence.entity_id, KnowledgeEvidence.start_line, KnowledgeEvidence.id,
+            )).label('ordinal'),
         ).join(SourceDocument, SourceDocument.id == KnowledgeEvidence.source_id).join(
             SourceChunk, SourceChunk.id == KnowledgeEvidence.chunk_id,
         ).where(
@@ -153,12 +147,14 @@ def _bm25_search(
             SourceDocument.user_id == user_id, SourceDocument.project_id == project_id,
             SourceChunk.user_id == user_id, SourceChunk.project_id == project_id,
             SourceChunk.source_id == KnowledgeEvidence.source_id,
-        ).order_by(KnowledgeEvidence.entity_id, KnowledgeEvidence.start_line, KnowledgeEvidence.id).limit(
-            BM25_EVIDENCE_LIMIT + 1,
-        )).all()
-        if len(rows) > BM25_EVIDENCE_LIMIT:
-            reasons.add('evidence_limit')
-        for owner, quote, length, filename, path, headings in rows[:BM25_EVIDENCE_LIMIT]:
+        ).subquery()
+        rows = db.execute(select(ranked_evidence).where(
+            ranked_evidence.c.ordinal <= BM25_EVIDENCE_LIMIT + 1,
+        ).order_by(ranked_evidence.c.owner, ranked_evidence.c.ordinal))
+        for owner, quote, length, filename, path, headings, ordinal in rows:
+            if ordinal > BM25_EVIDENCE_LIMIT:
+                reasons.add('evidence_limit')
+                continue
             quotes.setdefault(owner, []).append(quote)
             if provenance:
                 heading_text = ' '.join(headings)
@@ -181,21 +177,76 @@ def _bm25_search(
                 reasons.add('text_limit')
             remaining = max(0, remaining - len(value))
         documents.append(document)
-    terms, scores = lexical.rank_fields(documents, normalized)
-    ranked = sorted(((entity, score, fields) for entity, (score, fields) in zip(entities, scores, strict=True) if score > 0),
-                    key=lambda item: (-item[1], item[0].name, str(item[0].id)))
-    truncated = bool(reasons) or len(ranked) > top_k
-    ranked = ranked[:top_k]
-    reads = graph._reads(db, [item[0] for item in ranked], at=at)
-    evidence_by_entity = graph.evidence_for_records(db, [item[0] for item in ranked], at=at)
+    return documents, reasons
+
+
+def _bm25_search(
+    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, query: str,
+    types: list[str], valid_at: datetime | None, top_k: int, provenance: bool = False,
+) -> SearchRead:
+    normalized = ' '.join(query.split())
+    terms = list(dict.fromkeys(lexical.tokenize(normalized)))
+    if not terms:
+        raise AppError(status_code=422, code='SEARCH_QUERY_INVALID', message='请输入包含文字或标识符的问题；符号精确匹配请使用关键词模式')
+    requested = set(terms)
+    at = valid_at or utc_now()
+    conditions = _base_conditions(user_id, project_id, at, types)
+    eligible = db.scalar(select(func.count()).select_from(KnowledgeEntity).where(*conditions)) or 0
+    corpus = lexical.CorpusStatistics(terms)
+    # Retain only query-term statistics for matches, never the entire corpus text.
+    candidates: list[tuple[uuid.UUID, str, lexical.FieldTerms]] = []
+    reasons: set[str] = set()
+    cursor = None
+    while corpus.document_count < min(eligible, BM25_ENTITY_LIMIT):
+        page_conditions = list(conditions)
+        if cursor is not None:
+            name, identifier = cursor
+            page_conditions.append(or_(KnowledgeEntity.name > name,
+                (KnowledgeEntity.name == name) & (KnowledgeEntity.id > identifier)))
+        entities = db.execute(select(KnowledgeEntity.id, KnowledgeEntity.name,
+            func.substr(KnowledgeEntity.summary, 1, BM25_TEXT_LIMIT + 1).label('summary'),
+        ).where(*page_conditions).order_by(KnowledgeEntity.name, KnowledgeEntity.id).limit(
+            min(BM25_BATCH_SIZE, eligible - corpus.document_count, BM25_ENTITY_LIMIT - corpus.document_count),
+        )).all()
+        if not entities:
+            break
+        documents, omitted = _bm25_documents(db, user_id=user_id, project_id=project_id,
+            at=at, entities=entities, provenance=provenance)
+        reasons.update(omitted)
+        for entity, document in zip(entities, documents, strict=True):
+            summary = lexical.summarize_fields(document, requested)
+            corpus.add(summary)
+            if summary.frequencies:
+                candidates.append((entity.id, entity.name, summary))
+        cursor = (entities[-1].name, entities[-1].id)
+    if corpus.document_count < eligible:
+        reasons.add('entity_limit')
+    ranked = heapq.nsmallest(top_k, (
+        (identifier, name, corpus.score(summary), summary.matched_fields)
+        for identifier, name, summary in candidates
+    ), key=lambda item: (-item[2], item[1], str(item[0])))
+    results_truncated = len(candidates) > top_k
+    ids = [item[0] for item in ranked]
+    records = {entity.id: entity for entity in db.scalars(select(KnowledgeEntity).where(
+        *conditions, KnowledgeEntity.id.in_(ids),
+    ))} if ids else {}
+    selected = [records[identifier] for identifier in ids if identifier in records]
+    reads = {item.id: item for item in graph._reads(db, selected, at=at)}
+    evidence_by_entity = graph.evidence_for_records(db, selected, at=at)
     items = []
-    for (entity, score, fields), read in zip(ranked, reads, strict=True):
-        evidence = evidence_by_entity[entity.id]
+    for identifier, _name, score, fields in ranked:
+        if identifier not in reads:
+            continue
+        evidence = evidence_by_entity[identifier]
         evidence.sort(key=lambda item: (-len(set(lexical.tokenize(item.quote +
             (' ' + item.title + ' ' + ' '.join(item.heading_path) if provenance else ''))) & set(terms)), item.start_line, str(item.id)))
-        items.append(SearchHit(entity=read, bm25_score=round(score, 6), matched_fields=fields, evidence=evidence[:3]))
-    return SearchRead(query=normalized, mode='bm25_source' if provenance else 'bm25', items=items, truncated=truncated, eligible_count=eligible,
-                      lexical=LexicalSearchInfo(protocol='mixed-bm25-source-v1' if provenance else 'mixed-bm25-v1', query_terms=terms, scanned_count=len(entities),
+        items.append(SearchHit(entity=reads[identifier], bm25_score=round(score, 6), matched_fields=fields, evidence=evidence[:3]))
+    return SearchRead(query=normalized, mode='bm25_source' if provenance else 'bm25', items=items,
+                      truncated=bool(reasons) or results_truncated, eligible_count=eligible,
+                      lexical=LexicalSearchInfo(protocol=lexical.SOURCE_PROTOCOL if provenance else lexical.PROTOCOL,
+                          query_terms=terms, scanned_count=corpus.document_count, matched_count=len(candidates),
+                          results_truncated=results_truncated, batch_size=BM25_BATCH_SIZE,
+                          evidence_limit_per_entity=BM25_EVIDENCE_LIMIT,
                           entity_limit=BM25_ENTITY_LIMIT, text_limit_per_entity=BM25_TEXT_LIMIT,
                           truncated_reasons=sorted(reasons)))
 

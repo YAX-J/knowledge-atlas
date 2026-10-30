@@ -8,6 +8,8 @@ Current behavior is specified by the optimization report and ADR 0060–0063; mi
 
 ## Current context and runtime checks
 
+BM25/source-aware BM25 now use `mixed-bm25-v2` / `mixed-bm25-source-v2`: keyset batches of 200, up to 50,000 scoped visible entities, global corpus statistics and per-entity ranking evidence budgets (32 quotes, 2000 characters each, 4000 ranking-text characters). `lexical.matched_count` and `results_truncated` distinguish Top K output from omitted scan/text; RRF uses the same lexical leg. No providers, schema migration, persistent index or formal graph writes are introduced. See [ADR 0066](../docs/adr/0066-batched-global-lexical-retrieval.md). Historical experiment scores are not v2 measurements.
+
 `GET /sources/{id}/analysis-contexts` lists saved commits/duplicate local versions without providers. Explicit call analysis accepts snapshot_id or repeated version_ids and returns actual context; all strategies use immutable paths, bounded bodies and user/project/repository scope. Alias limits are checked after normalization, with merge-chain/unmerge retrieval regressions. Readiness checks physical0019 schema and critical tables/columns.
 
 Index planning reads original-owner evidence in batches500 without changing hashes or paid-operation rules. Reproduce: `python -m scripts.benchmark_scale --output ../output/scale-new-run.json --repeats 20`; disposable native schema, no providers. See [API fields](../docs/API_CONTRACT.md) and [measurement scope](../evaluation/performance/2026-10-29-scale/README.md).

@@ -1,4 +1,4 @@
-"""Opt-in rank fusion; original keyword, BM25 and hybrid protocols stay stable."""
+"""Opt-in rank fusion over batched BM25; keyword and hybrid stay unchanged."""
 import uuid
 from datetime import datetime
 
