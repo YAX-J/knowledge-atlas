@@ -1,0 +1,349 @@
+{
+  "protocol": "native-lexical-v2-20261030",
+  "status": "succeeded",
+  "repeats": 3,
+  "lexical_protocols": [
+    "mixed-bm25-v2",
+    "mixed-bm25-source-v2"
+  ],
+  "provider_calls": 0,
+  "fixture": "Synthetic candidates promoted through ordinary explicit review, one exact quote per entity.",
+  "measurement": "Warm local service calls, one excluded warm-up; tracemalloc Python allocations, not RSS/DB/HTTP latency.",
+  "results": [
+    {
+      "entities": 1000,
+      "reads": [
+        {
+          "query": "PostgreSQL",
+          "mode": "bm25",
+          "samples": [
+            {
+              "selects": 26,
+              "elapsed_ms": 409.649,
+              "peak_python_bytes": 1372483,
+              "output_sha256": "31f207c330a12abf87e4974c7a33e2d1a8e26fec45c76c32994ec06842761b7c"
+            },
+            {
+              "selects": 26,
+              "elapsed_ms": 521.735,
+              "peak_python_bytes": 1399919,
+              "output_sha256": "31f207c330a12abf87e4974c7a33e2d1a8e26fec45c76c32994ec06842761b7c"
+            },
+            {
+              "selects": 26,
+              "elapsed_ms": 496.696,
+              "peak_python_bytes": 1366811,
+              "output_sha256": "31f207c330a12abf87e4974c7a33e2d1a8e26fec45c76c32994ec06842761b7c"
+            }
+          ],
+          "median_ms": 496.696,
+          "max_peak_python_bytes": 1399919,
+          "lexical": {
+            "protocol": "mixed-bm25-v2",
+            "query_terms": [
+              "postgresql"
+            ],
+            "scanned_count": 1000,
+            "entity_limit": 50000,
+            "text_limit_per_entity": 4000,
+            "batch_size": 200,
+            "evidence_limit_per_entity": 32,
+            "matched_count": 1000,
+            "results_truncated": true,
+            "truncated_reasons": []
+          }
+        },
+        {
+          "query": "record 999",
+          "mode": "bm25",
+          "samples": [
+            {
+              "selects": 26,
+              "elapsed_ms": 419.167,
+              "peak_python_bytes": 1320922,
+              "output_sha256": "4c80fb830effe0bfb5e674a1fc3a3d434680d94eb9ae0e6e554ff24284d50328"
+            },
+            {
+              "selects": 26,
+              "elapsed_ms": 410.26,
+              "peak_python_bytes": 1320342,
+              "output_sha256": "4c80fb830effe0bfb5e674a1fc3a3d434680d94eb9ae0e6e554ff24284d50328"
+            },
+            {
+              "selects": 26,
+              "elapsed_ms": 422.458,
+              "peak_python_bytes": 1324742,
+              "output_sha256": "4c80fb830effe0bfb5e674a1fc3a3d434680d94eb9ae0e6e554ff24284d50328"
+            }
+          ],
+          "median_ms": 419.167,
+          "max_peak_python_bytes": 1324742,
+          "lexical": {
+            "protocol": "mixed-bm25-v2",
+            "query_terms": [
+              "record",
+              "999"
+            ],
+            "scanned_count": 1000,
+            "entity_limit": 50000,
+            "text_limit_per_entity": 4000,
+            "batch_size": 200,
+            "evidence_limit_per_entity": 32,
+            "matched_count": 1000,
+            "results_truncated": true,
+            "truncated_reasons": []
+          }
+        },
+        {
+          "query": "PostgreSQL",
+          "mode": "bm25_source",
+          "samples": [
+            {
+              "selects": 26,
+              "elapsed_ms": 482.397,
+              "peak_python_bytes": 1329145,
+              "output_sha256": "daf19b6573f6aefb8c88aabc446dbb8691384d23488cfff5010a2fcb3101cc46"
+            },
+            {
+              "selects": 26,
+              "elapsed_ms": 478.273,
+              "peak_python_bytes": 1330277,
+              "output_sha256": "daf19b6573f6aefb8c88aabc446dbb8691384d23488cfff5010a2fcb3101cc46"
+            },
+            {
+              "selects": 26,
+              "elapsed_ms": 480.218,
+              "peak_python_bytes": 1329471,
+              "output_sha256": "daf19b6573f6aefb8c88aabc446dbb8691384d23488cfff5010a2fcb3101cc46"
+            }
+          ],
+          "median_ms": 480.218,
+          "max_peak_python_bytes": 1330277,
+          "lexical": {
+            "protocol": "mixed-bm25-source-v2",
+            "query_terms": [
+              "postgresql"
+            ],
+            "scanned_count": 1000,
+            "entity_limit": 50000,
+            "text_limit_per_entity": 4000,
+            "batch_size": 200,
+            "evidence_limit_per_entity": 32,
+            "matched_count": 1000,
+            "results_truncated": true,
+            "truncated_reasons": []
+          }
+        },
+        {
+          "query": "record 999",
+          "mode": "bm25_source",
+          "samples": [
+            {
+              "selects": 26,
+              "elapsed_ms": 479.398,
+              "peak_python_bytes": 1331698,
+              "output_sha256": "fa0277139716febfc1740b03deb3296c41877ef1692a21a954de0e48f8695646"
+            },
+            {
+              "selects": 26,
+              "elapsed_ms": 365.297,
+              "peak_python_bytes": 1332989,
+              "output_sha256": "fa0277139716febfc1740b03deb3296c41877ef1692a21a954de0e48f8695646"
+            },
+            {
+              "selects": 26,
+              "elapsed_ms": 358.559,
+              "peak_python_bytes": 1335005,
+              "output_sha256": "fa0277139716febfc1740b03deb3296c41877ef1692a21a954de0e48f8695646"
+            }
+          ],
+          "median_ms": 365.297,
+          "max_peak_python_bytes": 1335005,
+          "lexical": {
+            "protocol": "mixed-bm25-source-v2",
+            "query_terms": [
+              "record",
+              "999"
+            ],
+            "scanned_count": 1000,
+            "entity_limit": 50000,
+            "text_limit_per_entity": 4000,
+            "batch_size": 200,
+            "evidence_limit_per_entity": 32,
+            "matched_count": 1000,
+            "results_truncated": true,
+            "truncated_reasons": []
+          }
+        }
+      ]
+    },
+    {
+      "entities": 10000,
+      "reads": [
+        {
+          "query": "PostgreSQL",
+          "mode": "bm25",
+          "samples": [
+            {
+              "selects": 161,
+              "elapsed_ms": 3497.64,
+              "peak_python_bytes": 7220115,
+              "output_sha256": "108ed6279f6050cf65ed1d8db14694eb192d20d4278b3518abcd16973e961e0f"
+            },
+            {
+              "selects": 161,
+              "elapsed_ms": 3357.603,
+              "peak_python_bytes": 7231583,
+              "output_sha256": "108ed6279f6050cf65ed1d8db14694eb192d20d4278b3518abcd16973e961e0f"
+            },
+            {
+              "selects": 161,
+              "elapsed_ms": 3331.669,
+              "peak_python_bytes": 7219416,
+              "output_sha256": "108ed6279f6050cf65ed1d8db14694eb192d20d4278b3518abcd16973e961e0f"
+            }
+          ],
+          "median_ms": 3357.603,
+          "max_peak_python_bytes": 7231583,
+          "lexical": {
+            "protocol": "mixed-bm25-v2",
+            "query_terms": [
+              "postgresql"
+            ],
+            "scanned_count": 10000,
+            "entity_limit": 50000,
+            "text_limit_per_entity": 4000,
+            "batch_size": 200,
+            "evidence_limit_per_entity": 32,
+            "matched_count": 10000,
+            "results_truncated": true,
+            "truncated_reasons": []
+          }
+        },
+        {
+          "query": "record 9999",
+          "mode": "bm25",
+          "samples": [
+            {
+              "selects": 161,
+              "elapsed_ms": 3330.911,
+              "peak_python_bytes": 7139429,
+              "output_sha256": "d4fb1ffb4c804e91abe5e11e1d494ce86ae523d2b023350535b3b69fb7eb891d"
+            },
+            {
+              "selects": 161,
+              "elapsed_ms": 3393.467,
+              "peak_python_bytes": 7139727,
+              "output_sha256": "d4fb1ffb4c804e91abe5e11e1d494ce86ae523d2b023350535b3b69fb7eb891d"
+            },
+            {
+              "selects": 161,
+              "elapsed_ms": 3367.718,
+              "peak_python_bytes": 7139972,
+              "output_sha256": "d4fb1ffb4c804e91abe5e11e1d494ce86ae523d2b023350535b3b69fb7eb891d"
+            }
+          ],
+          "median_ms": 3367.718,
+          "max_peak_python_bytes": 7139972,
+          "lexical": {
+            "protocol": "mixed-bm25-v2",
+            "query_terms": [
+              "record",
+              "9999"
+            ],
+            "scanned_count": 10000,
+            "entity_limit": 50000,
+            "text_limit_per_entity": 4000,
+            "batch_size": 200,
+            "evidence_limit_per_entity": 32,
+            "matched_count": 10000,
+            "results_truncated": true,
+            "truncated_reasons": []
+          }
+        },
+        {
+          "query": "PostgreSQL",
+          "mode": "bm25_source",
+          "samples": [
+            {
+              "selects": 161,
+              "elapsed_ms": 3979.058,
+              "peak_python_bytes": 7175531,
+              "output_sha256": "3101c9aef12be8fe6ab6bf211e807f6e9d23f01f3b14c98372d910a72273284e"
+            },
+            {
+              "selects": 161,
+              "elapsed_ms": 3968.589,
+              "peak_python_bytes": 7177825,
+              "output_sha256": "3101c9aef12be8fe6ab6bf211e807f6e9d23f01f3b14c98372d910a72273284e"
+            },
+            {
+              "selects": 161,
+              "elapsed_ms": 3949.102,
+              "peak_python_bytes": 7175258,
+              "output_sha256": "3101c9aef12be8fe6ab6bf211e807f6e9d23f01f3b14c98372d910a72273284e"
+            }
+          ],
+          "median_ms": 3968.589,
+          "max_peak_python_bytes": 7177825,
+          "lexical": {
+            "protocol": "mixed-bm25-source-v2",
+            "query_terms": [
+              "postgresql"
+            ],
+            "scanned_count": 10000,
+            "entity_limit": 50000,
+            "text_limit_per_entity": 4000,
+            "batch_size": 200,
+            "evidence_limit_per_entity": 32,
+            "matched_count": 10000,
+            "results_truncated": true,
+            "truncated_reasons": []
+          }
+        },
+        {
+          "query": "record 9999",
+          "mode": "bm25_source",
+          "samples": [
+            {
+              "selects": 161,
+              "elapsed_ms": 3848.249,
+              "peak_python_bytes": 7145658,
+              "output_sha256": "0faa3b860bae6c0e44029ca5c8ae657e193c222f85e8a3390ddcccab0f27ffdd"
+            },
+            {
+              "selects": 161,
+              "elapsed_ms": 3869.653,
+              "peak_python_bytes": 7145405,
+              "output_sha256": "0faa3b860bae6c0e44029ca5c8ae657e193c222f85e8a3390ddcccab0f27ffdd"
+            },
+            {
+              "selects": 161,
+              "elapsed_ms": 3880.814,
+              "peak_python_bytes": 7145308,
+              "output_sha256": "0faa3b860bae6c0e44029ca5c8ae657e193c222f85e8a3390ddcccab0f27ffdd"
+            }
+          ],
+          "median_ms": 3869.653,
+          "max_peak_python_bytes": 7145658,
+          "lexical": {
+            "protocol": "mixed-bm25-source-v2",
+            "query_terms": [
+              "record",
+              "9999"
+            ],
+            "scanned_count": 10000,
+            "entity_limit": 50000,
+            "text_limit_per_entity": 4000,
+            "batch_size": 200,
+            "evidence_limit_per_entity": 32,
+            "matched_count": 10000,
+            "results_truncated": true,
+            "truncated_reasons": []
+          }
+        }
+      ]
+    }
+  ],
+  "schemas_removed": true
+}

@@ -8,15 +8,15 @@ import hashlib
 import importlib
 import uuid
 from bisect import bisect_right
-from dataclasses import dataclass
 from functools import lru_cache
 
 from tree_sitter import Language, Node, Parser
 
-from app.services.java_source import JavaChunk, JavaSymbol
+from app.analysis.structures import JavaChunk, JavaSymbol, CodeAnalysis, CodeCallSite
 
 
 MAX_SYMBOLS = 200
+SYMBOL_PARSER_VERSION = 'tree-sitter-symbols-v1'
 MAX_CALL_SITES = 200
 MAX_VISITS = 100_000
 MAX_CHUNK_LINES = 120
@@ -45,27 +45,6 @@ FIELD_NODES = frozenset({
     "field_declaration", "public_field_definition", "property_signature", "property_declaration",
     "field_definition",
 })
-
-
-@dataclass(frozen=True)
-class CodeAnalysis:
-    symbols: list[JavaSymbol]
-    chunks: list[JavaChunk]
-    call_sites: list["CodeCallSite"]
-    truncated: bool
-    has_syntax_errors: bool
-
-
-@dataclass(frozen=True)
-class CodeCallSite:
-    id: uuid.UUID
-    caller_id: uuid.UUID | None
-    expression: str
-    receiver: str | None
-    callee_name: str
-    line: int
-    column: int
-    quote: str
 
 
 CALL_NODES = {

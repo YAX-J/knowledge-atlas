@@ -1,5 +1,7 @@
 # Knowledge Atlas Development Setup
 
+Optional offline Jev configuration: TYPESAFE_API_KEY (empty until supplied), TYPESAFE_MODEL=jev-1.14.0, TYPESAFE_BASE_URL=https://api.typesafe.ai and TYPESAFE_TIMEOUT_SECONDS=60. No new dependency is needed. Default grading execution is provider-free preflight; see [Jev evaluation](JEV_EVALUATION.md).
+
 Scoped multi-agent workflows now share this application. Update the existing environment with `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"` from backend; this installs pinned LangGraph. Back up/rehearse recovery before `alembic upgrade head` to `20261029_0019`. See [roles, API and synchronous human-review boundaries](MULTI_AGENT.md).
 
 [简体中文](DEVELOPMENT_SETUP.zh-CN.md)

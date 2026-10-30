@@ -86,6 +86,8 @@ The run row is claimed and committed before providers. Same UUID/same input read
 
 Progress persistence refuses pending ORM writes and never flushes unfinished candidates. A persistence failure (`WORKFLOW_PROGRESS_UNAVAILABLE`) or lost ownership (`WORKFLOW_INTERRUPTED`) prevents later callbacks. A pre-call reservation may conservatively count a request that was never sent, so usage is not a billing receipt. Only successfully committed checkpoints survive a process crash; extraction commit and the run checkpoint remain separate transactions. The top-level run status remains authoritative even when a partial result contains a step status. Interrupted tasks remain readable and do not become resumable paid executions by GET/replay.
 
+Under [ADR0071](adr/0071-bounded-read-caches-and-summaries.md), the Vue history now opts into `summary=true`: eight lightweight fields,3 SELECTs, no result/events/request/usage projection. Default full lists and detail endpoints remain compatible; the form lives in AgentWorkflowForm. Evaluation follows [Jev-only policy](JEV_EVALUATION.md), with human coverage0% and no live Jev calls this turn.
+
 ## Batched workflow list reads
 
 `GET /projects/{project_id}/agent-runs` validates the active user/project once, counts and loads the requested page, then reads candidate ID/source/task/review-status projections for that page in one query. It does not load candidate payloads, names or summaries. Counts are matched to each run's exact unique candidate IDs and source/task under the fixed user/project scope, so reused extractions and overlapping or missing ID subsets retain detail-read behavior. Empty/candidate-free pages skip the candidate query.

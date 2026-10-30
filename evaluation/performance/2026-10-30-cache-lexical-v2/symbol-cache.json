@@ -1,0 +1,56 @@
+{
+  "protocol": "symbol-cache-v1",
+  "provider_calls": 0,
+  "source_count": 50,
+  "scope": "Parser/cache calls only; cold first invocation, then repeated keys in one process. Python allocations, not RSS.",
+  "samples": [
+    {
+      "state": "cold",
+      "elapsed_ms": 326.806,
+      "peak_python_bytes": 584957,
+      "output_sha256": "4d9451f07719f0c0f0dfe5784cd04d2e579658087d2fc04afc7f2934e4b9d890",
+      "cache": {
+        "entries": 50,
+        "accounted_bytes": 871050,
+        "hits": 0,
+        "misses": 50
+      }
+    },
+    {
+      "state": "warm",
+      "elapsed_ms": 0.572,
+      "peak_python_bytes": 1717,
+      "output_sha256": "4d9451f07719f0c0f0dfe5784cd04d2e579658087d2fc04afc7f2934e4b9d890",
+      "cache": {
+        "entries": 50,
+        "accounted_bytes": 871050,
+        "hits": 50,
+        "misses": 50
+      }
+    },
+    {
+      "state": "warm",
+      "elapsed_ms": 0.618,
+      "peak_python_bytes": 1717,
+      "output_sha256": "4d9451f07719f0c0f0dfe5784cd04d2e579658087d2fc04afc7f2934e4b9d890",
+      "cache": {
+        "entries": 50,
+        "accounted_bytes": 871050,
+        "hits": 100,
+        "misses": 50
+      }
+    },
+    {
+      "state": "warm",
+      "elapsed_ms": 0.538,
+      "peak_python_bytes": 1717,
+      "output_sha256": "4d9451f07719f0c0f0dfe5784cd04d2e579658087d2fc04afc7f2934e4b9d890",
+      "cache": {
+        "entries": 50,
+        "accounted_bytes": 871050,
+        "hits": 150,
+        "misses": 50
+      }
+    }
+  ]
+}

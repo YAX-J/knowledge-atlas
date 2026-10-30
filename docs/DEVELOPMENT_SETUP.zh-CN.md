@@ -1,5 +1,7 @@
 # Knowledge Atlas 开发环境配置
 
+可选离线 Jev 配置：TYPESAFE_API_KEY（留空待填）、TYPESAFE_MODEL=jev-1.14.0、TYPESAFE_BASE_URL=https://api.typesafe.ai、TYPESAFE_TIMEOUT_SECONDS=60。无需新依赖；默认评审命令只做零调用预演，见 [Jev评审](JEV_EVALUATION.zh-CN.md)。
+
 单项目 Agent 协作已接通。更新依赖后使用迁移 `20261029_0019`；新增固定版本 LangGraph，继续使用现有虚拟环境，执行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"`（backend 目录）。已有数据先备份与隔离恢复核验，再 `alembic upgrade head`。三个角色、四个协作接口和同步/人工审核边界见[实现说明](MULTI_AGENT.zh-CN.md)。
 
 [English](DEVELOPMENT_SETUP.md)

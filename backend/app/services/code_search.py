@@ -1,6 +1,7 @@
 """Bounded read-only multi-language symbol search over ready project sources."""
 
 import uuid
+import hashlib
 
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, selectinload
@@ -15,10 +16,27 @@ from app.services.source_languages import CODE_SOURCE_TYPES
 from app.services.projects import get_project
 from app.services.repositories import get_repository
 from app.services.source_links import github_file_urls, github_line_url
+from app.analysis.symbol_cache import SymbolSnapshot, symbol_cache
+from app.analysis.parsers import java, tree_sitter
 
 
 MAX_SEARCH_SOURCES = 100
 MAX_SEARCH_BYTES = 20 * 1024 * 1024
+
+
+def _symbols(source):
+    parser = java if source.source_type == 'java' else tree_sitter
+    limits = (java.MAX_STRUCTURE_SYMBOLS,) if source.source_type == 'java' else (
+        tree_sitter.MAX_SYMBOLS, tree_sitter.MAX_VISITS, tree_sitter.MAX_CALL_SITES, tree_sitter.MAX_CHUNK_LINES)
+    key = (source.user_id, source.project_id, source.id, hashlib.sha256(source.content.encode('utf-8')).hexdigest(),
+        source.source_type, parser.SYMBOL_PARSER_VERSION, limits)
+    def compute():
+        if source.source_type == 'java':
+            symbols, omitted = java_symbols(source.content, source_id=source.id)
+            return SymbolSnapshot(tuple(symbols), omitted)
+        result = analyze_code(source.content, source_id=source.id, language=source.source_type)
+        return SymbolSnapshot(tuple(result.symbols), result.truncated, result.has_syntax_errors)
+    return symbol_cache.get_or_compute(key, compute)
 
 
 def search_symbols(
@@ -66,13 +84,10 @@ def search_symbols(
     hits: list[CodeSymbolHit] = []
     has_syntax_errors = False
     for source in sources:
-        if source.source_type == "java":
-            symbols, omitted = java_symbols(source.content, source_id=source.id)
-        else:
-            analysis = analyze_code(source.content, source_id=source.id, language=source.source_type)
-            symbols, omitted = analysis.symbols, analysis.truncated
-            has_syntax_errors |= analysis.has_syntax_errors
-        truncated |= omitted
+        analysis = _symbols(source)
+        symbols = analysis.symbols
+        has_syntax_errors |= analysis.has_syntax_errors
+        truncated |= analysis.truncated
         path = source.relative_path or source.original_name
         for symbol in symbols:
             if kind is not None and symbol.kind != kind:

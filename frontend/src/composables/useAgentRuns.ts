@@ -1,10 +1,10 @@
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { ApiError } from '../api/client'
-import { getAgentRun, listAgentRuns, resumeAgentRun, startAgentRun, type AgentRun, type WorkflowInput } from '../api/agents'
+import { getAgentRun, listAgentRuns, resumeAgentRun, startAgentRun, type AgentRun, type AgentRunSummary, type WorkflowInput } from '../api/agents'
 import type { Page } from '../types'
 
 export function useAgentRuns(projectId:()=>string|undefined) {
-  const runs=ref<Page<AgentRun>|null>(null),selected=ref<AgentRun|null>(null)
+  const runs=ref<Page<AgentRunSummary>|null>(null),selected=ref<AgentRun|null>(null)
   const loading=ref(false),sending=ref(false),unknown=ref(false),error=ref('')
   let generation=0,reads=0,disposed=false
   let pending:WorkflowInput|null=null

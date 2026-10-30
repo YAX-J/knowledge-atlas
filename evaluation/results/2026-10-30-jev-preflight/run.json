@@ -1,0 +1,15 @@
+{
+  "protocol": "jev-anonymous-claims-v1",
+  "status": "prepared",
+  "annotation_source": "model",
+  "evaluator": "Jev",
+  "requested_model": "jev-1.14.0",
+  "packet_sha256": "d8497d881d6e526dbbbc0a4dc9177f9897536059b447910fe4963b030d035273",
+  "human_grading_coverage": 0,
+  "planned_requests": 54,
+  "reserved_requests": 0,
+  "completed_requests": 0,
+  "max_requests": 0,
+  "model_graded_reviews": 0,
+  "results": []
+}

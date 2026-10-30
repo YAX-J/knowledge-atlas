@@ -157,3 +157,6 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0068: Explicit workflow scope](0068-explicit-workflow-scope.md)
 
 - [0069 — Claim-level answer evidence](0069-answer-claim-evidence.md)
+
+- [0070 — Jev anonymous evaluation](0070-jev-only-anonymous-evaluation.md)
+- [0071 — Bounded caches and workflow summaries](0071-bounded-read-caches-and-summaries.md)

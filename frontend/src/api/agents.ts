@@ -10,9 +10,12 @@ export interface WorkflowInput {
   include_code_analysis?:boolean; code_strategy?:'single_step'|'tools'|'semantic'
   model_limit?:number; tool_limit?:number; embedding_limit?:number
 }
-export interface AgentRun {
+export interface AgentRunSummary {
   id:string; project_id:string; source_id:string|null; kind:string
   status:'running'|'awaiting_review'|'succeeded'|'failed'|'interrupted'
+  error_code:string|null;created_at:string;updated_at:string
+}
+export interface AgentRun extends AgentRunSummary {
   result:{candidate_ids?:string[];extraction_task_id?:string;answer?:QuestionAnswer;code_analysis?:AgentCallAnalysis|null}|null
   events:AgentEvent[]; usage:{model?:number;tool?:number;embedding?:number}; error_code:string|null
   created_at:string;updated_at:string;review_counts:Record<string,number>
@@ -20,7 +23,7 @@ export interface AgentRun {
     include_code_analysis:boolean;code_strategy:'single_step'|'tools'|'semantic'|null;
     snapshot_id:string|null;version_ids:string[]} | null
 }
-export const listAgentRuns=(project:string,page=1)=>apiRequest<Page<AgentRun>>(`/projects/${project}/agent-runs?page=${page}&page_size=10`)
+export const listAgentRuns=(project:string,page=1)=>apiRequest<Page<AgentRunSummary>>(`/projects/${project}/agent-runs?page=${page}&page_size=10&summary=true`)
 export const getAgentRun=(project:string,id:string)=>apiRequest<AgentRun>(`/projects/${project}/agent-runs/${id}`)
 export const startAgentRun=(project:string,input:WorkflowInput)=>apiRequest<AgentRun>(`/projects/${project}/agent-runs`,{
   method:'POST',body:JSON.stringify(input),signal:AbortSignal.timeout(1000*900) })

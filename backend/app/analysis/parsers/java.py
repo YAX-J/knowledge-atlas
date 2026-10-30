@@ -61,6 +61,7 @@ METHOD_MODIFIERS = frozenset({
     "synchronized", "native", "default", "strictfp",
 })
 MAX_STRUCTURE_SYMBOLS = 200
+SYMBOL_PARSER_VERSION = 'java-symbols-v1'
 MAX_STRUCTURE_CALLS = 500
 MAX_RELATED_TYPES = 400
 MAX_TYPE_RELATIONSHIPS = 500
@@ -69,100 +70,9 @@ MAX_CROSS_FILE_CALLS = 500
 MAX_INHERITANCE_VISITS = 256
 
 
-@dataclass(frozen=True)
-class JavaChunk:
-    id: uuid.UUID
-    position: int
-    kind: str
-    heading_path: list[str]
-    start_line: int
-    end_line: int
-    content: str
-    content_sha256: str
-
-
-@dataclass(frozen=True)
-class JavaSymbol:
-    id: uuid.UUID
-    kind: str
-    name: str
-    qualified_name: str
-    owner: str | None
-    start_line: int
-    end_line: int
-
-
-@dataclass(frozen=True)
-class JavaCall:
-    id: uuid.UUID
-    caller_id: uuid.UUID
-    callee_ids: list[uuid.UUID]
-    callee_name: str
-    line: int
-    resolution: str
-
-
-@dataclass(frozen=True)
-class JavaSourceInput:
-    source_id: uuid.UUID
-    source_path: str
-    content: str
-
-
-@dataclass(frozen=True)
-class JavaRelatedType:
-    id: uuid.UUID
-    source_id: uuid.UUID
-    source_path: str
-    name: str
-    qualified_name: str
-    start_line: int
-    end_line: int
-
-
-@dataclass(frozen=True)
-class JavaTypeRelationship:
-    id: uuid.UUID
-    source_symbol_id: uuid.UUID
-    target_ids: list[uuid.UUID]
-    target_name: str
-    kind: str
-    line: int
-    resolution: str
-
-
-@dataclass(frozen=True)
-class JavaRelatedMethod:
-    id: uuid.UUID
-    source_id: uuid.UUID
-    source_path: str
-    owner_qualified_name: str
-    name: str
-    qualified_name: str
-    start_line: int
-    end_line: int
-
-
-@dataclass(frozen=True)
-class JavaCrossFileCall:
-    id: uuid.UUID
-    caller_id: uuid.UUID
-    target_ids: list[uuid.UUID]
-    receiver: str
-    callee_name: str
-    line: int
-    resolution: str
-
-
-@dataclass(frozen=True)
-class JavaStructure:
-    symbols: list[JavaSymbol]
-    calls: list[JavaCall]
-    related_types: list[JavaRelatedType]
-    type_relationships: list[JavaTypeRelationship]
-    related_methods: list[JavaRelatedMethod]
-    cross_file_calls: list[JavaCrossFileCall]
-    truncated: bool
+from app.analysis.structures import (
+    JavaChunk, JavaSymbol, JavaCall, JavaSourceInput, JavaRelatedType, JavaTypeRelationship, JavaRelatedMethod, JavaCrossFileCall, JavaStructure
+)
 
 
 @dataclass(frozen=True)

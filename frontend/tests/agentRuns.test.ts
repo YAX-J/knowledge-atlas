@@ -34,6 +34,17 @@ it('reads saved claim mappings and forwards exact evidence without issuing anoth
   expect(api.startAgentRun).not.toHaveBeenCalled()
 })
 
+it('loads a lightweight history row and fetches its complete detail only when selected',async()=>{
+  const {result:_result,events:_events,usage:_usage,review_counts:_counts,scope:_scope,...summary}=run
+  vi.mocked(api.listAgentRuns).mockResolvedValue({items:[summary],total:1,page:1,page_size:10})
+  const wrapper=mount(AgentWorkspace,{props});await flushPromises()
+  expect(api.getAgentRun).not.toHaveBeenCalled()
+  await wrapper.get('.agent-run-list button').trigger('click');await flushPromises()
+  expect(api.getAgentRun).toHaveBeenCalledWith(project.id,run.id)
+  expect(wrapper.text()).toContain('本次候选：待审核 1')
+  expect(api.startAgentRun).not.toHaveBeenCalled()
+})
+
 it('starts an explicit workflow, opens its exact source and waits for human decisions before resume',async()=>{
   const wrapper=mount(AgentWorkspace,{props});await flushPromises()
   expect(wrapper.text()).toContain('还没有协作任务')

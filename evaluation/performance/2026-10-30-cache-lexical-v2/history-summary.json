@@ -1,0 +1,20 @@
+{
+  "protocol": "workflow-summary-bytes-v1",
+  "provider_calls": 0,
+  "schemas_removed": true,
+  "scope": "Synthetic envelopes with 256 metadata events and a 3800-character answer; JSON bytes, not HTTP compression/latency.",
+  "results": [
+    {
+      "page_size": 10,
+      "full_json_bytes": 355586,
+      "summary_json_bytes": 2676,
+      "reduction_fraction": 0.9924743943799812
+    },
+    {
+      "page_size": 50,
+      "full_json_bytes": 1777746,
+      "summary_json_bytes": 13196,
+      "reduction_fraction": 0.992577117315972
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 # Knowledge Atlas 前后端接口草案
 
+新增可选 GET /projects/{project_id}/agent-runs?summary=true：items 仅含 id、project_id、source_id、kind、status、error_code、created_at、updated_at，不含 result/events/request/usage/scope/review_counts，读取为3次 SELECT。默认 summary=false 保留完整列表；分页排序和过期判定保持，单条 GET/POST 响应不变。前端只给列表启用摘要。见 [ADR0071](adr/0071-bounded-read-caches-and-summaries.zh-CN.md)。
+
 ## 结论与引用契约（ADR 0069）
 
 `QuestionRead` 新增可空 `answer_protocol: "evidence-claims-v2"` 和 `claims: {text, status, citation_ids}[]`。每条 text 1–500 字符、status 为 supported|insufficient，全答 1–8 条、双换行连接后至多 4000 字符、最多 5 个不同引用 UUID。同条引用不重复，跨条可复用。supported 条目必须引用，不足条目不引用；仅全部条目有据时顶层 supported=true，否则 missing_information 非空。部分有据保留各条引用，不做全答拒弃。

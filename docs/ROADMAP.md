@@ -1,8 +1,10 @@
 # Knowledge Atlas 当前路线与验收边界
 
-[ADR 0069](adr/0069-answer-claim-evidence.zh-CN.md) 已实现结论逐条关联证据：`evidence-claims-v2` 将有据结论绑定当前范围内的引用，将证据不足条目分开标明，引用可直达原文。后端生成兼容平铺字段；历史记录保留旧格式，不推断对应关系或重调模型。结构校验不证明语义蕴含。冻结实验、84/61 调用账本和 schema head `20261029_0019` 不变；人工盲评仍待用户完成。
+当前评估改为 Jev 匿名自动评审，不安排人工盲评，人工覆盖率0%，真实 Jev 评估尚未运行。按用户顺序已完成符号解析复用、历史摘要、BM25 v2新测量和模块拆分，见 [ADR0070](adr/0070-jev-only-anonymous-evaluation.zh-CN.md) 与 [ADR0071](adr/0071-bounded-read-caches-and-summaries.zh-CN.md)。
 
-当前实现及本轮验证见[验收报告](OPTIMIZATION_20261029.zh-CN.md)，任务进度见[计划](../PLANS.zh-CN.md)。按用户要求先完成除真实人工盲评外的优化。早期阶段说明与检查点见[历史路线图](archive/pre-optimization-20261029/docs/ROADMAP.md)。
+[ADR 0069](adr/0069-answer-claim-evidence.zh-CN.md) 已实现结论逐条关联证据：`evidence-claims-v2` 将有据结论绑定当前范围内的引用，将证据不足条目分开标明，引用可直达原文。后端生成兼容平铺字段；历史记录保留旧格式，不推断对应关系或重调模型。结构校验不证明语义蕴含。冻结实验、84/61 调用账本和 schema head `20261029_0019` 不变；评估改为 Jev 匿名自动评审，人工覆盖率0%。
+
+当前实现及本轮验证见[验收报告](OPTIMIZATION_20261029.zh-CN.md)，任务进度见[计划](../PLANS.zh-CN.md)。按用户要求继续优化，评估采用 Jev 匿名自动评审。早期阶段说明与检查点见[历史路线图](archive/pre-optimization-20261029/docs/ROADMAP.md)。
 
 ## 多 Agent 扩展
 

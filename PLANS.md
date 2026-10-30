@@ -1,6 +1,8 @@
 # Knowledge Atlas implementation plan
 
-Claim-level answers are implemented in [ADR 0069](docs/adr/0069-answer-claim-evidence.md): `evidence-claims-v2` binds each supported claim to current scoped evidence, marks insufficient claims separately and supports exact source navigation. The server derives legacy flat fields; old records remain readable without inferred attribution or new provider calls. Structural validation does not establish semantic entailment. Frozen experiments, the 84/61 provider ledger and schema head `20261029_0019` remain unchanged; human grading is deferred.
+Current evaluation policy: Jev-only anonymous model grading, human coverage0%; live calls deliberately unrun this turn. The ordered symbol-cache, history-summary, lexical-v2 measurements and module-boundary changes are implemented. See [evaluation](docs/JEV_EVALUATION.md) and [ADR0071](docs/adr/0071-bounded-read-caches-and-summaries.md).
+
+Claim-level answers are implemented in [ADR 0069](docs/adr/0069-answer-claim-evidence.md): `evidence-claims-v2` binds each supported claim to current scoped evidence, marks insufficient claims separately and supports exact source navigation. The server derives legacy flat fields; old records remain readable without inferred attribution or new provider calls. Structural validation does not establish semantic entailment. Frozen experiments, the 84/61 provider ledger and schema head `20261029_0019` remain unchanged; evaluation uses Jev-only grading with human coverage0%.
 
 [简体中文](PLANS.zh-CN.md)
 
@@ -23,7 +25,7 @@ The user's ordered P0/P1/P2 optimization is implemented in code. Acceptance evid
 
 ## External work still pending
 
-The user will complete [the existing blind review](evaluation/holdout-v3/README.md). Do not invent grades or represent Agent-authored gold data as human evaluation. Genuine personal technical notes were not supplied; v3 uses genuine public upstream documents and is labeled accordingly. Paid v3 testing requires the existing cumulative budget ledger, separate versioned output and an unchanged test split. No v3 quality score exists yet.
+The user selects Jev-only anonymous grading with human coverage0%. Real Jev evaluation is deliberately unrun this turn; the adapter and provider-free packet/preflight are available. Keep v3 frozen and separate from development data; never tune judge prompts, ranking or thresholds against it. Historical human-score fields remain untouched.
 
 Private repository acceptance, privileged fresh-database recovery, Docker and remote CI need their actual environments. They remain explicit limits, not hidden assumptions about completion.
 

@@ -188,3 +188,8 @@ AgentWorkspace selects retrieval mode, browser-local historical time and fixed-s
 ## Claim-level answer display (ADR 0069)
 
 AnswerClaims is shared by question/conversation and AgentWorkspace. Show claim support separately, preserve partial answers and missing information, and emit the selected exact evidence locator through existing navigation. Use text interpolation, wrapped titles and keyboard-visible citation buttons; never guess missing IDs. Legacy records show original flat text with a format notice, without manufactured claim mappings. Verify answerClaims.test.ts, agentRuns.test.ts and desktop native-stub navigation/reload/empty/focus/overflow. The UI says 附有引用, not semantic correctness.
+
+
+## Summary history and form boundary (ADR0071)
+
+listAgentRuns uses summary=true and Page<AgentRunSummary>; full details remain separate GETs on selection/restoration/selected refresh. Never treat a summary as an AgentRun or trigger a POST while loading detail. AgentWorkflowForm owns draft state/context loading and emits start intent; AgentWorkspace retains runs, unknown submission recovery, polling and navigation. Retain all source/project/history/version fences and form keyboard/focus/scroll behavior. Cover true summary-only fixtures in agentRuns plus agentScope, coverage/build and named desktop native-stub walkthrough.

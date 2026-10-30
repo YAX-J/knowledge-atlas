@@ -1,6 +1,8 @@
 # Knowledge Atlas Backend
 
-Claim-level answers are implemented in [ADR 0069](../docs/adr/0069-answer-claim-evidence.md): `evidence-claims-v2` binds each supported claim to current scoped evidence, marks insufficient claims separately and supports exact source navigation. The server derives legacy flat fields; old records remain readable without inferred attribution or new provider calls. Structural validation does not establish semantic entailment. Frozen experiments, the 84/61 provider ledger and schema head `20261029_0019` remain unchanged; human grading is deferred.
+Jev-only anonymous evaluation is offline and opt-in; human coverage0%, no live requests this turn. Configure the empty TYPESAFE_API_KEY in backend/.env, pinned TYPESAFE_MODEL and other placeholders from .env.example. See [commands and limits](../docs/JEV_EVALUATION.md).
+
+Claim-level answers are implemented in [ADR 0069](../docs/adr/0069-answer-claim-evidence.md): `evidence-claims-v2` binds each supported claim to current scoped evidence, marks insufficient claims separately and supports exact source navigation. The server derives legacy flat fields; old records remain readable without inferred attribution or new provider calls. Structural validation does not establish semantic entailment. Frozen experiments, the 84/61 provider ledger and schema head `20261029_0019` remain unchanged; evaluation uses Jev-only grading with human coverage0%.
 
 Scoped multi-agent workflows now share this application. Update the existing environment with `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"` from backend; this installs pinned LangGraph. Back up/rehearse recovery before `alembic upgrade head` to `20261029_0019`. See [roles, API and synchronous human-review boundaries](../docs/MULTI_AGENT.md).
 

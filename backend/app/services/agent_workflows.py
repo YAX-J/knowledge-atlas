@@ -15,9 +15,10 @@ import json
 import uuid
 from datetime import timedelta, timezone
 from sqlalchemy import func, select, update
+from sqlalchemy.orm import load_only
 from app.models.agent_run import AgentRun
 from app.models.domain import CandidateKnowledge, Project, utc_now
-from app.workflows.contracts import WorkflowList, WorkflowRead, WorkflowScopeRead
+from app.workflows.contracts import WorkflowList, WorkflowRead, WorkflowScopeRead, WorkflowSummary, WorkflowSummaryList
 
 
 def aware(value):
@@ -50,8 +51,7 @@ def read_run(db,*,user_id,project_id,run_id):
 
 def _run_read(item,review_counts,*,now):
     """Project an already loaded record without issuing another database read."""
-    status=item.status
-    if status=='running' and (item.lease_until is None or aware(item.lease_until)<=now):status='interrupted'
+    status=_read_status(item,now)
     request = item.request or {}
     question = item.kind == 'question_pipeline'
     include_code = bool(request.get('include_code_analysis', False))
@@ -93,12 +93,26 @@ def _list_review_counts(db,items,*,user_id,project_id):
     return counts
 
 
-def list_runs(db,*,user_id,project_id,page,page_size):
+def _read_status(item,now):
+    if item.status=='running' and (item.lease_until is None or aware(item.lease_until)<=now):return 'interrupted'
+    return item.status
+
+
+def list_runs(db,*,user_id,project_id,page,page_size,summary=False):
     get_project(db,user_id=user_id,project_id=project_id)
-    query=select(AgentRun).where(AgentRun.user_id==user_id,AgentRun.project_id==project_id)
-    total=db.scalar(select(func.count()).select_from(query.subquery())) or 0
+    filters=(AgentRun.user_id==user_id,AgentRun.project_id==project_id)
+    query=select(AgentRun).where(*filters)
+    total=db.scalar(select(func.count()).select_from(AgentRun).where(*filters)) or 0
+    if summary:
+        query=query.options(load_only(AgentRun.id,AgentRun.project_id,AgentRun.source_id,AgentRun.kind,
+            AgentRun.status,AgentRun.error_code,AgentRun.created_at,AgentRun.updated_at,AgentRun.lease_until,raiseload=True))
     items=list(db.scalars(query.order_by(AgentRun.created_at.desc(),AgentRun.id).offset((page-1)*page_size).limit(page_size)
         .execution_options(populate_existing=True)))
+    if summary:
+        now=utc_now()
+        return WorkflowSummaryList(items=[WorkflowSummary(id=item.id,project_id=item.project_id,
+            source_id=item.source_id,kind=item.kind,status=_read_status(item,now),error_code=item.error_code,
+            created_at=item.created_at,updated_at=item.updated_at) for item in items],total=total,page=page,page_size=page_size)
     counts=_list_review_counts(db,items,user_id=user_id,project_id=project_id)
     now=utc_now()
     return WorkflowList(items=[_run_read(item,counts.get(item.id,{}),now=now) for item in items],

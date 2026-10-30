@@ -102,7 +102,7 @@ def run_acceptance(*, dataset: Path, retrieval: Path, output: Path, settings, al
     output.mkdir(parents=True, exist_ok=False)
     report = {"status": "running", "dataset": summary, "model": settings.deepseek_model, "answer_protocol": ANSWER_PROMPT_VERSION,
               "started_at": datetime.now(timezone.utc).isoformat(), "answer_input": "frozen_retrieval_replay",
-              "manual_grading_coverage": 0, "billing_cost": None, "phases": {}}
+              "manual_grading_coverage": 0, "planned_judge": "Jev", "billing_cost": None, "phases": {}}
     report_path = output / "acceptance.json"
     save(report_path, report)
     modes = {}
@@ -139,11 +139,11 @@ def run_acceptance(*, dataset: Path, retrieval: Path, output: Path, settings, al
                     raise ValueError("Real extraction returned invalid source evidence")
                 extraction.append({"source": f"corpus/docs/{name}", "entities": len(draft.entities),
                                    "relations": len(draft.relations), "all_evidence_exact": exact,
-                                   "semantic_human_review": "pending"})
+                                   "semantic_human_review": "not_performed"})
             save(output / "extraction.json", extraction)
             blind_packet(cases, modes, output)
             report.update(status="succeeded", blind_review_items=sum(len(items) for items in modes.values()),
-                          human_review_status="pending")
+                          human_review_status="not_planned")
         except Exception as exc:
             report.update(status="failed", error_type=type(exc).__name__)
             if isinstance(exc, (AppError, deepseek.ExtractionError, deepseek.QuestionError, deepseek.CallAgentError)):

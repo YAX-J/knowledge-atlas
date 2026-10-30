@@ -189,3 +189,8 @@ ADR 0061: code analysis resolves snapshot membership/immutable paths or explicit
 ## Single-project multi-agent extension (ADR0064–0065)
 
 Canonical deterministic parsing now lives in app/analysis/{languages.py,parsers/{markdown.py,java.py,tree_sitter.py},bindings.py,compilers/adapter.py}; services paths remain module aliases for compatibility. Compiler helpers stay under backend/scripts and use existing frontend dependencies. Worker still parses without models. Agents get frozen SourceFile snapshots through services/agent_workflows, immutable selection stays in services/code_context. Do not pass DB sessions into agent contexts or run imported source/build scripts.
+
+
+## Derived symbol reuse and shared syntax records (ADR0071)
+
+Code symbol search applies current scope/readiness/repository and100-source/20MiB scan limits before a process-local LRU. Keys include user/project/source UUID, actual content SHA256, language, SYMBOL_PARSER_VERSION and parser budgets. Cache only frozen symbol tuples and flags;128 entries/8MiB accounted metadata, no source body/tree/parser/URLs/access grants. Keep chunk/task/Git provenance live and bump parser revision for semantic changes. Dependencies restart processes. Shared frozen records live in analysis/structures.py, re-exported by old parser imports. Verify symbol_cache/code_search/java/multilanguage and native checks; never write derived syntax into the formal graph.

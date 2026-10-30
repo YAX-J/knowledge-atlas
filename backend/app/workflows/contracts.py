@@ -74,3 +74,21 @@ class WorkflowList(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class WorkflowSummary(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    source_id: uuid.UUID|None
+    kind: str
+    status: Literal['running','awaiting_review','succeeded','failed','interrupted']
+    error_code: str|None
+    created_at: datetime
+    updated_at: datetime
+
+
+class WorkflowSummaryList(BaseModel):
+    items: list[WorkflowSummary]
+    total: int
+    page: int
+    page_size: int

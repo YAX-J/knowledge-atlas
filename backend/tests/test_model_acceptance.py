@@ -29,6 +29,7 @@ def test_acceptance_and_empty_blind_grades_keep_human_coverage_zero(tmp_path, mo
         dataset=ROOT, retrieval=ROOT / "results" / "2026-10-24-v101" / "retrieval", output=output,
         settings=Settings(_env_file=None, deepseek_api_key=SecretStr("test-key")), allow_model_calls=True)
     assert result["status"] == "succeeded" and result["blind_review_items"] == 120
+    assert result['planned_judge']=='Jev' and result['human_review_status']=='not_planned'
     with (output / "blind-review.csv").open(encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert len(rows) == 120 and all(not row["answer_correct"] for row in rows)

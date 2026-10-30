@@ -50,7 +50,7 @@ def run(dataset,output,*,model_limit=120,embedding_limit=160):
         raise ValueError('Budget exceeds the user authorization')
     output.mkdir(parents=True)
     report=dict(status='running',protocol='public-online-v2',answer_protocol=ANSWER_PROMPT_VERSION,dataset=summary,
-        started_at=datetime.now(timezone.utc).isoformat(),private_inputs=False,human_coverage=0,
+        started_at=datetime.now(timezone.utc).isoformat(),private_inputs=False,human_coverage=0,planned_judge='Jev',human_review_status='not_planned',
         billing_cost=None,embedding_calls=0,model_limit=model_limit,embedding_limit=embedding_limit,
         schema_removed=False,modes={},errors=[])
     report_path=output/'run.json'
@@ -108,6 +108,9 @@ def run(dataset,output,*,model_limit=120,embedding_limit=160):
                         prediction=dict(id=case['id'],retrieved_evidence=[_evidence_record(item,mapping) for item in ordered_evidence(result)],
                             citations=citations,answer=answer,supported=supported,latency_ms=round((time.perf_counter()-began)*1000,3),
                             answer_correct=None,explainability_score=None)
+                        if mode!='keyword':
+                            prediction['claims']=[item.model_dump(mode='json') for item in response.claims] if response.claims is not None else None
+                            prediction['claim_evidence']=[dict(id=str(item.id),**_evidence_record(item,mapping)) for item in response.evidence]
                     records.append(prediction)
                     with partial.open('a',encoding='utf-8') as file:
                         file.write(json.dumps(prediction,ensure_ascii=False)+'\n')

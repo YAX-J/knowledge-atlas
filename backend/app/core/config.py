@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     embedding_dimensions: int = Field(default=1024, ge=1, le=2000)
     embedding_timeout_seconds: float = Field(default=60, ge=5, le=180)
     embedding_batch_size: int = Field(default=32, ge=1, le=100)
+    typesafe_api_key: SecretStr | None = None
+    typesafe_model: str = 'jev-1.14.0'
+    typesafe_base_url: str = 'https://api.typesafe.ai'
+    typesafe_timeout_seconds: float = Field(default=60, ge=5, le=180)
     github_token: SecretStr | None = None
     github_api_base_url: str = "https://api.github.com"
     github_graphql_url: str = "https://api.github.com/graphql"
@@ -34,7 +38,7 @@ class Settings(BaseSettings):
     github_timeout_seconds: float = Field(default=30, ge=5, le=120)
     github_import_max_files: int = Field(default=50, ge=1, le=50)
 
-    @field_validator("github_token", mode="before")
+    @field_validator("github_token", "typesafe_api_key", mode="before")
     @classmethod
     def normalize_github_token(cls, value: object) -> object:
         if isinstance(value, str):
