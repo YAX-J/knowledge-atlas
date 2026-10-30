@@ -8,6 +8,8 @@
 
 ## 本轮上下文与运行检查
 
+协作任务现会在执行回调前提交无原文的事件和模型/工具/嵌入预留计数，续租有效归属并保存校验后的步骤结果（ADR 0067）。同步 POST 等待时 GET 可观察进度；后续步骤失败保留先前结果。进度保存拒绝待提交业务写入，无法保存时停止后续调用。同 UUID 重发仍只读，进程中断不授权自动付费续跑。本轮无需迁移，head 保持 `20261029_0019`。见[持久化与限制](../docs/adr/0067-durable-agent-progress.zh-CN.md)。
+
 BM25/来源位置 BM25 使用 `mixed-bm25-v2` / `mixed-bm25-source-v2`：每批 200 个实体按键分页，在最多 50,000 个作用域内可见实体上统一统计和打分；每实体最多 32 条排序证据、每条 2000 字符、排序文本 4000 字符。`lexical.matched_count` 与 `results_truncated` 区分 Top K 结果和扫描/文本省略；RRF 词法路使用同一实现。不新增供应商请求、迁移、持久化索引或正式图谱写入。见 [ADR 0066](../docs/adr/0066-batched-global-lexical-retrieval.zh-CN.md)。旧实验分数不是 v2 测量。
 
 `GET /sources/{id}/analysis-contexts` 只读列出可选提交/重复路径版本；显式调用分析接受 snapshot_id 或重复 version_ids，返回实际 context。所有策略使用固定原路径、有界正文和用户/项目/仓库隔离。别名长度按规范化值再次校验；合并链/解除检索有回归。就绪状态检查实际 schema0019 与关键表/列。

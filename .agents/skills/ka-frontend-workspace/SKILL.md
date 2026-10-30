@@ -175,3 +175,7 @@ ADR 0062 supersedes earlier App-only orchestration. useWorkspaceRoute owns hash 
 ## Single-project multi-agent extension (ADR0064–0065)
 
 AgentWorkspace is a page inside the existing App/SideRail. useAgentRuns owns paginated history, three-second GET polling, project generation guards and sessionStorage pending UUIDs. Unknown POST results require status inspection and explicit same-UUID resend; reload/route restore never POST. #/agents includes project/source/run IDs, no question/body/secret. Candidate review opens the exact source and returns to saved run; refresh before free resume. Derived code shows actual commit/truncation/uncovered calls; QA uses existing evidence navigation. Verify frontend/tests/agentRuns.test.ts and workspaceRoute.test.ts plus full coverage/build and desktop native-stub walkthrough.
+
+## Progress checkpoint display (ADR 0067)
+
+AgentRunTrace localizes code_checkpoint/extraction_checkpoint/answer_checkpoint as saved code/candidate/answer results and saved as 已保存. Render top-level task status independently of a partial result. Existing GET refresh can expose committed progress; reading/reload must not POST or imply automatic node continuation. Verify the workflow component plus real desktop local-stub extraction and compiler/QA checkpoints, focus and event-panel scrolling; backend persistence and provider quality remain separate checks.

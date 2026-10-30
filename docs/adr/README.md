@@ -151,3 +151,5 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0065: Durable reviewed workflows](0065-durable-reviewed-workflows.md)
 
 - [ADR 0066: Batched global lexical retrieval](0066-batched-global-lexical-retrieval.md)
+
+- [ADR 0067: Durable agent progress](0067-durable-agent-progress.md)

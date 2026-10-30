@@ -4,7 +4,7 @@ Vue 3 Composition API、TypeScript、Vite、Element Plus 和原生 SVG。默认 
 
 ## 协作页面
 
-“协作任务”由 `pages/AgentWorkspace.vue`、`useAgentRuns`、`api/agents` 和 `components/agent` 接入当前 App。显式执行两条流程、显示请求计数/实际代码范围/最终事件，转到原文审核后刷新并恢复。`#/agents?project=UUID&source=UUID&run=UUID` 通过 GET 恢复；未知提交 UUID 保存在 sessionStorage，先读状态再显式重发，轮询不产生新模型请求。切项目/卸载使迟到响应失效。问答引用复用原文定位。详细限制见[协作说明](MULTI_AGENT.zh-CN.md)。
+“协作任务”由 `pages/AgentWorkspace.vue`、`useAgentRuns`、`api/agents` 和 `components/agent` 接入当前 App。显式执行两条流程、显示请求计数/实际代码范围/已保存事件，转到原文审核后刷新并恢复。`#/agents?project=UUID&source=UUID&run=UUID` 通过 GET 恢复；未知提交 UUID 保存在 sessionStorage，先读状态再显式重发，轮询不产生新模型请求。切项目/卸载使迟到响应失效。问答引用复用原文定位。后端现逐事件保存进度和校验后的步骤结果（ADR 0067），仍以顶层任务状态判定完成，不将部分结果当作整个流程完成。详细限制见[协作说明](MULTI_AGENT.zh-CN.md)。
 
 ## 页面与导航
 

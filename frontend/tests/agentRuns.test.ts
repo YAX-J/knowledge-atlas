@@ -12,7 +12,8 @@ enableAutoUnmount(afterEach)
 const page=(items:api.AgentRun[]=[])=>({items,total:items.length,page:1,page_size:10})
 const run:api.AgentRun={id:'run-1',project_id:project.id,source_id:source.id,kind:'knowledge_pipeline',
   status:'awaiting_review',result:{candidate_ids:['candidate'],extraction_task_id:'task'},
-  events:[{sequence:1,agent:'knowledge_extraction',kind:'tool',tool_name:'read_chunk',status:'succeeded',elapsed_ms:2}],
+  events:[{sequence:1,agent:'knowledge_extraction',kind:'tool',tool_name:'read_chunk',status:'succeeded',elapsed_ms:2},
+    {sequence:2,agent:'workflow',kind:'extraction_checkpoint',status:'saved',elapsed_ms:3}],
   usage:{model:2,tool:1,embedding:0},error_code:null,review_counts:{pending:1},created_at:project.created_at,updated_at:project.updated_at}
 const props={project,projects:{items:[project],total:1,page:1,page_size:20},source}
 beforeEach(()=>{
@@ -27,6 +28,8 @@ it('starts an explicit workflow, opens its exact source and waits for human deci
   const wrapper=mount(AgentWorkspace,{props});await flushPromises()
   expect(wrapper.text()).toContain('还没有协作任务')
   await wrapper.get('form').trigger('submit');await flushPromises()
+  expect(wrapper.text()).toContain('候选整理结果 · 已保存')
+  expect(wrapper.text()).not.toContain('extraction_checkpoint')
   expect(api.startAgentRun).toHaveBeenCalledOnce()
   expect(vi.mocked(api.startAgentRun).mock.calls[0]![1]).toMatchObject({kind:'knowledge_pipeline',source_id:source.id,include_code_analysis:false,model_limit:8})
   const open=wrapper.findAll('button').find(item=>item.text()==='打开原文与候选审核')!

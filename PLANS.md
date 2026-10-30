@@ -27,6 +27,8 @@ Private repository acceptance, privileged fresh-database recovery, Docker and re
 
 ## Planning rules
 
+The next reliability slice (ADR 0067) persists per-event call reservations and validated step checkpoints, fences/renews active executions and keeps partials on failure. The user retained Agent verification; focused/full/native/frontend/browser results are recorded in the ADR. Execution remains synchronous and interrupted tasks are read-only on replay; automatic node continuation is outside this change.
+
 The 2026-10-30 lexical coverage change replaces the 1k window with 200-entity keyset batches and a 50k explicit scan budget, shared global BM25 statistics, bounded per-entity evidence and v2 protocol metadata (ADR 0066). Regression/acceptance results are recorded in that ADR after execution; historical experiments and the holdout remain unchanged.
 
 Preserve evidence, user/project scope, explicit human graph writes and additive migration safety. Future work should measure the v2 batch scan and representative semantic/vector workloads before index/caching decisions. The synchronous scan is not a resumable cross-request job. Current warm synthetic results do not establish production capacity. No push/deployment or new major phase is authorized by this plan alone.

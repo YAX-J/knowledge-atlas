@@ -171,6 +171,8 @@ def test_code_and_extraction_share_budget_and_pass_validated_findings(client,con
     body=dict(request_id=str(uuid.uuid4()),kind='knowledge_pipeline',source_id=main['source_id'],include_code_analysis=True,model_limit=2)
     failed=client.post(url,json=body).json()
     assert failed['status']=='failed' and failed['usage']['model']==2 and failed['error_code']=='AGENT_BUDGET_EXCEEDED'
+    assert failed['result']['code_analysis']['calls']
+    assert any(event['kind']=='code_checkpoint' for event in failed['events'])
     success=client.post(url,json={**body,'request_id':str(uuid.uuid4()),'model_limit':8}).json()
     assert success['status']=='awaiting_review' and success['usage']['model']==3
     assert findings[-1]['calls'][0]['callee']=='save'

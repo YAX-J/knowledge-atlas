@@ -6,6 +6,7 @@ from app.core.errors import AppError
 from app.models.domain import SourceStatus
 from app.services import code_context, ingestion
 from app.services.projects import get_project
+from app.services.agent_progress import RUN_LEASE_SECONDS, save_progress
 from app.analysis.languages import CODE_SOURCE_TYPES
 from app.agents.code_analysis.engine import LANGUAGE_FAMILIES
 
@@ -86,17 +87,31 @@ def start_run(db,*,user_id,project_id,request,settings):
     execution=uuid.uuid4()
     item=AgentRun(id=request.request_id,user_id=user_id,project_id=project_id,source_id=request.source_id,
         kind=request.kind,status='running',input_sha256=digest,request=data,events=[],usage={},
-        execution_id=execution,lease_until=utc_now()+timedelta(seconds=1200))
+        execution_id=execution,lease_until=utc_now()+timedelta(seconds=RUN_LEASE_SECONDS))
     db.add(item);db.commit()
     runtime=RunContext(user_id=user_id,project_id=project_id,run_id=request.request_id,source_id=request.source_id,
         snapshot_id=request.snapshot_id,valid_at=request.valid_at.isoformat() if request.valid_at else None,
         model_limit=request.model_limit,tool_limit=request.tool_limit,embedding_limit=request.embedding_limit)
+    partial_result = {}
+    checkpoint_kinds = {'code_checkpoint', 'extraction_checkpoint', 'answer_checkpoint'}
+
+    def persist(context):
+        save_progress(db, context=context, execution_id=execution,
+            result=partial_result if context.events[-1]['kind'] in checkpoint_kinds else None)
+
+    def checkpoint(kind, values):
+        partial_result.update(values)
+        runtime.event(kind, 'saved')
+
+    runtime.on_progress = persist
     code_source=request.include_code_analysis and source is not None and source.source_type in CODE_SOURCE_TYPES
 
     def code():
         if not code_source:return None
-        return analyze_code(db,settings=settings,user_id=user_id,source_id=request.source_id,strategy=request.code_strategy,
+        result = analyze_code(db,settings=settings,user_id=user_id,source_id=request.source_id,strategy=request.code_strategy,
             snapshot_id=request.snapshot_id,version_ids=request.version_ids).model_dump(mode='json')
+        checkpoint('code_checkpoint', {'code_analysis': result})
+        return result
 
     def extract(code_result):
         # Only call metadata is a hint. Candidates must still quote this source's actual chunks.
@@ -110,18 +125,22 @@ def start_run(db,*,user_id,project_id,request,settings):
         ids=list(db.scalars(select(CandidateKnowledge.id).where(CandidateKnowledge.user_id==user_id,
             CandidateKnowledge.project_id==project_id,CandidateKnowledge.source_id==request.source_id,
             CandidateKnowledge.task_id==result.task.id).order_by(CandidateKnowledge.id)))
-        return dict(extraction_task_id=str(result.task.id),candidate_ids=[str(identifier) for identifier in ids],
+        result = dict(extraction_task_id=str(result.task.id),candidate_ids=[str(identifier) for identifier in ids],
             status='awaiting_review' if ids else 'succeeded')
+        checkpoint('extraction_checkpoint', result)
+        return result
 
     def answer(code_result=None):
-        return questions.answer_question(db,user_id=user_id,project_id=project_id,question=request.question,
+        result = questions.answer_question(db,user_id=user_id,project_id=project_id,question=request.question,
             valid_at=request.valid_at,settings=settings,retrieval_mode=request.retrieval_mode,strategy='tools',
             code_findings={'context':code_result['context'],'calls':code_result['calls'][:20]} if code_result else None).model_dump(mode='json')
+        checkpoint('answer_checkpoint', {'answer': result, 'status': 'succeeded'})
+        return result
 
     result=None;error_code=None;status='failed'
     with run_scope(runtime):
-        runtime.event('workflow','started')
         try:
+            runtime.event('workflow','started')
             if request.kind=='knowledge_pipeline':result=PIPELINES[request.kind](code,extract)
             else:result=PIPELINES[request.kind](code,answer)
             status=result['status']
@@ -132,7 +151,7 @@ def start_run(db,*,user_id,project_id,request,settings):
         runtime.event('workflow',status)
     changed=db.execute(update(AgentRun).where(AgentRun.id==request.request_id,AgentRun.user_id==user_id,
         AgentRun.project_id==project_id,AgentRun.status=='running',AgentRun.execution_id==execution,
-        AgentRun.lease_until>utc_now()).values(status=status,result=result,events=list(runtime.events),usage=runtime.usage(),
+        AgentRun.lease_until>utc_now()).values(status=status,result=result or partial_result or None,events=list(runtime.events),usage=runtime.usage(),
             error_code=error_code,execution_id=None,lease_until=None).execution_options(synchronize_session=False))
     if changed.rowcount!=1:
         db.rollback();raise AppError(status_code=409,code='WORKFLOW_INTERRUPTED',message='任务执行归属已失效，请读取已保存状态')

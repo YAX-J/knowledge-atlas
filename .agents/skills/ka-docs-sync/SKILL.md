@@ -114,3 +114,7 @@ Current extension is ADR0064–0065, docs/MULTI_AGENT.md and .zh-CN.md, with age
 ## Batched lexical v2 (ADR 0066)
 
 Current BM25/source-aware BM25 and the RRF lexical leg use v2 identifiers, 200-entity keyset batches, a 50k scan ceiling, global corpus statistics, 32 ranking quotes per canonical entity and the existing text limits. Document matched_count/results_truncated separately from omitted scan/text. Update API/current plans/backend README and bilingual ADR/changelog together; keep v1 experiment assets and historical performance/quality reports unchanged. Synchronous batching does not establish cross-request resume, repeatable-read isolation or measured v2 production capacity.
+
+## Durable agent progress (ADR 0067)
+
+Current agent events and call reservations persist during synchronous execution; validated code/answer and committed extraction IDs have checkpoints. Replace current end-only persistence descriptions, preserve historical acceptance reports, and describe primary status vs partial result, pending-write refusal, lease fencing, conservative reservations and lack of automatic paid continuation. Schema/head remains0019. Sync API, MULTI_AGENT, architecture, frontend labels, backend READMEs, plans, changelog and paired ADR; stub integration is not provider quality.

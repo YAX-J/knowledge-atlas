@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Collaboration runs persist events and call reservations before callbacks, renew fenced ownership and save validated code/extraction/answer checkpoints. Earlier results remain readable after later failures or interruptions; progress storage failures stop subsequent calls, pending business writes are never auto-flushed, and checkpoint labels are localized. No schema change or automatic paid replay (ADR 0067).
+
 - BM25 and source-aware BM25 scan scoped knowledge in bounded batches with global statistics, covering matches beyond the former 1000-entity window up to an explicit 50,000-entity budget. Each entity has an independent ranking evidence budget; v2 metadata separates matched counts and Top K truncation from omitted scan/text. RRF uses the same lexical path; historical experiments remain unchanged (ADR 0066).
 
 - Removed unused frontend bindings and backend imports; cleaned local build/test caches and one-off diagnostics while preserving dependency environments, database backups, provider budgets, grading files and experiment records. Ignore coverage shards/reports to keep generated files out of commits.

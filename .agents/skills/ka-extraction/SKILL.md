@@ -160,3 +160,7 @@ holdout-v3 contains genuine pinned public documentation, not private personal no
 ## Single-project multi-agent extension (ADR0064–0065)
 
 Canonical prompts/provider/usage are app/llm/{prompts.py,providers/deepseek.py,usage.py}; old services imports alias these modules. Extraction and QA now delegate to registry agents. Legacy single-step API keeps old prompt/task identity; tools extraction uses :tools-v1 and exact same evidence validation. Default extraction GET selects the most recently created legacy/tools task. Shared runtime counts failed model/embedding attempts before requests. Code hints cannot become evidence; empty QA refuses before providers, unknown citations fail. Coordinated candidates wait for existing human review. API read/list/resume never call providers; do not invent human evaluation scores.
+
+## Coordinated progress (ADR 0067)
+
+Only coordinated RunContext instances attach the application progress sink. It commits event metadata/reserved budgets before callbacks, refuses pending ORM writes, and fences/renews active execution ownership. Keep extraction claim and validated-candidate commits intact; extraction checkpoints contain IDs after that commit, never unvalidated drafts. Storage failure stops later calls. Partial code/answer results remain readable after failure; GET/same-UUID replay do not resume paid nodes. A pre-call reservation is conservative, not a billing receipt. No prompt/version or schema change is implied.

@@ -151,3 +151,5 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0065: 持久化协作与人工检查点](0065-durable-reviewed-workflows.zh-CN.md)
 
 - [ADR 0066: 全局统计的分批词法检索](0066-batched-global-lexical-retrieval.zh-CN.md)
+
+- [ADR 0067: Agent 过程持久化](0067-durable-agent-progress.zh-CN.md)

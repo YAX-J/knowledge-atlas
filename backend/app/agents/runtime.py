@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from threading import RLock
+from typing import Callable
 import time
 import uuid
 
@@ -28,6 +29,8 @@ class RunContext:
     counts: dict[str, int] = field(default_factory=lambda: {'model':0,'tool':0,'embedding':0})
     agent_counts: dict[str, int] = field(default_factory=dict)
     started: float = field(default_factory=time.monotonic)
+    on_progress: Callable[['RunContext'], None] | None = field(default=None, repr=False, compare=False)
+    _progress_failed: bool = field(default=False, init=False, repr=False)
     _lock: RLock = field(default_factory=RLock, repr=False)
 
     def event(self, kind, status='ok', **numbers):
@@ -37,9 +40,23 @@ class RunContext:
                 raise AppError(status_code=429, code='AGENT_BUDGET_EXCEEDED', message='Agent 事件预算已用尽')
             self.events.append(dict(sequence=len(self.events)+1, agent=_agent.get(), kind=kind,
                 status=status, elapsed_ms=round((time.monotonic()-self.started)*1000,3), **numbers))
+            if self.on_progress is not None:
+                try:
+                    self.on_progress(self)
+                except Exception as exc:
+                    # Never issue another external call after losing durable progress.
+                    self._progress_failed = True
+                    self.on_progress = None
+                    if isinstance(exc, AppError):
+                        raise
+                    raise AppError(status_code=503, code='WORKFLOW_PROGRESS_UNAVAILABLE',
+                        message='任务进度暂时无法保存，已停止后续调用，请读取任务状态') from None
 
     def reserve(self, kind):
         with self._lock:
+            if self._progress_failed:
+                raise AppError(status_code=503, code='WORKFLOW_PROGRESS_UNAVAILABLE',
+                    message='任务进度暂时无法保存，已停止后续调用，请读取任务状态')
             agent=_agent.get(); key=agent+':'+kind
             maximum={'model':self.model_limit,'tool':self.tool_limit,'embedding':self.embedding_limit}[kind]
             own_maximum={'model':4,'tool':8,'embedding':4}[kind]
@@ -49,7 +66,8 @@ class RunContext:
             self.event(kind,'started',attempt=self.counts[kind])
 
     def usage(self):
-        return dict(**self.counts, limits=dict(model=self.model_limit,tool=self.tool_limit,embedding=self.embedding_limit))
+        with self._lock:
+            return dict(**self.counts, limits=dict(model=self.model_limit,tool=self.tool_limit,embedding=self.embedding_limit))
 
 
 @contextmanager
@@ -66,8 +84,8 @@ def run_scope(context):
 def agent_scope(name):
     token=_agent.set(name)
     context=_current.get()
-    if context:context.event('agent','started')
     try:
+        if context:context.event('agent','started')
         yield
         if context:context.event('agent','succeeded')
     except Exception:
@@ -91,10 +109,15 @@ def invoke_model(callback, *args, **kwargs):
 def invoke_tool(callback, *args, **kwargs):
     context=_current.get()
     if context:context.reserve('tool')
-    result=callback(*args,**kwargs)
     allowed={'read_source_range','get_imports','search_symbols','find_references','get_type_members','read_chunk','read_evidence','search_knowledge'}
+    tool_name = args[0] if args and args[0] in allowed else 'not_allowed'
+    try:
+        result=callback(*args,**kwargs)
+    except Exception:
+        if context:context.event('tool','failed',tool_name=tool_name)
+        raise
     if context:context.event('tool','error' if isinstance(result,dict) and 'error' in result else 'succeeded',
-        tool_name=args[0] if args and args[0] in allowed else 'not_allowed')
+        tool_name=tool_name)
     return result
 
 

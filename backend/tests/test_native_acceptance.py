@@ -64,6 +64,42 @@ def race(function, values):
         return list(pool.map(run, values))
 
 
+def test_native_workflow_progress_is_committed_before_blocked_provider(configured, monkeypatch):
+    from app.models.agent_run import AgentRun
+    from app.services import deepseek
+    from tests.test_multi_agent import prepare
+    entered, release = threading.Event(), threading.Event()
+    with independent_client() as (client, engine):
+        project, source, _draft, seen = prepare(client, monkeypatch, configured)
+        original = deepseek.call_agent_turn
+        def blocked(*args, **kwargs):
+            if not seen:
+                entered.set()
+                assert release.wait(15)
+            return original(*args, **kwargs)
+        monkeypatch.setattr(deepseek, 'call_agent_turn', blocked)
+        identifier = uuid.uuid4()
+        url = f'/api/v1/projects/{project}/agent-runs'
+        body = dict(request_id=str(identifier), kind='knowledge_pipeline', source_id=source['source_id'])
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(client.post, url, json=body)
+            try:
+                assert entered.wait(15)
+                # A separate connection must see the reservation while the POST waits.
+                with Session(engine) as observer:
+                    record = observer.get(AgentRun, identifier)
+                    assert record.status == 'running' and record.usage['model'] == 1
+                    assert record.events[-1]['kind'] == 'model' and record.events[-1]['status'] == 'started'
+                read = client.get(f'{url}/{identifier}').json()
+                assert read['status'] == 'running' and read['usage']['model'] == 1
+                assert client.post(url, json=body).json()['usage']['model'] == 1
+            finally:
+                release.set()
+            response = future.result(timeout=15)
+        assert response.status_code == 200, response.text
+        assert response.json()['status'] == 'awaiting_review' and len(seen) == 2
+
+
 def test_native_rebuild_job_serializes_duplicate_requests_and_persists_status(monkeypatch):
     from app.services import embedding_jobs
     entered, release = threading.Event(), threading.Event()
