@@ -2,6 +2,8 @@
 
 [简体中文](CLOUDFLARE_EVALUATION.zh-CN.md)
 
+OpenRouter Jev is available as a separate [offline adapter](OPENROUTER_EVALUATION.md). Set --provider cloudflare explicitly to keep using this guide; the new environment example selects openrouter. CF native support does not include the third-party unified Jev route.
+
 Offline grading supports Workers AI as an alternative to [Jev](JEV_EVALUATION.md). Human grading coverage stays 0%; formal graph promotion still requires human review. Local HTTP-substitute verification does not establish live compatibility, quality, latency or billing. No real provider calls were made during implementation.
 
 ## Configure locally
@@ -18,7 +20,7 @@ CLOUDFLARE_TIMEOUT_SECONDS=60
 CLOUDFLARE_MAX_TOKENS=2048
 ```
 
-Account IDs are 32 hexadecimal characters; follow the [official token setup](https://developers.cloudflare.com/workers-ai/get-started/rest-api/). Existing Jev fields remain available. Settings without `EVALUATION_PROVIDER` retain the legacy `jev` default; new environment examples select Cloudflare. No SDK/dependency changes are required.
+Account IDs are 32 hexadecimal characters; follow the [official token setup](https://developers.cloudflare.com/workers-ai/get-started/rest-api/). Existing Jev fields remain available. Settings without `EVALUATION_PROVIDER` retain the legacy `jev` default; new environment examples select OpenRouter. No SDK/dependency changes are required.
 
 ## Request formats
 

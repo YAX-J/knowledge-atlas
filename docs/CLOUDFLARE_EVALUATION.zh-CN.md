@@ -2,6 +2,8 @@
 
 [English](CLOUDFLARE_EVALUATION.md)
 
+OpenRouter Jev 已作为独立[离线适配](OPENROUTER_EVALUATION.zh-CN.md)提供。使用本指南时明确 --provider cloudflare，新环境示例选择 openrouter。CF 原生适配不包含第三方 Jev 统一路由。
+
 离线评审新增 Workers AI，可与 [Jev](JEV_EVALUATION.zh-CN.md) 显式选择。人工评分覆盖率仍为0%，正式知识入图仍须人工审核。本地 HTTP 替身验证不证明真实兼容、质量、延迟或账单；开发期间没有真实供应商调用。
 
 ## 本机配置
@@ -18,7 +20,7 @@ CLOUDFLARE_TIMEOUT_SECONDS=60
 CLOUDFLARE_MAX_TOKENS=2048
 ```
 
-账号 ID 为32位十六进制字符，Token 创建步骤见[官方指南](https://developers.cloudflare.com/workers-ai/get-started/rest-api/)。原 Jev 字段保留；未设置 `EVALUATION_PROVIDER` 时仍默认 `jev`，新环境示例选择 Cloudflare。无需新增 SDK 或依赖。
+账号 ID 为32位十六进制字符，Token 创建步骤见[官方指南](https://developers.cloudflare.com/workers-ai/get-started/rest-api/)。原 Jev 字段保留；未设置 `EVALUATION_PROVIDER` 时仍默认 `jev`，新环境示例选择 OpenRouter。无需新增 SDK 或依赖。
 
 ## 请求格式
 

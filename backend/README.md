@@ -1,6 +1,6 @@
 # Knowledge Atlas Backend
 
-Offline anonymous grading supports explicit Jev or Cloudflare Workers AI selection; human coverage0%, no live calls this turn. Configure CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN and select CLOUDFLARE_MODEL plus decision/chat mode. Existing Jev fields remain. See [CF commands and limits](../docs/CLOUDFLARE_EVALUATION.md) and [Jev](../docs/JEV_EVALUATION.md).
+Offline anonymous judging supports OpenRouter Jev, direct TypeSafe Jev and native CF adapters. Configure EVALUATION_PROVIDER=openrouter, local OPENROUTER_API_KEY, OPENROUTER_MODEL=typesafe/jev-1.14 and OPENROUTER_TIMEOUT_SECONDS=60. Existing credentials remain. No live calls this turn; human grading coverage0%. See [OpenRouter commands](../docs/OPENROUTER_EVALUATION.md), [CF](../docs/CLOUDFLARE_EVALUATION.md) and [Jev](../docs/JEV_EVALUATION.md).
 
 Claim-level answers are implemented in [ADR 0069](../docs/adr/0069-answer-claim-evidence.md): `evidence-claims-v2` binds each supported claim to current scoped evidence, marks insufficient claims separately and supports exact source navigation. The server derives legacy flat fields; old records remain readable without inferred attribution or new provider calls. Structural validation does not establish semantic entailment. Frozen experiments, the 84/61 provider ledger and schema head `20261029_0019` remain unchanged; evaluation uses anonymous model grading with human coverage0%.
 

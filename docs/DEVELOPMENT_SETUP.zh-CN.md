@@ -1,6 +1,6 @@
 # Knowledge Atlas 开发环境配置
 
-可选离线评审：EVALUATION_PROVIDER=cloudflare，使用 CLOUDFLARE_ACCOUNT_ID、CLOUDFLARE_API_TOKEN、CLOUDFLARE_MODEL、CLOUDFLARE_JUDGE_MODE=decision/chat、CLOUDFLARE_TIMEOUT_SECONDS 和 CLOUDFLARE_MAX_TOKENS，见 [CF配置](CLOUDFLARE_EVALUATION.zh-CN.md)。Jev 使用 EVALUATION_PROVIDER=jev 和原 TYPESAFE_* 字段。无需新依赖，默认零调用预演，凭据仅保存在本机。
+离线评审新增 EVALUATION_PROVIDER=openrouter、本地 OPENROUTER_API_KEY、OPENROUTER_MODEL=typesafe/jev-1.14 和 OPENROUTER_TIMEOUT_SECONDS=60，见 [OpenRouter配置](OPENROUTER_EVALUATION.zh-CN.md)。原生 CF 与直连 TypeSafe 字段继续支持，不改业务供应商；无需新增 SDK，默认仍为零调用预演，凭据仅本地保存。
 
 单项目 Agent 协作已接通。更新依赖后使用迁移 `20261029_0019`；新增固定版本 LangGraph，继续使用现有虚拟环境，执行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"`（backend 目录）。已有数据先备份与隔离恢复核验，再 `alembic upgrade head`。三个角色、四个协作接口和同步/人工审核边界见[实现说明](MULTI_AGENT.zh-CN.md)。
 

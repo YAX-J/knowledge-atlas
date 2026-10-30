@@ -1,4 +1,4 @@
-"""Prepare anonymous packets and explicitly run bounded Jev or Workers AI grading."""
+"""Prepare anonymous packets and explicitly run bounded model grading."""
 import argparse
 import hashlib
 import json
@@ -6,7 +6,7 @@ from pathlib import Path
 import random
 
 from app.core.config import get_settings
-from app.llm.providers import evaluation, jev
+from app.llm.providers import evaluation, jev, openrouter
 from app.llm.providers.judging import JudgeError
 from scripts.evaluate_dataset import read_jsonl, validate_dataset
 
@@ -127,7 +127,8 @@ def run(packet_dir,output,*,allow_calls=False,max_requests=0,settings=None,judge
     jobs=[(row,name,state,questions) for row in packet for name,state,questions in requests(row)]
     for _row,_name,state,questions in jobs:provider.request_payload(settings,state,questions)
     if allow_calls and not evaluation.configured(settings):
-        raise ValueError('CF_NOT_CONFIGURED' if identity['provider']=='cloudflare' else 'JEV_NOT_CONFIGURED')
+        raise ValueError({'cloudflare':'CF_NOT_CONFIGURED','jev':'JEV_NOT_CONFIGURED',
+                          'openrouter':'OR_NOT_CONFIGURED'}[identity['provider']])
     if allow_calls and not len(jobs)<=max_requests<=10000:raise ValueError('JEV_REQUEST_BUDGET_REQUIRED')
     target=Path(output);target.mkdir(parents=True,exist_ok=False)
     report=dict(protocol=identity['protocol'],packet_protocol=manifest['protocol'],
@@ -148,6 +149,11 @@ def run(packet_dir,output,*,allow_calls=False,max_requests=0,settings=None,judge
             grouped.setdefault(row['review_id'],{})[name]=answer
             report['completed_requests']+=1
             report['results'].append(dict(review_id=row['review_id'],part=name,**answer))
+            if identity['provider']=='openrouter':
+                resolved=answer['model']
+                if report.get('resolved_model',resolved)!=resolved:
+                    raise openrouter.OpenRouterError('OR_MODEL_CHANGED_DURING_RUN')
+                report['resolved_model']=resolved
             write(target/'run.json',report)
         for row in packet:
             evaluations=grouped[row['review_id']]
@@ -173,7 +179,7 @@ def main():
     prep=commands.add_parser('prepare');prep.add_argument('--dataset',required=True)
     prep.add_argument('--predictions',nargs='+',required=True);prep.add_argument('--output',required=True)
     grading=commands.add_parser('run');grading.add_argument('--packet',required=True);grading.add_argument('--output',required=True)
-    grading.add_argument('--provider',choices=['jev','cloudflare'])
+    grading.add_argument('--provider',choices=['jev','cloudflare','openrouter'])
     grading.add_argument('--allow-judge-calls',action='store_true')
     grading.add_argument('--allow-jev-calls',action='store_true');grading.add_argument('--max-requests',type=int,default=0)
     args=parser.parse_args()
@@ -187,7 +193,9 @@ def main():
             report=run(args.packet,args.output,allow_calls=args.allow_jev_calls or args.allow_judge_calls,
                 max_requests=args.max_requests,settings=settings)
             print(json.dumps({key:report[key] for key in ('status','evaluator','requested_model','planned_requests','reserved_requests','completed_requests')}))
-    except Exception as exc:raise SystemExit(f'Judge evaluation stopped ({type(exc).__name__}); no automatic retry. Inspect local inputs/configuration without exposing credentials.')
+    except Exception as exc:
+        code=str(exc) if isinstance(exc,JudgeError) else type(exc).__name__
+        raise SystemExit(f'Judge evaluation stopped ({code}); no automatic retry. Inspect local inputs/configuration without exposing credentials.')
 
 
 if __name__=='__main__':main()

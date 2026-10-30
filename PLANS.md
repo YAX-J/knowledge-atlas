@@ -1,6 +1,6 @@
 # Knowledge Atlas implementation plan
 
-Current evaluation policy: anonymous model grading explicitly selects Jev or Cloudflare Workers AI; human coverage0%, no live calls this turn. CF decision/chat adapters and zero-call preflight are implemented; live compatibility/quality remain unverified. See [CF setup](docs/CLOUDFLARE_EVALUATION.md) and [ADR0072](docs/adr/0072-cloudflare-judge-adapter.md). Ordered read optimizations remain in ADR0071.
+Offline judging now supports OpenRouter Jev, direct TypeSafe Jev and native CF adapters, with human grading coverage0%. OpenRouter Decisions API and release/snapshot validation are implemented with zero-call preflight; live compatibility/quality remain unverified. See [OpenRouter setup](docs/OPENROUTER_EVALUATION.md) and [ADR0073](docs/adr/0073-openrouter-jev-evaluation.md). Earlier read optimizations remain in ADR0071.
 
 Claim-level answers are implemented in [ADR 0069](docs/adr/0069-answer-claim-evidence.md): `evidence-claims-v2` binds each supported claim to current scoped evidence, marks insufficient claims separately and supports exact source navigation. The server derives legacy flat fields; old records remain readable without inferred attribution or new provider calls. Structural validation does not establish semantic entailment. Frozen experiments, the 84/61 provider ledger and schema head `20261029_0019` remain unchanged; evaluation uses anonymous model grading with human coverage0%.
 
@@ -25,7 +25,7 @@ The user's ordered P0/P1/P2 optimization is implemented in code. Acceptance evid
 
 ## External work still pending
 
-The user selects Jev-only anonymous grading with human coverage0%. Real Jev evaluation is deliberately unrun this turn; the adapter and provider-free packet/preflight are available. Keep v3 frozen and separate from development data; never tune judge prompts, ranking or thresholds against it. Historical human-score fields remain untouched.
+The user selects anonymous model grading with human coverage0%. OpenRouter Jev, direct TypeSafe and native CF adapters are available; this turn uses only substitutes and provider-free packet/preflight, with no live model evaluation. Keep v3 frozen and separate from development data; never tune judge prompts, ranking or thresholds against it. Historical human-score fields remain untouched.
 
 Private repository acceptance, privileged fresh-database recovery, Docker and remote CI need their actual environments. They remain explicit limits, not hidden assumptions about completion.
 

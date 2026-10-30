@@ -1,6 +1,6 @@
 # Knowledge Atlas 当前路线与验收边界
 
-当前匿名模型评审支持 Jev 或 Cloudflare Workers AI（decision/chat），人工覆盖率0%，真实评审尚未运行。配置及边界见 [CF指南](CLOUDFLARE_EVALUATION.zh-CN.md) 与 [ADR0072](adr/0072-cloudflare-judge-adapter.zh-CN.md)。按用户顺序完成的读取优化保留 [ADR0071](adr/0071-bounded-read-caches-and-summaries.zh-CN.md) 记录。
+当前离线模型评审支持 OpenRouter Jev、直连 TypeSafe Jev 和 CF 原生适配，人工评分覆盖率0%，真实 OpenRouter 评审尚未运行。见 [OpenRouter指南](OPENROUTER_EVALUATION.zh-CN.md) 与 [ADR0073](adr/0073-openrouter-jev-evaluation.zh-CN.md)。此前读取优化保留 ADR0071 记录。
 
 [ADR 0069](adr/0069-answer-claim-evidence.zh-CN.md) 已实现结论逐条关联证据：`evidence-claims-v2` 将有据结论绑定当前范围内的引用，将证据不足条目分开标明，引用可直达原文。后端生成兼容平铺字段；历史记录保留旧格式，不推断对应关系或重调模型。结构校验不证明语义蕴含。冻结实验、84/61 调用账本和 schema head `20261029_0019` 不变；评估改为 Jev 匿名自动评审，人工覆盖率0%。
 

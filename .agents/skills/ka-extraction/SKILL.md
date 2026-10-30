@@ -179,3 +179,8 @@ The user selects Jev-only anonymous grading instead of deferred human blind revi
 ## Cloudflare offline judging (ADR0072)
 
 The user now permits explicit Jev or Cloudflare Workers AI selection for anonymous model grading, superseding the Jev-only vendor restriction. Keep formal knowledge review human-controlled and human grading coverage0%. CF native REST decision mode supports Clef/Clef-flash state/questions; chat uses compatible text models with messages/JSON Schema labels, confidence/probabilities null and uncertain citation units. Never change business DeepSeek/embedding providers implicitly. scripts.judge_evaluation shares the legacy packet/runner; --allow-jev-calls cannot authorize CF. Preserve before-call reservations, explicit per-run caps, fail-stop/no retries/resume, fresh outputs and no live calls during this implementation. Freeze judge/protocol before holdout use; CF catalog names are not verified immutable revisions. See docs/CLOUDFLARE_EVALUATION.md.
+
+
+## OpenRouter offline Jev (ADR0073)
+
+Add explicit openrouter selection alongside direct jev and native cloudflare. It is evaluation-only: POST https://openrouter.ai/api/alpha/decisions, separate OPENROUTER_API_KEY/MODEL/TIMEOUT fields, versioned release or dated snapshot IDs and allow_fallbacks=false. Keep Choice/quote/anonymity validation, human grades0%, formal human promotion, proxy support, before-call reservations, no retry/resume/fallback and distinct provider authorization. Record actual dated response identities and stop on within-run drift without erasing results/attempts. CF unified third-party Jev is not added here; frozen assets/holdout/old ledgers stay unchanged. This development turn has no live calls.

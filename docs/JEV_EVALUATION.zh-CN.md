@@ -2,7 +2,9 @@
 
 [English](JEV_EVALUATION.md)
 
-匿名评审现可选择 Jev 或 [Cloudflare Workers AI](CLOUDFLARE_EVALUATION.zh-CN.md)，本页说明 Jev。人工覆盖率仍为0%，正式知识须人工审核。历史20题 BM25 预演计划54次，预留/完成均0；开发期间没有真实裁判调用或质量评分。[ADR0072](adr/0072-cloudflare-judge-adapter.zh-CN.md) 扩展 ADR0070 的 Jev 单供应商限制，旧实验和人工字段不改。
+通过 OpenRouter 使用 Jev 时见独立 [OpenRouter指南](OPENROUTER_EVALUATION.zh-CN.md)，选择 --provider openrouter。直连 TypeSafe 的密钥/模型字段及 --allow-jev-calls 仍只适用于直连 TypeSafe。
+
+匿名评审支持直连 TypeSafe Jev、OpenRouter Jev 和 [CF原生适配](CLOUDFLARE_EVALUATION.zh-CN.md)，本页说明直连 TypeSafe。人工覆盖率仍为0%，正式知识须人工审核。历史20题 BM25 预演计划54次，预留/完成均0；开发期间没有真实裁判调用或质量评分。[ADR0072](adr/0072-cloudflare-judge-adapter.zh-CN.md) 扩展 ADR0070 的 Jev 单供应商限制，旧实验和人工字段不改。
 
 ## 配置
 

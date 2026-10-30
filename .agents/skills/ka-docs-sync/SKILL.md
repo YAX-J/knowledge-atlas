@@ -127,3 +127,8 @@ WorkflowRead.scope projects only retrieval_mode/valid_at/include_code_analysis/c
 ## Cloudflare judge documentation (ADR0072)
 
 Current anonymous grading can select Jev or CF; ADR0072 extends ADR0070 without rewriting historical experiments. Sync CF/Jev guide pairs, setup/backend README pairs, current README/plans/roadmap/architecture and changelogs. Document native ai/run envelopes, explicit decision/chat formats, generic CLI authorization, credential placeholders, unchanged business providers, null chat confidence/usage when absent and CF model revision limits. Local substitutes/preflight are not live compatibility or quality, and human coverage remains0%. Keep holdout and frozen outputs unchanged.
+
+
+## OpenRouter judge documentation (ADR0073)
+
+Sync OPENROUTER_EVALUATION language pair, ADR/index pair, provider guide introductions, setup/backend README pairs, current plans/architecture/roadmap/changelogs and AGENTS pair. Distinguish OpenRouter typesafe/jev-1.14 from CF/direct names, release selection from dated snapshots, actual per-response identity/model-drift stopping, optional reported cost and immutable attempt records. The TypeSafe-only flag cannot authorize OpenRouter. No SDK/business provider/schema change; local HTTP substitutes and zero-call preflight do not prove account/payment/model quality. Keep human0, holdout/frozen artifacts and prior CF smoke/old provider ledgers untouched.

@@ -161,3 +161,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [0070 — Jev anonymous evaluation](0070-jev-only-anonymous-evaluation.md)
 - [0071 — Bounded caches and workflow summaries](0071-bounded-read-caches-and-summaries.md)
 - [0072 — Cloudflare judge adapters](0072-cloudflare-judge-adapter.md)
+- [0073 — OpenRouter Jev evaluation](0073-openrouter-jev-evaluation.md)

@@ -2,7 +2,9 @@
 
 [简体中文](JEV_EVALUATION.zh-CN.md)
 
-Anonymous grading now supports Jev or [Cloudflare Workers AI](CLOUDFLARE_EVALUATION.md); this page describes Jev. Human coverage remains0%, and formal knowledge requires human review. The historical20-answer BM25 preflight plans54 requests with zero reservations/completions. No live judge calls or quality scores were produced during implementation. [ADR0072](adr/0072-cloudflare-judge-adapter.md) extends the Jev-only restriction of ADR0070; old experiments and human fields remain unchanged.
+For Jev through OpenRouter, use the separate [OpenRouter guide](OPENROUTER_EVALUATION.md) and --provider openrouter. The direct TypeSafe key/model fields and --allow-jev-calls remain scoped to direct TypeSafe only.
+
+Anonymous grading supports direct TypeSafe Jev, OpenRouter Jev and [native CF](CLOUDFLARE_EVALUATION.md); this page describes direct TypeSafe. Human coverage remains0%, and formal knowledge requires human review. The historical20-answer BM25 preflight plans54 requests with zero reservations/completions. No live judge calls or quality scores were produced during implementation. [ADR0072](adr/0072-cloudflare-judge-adapter.md) extends the Jev-only restriction of ADR0070; old experiments and human fields remain unchanged.
 
 ## Configuration
 

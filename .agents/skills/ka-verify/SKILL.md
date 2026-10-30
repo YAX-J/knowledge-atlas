@@ -235,3 +235,8 @@ Include test_symbol_cache, test_agent_summary, test_jev_evaluation with code_sea
 ## Cloudflare offline judge checks (ADR0072)
 
 Include tests/test_cloudflare_evaluation.py and test_jev_evaluation.py with evaluation regressions, then one complete backend coverage run. MockTransport covers native envelopes, decision labels/probabilities, chat JSON Schema and absent confidence, configuration, 401/429/redirect/timeout/size/usage errors, no retries/fallback, reservations before HTTP, missing auth/caps, order/low-confidence uncertainty and CLI authorization. Run provider-free CLI preflights for CF decision, CF chat and explicit Jev in new ignored outputs; no real calls. This backend/config-only change needs no browser or frontend rebuild. Inspect paired guides, local ignored .env fields, diff/staging and frozen-artifact exclusions. Existing Agent executor choice persists.
+
+
+## OpenRouter judge checks (ADR0073)
+
+Focus test_openrouter_evaluation with CF/Jev/run/model-acceptance suites, then one full backend coverage run. HTTP substitutes cover the fixed Decisions endpoint, explicit version/snapshot matching, drift stop, exact choices/probabilities/usage/cost, HTTP/JSON/size/timeout errors, proxy-aware construction, no fallback/retry, anonymous reference separation, disk reservation, CLI provider/cap/auth boundaries and preserved partial outcomes. CLI preflight for OpenRouter, direct Jev and native Clef must reserve/complete0 and use fresh ignored outputs; no live account/model/billing calls. No front/UI/SQL changes, so no browser/build/native DB rerun. Keep .env ignored and review bilingual links/staging. Existing Agent executor selection persists.
