@@ -1,5 +1,7 @@
 # Knowledge Atlas 系统架构
 
+[ADR0072](adr/0072-cloudflare-judge-adapter.zh-CN.md)：离线评审选择 Jev 或 Cloudflare Workers AI，后者区分 Clef 的 state/questions 与文本模型的 messages/JSON Schema。共用匿名包、落盘预留和零调用预演；chat 不生成概率，记录模型版本边界，不进入 API/Worker 或正式写入路径。
+
 [ADR0071](adr/0071-bounded-read-caches-and-summaries.zh-CN.md)：符号搜索在作用域校验后使用有界进程内元数据缓存；列表可选 summary=true，只读必要列，详情按需获取；共用解析记录移到 analysis/structures.py，旧导入保留。离线 [Jev评审](JEV_EVALUATION.zh-CN.md) 不进入 API/Worker，不写正式知识或人工分数。
 
 [ADR 0069](adr/0069-answer-claim-evidence.zh-CN.md)：真实单轮供应商和工具循环共用严格 ClaimAnswerDraft，每条结论绑定证据或声明不足；由服务生成平铺回答及引用并校验当前检索池 UUID。历史读取使用可空新字段，不回放模型，不新增迁移。结构和归属校验不判定语义蕴含。

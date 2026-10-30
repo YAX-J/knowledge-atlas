@@ -1,4 +1,4 @@
-"""Prepare anonymous public-corpus packets and explicitly run bounded Jev-only grading."""
+"""Prepare anonymous packets and explicitly run bounded Jev or Workers AI grading."""
 import argparse
 import hashlib
 import json
@@ -6,7 +6,8 @@ from pathlib import Path
 import random
 
 from app.core.config import get_settings
-from app.llm.providers import jev
+from app.llm.providers import evaluation, jev
+from app.llm.providers.judging import JudgeError
 from scripts.evaluate_dataset import read_jsonl, validate_dataset
 
 
@@ -110,8 +111,12 @@ def requests(row):
                 criteria=dict(options)))
 
 
-def run(packet_dir,output,*,allow_calls=False,max_requests=0,settings=None,judge=jev.judge):
+def run(packet_dir,output,*,allow_calls=False,max_requests=0,settings=None,judge=None):
     settings=settings or get_settings()
+    settings=settings.model_copy(deep=True)
+    provider=evaluation.adapter(settings)
+    judge=judge or provider.judge
+    identity=evaluation.identity(settings)
     root=Path(packet_dir)
     packet=json.loads((root/'packet.json').read_text(encoding='utf-8'))
     manifest=json.loads((root/'packet-manifest.json').read_text(encoding='utf-8'))
@@ -120,13 +125,15 @@ def run(packet_dir,output,*,allow_calls=False,max_requests=0,settings=None,judge
     if not packet or len(packet)>5000 or len({row['review_id'] for row in packet})!=len(packet):
         raise ValueError('JEV_PACKET_INVALID')
     jobs=[(row,name,state,questions) for row in packet for name,state,questions in requests(row)]
-    for _row,_name,state,questions in jobs:jev.request_payload(settings,state,questions)
-    if allow_calls and (not settings.typesafe_api_key or not settings.typesafe_api_key.get_secret_value().strip()):
-        raise ValueError('JEV_NOT_CONFIGURED')
+    for _row,_name,state,questions in jobs:provider.request_payload(settings,state,questions)
+    if allow_calls and not evaluation.configured(settings):
+        raise ValueError('CF_NOT_CONFIGURED' if identity['provider']=='cloudflare' else 'JEV_NOT_CONFIGURED')
     if allow_calls and not len(jobs)<=max_requests<=10000:raise ValueError('JEV_REQUEST_BUDGET_REQUIRED')
     target=Path(output);target.mkdir(parents=True,exist_ok=False)
-    report=dict(protocol=jev.PROTOCOL,status='running' if allow_calls else 'prepared',annotation_source='model',
-        evaluator='Jev',requested_model=settings.typesafe_model,packet_sha256=manifest['packet_sha256'],
+    report=dict(protocol=identity['protocol'],packet_protocol=manifest['protocol'],
+        status='running' if allow_calls else 'prepared',annotation_source='model',
+        evaluator=identity['evaluator'],requested_model=identity['model'],judge_config=identity,
+        judge_config_sha256=digest(identity),packet_sha256=manifest['packet_sha256'],
         human_grading_coverage=0,planned_requests=len(jobs),reserved_requests=0,completed_requests=0,
         max_requests=max_requests,model_graded_reviews=0,results=[])
     write(target/'run.json',report)
@@ -148,12 +155,13 @@ def run(packet_dir,output,*,allow_calls=False,max_requests=0,settings=None,judge
             for index in range(len(row['units'])):
                 a=evaluations[f'support-{index}-forward']['answers']['relation']
                 b=evaluations[f'support-{index}-reversed']['answers']['relation']
-                if a['choice']!=b['choice'] or min(a['confidence'],b['confidence'])<.8:unstable.append(index)
+                confidence=(a['confidence'],b['confidence'])
+                if a['choice']!=b['choice'] or None in confidence or min(confidence)<.8:unstable.append(index)
             report.setdefault('reviews',[]).append(dict(review_id=row['review_id'],granularity=row['granularity'],
                 uncertain_units=unstable,support_applicable=bool(row['units'])))
         report.update(status='succeeded',model_graded_reviews=len(packet))
     except Exception as exc:
-        report.update(status='failed',error_code=str(exc) if isinstance(exc,jev.JevError) else 'JEV_EVALUATION_FAILED')
+        report.update(status='failed',error_code=str(exc) if isinstance(exc,JudgeError) else 'JUDGE_EVALUATION_FAILED')
         raise
     finally:write(target/'run.json',report)
     return report
@@ -165,12 +173,21 @@ def main():
     prep=commands.add_parser('prepare');prep.add_argument('--dataset',required=True)
     prep.add_argument('--predictions',nargs='+',required=True);prep.add_argument('--output',required=True)
     grading=commands.add_parser('run');grading.add_argument('--packet',required=True);grading.add_argument('--output',required=True)
+    grading.add_argument('--provider',choices=['jev','cloudflare'])
+    grading.add_argument('--allow-judge-calls',action='store_true')
     grading.add_argument('--allow-jev-calls',action='store_true');grading.add_argument('--max-requests',type=int,default=0)
     args=parser.parse_args()
     try:
         if args.command=='prepare':prepare(args.dataset,args.predictions,args.output)
-        else:run(args.packet,args.output,allow_calls=args.allow_jev_calls,max_requests=args.max_requests)
-    except Exception as exc:raise SystemExit(f'Jev evaluation stopped ({type(exc).__name__}); no automatic retry. Inspect local inputs/configuration without exposing credentials.')
+        else:
+            settings=get_settings()
+            if args.provider:settings=settings.model_copy(update={'evaluation_provider':args.provider})
+            if args.allow_jev_calls and settings.evaluation_provider!='jev':
+                parser.error('--allow-jev-calls only authorizes Jev; use --allow-judge-calls for the selected provider')
+            report=run(args.packet,args.output,allow_calls=args.allow_jev_calls or args.allow_judge_calls,
+                max_requests=args.max_requests,settings=settings)
+            print(json.dumps({key:report[key] for key in ('status','evaluator','requested_model','planned_requests','reserved_requests','completed_requests')}))
+    except Exception as exc:raise SystemExit(f'Judge evaluation stopped ({type(exc).__name__}); no automatic retry. Inspect local inputs/configuration without exposing credentials.')
 
 
 if __name__=='__main__':main()

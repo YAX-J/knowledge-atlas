@@ -1,8 +1,8 @@
 # Knowledge Atlas
 
-当前评估策略（2026-10-30）：只使用 Jev 匿名自动评审，人工覆盖率0%；本轮按用户要求不运行真实模型。配置与步骤见 [Jev评审](docs/JEV_EVALUATION.zh-CN.md)。符号缓存、摘要列表、测量和模块拆分见 [ADR0071](docs/adr/0071-bounded-read-caches-and-summaries.zh-CN.md)。
+当前评估策略（2026-10-30）：匿名模型评审可选择 Jev 或 Cloudflare Workers AI，人工覆盖率0%，本轮零真实调用。CF 支持 Clef 决策格式与兼容文本模型 JSON 评审，见 [CF配置与命令](docs/CLOUDFLARE_EVALUATION.zh-CN.md)、[Jev评审](docs/JEV_EVALUATION.zh-CN.md) 和 [ADR0072](docs/adr/0072-cloudflare-judge-adapter.zh-CN.md)。此前读取优化保留 ADR0071 记录。
 
-回答现按结论逐条绑定引用，证据不足单独标明，并可直接跳原文；历史记录仍保留旧格式，不自动补推对应关系。引用归属校验不证明结论语义正确，评估现采用 Jev 匿名自动评审，人工覆盖率0%。见 [ADR 0069](docs/adr/0069-answer-claim-evidence.zh-CN.md)。
+回答现按结论逐条绑定引用，证据不足单独标明，并可直接跳原文；历史记录仍保留旧格式，不自动补推对应关系。引用归属校验不证明结论语义正确，评估现采用 Jev 或 Cloudflare 匿名自动评审，人工覆盖率0%。见 [ADR 0069](docs/adr/0069-answer-claim-evidence.zh-CN.md)。
 
 面向毕业设计的个人技术知识系统：把技术文档、代码和 GitHub 活动整理成可回溯原文的时序知识图谱，并提供带引用的检索与问答。前端 Vue 3，后端 FastAPI，业务数据保存在 PostgreSQL + pgvector。
 

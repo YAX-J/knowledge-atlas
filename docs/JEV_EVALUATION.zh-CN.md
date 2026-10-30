@@ -2,7 +2,7 @@
 
 [English](JEV_EVALUATION.md)
 
-用户选择只使用 Jev 做模型评审，人工覆盖率0%，正式知识仍须人工审核。本轮实现并本地验证工具，不调用真实 Jev、不产生质量评分。历史 public-v2 BM25 的20题导出已准备为54次计划请求，预演预留/完成均0。此前人工盲评待办由 [ADR0070](adr/0070-jev-only-anonymous-evaluation.zh-CN.md) 取代，旧实验和人工评分字段不改。
+匿名评审现可选择 Jev 或 [Cloudflare Workers AI](CLOUDFLARE_EVALUATION.zh-CN.md)，本页说明 Jev。人工覆盖率仍为0%，正式知识须人工审核。历史20题 BM25 预演计划54次，预留/完成均0；开发期间没有真实裁判调用或质量评分。[ADR0072](adr/0072-cloudflare-judge-adapter.zh-CN.md) 扩展 ADR0070 的 Jev 单供应商限制，旧实验和人工字段不改。
 
 ## 配置
 
@@ -23,7 +23,7 @@ TYPESAFE_TIMEOUT_SECONDS=60
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.jev_evaluation prepare --dataset ../evaluation/public-v2 --predictions ../evaluation/results/2026-10-26-public-v2-run1/bm25.jsonl --output ../output/jev-my-run/packet
-.\.venv\Scripts\python.exe -m scripts.jev_evaluation run --packet ../output/jev-my-run/packet --output ../output/jev-my-run/preflight
+.\.venv\Scripts\python.exe -m scripts.jev_evaluation run --provider jev --packet ../output/jev-my-run/packet --output ../output/jev-my-run/preflight
 ```
 
 每种方法的导出须覆盖全部题目并包含真实答案文本。准备时重查引用精确原文行，创建打乱后的匿名包，方法/题目映射另存，裁判输入不带方法、生成模型/置信度或原题 ID。旧平铺导出保留 legacy_answer 整答粒度，新的公开验收导出提供 claims 与 claim_evidence 才做逐条检查，不将旧回答补拆成虚构条目。
@@ -35,7 +35,7 @@ TYPESAFE_TIMEOUT_SECONDS=60
 以下只记录未来用法，本轮没有执行：
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.jev_evaluation run --packet ../output/jev-my-run/packet --output ../output/jev-my-run/live --allow-jev-calls --max-requests 54
+.\.venv\Scripts\python.exe -m scripts.jev_evaluation run --provider jev --packet ../output/jev-my-run/packet --output ../output/jev-my-run/live --allow-jev-calls --max-requests 54
 ```
 
 其他输入包按预演实际计划次数设上限；预算不足或未配密钥时在传输前失败。每次请求先落盘预留，失败和未知结果也计数；出错停止、不自动重试，不覆盖或恢复已有输出。Jev 预留独立于旧84次模型/61次嵌入账本，每次新真实运行需独立明确调用授权。API、Worker、页面刷新或 GET 都不会启动评审。

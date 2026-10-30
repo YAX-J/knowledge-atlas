@@ -1,8 +1,8 @@
 # Knowledge Atlas implementation plan
 
-Current evaluation policy: Jev-only anonymous model grading, human coverage0%; live calls deliberately unrun this turn. The ordered symbol-cache, history-summary, lexical-v2 measurements and module-boundary changes are implemented. See [evaluation](docs/JEV_EVALUATION.md) and [ADR0071](docs/adr/0071-bounded-read-caches-and-summaries.md).
+Current evaluation policy: anonymous model grading explicitly selects Jev or Cloudflare Workers AI; human coverage0%, no live calls this turn. CF decision/chat adapters and zero-call preflight are implemented; live compatibility/quality remain unverified. See [CF setup](docs/CLOUDFLARE_EVALUATION.md) and [ADR0072](docs/adr/0072-cloudflare-judge-adapter.md). Ordered read optimizations remain in ADR0071.
 
-Claim-level answers are implemented in [ADR 0069](docs/adr/0069-answer-claim-evidence.md): `evidence-claims-v2` binds each supported claim to current scoped evidence, marks insufficient claims separately and supports exact source navigation. The server derives legacy flat fields; old records remain readable without inferred attribution or new provider calls. Structural validation does not establish semantic entailment. Frozen experiments, the 84/61 provider ledger and schema head `20261029_0019` remain unchanged; evaluation uses Jev-only grading with human coverage0%.
+Claim-level answers are implemented in [ADR 0069](docs/adr/0069-answer-claim-evidence.md): `evidence-claims-v2` binds each supported claim to current scoped evidence, marks insufficient claims separately and supports exact source navigation. The server derives legacy flat fields; old records remain readable without inferred attribution or new provider calls. Structural validation does not establish semantic entailment. Frozen experiments, the 84/61 provider ledger and schema head `20261029_0019` remain unchanged; evaluation uses anonymous model grading with human coverage0%.
 
 [简体中文](PLANS.zh-CN.md)
 

@@ -2,7 +2,7 @@
 
 [简体中文](JEV_EVALUATION.zh-CN.md)
 
-The user selects Jev-only grading with human coverage0%. Formal knowledge still requires human review. This turn implements and locally verifies the tools; no live Jev requests or quality scores are produced. The20-case historical public-v2 BM25 export prepares54 requests and reserves/completes0 in preflight. Earlier human-review plans are superseded by [ADR0070](adr/0070-jev-only-anonymous-evaluation.md); old experiments and human-score fields remain unchanged.
+Anonymous grading now supports Jev or [Cloudflare Workers AI](CLOUDFLARE_EVALUATION.md); this page describes Jev. Human coverage remains0%, and formal knowledge requires human review. The historical20-answer BM25 preflight plans54 requests with zero reservations/completions. No live judge calls or quality scores were produced during implementation. [ADR0072](adr/0072-cloudflare-judge-adapter.md) extends the Jev-only restriction of ADR0070; old experiments and human fields remain unchanged.
 
 ## Configuration
 
@@ -23,7 +23,7 @@ Run from backend, using a new output directory for each experiment:
 
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.jev_evaluation prepare --dataset ../evaluation/public-v2 --predictions ../evaluation/results/2026-10-26-public-v2-run1/bm25.jsonl --output ../output/jev-my-run/packet
-.\.venv\Scripts\python.exe -m scripts.jev_evaluation run --packet ../output/jev-my-run/packet --output ../output/jev-my-run/preflight
+.\.venv\Scripts\python.exe -m scripts.jev_evaluation run --provider jev --packet ../output/jev-my-run/packet --output ../output/jev-my-run/preflight
 ```
 
 Preparation requires each supplied method export to cover every dataset case and contain real answer text. It revalidates exact source lines/quotes, creates a shuffled packet and stores method/case mapping separately. The judge input omits method, generator model/confidence and case identity. Old flat exports retain `legacy_answer` granularity; new public acceptance exports include `claims` plus `claim_evidence` for claim-level checks. No old response is split into invented atomic claims.
@@ -35,7 +35,7 @@ Preflight hashes the packet, checks pinned model/input guards and writes `status
 This command is documented for a later authorized run, and was not executed this turn:
 
 ```powershell
-.\.venv\Scripts\python.exe -m scripts.jev_evaluation run --packet ../output/jev-my-run/packet --output ../output/jev-my-run/live --allow-jev-calls --max-requests 54
+.\.venv\Scripts\python.exe -m scripts.jev_evaluation run --provider jev --packet ../output/jev-my-run/packet --output ../output/jev-my-run/live --allow-jev-calls --max-requests 54
 ```
 
 Use the preflight's actual planned count for another packet. Insufficient budgets or missing keys fail before transport. All attempts, including failures/unknown outcomes, are reserved on disk before a call; errors stop without automatic retry. An existing output cannot be overwritten or resumed. Jev reservations do not reset or consume the historical84-model/61-embedding ledger; each new Jev run requires its own explicit call authorization. No API, Worker, page reload or GET starts this evaluation.

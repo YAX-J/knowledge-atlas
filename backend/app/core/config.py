@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -31,6 +32,13 @@ class Settings(BaseSettings):
     typesafe_model: str = 'jev-1.14.0'
     typesafe_base_url: str = 'https://api.typesafe.ai'
     typesafe_timeout_seconds: float = Field(default=60, ge=5, le=180)
+    evaluation_provider: Literal['jev', 'cloudflare'] = 'jev'
+    cloudflare_account_id: str = ''
+    cloudflare_api_token: SecretStr | None = None
+    cloudflare_model: str = '@cf/cloudflare/clef-flash'
+    cloudflare_judge_mode: Literal['decision', 'chat'] = 'decision'
+    cloudflare_timeout_seconds: float = Field(default=60, ge=5, le=180)
+    cloudflare_max_tokens: int = Field(default=2048, ge=256, le=8192)
     github_token: SecretStr | None = None
     github_api_base_url: str = "https://api.github.com"
     github_graphql_url: str = "https://api.github.com/graphql"
@@ -38,7 +46,7 @@ class Settings(BaseSettings):
     github_timeout_seconds: float = Field(default=30, ge=5, le=120)
     github_import_max_files: int = Field(default=50, ge=1, le=50)
 
-    @field_validator("github_token", "typesafe_api_key", mode="before")
+    @field_validator("github_token", "typesafe_api_key", "cloudflare_api_token", mode="before")
     @classmethod
     def normalize_github_token(cls, value: object) -> object:
         if isinstance(value, str):

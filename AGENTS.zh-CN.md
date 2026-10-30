@@ -1,8 +1,8 @@
 # Knowledge Atlas 仓库代理规范
 
-2026-10-30 评估决策：使用 Jev 匿名自动评审，取代此前人工盲评待办。本轮仅开发和本地验证，不调用真实 Jev；人工覆盖率0%，冻结产物不变，正式知识仍须人工审核。见 docs/JEV_EVALUATION.zh-CN.md。
+2026-10-30 评估决策：匿名模型评审支持显式选择 Jev 或 Cloudflare Workers AI（ADR0072 扩展 ADR0070）。CF decision 使用 Clef state/questions，兼容文本模型使用 chat JSON 标签，不伪造概率。本轮仅开发和本地验证，零真实供应商调用；人工覆盖率0%，冻结产物/holdout 不变，正式知识须人工审核。见 docs/CLOUDFLARE_EVALUATION.zh-CN.md 和 docs/JEV_EVALUATION.zh-CN.md。保持逐次授权、尝试预留、失败停止和不重试，--allow-jev-calls 不能授权 CF。
 
-2026-10-29 当前状态：应用库与迁移 head 为 `20261029_0019`；受限 Agent 与持久化人工审核流程见 ADR 0064–0065 和[实现说明](docs/MULTI_AGENT.zh-CN.md)。保持单项目，规范模块为 agents/、workflows/、tools/、analysis/、llm/，迁移过的 services 保留导入别名。三个角色共享有界尝试预算，正式入图只由人工审核触发。同 UUID 重发、只读恢复和审核后继续不得自动重复付费请求。ADR0061 的不可变版本和原生编译器边界继续适用。公开付费累计仍为 84 模型 /61 嵌入，本次重构零新增；评估改为 Jev 匿名自动评审、人工覆盖率0%，holdout-v3 不可调参。此前测量作为[历史验收](docs/OPTIMIZATION_20261029.zh-CN.md)保留。
+2026-10-29 当前状态：应用库与迁移 head 为 `20261029_0019`；受限 Agent 与持久化人工审核流程见 ADR 0064–0065 和[实现说明](docs/MULTI_AGENT.zh-CN.md)。保持单项目，规范模块为 agents/、workflows/、tools/、analysis/、llm/，迁移过的 services 保留导入别名。三个角色共享有界尝试预算，正式入图只由人工审核触发。同 UUID 重发、只读恢复和审核后继续不得自动重复付费请求。ADR0061 的不可变版本和原生编译器边界继续适用。公开付费累计仍为 84 模型 /61 嵌入，本次重构零新增；评估支持 Jev 或 Cloudflare 匿名自动评审、人工覆盖率0%，holdout-v3 不可调参。此前测量作为[历史验收](docs/OPTIMIZATION_20261029.zh-CN.md)保留。
 
 离线词法检索新增显式 `mode=bm25`（ADR 0044），与默认字面关键词、固定混合模式分开。必须保留用户/项目/类型/时间隔离及扫描/文本上限，返回截断信息，不把分数当作可回答性。语义空索引在本地配置校验后跳过查询嵌入。新实验单独版本化，2026-10-25 结果是开发诊断，不是独立盲测或人工质量分。
 

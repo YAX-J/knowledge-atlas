@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Add explicit Cloudflare Workers AI offline judging: native REST, Clef decision format and configurable text-model JSON Schema labels. Preserve Jev commands, anonymity, attempt reservations and zero-call preflight; record provider/model/configuration and missing chat confidence without fabricated probabilities. No live calls or business-provider changes (ADR0072).
+
 - Add bounded symbol metadata reuse, opt-in lightweight collaboration history with on-demand full details, versioned native lexical-v2/cache/payload measurements and extracted workflow/parser modules. Add offline Jev-only anonymous grading with an explicit call cap and zero-call preflight; human coverage remains0%, no live Jev calls this turn.
 
 - Collaboration history now batches task review counts: a 50-task page with candidate IDs uses 4 SELECTs instead of 153, preserving pagination, exact review subsets, saved scope and read-only expiry. Candidate-free pages use 3 reads; no provider calls or schema changes.

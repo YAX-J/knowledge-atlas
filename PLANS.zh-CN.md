@@ -1,8 +1,8 @@
 # Knowledge Atlas 实施计划
 
-当前策略：Jev 匿名自动评审，人工覆盖率0%；本轮明确不运行真实模型。按序完成符号缓存、历史摘要、词法v2测量及模块拆分。见 [评估说明](docs/JEV_EVALUATION.zh-CN.md) 和 [ADR0071](docs/adr/0071-bounded-read-caches-and-summaries.zh-CN.md)。
+当前策略：匿名模型评审可显式选择 Jev 或 Cloudflare Workers AI，人工覆盖率0%，本轮零真实调用。CF decision/chat 适配和零调用预演已实现，真实兼容/质量仍未验证，见 [CF配置](docs/CLOUDFLARE_EVALUATION.zh-CN.md) 和 [ADR0072](docs/adr/0072-cloudflare-judge-adapter.zh-CN.md)。按序完成的读取优化保留 ADR0071 记录。
 
-[ADR 0069](docs/adr/0069-answer-claim-evidence.zh-CN.md) 已实现结论逐条关联证据：`evidence-claims-v2` 将有据结论绑定当前范围内的引用，将证据不足条目分开标明，引用可直达原文。后端生成兼容平铺字段；历史记录保留旧格式，不推断对应关系或重调模型。结构校验不证明语义蕴含。冻结实验、84/61 调用账本和 schema head `20261029_0019` 不变；评估改为 Jev 匿名自动评审，人工覆盖率0%。
+[ADR 0069](docs/adr/0069-answer-claim-evidence.zh-CN.md) 已实现结论逐条关联证据：`evidence-claims-v2` 将有据结论绑定当前范围内的引用，将证据不足条目分开标明，引用可直达原文。后端生成兼容平铺字段；历史记录保留旧格式，不推断对应关系或重调模型。结构校验不证明语义蕴含。冻结实验、84/61 调用账本和 schema head `20261029_0019` 不变；评估支持 Jev 或 Cloudflare 匿名自动评审，人工覆盖率0%。
 
 [English](PLANS.md)
 
@@ -25,7 +25,7 @@
 
 ## 仍需外部参与
 
-当前不安排人工盲评；采用 Jev 匿名自动评审，人工覆盖率0%。本轮仅开发与零调用预演，真实评估待用户填入密钥并单独授权调用次数后运行。holdout-v3 保持冻结，不用于调提示词、排序或阈值。
+当前不安排人工盲评；采用 Jev 或 Cloudflare 匿名自动评审，人工覆盖率0%。本轮仅开发与零调用预演，真实评估待用户配置所选供应商凭据并单独授权调用次数后运行。holdout-v3 保持冻结，不用于调提示词、排序或阈值。
 
 私有仓库验收、有权限的新数据库完整恢复、Docker、远端 CI 仍需对应环境，不因功能实现而自动算完成。
 

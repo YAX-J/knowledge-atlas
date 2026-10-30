@@ -3,22 +3,16 @@ import json
 import re
 
 import httpx
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import ValidationError
+
+from app.llm.providers.judging import Choice, JudgeError, validate_choices
 
 
 PROTOCOL = 'jev-anonymous-claims-v1'
 
 
-class JevError(Exception):
+class JevError(JudgeError):
     pass
-
-
-class Choice(BaseModel):
-    model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
-    type: str
-    choice: str
-    confidence: float = Field(ge=0, le=1)
-    probabilities: dict[str, float]
 
 
 def request_payload(settings, state, questions):
@@ -46,15 +40,7 @@ def judge(settings, state, questions):
         data=json.loads(raw)
         if data['model']!=settings.typesafe_model or set(data['answers'])!=set(questions):
             raise JevError('JEV_OUTPUT_INVALID')
-        answers={}
-        for name,question in questions.items():
-            item=Choice.model_validate(data['answers'][name])
-            options=set(question['criteria'])
-            if item.type!='choice' or item.choice not in options or set(item.probabilities)!=options:
-                raise JevError('JEV_OUTPUT_INVALID')
-            if any(not 0<=probability<=1 for probability in item.probabilities.values()) or abs(sum(item.probabilities.values())-1)>.01:
-                raise JevError('JEV_OUTPUT_INVALID')
-            answers[name]=item.model_dump()
+        answers=validate_choices(data['answers'],questions)
         usage=data.get('usage',{})
         if not isinstance(usage,dict) or any(type(usage.get(key)) is not int or usage[key]<0 for key in ('input_tokens','output_tokens')):
             raise JevError('JEV_OUTPUT_INVALID')

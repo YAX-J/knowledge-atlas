@@ -1,8 +1,8 @@
 # Knowledge Atlas 后端
 
-Jev 匿名自动评审为独立离线命令，人工覆盖率0%，本轮零真实调用。backend/.env 已添加空 TYPESAFE_API_KEY、固定 TYPESAFE_MODEL 等配置，待用户填密钥；命令与限制见 [评审说明](../docs/JEV_EVALUATION.zh-CN.md)。
+离线匿名评审可显式选择 Jev 或 Cloudflare Workers AI，人工覆盖率0%，本轮零真实调用。backend/.env 已添加空 CLOUDFLARE_ACCOUNT_ID/CLOUDFLARE_API_TOKEN 和 CLOUDFLARE_MODEL、decision/chat 模式配置，原 Jev 字段保留。见 [CF命令与限制](../docs/CLOUDFLARE_EVALUATION.zh-CN.md) 和 [Jev说明](../docs/JEV_EVALUATION.zh-CN.md)。
 
-[ADR 0069](../docs/adr/0069-answer-claim-evidence.zh-CN.md) 已实现结论逐条关联证据：`evidence-claims-v2` 将有据结论绑定当前范围内的引用，将证据不足条目分开标明，引用可直达原文。后端生成兼容平铺字段；历史记录保留旧格式，不推断对应关系或重调模型。结构校验不证明语义蕴含。冻结实验、84/61 调用账本和 schema head `20261029_0019` 不变；评估改为 Jev 匿名自动评审，人工覆盖率0%。
+[ADR 0069](../docs/adr/0069-answer-claim-evidence.zh-CN.md) 已实现结论逐条关联证据：`evidence-claims-v2` 将有据结论绑定当前范围内的引用，将证据不足条目分开标明，引用可直达原文。后端生成兼容平铺字段；历史记录保留旧格式，不推断对应关系或重调模型。结构校验不证明语义蕴含。冻结实验、84/61 调用账本和 schema head `20261029_0019` 不变；评估支持 Jev 或 Cloudflare 匿名自动评审，人工覆盖率0%。
 
 单项目 Agent 协作已接通。更新依赖后使用迁移 `20261029_0019`；新增固定版本 LangGraph，继续使用现有虚拟环境，执行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"`（backend 目录）。已有数据先备份与隔离恢复核验，再 `alembic upgrade head`。三个角色、四个协作接口和同步/人工审核边界见[实现说明](../docs/MULTI_AGENT.zh-CN.md)。
 
