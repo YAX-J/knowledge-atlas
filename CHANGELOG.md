@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Collaboration history now batches task review counts: a 50-task page with candidate IDs uses 4 SELECTs instead of 153, preserving pagination, exact review subsets, saved scope and read-only expiry. Candidate-free pages use 3 reads; no provider calls or schema changes.
+
 - Claim-level answers are implemented in [ADR 0069](docs/adr/0069-answer-claim-evidence.md): `evidence-claims-v2` binds each supported claim to current scoped evidence, marks insufficient claims separately and supports exact source navigation. The server derives legacy flat fields; old records remain readable without inferred attribution or new provider calls. Structural validation does not establish semantic entailment. Frozen experiments, the 84/61 provider ledger and schema head `20261029_0019` remain unchanged; human grading is deferred.
 
 - Collaboration tasks expose retrieval mode, optional local knowledge time and fixed-commit/local code-version choices with a draft scope preview. History excludes current code; failed/loading metadata blocks submission and retries reads only. Saved tasks return an allowlisted scope for refresh/review without exposing raw requests or replaying calls. Defaults/schema remain unchanged (ADR 0068).

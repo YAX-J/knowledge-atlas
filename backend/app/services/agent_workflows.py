@@ -45,8 +45,13 @@ def _counts(db,item):
 
 def read_run(db,*,user_id,project_id,run_id):
     item=_record(db,user_id,project_id,run_id)
+    return _run_read(item, _counts(db,item), now=utc_now())
+
+
+def _run_read(item,review_counts,*,now):
+    """Project an already loaded record without issuing another database read."""
     status=item.status
-    if status=='running' and (item.lease_until is None or aware(item.lease_until)<=utc_now()):status='interrupted'
+    if status=='running' and (item.lease_until is None or aware(item.lease_until)<=now):status='interrupted'
     request = item.request or {}
     question = item.kind == 'question_pipeline'
     include_code = bool(request.get('include_code_analysis', False))
@@ -60,15 +65,43 @@ def read_run(db,*,user_id,project_id,run_id):
     )
     return WorkflowRead(id=item.id,project_id=item.project_id,source_id=item.source_id,kind=item.kind,status=status,
         result=item.result,events=item.events,usage=item.usage,error_code=item.error_code,
-        created_at=item.created_at,updated_at=item.updated_at,review_counts=_counts(db,item),scope=scope)
+        created_at=item.created_at,updated_at=item.updated_at,review_counts=review_counts,scope=scope)
+
+
+def _list_review_counts(db,items,*,user_id,project_id):
+    # The same extraction may be reused by multiple runs, each with its own ID subset.
+    # Match all three provenance fields instead of counting an entire source/task.
+    owners={}
+    identifiers=set()
+    for item in items:
+        candidate_ids={uuid.UUID(value) for value in (item.result or {}).get('candidate_ids',[])}
+        if not candidate_ids:continue
+        task_id=uuid.UUID(item.result['extraction_task_id'])
+        for candidate_id in candidate_ids:
+            owners.setdefault((candidate_id,item.source_id,task_id),[]).append(item.id)
+        identifiers.update(candidate_ids)
+    if not identifiers:return {}
+    rows=db.execute(select(CandidateKnowledge.id,CandidateKnowledge.source_id,
+        CandidateKnowledge.task_id,CandidateKnowledge.review_status).where(
+        CandidateKnowledge.user_id==user_id,CandidateKnowledge.project_id==project_id,
+        CandidateKnowledge.id.in_(identifiers)))
+    counts={}
+    for candidate_id,source_id,task_id,status in rows:
+        for run_id in owners.get((candidate_id,source_id,task_id),[]):
+            statuses=counts.setdefault(run_id,{})
+            statuses[str(status)]=statuses.get(str(status),0)+1
+    return counts
 
 
 def list_runs(db,*,user_id,project_id,page,page_size):
     get_project(db,user_id=user_id,project_id=project_id)
     query=select(AgentRun).where(AgentRun.user_id==user_id,AgentRun.project_id==project_id)
     total=db.scalar(select(func.count()).select_from(query.subquery())) or 0
-    items=list(db.scalars(query.order_by(AgentRun.created_at.desc(),AgentRun.id).offset((page-1)*page_size).limit(page_size)))
-    return WorkflowList(items=[read_run(db,user_id=user_id,project_id=project_id,run_id=item.id) for item in items],
+    items=list(db.scalars(query.order_by(AgentRun.created_at.desc(),AgentRun.id).offset((page-1)*page_size).limit(page_size)
+        .execution_options(populate_existing=True)))
+    counts=_list_review_counts(db,items,user_id=user_id,project_id=project_id)
+    now=utc_now()
+    return WorkflowList(items=[_run_read(item,counts.get(item.id,{}),now=now) for item in items],
         total=total,page=page,page_size=page_size)
 
 
