@@ -1,5 +1,7 @@
 # Knowledge Atlas
 
+回答现按结论逐条绑定引用，证据不足单独标明，并可直接跳原文；历史记录仍保留旧格式，不自动补推对应关系。引用归属校验不证明结论语义正确，人工盲评仍待完成。见 [ADR 0069](docs/adr/0069-answer-claim-evidence.zh-CN.md)。
+
 面向毕业设计的个人技术知识系统：把技术文档、代码和 GitHub 活动整理成可回溯原文的时序知识图谱，并提供带引用的检索与问答。前端 Vue 3，后端 FastAPI，业务数据保存在 PostgreSQL + pgvector。
 
 当前能力、验收边界和后续工作以本页、[当前计划](PLANS.zh-CN.md)、[路线图](docs/ROADMAP.md)及[多 Agent 改造](docs/MULTI_AGENT.zh-CN.md)及[此前优化验收](docs/OPTIMIZATION_20261029.zh-CN.md)为准。此前逐轮检查点已移入[历史文档](docs/archive/pre-optimization-20261029/README.md)，旧实验数字保持不变。

@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from app.core.config import Settings
 from app.schemas.knowledge import ExtractionDraft
-from app.schemas.questions import AnswerDraft
+from app.schemas.questions import ClaimAnswerDraft
 from app.schemas.code_agent import AgentCallAnalysisDraft
 from app.services import model_usage
 
@@ -82,7 +82,7 @@ def extract_candidates(settings: Settings, chunks: list[dict]) -> ExtractionDraf
         raise ExtractionError("EXTRACTION_OUTPUT_INVALID", "模型输出不符合候选知识约定，请重试") from exc
 
 
-def answer_question(settings: Settings, question: str, evidence: list[dict], *, context: list[dict] | None = None) -> AnswerDraft:
+def answer_question(settings: Settings, question: str, evidence: list[dict], *, context: list[dict] | None = None) -> ClaimAnswerDraft:
     model_usage.begin_call("answer")
     if settings.deepseek_api_key is None:
         raise QuestionError('QUESTION_NOT_CONFIGURED', '证据问答尚未配置 DeepSeek API 密钥')
@@ -127,7 +127,7 @@ def answer_question(settings: Settings, question: str, evidence: list[dict], *, 
         choice = payload['choices'][0]
         if choice['finish_reason'] != 'stop':
             raise QuestionError('QUESTION_OUTPUT_INVALID', '模型回答未完整结束，请缩短问题后重试')
-        return AnswerDraft.model_validate_json(choice['message']['content'])
+        return ClaimAnswerDraft.model_validate_json(choice['message']['content'])
     except httpx.HTTPError as exc:
         raise QuestionError('QUESTION_PROVIDER_FAILED', 'DeepSeek 连接失败或超时，请稍后手动重试') from exc
     except (ValueError, KeyError, IndexError, TypeError, ValidationError) as exc:

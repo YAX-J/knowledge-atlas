@@ -1,6 +1,6 @@
 import uuid
 from app.api.routes import conversations as routes
-from app.schemas.questions import AnswerDraft
+from app.schemas.questions import AnswerDraft, ClaimAnswerDraft
 from app.services import deepseek
 from tests.test_questions import prepared_project
 from tests.test_knowledge import configured
@@ -12,8 +12,8 @@ def test_persistent_conversation_idempotence_followups_and_project_boundary(clie
     calls=[]
     def answer(_settings, question, evidence, **kwargs):
         calls.append(kwargs.get('context'))
-        return AnswerDraft(supported=True, answer='PostgreSQL stores the knowledge.', confidence=.9,
-            citation_ids=[evidence[0]['id']], missing_information=[])
+        return ClaimAnswerDraft(supported=True, confidence=.9,
+            claims=[dict(text='PostgreSQL stores the knowledge.',status='supported',citation_ids=[evidence[0]['id']])], missing_information=[])
     monkeypatch.setattr(deepseek,'answer_question',answer)
     base=f'/api/v1/projects/{project}/conversations'
     conversation=client.post(base,json={}).json()
@@ -22,6 +22,8 @@ def test_persistent_conversation_idempotence_followups_and_project_boundary(clie
     first=client.post(path,json=body)
     assert first.status_code==200,first.text
     assert first.json()['status']=='succeeded'
+    assert first.json()['answer']['answer_protocol']=='evidence-claims-v2'
+    assert first.json()['answer']['claims'][0]['citation_ids']==[first.json()['answer']['evidence'][0]['id']]
     assert client.post(path,json=body).json()==first.json() and len(calls)==1
     assert client.post(path,json={**body,'question':'changed'}).status_code==409
     second=client.post(path,json={**body,'request_id':str(uuid.uuid4()),'question':'Why use it?'})

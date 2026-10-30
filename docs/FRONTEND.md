@@ -1,5 +1,7 @@
 # Knowledge Atlas 前端开发说明
 
+[ADR 0069](adr/0069-answer-claim-evidence.zh-CN.md)：新增 AnswerClaims 供单轮/持久化会话和协作回答复用。每条显示“附有引用”或“证据不足”，引用按 evidence 序号展示，并发出精确 EvidenceLocator 复用 useEvidenceNavigation；不插入 HTML，不猜测缺失引用。旧记录显示平铺正文及旧格式提示，不将旧回答补成有据条目。回归 answerClaims.test.ts、agentRuns.test.ts。
+
 Vue 3 Composition API、TypeScript、Vite、Element Plus 和原生 SVG。默认 `VITE_DATA_SOURCE=workbench` 打开真实项目概览；`api` 直接开资料；`mock` 打开独立演示。真实请求失败时展示错误，不回退 Mock。
 
 ## 协作页面

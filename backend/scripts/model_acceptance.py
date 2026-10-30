@@ -17,6 +17,7 @@ import uuid
 
 from app.core.config import get_settings
 from app.core.errors import AppError
+from app.llm.prompts import ANSWER_PROMPT_VERSION
 from app.services import deepseek
 from app.services.markdown import parse_markdown
 from app.services.model_usage import usage_budget
@@ -99,7 +100,7 @@ def run_acceptance(*, dataset: Path, retrieval: Path, output: Path, settings, al
     if frozen_run["status"] != "succeeded" or frozen_run["dataset"] != summary:
         raise ValueError("Frozen retrieval manifest does not match the dataset")
     output.mkdir(parents=True, exist_ok=False)
-    report = {"status": "running", "dataset": summary, "model": settings.deepseek_model,
+    report = {"status": "running", "dataset": summary, "model": settings.deepseek_model, "answer_protocol": ANSWER_PROMPT_VERSION,
               "started_at": datetime.now(timezone.utc).isoformat(), "answer_input": "frozen_retrieval_replay",
               "manual_grading_coverage": 0, "billing_cost": None, "phases": {}}
     report_path = output / "acceptance.json"

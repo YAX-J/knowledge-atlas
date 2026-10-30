@@ -114,6 +114,8 @@ def test_question_without_evidence_refuses_without_calling_answer_model(
     data = response.json()
     assert not data['supported'] and data['confidence'] == 0
     assert data['evidence'] == [] and data['entity_ids'] == []
+    assert data['answer_protocol'] == 'evidence-claims-v2'
+    assert data['claims'] == [dict(text=data['answer'],status='insufficient',citation_ids=[])]
     assert data['missing_information']
 
 

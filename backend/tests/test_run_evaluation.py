@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from app.core.config import Settings
-from app.schemas.questions import AnswerDraft
+from app.schemas.questions import AnswerDraft, ClaimAnswerDraft
 from sqlalchemy.orm import sessionmaker
 from scripts.prepare_evaluation import prepare_project
 from scripts import run_evaluation as runner
@@ -69,7 +69,8 @@ def test_build_prediction_keeps_retrieval_order_without_answer_calls():
     assert calls[0][1]["mode"] == "keyword" and calls[0][1]["top_k"] == 5
 
 
-def test_answer_generation_accepts_only_retrieved_citations():
+@pytest.mark.parametrize('claim_format', [False, True])
+def test_answer_generation_accepts_only_retrieved_citations(claim_format):
     source_id = uuid.uuid4()
     evidence_id = uuid.uuid4()
     result = result_with([evidence(evidence_id, source_id)])
@@ -77,6 +78,9 @@ def test_answer_generation_accepts_only_retrieved_citations():
     def answer(_settings, question, payload):
         assert question == "question"
         assert payload[0]["id"] == str(evidence_id)
+        if claim_format:
+            return ClaimAnswerDraft(supported=True,confidence=.9,
+                claims=[dict(text='grounded answer',status='supported',citation_ids=[evidence_id])],missing_information=[])
         return AnswerDraft(
             supported=True,
             answer="grounded answer",

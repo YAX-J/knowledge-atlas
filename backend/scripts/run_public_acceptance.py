@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.identity import DEVELOPMENT_USER_ID as USER
+from app.llm.prompts import ANSWER_PROMPT_VERSION
 from app.models.domain import CandidateKnowledge, Project
 from app.services import embeddings, ingestion, knowledge, model_usage, parsing, questions
 from app.services.search import search_knowledge
@@ -48,7 +49,7 @@ def run(dataset,output,*,model_limit=120,embedding_limit=160):
     if not 1<=model_limit<=120 or not 1<=embedding_limit<=160:
         raise ValueError('Budget exceeds the user authorization')
     output.mkdir(parents=True)
-    report=dict(status='running',protocol='public-online-v2',dataset=summary,
+    report=dict(status='running',protocol='public-online-v2',answer_protocol=ANSWER_PROMPT_VERSION,dataset=summary,
         started_at=datetime.now(timezone.utc).isoformat(),private_inputs=False,human_coverage=0,
         billing_cost=None,embedding_calls=0,model_limit=model_limit,embedding_limit=embedding_limit,
         schema_removed=False,modes={},errors=[])

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AnswerClaims from '../components/AnswerClaims.vue'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import type { ApiProject, ApiProjectList, ApiSource } from '../api/knowledgeAtlas'
 import { useAgentRuns } from '../composables/useAgentRuns'
@@ -123,7 +124,7 @@ onScopeDispose(()=>clearInterval(timer))
           <p v-if="selected.error_code" role="alert">任务未完成（{{selected.error_code}}）。请核对记录后显式新建任务。</p>
           <div v-if="selected.status==='awaiting_review'" class="agent-review"><p>本次候选：待审核 {{selected.review_counts.pending??0}} · 已确认 {{selected.review_counts.confirmed??0}} · 已拒绝 {{selected.review_counts.rejected??0}}</p>
             <button v-if="selected.source_id" @click="emit('openSource',selected.source_id)">打开原文与候选审核</button><button :disabled="sending||(selected.review_counts.pending??0)>0" @click="resume">审核完成，继续流程</button></div>
-          <section v-if="selected.result?.answer" aria-label="协作回答"><h3>回答</h3><p>{{selected.result.answer.answer}}</p><p v-for="missing in selected.result.answer.missing_information" :key="missing">{{missing}}</p>
+          <section v-if="selected.result?.answer" aria-label="协作回答"><h3>回答</h3><AnswerClaims :answer="selected.result.answer" @open-evidence="emit('openEvidence', $event)" /><p v-for="missing in selected.result.answer.missing_information" :key="missing">{{missing}}</p>
             <article v-for="evidence in selected.result.answer.evidence" :key="evidence.id"><strong>{{evidence.title}}</strong><p>{{evidence.quote}}</p><button @click="emit('openEvidence',{source_id:evidence.source_id,chunk_id:evidence.chunk_id})">查看引用原文</button></article></section>
           <AgentRunTrace :events="selected.events" />
         </article>

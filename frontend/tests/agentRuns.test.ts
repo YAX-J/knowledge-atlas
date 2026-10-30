@@ -5,7 +5,7 @@ import * as api from '../src/api/agents'
 import { ApiError } from '../src/api/client'
 import { useAgentRuns } from '../src/composables/useAgentRuns'
 import AgentWorkspace from '../src/pages/AgentWorkspace.vue'
-import { project, source } from './fixtures'
+import { project, source, answerFixture } from './fixtures'
 
 vi.mock('../src/api/agents')
 enableAutoUnmount(afterEach)
@@ -22,6 +22,16 @@ beforeEach(()=>{
   vi.mocked(api.getAgentRun).mockResolvedValue(run)
   vi.mocked(api.startAgentRun).mockResolvedValue(run)
   vi.mocked(api.resumeAgentRun).mockResolvedValue({...run,status:'succeeded',review_counts:{confirmed:1}})
+})
+
+it('reads saved claim mappings and forwards exact evidence without issuing another task',async()=>{
+  const answer=answerFixture()
+  vi.mocked(api.getAgentRun).mockResolvedValue({...run,kind:'question_pipeline',status:'succeeded',result:{answer}})
+  const wrapper=mount(AgentWorkspace,{props:{...props,runId:run.id}});await flushPromises()
+  expect(wrapper.get('[aria-label="协作回答"]').text()).toContain('Performance is unknown.')
+  await wrapper.get('.claim-citations button').trigger('click')
+  expect(wrapper.emitted('openEvidence')).toEqual([[answer.evidence[1]]])
+  expect(api.startAgentRun).not.toHaveBeenCalled()
 })
 
 it('starts an explicit workflow, opens its exact source and waits for human decisions before resume',async()=>{

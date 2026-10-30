@@ -1,5 +1,7 @@
 # Scoped agents in one project
 
+Claim-level answers are implemented in [ADR 0069](adr/0069-answer-claim-evidence.md): `evidence-claims-v2` binds each supported claim to current scoped evidence, marks insufficient claims separately and supports exact source navigation. The server derives legacy flat fields; old records remain readable without inferred attribution or new provider calls. Structural validation does not establish semantic entailment. Frozen experiments, the 84/61 provider ledger and schema head `20261029_0019` remain unchanged; human grading is deferred.
+
 [简体中文](MULTI_AGENT.zh-CN.md)
 
 Knowledge Atlas now contains three registered agents and two explicit LangGraph workflows in the existing backend. The Vue frontend, FastAPI application, database, Worker and dependency environments remain shared. No second application or nested Agent project is created. See ADR [0064](adr/0064-scoped-agent-modules.md), [0065](adr/0065-durable-reviewed-workflows.md) and [acceptance results](MULTI_AGENT_ACCEPTANCE.md).

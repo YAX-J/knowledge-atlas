@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Claim-level answers are implemented in [ADR 0069](docs/adr/0069-answer-claim-evidence.md): `evidence-claims-v2` binds each supported claim to current scoped evidence, marks insufficient claims separately and supports exact source navigation. The server derives legacy flat fields; old records remain readable without inferred attribution or new provider calls. Structural validation does not establish semantic entailment. Frozen experiments, the 84/61 provider ledger and schema head `20261029_0019` remain unchanged; human grading is deferred.
+
 - Collaboration tasks expose retrieval mode, optional local knowledge time and fixed-commit/local code-version choices with a draft scope preview. History excludes current code; failed/loading metadata blocks submission and retries reads only. Saved tasks return an allowlisted scope for refresh/review without exposing raw requests or replaying calls. Defaults/schema remain unchanged (ADR 0068).
 
 - Collaboration runs persist events and call reservations before callbacks, renew fenced ownership and save validated code/extraction/answer checkpoints. Earlier results remain readable after later failures or interruptions; progress storage failures stop subsequent calls, pending business writes are never auto-flushed, and checkpoint labels are localized. No schema change or automatic paid replay (ADR 0067).

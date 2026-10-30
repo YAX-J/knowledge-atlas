@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.errors import AppError
-from app.schemas.questions import EvidenceEntityRead, QuestionEvidenceRead, QuestionRead, RetrievalSummary
+from app.schemas.questions import AnswerClaim, ClaimAnswerDraft, EvidenceEntityRead, QuestionEvidenceRead, QuestionRead, RetrievalSummary
+from app.llm.prompts import ANSWER_PROMPT_VERSION
 from app.services import deepseek
 from app.services.search import search_knowledge
 
@@ -43,6 +44,8 @@ def answer_question(
             answer='现有已确认知识中没有足够的原文证据回答这个问题。', confidence=0,
             entity_ids=[], evidence=[], retrieval=retrieval,
             missing_information=['请补充并确认包含答案的项目资料。'],
+            answer_protocol=ANSWER_PROMPT_VERSION,
+            claims=[AnswerClaim(text='现有已确认知识中没有足够的原文证据回答这个问题。', status='insufficient', citation_ids=[])],
         )
     if settings.deepseek_api_key is None:
         raise AppError(
@@ -121,4 +124,6 @@ def validated_answer(question,evidence_by_id,retrieval,draft):
         answer=draft.answer, confidence=draft.confidence, entity_ids=entity_ids,
         evidence=evidence, retrieval=retrieval,
         missing_information=draft.missing_information,
+        answer_protocol=ANSWER_PROMPT_VERSION if isinstance(draft, ClaimAnswerDraft) else None,
+        claims=draft.claims if isinstance(draft, ClaimAnswerDraft) else None,
     )

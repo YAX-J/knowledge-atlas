@@ -11,7 +11,7 @@ from app.core import config as configuration
 from app.core.identity import DEVELOPMENT_USER_ID as USER
 from app.models.domain import Project
 from app.schemas.knowledge import ExtractionDraft
-from app.schemas.questions import AnswerDraft
+from app.schemas.questions import ClaimAnswerDraft
 from app.services import deepseek,embeddings
 from scripts.isolated_workspace import isolated_workspace
 from scripts.prepare_evaluation import prepare_project
@@ -28,8 +28,10 @@ def extraction(_settings,chunks):
 
 
 def answer(_settings,question,evidence,**kwargs):
-    return AnswerDraft(supported=True,answer='本地验收替身引用当前原文：'+evidence[0]['quote'],confidence=.9,
-        citation_ids=[evidence[0]['id']],missing_information=[])
+    return ClaimAnswerDraft(supported=False,confidence=.9, claims=[
+        dict(text='本地验收替身引用当前原文：'+evidence[0]['quote'][:450],status='supported',citation_ids=[evidence[0]['id']]),
+        dict(text='本地验收替身无法确认未出现在证据中的其他细节。',status='insufficient',citation_ids=[])],
+        missing_information=['请补充其他细节的原文证据。'])
 
 
 def vectors(_settings,texts):

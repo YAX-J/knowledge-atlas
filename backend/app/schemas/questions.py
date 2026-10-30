@@ -22,6 +22,7 @@ class QuestionCreate(StrictModel):
 
 
 class AnswerDraft(StrictModel):
+    """Legacy flat draft retained for historical diagnostic adapters, not provider parsing."""
     supported: bool
     answer: AnswerText
     confidence: float = Field(ge=0, le=1, strict=True)
@@ -36,6 +37,45 @@ class AnswerDraft(StrictModel):
             raise ValueError('Unsupported answers must identify missing information')
         if len(self.citation_ids) != len(set(self.citation_ids)):
             raise ValueError('Citation IDs must be unique')
+        return self
+
+
+class AnswerClaim(StrictModel):
+    text: MissingText
+    status: Literal['supported', 'insufficient']
+    citation_ids: list[uuid.UUID] = Field(max_length=5)
+
+    @model_validator(mode='after')
+    def validate_citations(self):
+        if (self.status == 'supported') != bool(self.citation_ids):
+            raise ValueError('Supported claims require citations; insufficient claims cannot cite')
+        if len(self.citation_ids) != len(set(self.citation_ids)):
+            raise ValueError('Claim citation IDs must be unique')
+        return self
+
+
+class ClaimAnswerDraft(StrictModel):
+    supported: bool
+    confidence: float = Field(ge=0, le=1, strict=True)
+    claims: list[AnswerClaim] = Field(min_length=1, max_length=8)
+    missing_information: list[MissingText] = Field(max_length=5)
+
+    @property
+    def citation_ids(self) -> list[uuid.UUID]:
+        return list(dict.fromkeys(item_id for claim in self.claims for item_id in claim.citation_ids))
+
+    @property
+    def answer(self) -> str:
+        return '\n\n'.join(claim.text for claim in self.claims)
+
+    @model_validator(mode='after')
+    def validate_support(self):
+        if self.supported != all(claim.status == 'supported' for claim in self.claims):
+            raise ValueError('Overall support must agree with claim support')
+        if not self.supported and not self.missing_information:
+            raise ValueError('Insufficient claims must identify missing information')
+        if len(self.citation_ids) > 5 or len(self.answer) > 4000:
+            raise ValueError('Answer exceeds citation or text budget')
         return self
 
 
@@ -73,3 +113,5 @@ class QuestionRead(BaseModel):
     evidence: list[QuestionEvidenceRead]
     retrieval: RetrievalSummary
     missing_information: list[str]
+    answer_protocol: Literal['evidence-claims-v2'] | None = None
+    claims: list[AnswerClaim] | None = None

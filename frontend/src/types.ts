@@ -320,6 +320,8 @@ export interface QuestionAnswer {
   supported: boolean
   answer: string
   confidence: number
+  answer_protocol?: 'evidence-claims-v2' | null
+  claims?: { text: string; status: 'supported' | 'insufficient'; citation_ids: string[] }[] | null
   entity_ids: string[]
   evidence: QuestionEvidence[]
   retrieval: {

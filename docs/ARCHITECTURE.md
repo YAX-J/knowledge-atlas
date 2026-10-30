@@ -1,5 +1,7 @@
 # Knowledge Atlas 系统架构
 
+[ADR 0069](adr/0069-answer-claim-evidence.zh-CN.md)：真实单轮供应商和工具循环共用严格 ClaimAnswerDraft，每条结论绑定证据或声明不足；由服务生成平铺回答及引用并校验当前检索池 UUID。历史读取使用可空新字段，不回放模型，不新增迁移。结构和归属校验不判定语义蕴含。
+
 当前说明见本轮验收与 ADR 0060–0063；迁移 head `20261029_0019`。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](OPTIMIZATION_20261029.zh-CN.md)
 
 ## 单项目 Agent 边界（ADR 0064–0065）

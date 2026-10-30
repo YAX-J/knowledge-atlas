@@ -164,3 +164,8 @@ Canonical prompts/provider/usage are app/llm/{prompts.py,providers/deepseek.py,u
 ## Coordinated progress (ADR 0067)
 
 Only coordinated RunContext instances attach the application progress sink. It commits event metadata/reserved budgets before callbacks, refuses pending ORM writes, and fences/renews active execution ownership. Keep extraction claim and validated-candidate commits intact; extraction checkpoints contain IDs after that commit, never unvalidated drafts. Storage failure stops later calls. Partial code/answer results remain readable after failure; GET/same-UUID replay do not resume paid nodes. A pre-call reservation is conservative, not a billing receipt. No prompt/version or schema change is implied.
+
+
+## Claim-level QA (ADR 0069)
+
+Live single-step and tool QA parse ClaimAnswerDraft with 1–8 supported/insufficient claims; supported claims require unique per-claim citations, insufficient claims cannot cite. At most five distinct citations and 4000 joined characters; overall support matches all-claim support, partials require missing information. Derive flat answer/citation union on the server and validate every UUID against the scoped current pool. No flat-output fallback, extra model judge or automatic retry. Legacy AnswerDraft is diagnostic-only; old persisted JSON defaults claims/protocol to null without inferred mappings or paid replay. ANSWER_PROMPT_VERSION=evidence-claims-v2 is separate from extraction identity. New evaluation manifests record it; frozen outputs/holdout and paid ledger stay untouched. Citation membership is not semantic entailment.

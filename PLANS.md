@@ -1,5 +1,7 @@
 # Knowledge Atlas implementation plan
 
+Claim-level answers are implemented in [ADR 0069](docs/adr/0069-answer-claim-evidence.md): `evidence-claims-v2` binds each supported claim to current scoped evidence, marks insufficient claims separately and supports exact source navigation. The server derives legacy flat fields; old records remain readable without inferred attribution or new provider calls. Structural validation does not establish semantic entailment. Frozen experiments, the 84/61 provider ledger and schema head `20261029_0019` remain unchanged; human grading is deferred.
+
 [简体中文](PLANS.zh-CN.md)
 
 ## Multi-agent extension

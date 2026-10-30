@@ -183,3 +183,8 @@ AgentRunTrace localizes code_checkpoint/extraction_checkpoint/answer_checkpoint 
 ## Explicit workflow scope (ADR 0068)
 
 AgentWorkspace selects retrieval mode, browser-local historical time and fixed-snapshot/local overrides; useCodeContextSelection reuses useLatestRequest for read-only metadata fencing, error retry and membership/99-override validation. History clears code, source changes reset code choices/strategy, and project changes clear question/time/mode. Unspecified local related files use latest parsed versions at execution. Keep draft preview separate from saved allowlisted scope; reload/read never submits it. Verify agentScope.test.ts plus scoped coverage/build and desktop real-API local-stub local-version/synthetic-snapshot/history/error/retry/focus/long-path checks. Native datetime CLI fill may not populate the input; inspect its actual value and use native setter/input events for handler testing, without claiming popup acceptance.
+
+
+## Claim-level answer display (ADR 0069)
+
+AnswerClaims is shared by question/conversation and AgentWorkspace. Show claim support separately, preserve partial answers and missing information, and emit the selected exact evidence locator through existing navigation. Use text interpolation, wrapped titles and keyboard-visible citation buttons; never guess missing IDs. Legacy records show original flat text with a format notice, without manufactured claim mappings. Verify answerClaims.test.ts, agentRuns.test.ts and desktop native-stub navigation/reload/empty/focus/overflow. The UI says 附有引用, not semantic correctness.

@@ -155,3 +155,5 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [ADR 0067: Agent 过程持久化](0067-durable-agent-progress.zh-CN.md)
 
 - [ADR 0068: 显式协作范围](0068-explicit-workflow-scope.zh-CN.md)
+
+- [0069 — 回答结论逐条关联证据](0069-answer-claim-evidence.zh-CN.md)

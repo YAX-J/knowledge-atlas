@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { ApiProject, ApiProjectList } from '../api/knowledgeAtlas'
 import type { EvidenceLocator, QuestionAnswer, QuestionRetrievalMode } from '../types'
+import AnswerClaims from './AnswerClaims.vue'
 
 const props = defineProps<{
   projects: ApiProjectList | null
@@ -103,12 +104,12 @@ function submit() {
     <section v-else-if="result" class="answer-layout">
       <article class="answer-card">
         <div class="answer-status" :class="{ unsupported: !result.supported }">
-          <span>{{ result.supported ? '证据支持' : '证据不足' }}</span>
+          <span>{{ result.supported ? '附有引用' : result.claims?.some(claim => claim.status === 'supported') ? '部分结论有引用' : '证据不足' }}</span>
           <strong>{{ Math.round(result.confidence * 100) }}% 置信度</strong>
         </div>
         <p class="asked">{{ result.question }}</p>
-        <h2>{{ result.supported ? '回答' : '暂不能确认' }}</h2>
-        <p class="answer-text">{{ result.answer }}</p>
+        <h2>{{ result.supported ? '回答' : result.claims?.some(claim => claim.status === 'supported') ? '回答与待确认事项' : '暂不能确认' }}</h2>
+        <AnswerClaims :answer="result" @open-evidence="emit('openEvidence', $event)" />
         <template v-if="result.missing_information.length">
           <h3>仍需补充</h3>
           <ul><li v-for="item in result.missing_information" :key="item">{{ item }}</li></ul>

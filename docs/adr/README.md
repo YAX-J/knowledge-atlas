@@ -155,3 +155,5 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [ADR 0067: Durable agent progress](0067-durable-agent-progress.md)
 
 - [ADR 0068: Explicit workflow scope](0068-explicit-workflow-scope.md)
+
+- [0069 — Claim-level answer evidence](0069-answer-claim-evidence.md)

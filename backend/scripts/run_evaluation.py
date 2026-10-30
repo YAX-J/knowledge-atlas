@@ -27,7 +27,8 @@ from app.core.errors import AppError
 from app.core.identity import DEVELOPMENT_USER_ID
 from app.db.session import SessionLocal
 from app.models.domain import SourceDocument, SourceStatus
-from app.schemas.questions import AnswerDraft
+from app.schemas.questions import AnswerDraft, ClaimAnswerDraft
+from app.llm.prompts import ANSWER_PROMPT_VERSION
 from app.schemas.search import SearchRead
 from app.services import deepseek, lexical
 from app.services.projects import get_project
@@ -162,7 +163,7 @@ def answer_from_result(
     question: str,
     result: SearchRead,
     source_paths: dict[uuid.UUID, str],
-    answer_fn: Callable[[Settings, str, list[dict[str, Any]]], AnswerDraft] = deepseek.answer_question,
+    answer_fn: Callable[[Settings, str, list[dict[str, Any]]], AnswerDraft | ClaimAnswerDraft] = deepseek.answer_question,
 ) -> tuple[str, bool, list[dict[str, Any]], bool]:
     selected = ordered_evidence(result)[:MAX_ANSWER_EVIDENCE]
     if not selected:
@@ -203,7 +204,7 @@ def build_prediction(
     with_answers: bool,
     source_paths: dict[uuid.UUID, str],
     search_fn: Callable[..., SearchRead] = search_knowledge,
-    answer_fn: Callable[[Settings, str, list[dict[str, Any]]], AnswerDraft] = deepseek.answer_question,
+    answer_fn: Callable[[Settings, str, list[dict[str, Any]]], AnswerDraft | ClaimAnswerDraft] = deepseek.answer_question,
     diagnostics: dict | None = None,
 ) -> tuple[dict[str, Any], bool]:
     started = time.perf_counter()
@@ -303,6 +304,7 @@ def run_evaluation(
         "modes": modes,
         "top_k_entities": top_k,
         "with_answers": with_answers,
+        "answer_protocol": ANSWER_PROMPT_VERSION if with_answers else None,
         "timing_scope": "retrieval_and_answer" if with_answers else "retrieval_only",
         "provider_authorization": {
             "embedding_calls": allow_embedding_calls and uses_embeddings,

@@ -1,5 +1,7 @@
 # Knowledge Atlas 实施计划
 
+[ADR 0069](docs/adr/0069-answer-claim-evidence.zh-CN.md) 已实现结论逐条关联证据：`evidence-claims-v2` 将有据结论绑定当前范围内的引用，将证据不足条目分开标明，引用可直达原文。后端生成兼容平铺字段；历史记录保留旧格式，不推断对应关系或重调模型。结构校验不证明语义蕴含。冻结实验、84/61 调用账本和 schema head `20261029_0019` 不变；人工盲评仍待用户完成。
+
 [English](PLANS.md)
 
 ## 多 Agent 扩展
