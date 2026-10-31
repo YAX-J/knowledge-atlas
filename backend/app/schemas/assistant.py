@@ -12,7 +12,7 @@ Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 
 
 class AssistantRequest(StrictModel):
-    protocol: Literal['assistant-task-v1', 'assistant-task-v2'] = 'assistant-task-v1'
+    protocol: Literal['assistant-task-v1', 'assistant-task-v2', 'assistant-task-v3'] = 'assistant-task-v1'
     request_id: uuid.UUID
     goal: Text
     source_ids: list[uuid.UUID] = Field(default_factory=list, max_length=20)
@@ -20,6 +20,17 @@ class AssistantRequest(StrictModel):
     valid_at: AwareDatetime | None = None
     model_limit: int = Field(default=8, ge=0, le=8, strict=True)
     tool_limit: int = Field(default=16, ge=0, le=16, strict=True)
+    note_revision_ids: list[uuid.UUID] = Field(default_factory=list,max_length=20)
+    allowed_actions: list[Literal['create_note_draft','propose_note_revision','import_repository_snapshot',
+        'request_source_parse','propose_knowledge','propose_knowledge_change','create_report_draft']] = Field(default_factory=list,max_length=7)
+    repository_id: uuid.UUID | None = None
+    repository_commit: Annotated[str,StringConstraints(pattern=r'^[0-9a-f]{40}$')] | None = None
+
+    def request_data(self):
+        exclude={'request_id'}
+        if self.protocol!='assistant-task-v3':
+            exclude|={'note_revision_ids','allowed_actions','repository_id','repository_commit'}
+        return self.model_dump(mode='json',exclude=exclude)
 
     @model_validator(mode='after')
     def scope_shape(self):
@@ -29,6 +40,15 @@ class AssistantRequest(StrictModel):
             raise ValueError('A snapshot requires explicit source versions')
         if self.valid_at and self.source_ids:
             raise ValueError('Historical knowledge cannot mix current source material')
+        if len(set(self.note_revision_ids))!=len(self.note_revision_ids) or len(set(self.allowed_actions))!=len(self.allowed_actions):
+            raise ValueError('Duplicate note revisions or actions')
+        if self.protocol!='assistant-task-v3' and (self.note_revision_ids or self.allowed_actions or self.repository_id or self.repository_commit):
+            raise ValueError('Workflow capabilities require v3')
+        if self.valid_at and (self.note_revision_ids or self.allowed_actions):
+            raise ValueError('Historical knowledge cannot mix notes or writes')
+        if ('import_repository_snapshot' in self.allowed_actions)!=(self.repository_id is not None and self.repository_commit is not None):
+            raise ValueError('Import authorization requires an exact repository and commit')
+        if (self.repository_id is None)!=(self.repository_commit is None):raise ValueError('Incomplete repository selection')
         return self
 
 
@@ -74,8 +94,10 @@ class AssistantDecision(RootModel[Annotated[FinishAction | AskAction, Field(disc
 
 class AssistantReference(StrictModel):
     id: uuid.UUID
-    kind: Literal['source', 'code', 'knowledge']
-    source_id: uuid.UUID
+    kind: Literal['source', 'code', 'knowledge', 'note']
+    source_id: uuid.UUID | None = None
+    note_id: uuid.UUID | None = None
+    revision_id: uuid.UUID | None = None
     chunk_id: uuid.UUID | None = None
     evidence_id: uuid.UUID | None = None
     source_sha256: Annotated[str, StringConstraints(pattern=r'^[0-9a-f]{64}$')]
@@ -88,6 +110,11 @@ class AssistantReference(StrictModel):
 
     @model_validator(mode='after')
     def provenance(self):
+        if self.kind=='note':
+            if not self.note_id or not self.revision_id or self.source_id or self.chunk_id or self.evidence_id or self.snapshot_id or self.commit_sha:
+                raise ValueError('Notes require exact immutable revision provenance only')
+        elif self.source_id is None or self.note_id or self.revision_id:
+            raise ValueError('Source references require their exact source')
         if self.end_line < self.start_line:
             raise ValueError('Invalid exact line range')
         if (self.kind == 'knowledge') != (self.evidence_id is not None):
@@ -100,7 +127,7 @@ class AssistantReference(StrictModel):
 
 
 class AssistantResult(StrictModel):
-    protocol: Literal['assistant-report-v1'] = 'assistant-report-v1'
+    protocol: Literal['assistant-report-v1','assistant-report-v2'] = 'assistant-report-v1'
     action: Literal['finish', 'ask_user']
     report: ReportDraft | None = None
     question: Text | None = None
@@ -111,7 +138,7 @@ class AssistantSummary(StrictModel):
     id: uuid.UUID
     project_id: uuid.UUID
     goal: str
-    status: Literal['queued', 'running', 'succeeded', 'failed', 'interrupted', 'cancelled']
+    status: Literal['queued', 'running', 'waiting_approval', 'succeeded', 'failed', 'interrupted', 'cancelled']
     error_code: str | None
     created_at: datetime
     updated_at: datetime
@@ -122,12 +149,16 @@ class AssistantRead(AssistantSummary):
     result: AssistantResult | None
     events: list[RunEvent]
     usage: dict
-    execution_mode: Literal['sync_v1','async_v2'] = 'sync_v1'
+    execution_mode: Literal['sync_v1','async_v2','async_v3'] = 'sync_v1'
     revision: int = 0
     checkpoint_id: uuid.UUID | None = None
     unknown_model_attempts: int = 0
     can_continue: bool = False
     artifact_ids: list[uuid.UUID] = Field(default_factory=list)
+    final_artifact_id: uuid.UUID | None = None
+    operations: list[dict] = Field(default_factory=list)
+    unknown_operations: int = 0
+    remaining: dict = Field(default_factory=dict)
 
 
 class AssistantContinue(StrictModel):

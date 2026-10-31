@@ -1,17 +1,19 @@
 # Knowledge Atlas Project Agent Development Plan
 
+M3/M4 implementation: exact note attachments, append-only revisions, scope-bound imports/parsing/extraction, typed editable report drafts, versioned human approval and explicit continuation. See [current implementation](PROJECT_ASSISTANT_M34.md). Remaining prospective API/data sections below are design targets, not additional delivered endpoints.
+
 [简体中文](PROJECT_AGENT_PLAN.zh-CN.md)
 
 - Document version: `project-agent-plan-v1`
 - Date: 2026-10-31
-- Status: **M1–M2 implemented and locally verified with substitutes; M3–M5 remain planned.**
+- Status: **M1–M4 implemented and locally verified with substitutes; M5 remains planned.**
 - Development branch: `feat/project-agent`
 - Starting commit: `c0eaa06` (CI portability fixes included)
-- Baseline database head: `20261029_0019`; M1 introduced0020; M2 now has verified source/business head `20261031_0021` after backup/recovery.
+- Baseline database head: `20261029_0019`; M1 introduced0020; M2 introduced0021; M3/M4 now have verified source/business head `20261031_0023` after backup/recovery.
 
 M1 implements the five-tool read-only subset, separate task/report contracts, synchronous durable replay and unified goal UI. See [ADR0076](adr/0076-read-only-project-assistant.md) and [verification results](PROJECT_ASSISTANT_M1.md). Later capabilities described below remain design targets; M1 does not implement the asynchronous API examples or write tools.
 
-M2 now adds the explicit queue/runner, attempted-call and checkpoint/artifact/control receipts, cancellation and explicit continuation; see [ADR0077](adr/0077-durable-assistant-execution.md) and [current acceptance](PROJECT_ASSISTANT_M2.md). Thread/input/approval APIs, notes and write tools remain planned.
+M2 now adds the explicit queue/runner, attempted-call and checkpoint/artifact/control receipts, cancellation and explicit continuation; see [ADR0077](adr/0077-durable-assistant-execution.md) and [current acceptance](PROJECT_ASSISTANT_M2.md). M3/M4 add notes, capability actions and exact operation approvals under ADR0078–0079; thread/input APIs and M5 remain planned. See [M3/M4](PROJECT_ASSISTANT_M34.md).
 
 ## 1. Product objective and scope
 
@@ -152,7 +154,7 @@ Ordinary writes and destructive/formal operations have separate capability polic
 
 ## 10. Proposed API surface
 
-These are design examples. Implemented v1/v2 task, events/artifacts, cancel/continue routes are defined in API_CONTRACT.md and PROJECT_ASSISTANT_M2.md; thread/input/approval routes remain planned.
+These are design examples. Implemented v1/v2 task, events/artifacts, cancel/continue routes are defined in API_CONTRACT.md and PROJECT_ASSISTANT_M2.md; v3 operation approvals are defined in PROJECT_ASSISTANT_M34.md; thread/input and the table’s thread-level approval routes remain planned.
 
 | Method and route, under `/api/v1` | Proposed semantics |
 | --- | --- |
@@ -185,7 +187,7 @@ Show actionable empty/error/interrupted/waiting states, remaining call limits an
 | M4: whole-project actions | Scoped imports/parsing, extraction candidates, report drafts and governed knowledge-change proposals | Import → parse → propose → human review → inspect results works through one task; formal changes are human-approved, version-bound and idempotent |
 | M5: acceptance and release | Cross-domain regression pack, separately authorized live development evaluation, documentation, recorded demo and release preparation | Functional/permission/recovery tests and CI pass; live evidence/limits are reported honestly; historical frozen experiments remain unchanged |
 
-M1–M2 are implemented and locally verified under ADR0076–0077; M3–M5 remain planned. Each phase produces a focused reviewable change with tests and paired documentation. Changes to synchronous execution, write-tool policy or data semantics require new accepted ADRs before crossing ADR0064–0068 boundaries. Implementing one phase does not authorize the next phase or a provider experiment.
+M1–M4 are implemented and locally verified under ADR0076–0079; M5 remains planned. Each phase produces a focused reviewable change with tests and paired documentation. Changes to synchronous execution, write-tool policy or data semantics require new accepted ADRs before crossing ADR0064–0068 boundaries. Implementing one phase does not authorize the next phase or a provider experiment.
 
 ## 13. Verification and measurement
 

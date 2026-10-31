@@ -96,7 +96,7 @@ def test_empty_project_costs_zero_and_reports_missing_input(client, monkeypatch)
 
 @pytest.mark.parametrize('changes', [
     {'source_ids': [str(uuid.uuid4())]}, {'model_limit': True}, {'tool_limit': 17}, {'goal': ' '},
-    {'goal': 'a' * 2001}, {'protocol': 'assistant-task-v3'}, {'user_id': str(uuid.uuid4())},
+    {'goal': 'a' * 2001}, {'protocol': 'assistant-task-v99'}, {'user_id': str(uuid.uuid4())},
     {'snapshot_id': str(uuid.uuid4()), 'source_ids': []},
 ])
 def test_invalid_scope_and_arguments_never_call_provider(client, monkeypatch, changes):

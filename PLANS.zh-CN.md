@@ -1,5 +1,7 @@
 # Knowledge Atlas 实施计划
 
+当前状态（2026-10-31）：M3–M4 已实现不可变笔记修订和有范围的项目动作，已有内容与正式知识修改需精确人工审批（ADR0078–0079）。源码/业务库版本为 `20261031_0023`，升级前31表备份及隔离恢复通过，30张旧业务表内容指纹保持一致。参见 [M3/M4 实现与验证](docs/PROJECT_ASSISTANT_M34.zh-CN.md)。M5 继续延期；本轮仅用本地替身，真实供应商调用为零，冻结评估/账本和人工0%保持原状。
+
 2026-10-31最新：已完成第1–2项：后端计算 v3 总体支持状态，以及独立合成开发/旧记录兼容检查。见 [ADR0075](docs/adr/0075-server-derived-answer-support.zh-CN.md) 与[开发用例](evaluation/development/claim-support-v3/README.zh-CN.md)。本轮零真实调用，未测量 v3 质量。[既有457次裁判](evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.zh-CN.md)仅描述历史 v2；冻结失败、分数、输入和账本不变，人工0%。旧授权已用尽，版本冻结与论文定稿尚待后续推进。
 
 当前离线评审支持 OpenRouter Jev、直连 TypeSafe Jev 和 CF 原生适配，人工评分覆盖率0%。OpenRouter Decisions API、发布/快照校验及零调用预演已实现，真实兼容/质量未验证。见 [OpenRouter配置](docs/OPENROUTER_EVALUATION.zh-CN.md) 和 [ADR0073](docs/adr/0073-openrouter-jev-evaluation.zh-CN.md)。此前读取优化保留 ADR0071 记录。

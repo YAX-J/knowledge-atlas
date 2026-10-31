@@ -3,6 +3,9 @@ name: ka-frontend-workspace
 description: Knowledge Atlas 的 Vue 3 前端工作台。修改组件、项目/资料页、候选审核、项目图谱或交互状态时使用。触发词：frontend, Vue, component, workspace, graph UI, accessibility, 前端, 组件, 页面.
 ---
 
+NotesPanel/useNotes owns600ms autosave, revision-bound conflict handling, per-project cached unknown outcomes and escaped history. Refresh only GETs. Keep listing and editor response generations separate: simultaneous artifact navigation/list refresh must open the correct note. ProjectAssistantPanel v3 defaults read-only, explicit capability checkboxes and full proposal records; approval never auto-continues. Preserve keyboard focus and independent scrolling.
+
+
 
 M2 defaults assistant-task-v2/202 and polls queued/running without POST. Preserve cancel and exact revision/checkpoint-bound continue controls, unknown-attempt acknowledgement, effective remaining role budgets and persisted continuation UUIDs through unknown response/reload. API errors must not automatically replay control POSTs. Cover projectAssistant tests and desktop Space/Tab/Enter, queued refresh, in-flight cancellation, saved tools and duplicate continuation receipts.
 # Vue 前端工作台

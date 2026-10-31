@@ -168,3 +168,7 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [0073 — OpenRouter Jev 评审](0073-openrouter-jev-evaluation.zh-CN.md)
 - [0074 — 实验单题输出错误隔离](0074-evaluation-output-error-isolation.zh-CN.md)
 - [0075 — 后端计算回答总体支持状态](0075-server-derived-answer-support.zh-CN.md)
+
+- [0078 — Immutable note revisions](0078-immutable-note-revisions.zh-CN.md)
+
+- [0079 — Governed assistant actions](0079-governed-assistant-actions.zh-CN.md)

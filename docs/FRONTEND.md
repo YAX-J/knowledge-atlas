@@ -1,5 +1,7 @@
 # Knowledge Atlas 前端开发说明
 
+Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a31-table backup/verified isolated restore; all30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](PROJECT_ASSISTANT_M34.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.
+
 M2 界面默认提交 assistant-task-v2，轮询 queued/running；展示有效剩余角色预算、取消及带未知结果确认的显式继续。useProjectAssistant 保存继续请求 UUID，刷新/恢复仅 GET，不自动重复控制 POST。v1/旧工作流兼容。后端1036通过/12跳过、原生274、前端143/构建和桌面键盘/继续/取消验收通过，见[当前 M2](PROJECT_ASSISTANT_M2.zh-CN.md)。
 
 项目只读助手 M1 已加入 Agent 页顶部（已通过本地替身/桌面验证）：ProjectAssistantPanel 展示目标、跨页精确资料版本/代码快照、历史/报告/补问；useProjectAssistant 管理项目隔离、未知提交 UUID、sessionStorage 只读恢复和轮询；api/assistant 使用独立协议。默认不选资料；已保存范围与新草稿分开，正文文本插值，引用跳精确分块或来源。旧两条工作流保留，事件标题使用独立 useId。前端140项、覆盖率门槛/构建和桌面浏览器已通过，见[验证步骤](PROJECT_ASSISTANT_M1.zh-CN.md)。

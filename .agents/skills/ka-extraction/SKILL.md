@@ -3,6 +3,9 @@ name: ka-extraction
 description: Knowledge Atlas 的 DeepSeek 候选知识抽取。修改抽取 Schema、提示词、证据校验、抽取任务或租约，排查 EXTRACTION_* 失败，或验收真实模型时使用。触发词：extract, DeepSeek, candidate, evidence, chunk, prompt, 抽取, 候选, 证据.
 ---
 
+M4 propose_knowledge delegates existing strict extraction inside the shared runtime. Nested model attempts count once globally and retain specialist4/8 limits; coordinator v3 may use8/16 inside total8/16. Fence every service commit against cancelled/expired task ownership. Extraction writes pending candidates only; exact human candidate confirmation is a separate operation with full snapshots and atomic approval receipt.
+
+
 
 M2 async_v2 uses durable pre-call attempted-request receipts and per-model/individual-tool checkpoints in the bounded loop. Completed decisions/tool outputs and server reference pools resume without repeating completed requests. Unknown outcomes stay counted, require explicit acknowledgement and never auto requeue. Runtime/model/endpoint/tool-contract and source hashes are pinned. Keep v1 synchronous and evidence-claims protocols unchanged; live quality remains unmeasured.
 # 候选知识抽取

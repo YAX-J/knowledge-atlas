@@ -3,6 +3,9 @@ name: ka-migrations
 description: Knowledge Atlas 的 SQLAlchemy 模型与 Alembic 迁移。新增/修改表、列、约束、索引，或排查迁移升级/回滚、SQLite 与 PostgreSQL 差异时使用。触发词：migration, Alembic, schema, model, table, column, 迁移, 模型, 表结构.
 ---
 
+M3/M4 ADR0078–0079 head0023 adds notes/revisions/source mappings plus assistant operations/approvals and waiting_approval. Verify nonempty migration downgrade closes queued/running/waiting v3 work; never downgrade business history. Before business0021→0023,31-table backup/schema restore passed;30 existing business-table content fingerprints stayed identical. Native tests include independent-transaction late-write cancellation.
+
+
 
 M2 ADR0077 source/business head is20261031_0021. Before0020 and0021 business upgrades, backup and isolated schema restore passed;25 then26 old business-table fingerprints were preserved. 0021 adds execution mode/revision/elapsed and four attempt/step/artifact/continuation tables, defaults legacy tasks to sync_v1 and closes queued/cancelled states as interrupted on maintenance downgrade. Test native upgrade/downgrade/upgrade and two-consumer skip-locked claiming; never downgrade business data for acceptance.
 # 模型与数据库迁移

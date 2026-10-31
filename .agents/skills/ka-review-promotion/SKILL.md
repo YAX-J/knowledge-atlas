@@ -3,6 +3,9 @@ name: ka-review-promotion
 description: Knowledge Atlas 的候选审核与正式图谱写入。确认/拒绝候选、补写旧候选、修改图谱查询或证据展示时使用。触发词：review, confirm, reject, promote, graph, entity, relationship, SUPERSEDES, 审核, 确认, 图谱.
 ---
 
+M4 operations bind task/user/project, normalized input hash, complete target/evidence snapshots and proposal SHA. Human approvals recheck integrity/versions then invoke existing review/merge/new→old SUPERSEDES/retirement services in SAVEPOINT sessions under project/task locks; business effects and approval receipt commit together. Rejection leaves candidates pending; stale proposal records conflict. Duplicate receipt UUIDs never repeat effects. Explicit continue after review, no paid auto-resume.
+
+
 # 审核与正式图谱写入
 
 候选审核是唯一允许写入正式知识的入口。实现在 `backend/app/services/knowledge.py::_resolve_review` 与 `backend/app/services/graph.py::promote_candidate`，两者在同一事务内完成。

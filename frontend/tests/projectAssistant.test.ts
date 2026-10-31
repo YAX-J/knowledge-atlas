@@ -39,7 +39,7 @@ it('submits a goal with explicit source versions and displays typed citations as
   await wrapper.get('form').trigger('submit'); await flushPromises()
   expect(api.startAssistantTask).toHaveBeenCalledOnce()
   expect(vi.mocked(api.startAssistantTask).mock.calls[0]![1]).toMatchObject({goal: task.goal, source_ids: [source.id]})
-  expect(vi.mocked(api.startAssistantTask).mock.calls[0]![1].protocol).toBe('assistant-task-v2')
+  expect(vi.mocked(api.startAssistantTask).mock.calls[0]![1].protocol).toBe('assistant-task-v3')
   expect(wrapper.get('[aria-label="项目引用报告"]').text()).toContain('<script>Storage</script>')
   expect(wrapper.find('script').exists()).toBe(false)
   expect(wrapper.text()).toContain('源码 / 派生结构')
@@ -137,7 +137,7 @@ it('requires unknown-attempt acknowledgement and binds continuation to the saved
   const wrapper=mount(ProjectAssistantPanel,{props:{projectId:project.id}});await flushPromises()
   const button=wrapper.findAll('button').find(item=>item.text()==='按保存检查点继续')!
   expect(button.attributes('disabled')).toBeDefined()
-  const ack=wrapper.findAll('input[type=checkbox]').find(item=>item.element.parentElement?.textContent?.includes('调用结果未知'))!
+  const ack=wrapper.findAll('input[type=checkbox]').find(item=>item.element.parentElement?.textContent?.includes('结果未知'))!
   await ack.setValue(true)
   await button.trigger('click');await flushPromises()
   expect(api.continueAssistantTask).toHaveBeenCalledWith(project.id,task.id,expect.objectContaining({expected_revision:3,checkpoint_id:'checkpoint-2',acknowledge_unknown:true}))
@@ -158,4 +158,36 @@ it('retains the control UUID through an unknown response and reload for explicit
   expect(api.continueAssistantTask).toHaveBeenCalledOnce()
   await restored.findAll('button').find(item=>item.text()==='按保存检查点继续')!.trigger('click');await flushPromises()
   expect(vi.mocked(api.continueAssistantTask).mock.calls[1]![2]).toEqual(input)
+})
+
+const proposed:api.AssistantOperation={id:'operation-1',kind:'propose_note_revision',status:'pending',proposal_sha256:'a'.repeat(64),payload:{arguments:{title:'<script>untrusted</script>',markdown:'New content'},before:{id:'original-revision'}},result:null,error_code:null}
+const waiting:api.AssistantTask={...task,execution_mode:'async_v3',status:'waiting_approval',revision:2,result:null,operations:[proposed],can_continue:false}
+it('shows full proposal inputs and binds human approval without auto-continuing',async()=>{
+  sessionStorage.setItem(`ka-project-assistant:${project.id}`,JSON.stringify({selectedId:task.id}))
+  const approved={...waiting,revision:3,operations:[{...proposed,status:'approved' as const}],can_continue:true}
+  vi.mocked(api.getAssistantTask).mockResolvedValueOnce(waiting).mockResolvedValue(approved);vi.mocked(api.approveAssistantOperation).mockResolvedValue(approved)
+  const wrapper=mount(ProjectAssistantPanel,{props:{projectId:project.id}});await flushPromises()
+  expect(wrapper.text()).toContain('<script>untrusted</script>');expect(wrapper.find('script').exists()).toBe(false)
+  await wrapper.findAll('button').find(b=>b.text()==='确认应用此提案')!.trigger('click');await flushPromises()
+  expect(api.approveAssistantOperation).toHaveBeenCalledWith(project.id,task.id,expect.objectContaining({operation_id:proposed.id,proposal_sha256:proposed.proposal_sha256,decision:'approve'}))
+  expect(api.continueAssistantTask).not.toHaveBeenCalled();expect(wrapper.text()).toContain('按保存检查点继续')
+})
+it('keeps an unknown approval UUID through reload for explicit same-decision replay',async()=>{
+  sessionStorage.setItem(`ka-project-assistant:${project.id}`,JSON.stringify({selectedId:task.id}))
+  vi.mocked(api.getAssistantTask).mockResolvedValue(waiting);vi.mocked(api.approveAssistantOperation).mockRejectedValueOnce(new ApiError(0,{error:{message:'Unknown approval'}}))
+  const wrapper=mount(ProjectAssistantPanel,{props:{projectId:project.id}});await flushPromises()
+  await wrapper.findAll('button').find(b=>b.text()==='拒绝此提案')!.trigger('click');await flushPromises()
+  const original=vi.mocked(api.approveAssistantOperation).mock.calls[0]![2];wrapper.unmount()
+  const restored=mount(ProjectAssistantPanel,{props:{projectId:project.id}});await flushPromises();expect(api.approveAssistantOperation).toHaveBeenCalledOnce()
+  const rejected={...waiting,revision:3,operations:[{...proposed,status:'rejected' as const}],can_continue:true}
+  vi.mocked(api.getAssistantTask).mockResolvedValue(rejected);vi.mocked(api.approveAssistantOperation).mockResolvedValue(rejected)
+  await restored.findAll('button').find(b=>b.text()==='显式重发同一审批')!.trigger('click');await flushPromises()
+  expect(vi.mocked(api.approveAssistantOperation).mock.calls[1]![2]).toEqual(original);expect(api.continueAssistantTask).not.toHaveBeenCalled()
+})
+it('opens an exact historical note revision from a report reference',async()=>{
+  sessionStorage.setItem(`ka-project-assistant:${project.id}`,JSON.stringify({selectedId:task.id}))
+  vi.mocked(api.getAssistantTask).mockResolvedValue({...task,result:{...task.result!,protocol:'assistant-report-v2',references:[{...task.result!.references[0]!,kind:'note',source_id:null,chunk_id:null,note_id:'note-id',revision_id:'revision-id'}]}})
+  const wrapper=mount(ProjectAssistantPanel,{props:{projectId:project.id}});await flushPromises()
+  await wrapper.findAll('button').find(b=>b.text()==='查看引用 1')!.trigger('click')
+  expect(wrapper.emitted('openNote')).toEqual([['revision-id']]);expect(wrapper.emitted('openSource')).toBeUndefined()
 })

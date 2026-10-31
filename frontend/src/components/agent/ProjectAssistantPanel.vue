@@ -4,10 +4,21 @@ import { listSources, getCodeAnalysisContexts, type SourceListItem, type CodeAna
 import type { EvidenceLocator } from '../../types'
 import { useProjectAssistant } from '../../composables/useProjectAssistant'
 import AgentRunTrace from './AgentRunTrace.vue'
+import { saveAssistantArtifact } from '../../api/assistant'
 
-const props = defineProps<{projectId?: string; disabled?: boolean}>()
-const emit = defineEmits<{openSource: [id: string]; openEvidence: [locator: EvidenceLocator]; sending: [value: boolean]}>()
-const {history, selected, loading, sending, unknown, error, busy, refresh, select, submit, retry, cancel, resume} = useProjectAssistant(() => props.projectId)
+const props = defineProps<{projectId?: string; disabled?: boolean;noteRevisionIds?:string[]}>()
+const emit = defineEmits<{openSource: [id: string]; openEvidence: [locator: EvidenceLocator]; sending: [value: boolean];openNote:[id:string];clearNotes:[];notesChanged:[]}>()
+const {history, selected, loading, sending, unknown, error, busy, refresh, select, submit, retry, cancel, resume,approve,approvalUnknown,retryApproval} = useProjectAssistant(() => props.projectId)
+const actions=ref<string[]>([]),repositoryId=ref(''),repositoryCommit=ref(''),artifactSaving=ref(false)
+const actionLabels:Record<string,string>={create_note_draft:'创建新笔记草稿',propose_note_revision:'提出已有笔记修订（需审批）',request_source_parse:'创建笔记快照与解析资料',propose_knowledge:'抽取待审核知识候选',propose_knowledge_change:'提出正式知识变更（需审批）',import_repository_snapshot:'导入指定仓库提交',create_report_draft:'创建独立引用报告草稿'}
+const unknownCount=computed(()=>(selected.value?.unknown_model_attempts??0)+(selected.value?.unknown_operations??0))
+function start(){void submit({protocol:'assistant-task-v3',goal:goal.value.trim(),source_ids:chosen.value.map(s=>s.id),note_revision_ids:props.noteRevisionIds??[],allowed_actions:actions.value,
+  ...(snapshot.value?{snapshot_id:snapshot.value}:{}),...(actions.value.includes('import_repository_snapshot')?{repository_id:repositoryId.value,repository_commit:repositoryCommit.value}:{})})}
+async function applyProposal(operation:import('../../api/assistant').AssistantOperation){await approve(operation,'approve');emit('notesChanged')}
+async function saveArtifact(artifactId?:string){const project=props.projectId,task=selected.value,artifact=artifactId??task?.final_artifact_id??task?.artifact_ids?.at(-1);if(!project||!task||!artifact||artifactSaving.value)return
+  artifactSaving.value=true
+  try{const key=`ka-artifact-note:${project}:${artifact}`,id=sessionStorage.getItem(key)??crypto.randomUUID();sessionStorage.setItem(key,id);const note=await saveAssistantArtifact(project,task.id,artifact,id);if(project===props.projectId){emit('notesChanged');emit('openNote',note.current.id)}}
+  catch(cause){if(project===props.projectId)error.value=cause instanceof Error?cause.message:'保存草稿结果未知；重试将沿用同一标识。'}finally{if(project===props.projectId)artifactSaving.value=false}}
 const acknowledgeUnknown=ref(false)
 watch(()=>[selected.value?.id,selected.value?.revision],()=>{acknowledgeUnknown.value=false})
 const goal = ref(''), sources = ref<SourceListItem[]>([]), chosen = ref<SourceListItem[]>([]), sourcePage = ref(1), sourceTotal = ref(0)
@@ -16,13 +27,14 @@ const contextError = ref(''), contextLoading = ref(false)
 let reads = 0, contextReads = 0, disposed = false
 const locked = computed(() => busy.value || props.disabled)
 const code = computed(() => chosen.value.find(item => item.source_type !== 'markdown'))
-const labels = {queued:'等待 runner',running: '正在执行', succeeded: '已结束', failed: '未完成', interrupted: '执行已中断',cancelled:'已取消'}
-const referenceLabels = {source: '原始资料', code: '源码 / 派生结构', knowledge: '已确认知识'}
+const labels = {queued:'等待 runner',running: '正在执行',waiting_approval:'等待人工审批', succeeded: '已结束', failed: '未完成', interrupted: '执行已中断',cancelled:'已取消'}
+const referenceLabels = {source: '原始资料', code: '源码 / 派生结构', knowledge: '已确认知识',note:'笔记固定修订'}
 function openReference(id: string) {
   const reference = selected.value?.result?.references.find(item => item.id === id)
   if (!reference) return
-  if (reference.chunk_id) emit('openEvidence', {source_id: reference.source_id, chunk_id: reference.chunk_id})
-  else emit('openSource', reference.source_id)
+  if(reference.kind==='note'&&reference.revision_id)emit('openNote',reference.revision_id)
+  else if (reference.chunk_id&&reference.source_id) emit('openEvidence', {source_id: reference.source_id, chunk_id: reference.chunk_id})
+  else if(reference.source_id) emit('openSource', reference.source_id)
 }
 watch(sending, value => emit('sending', value))
 async function loadSources(page = 1) {
@@ -42,6 +54,7 @@ function toggle(source: SourceListItem, checked: boolean) {
 }
 watch(() => props.projectId, () => {
   reads++; contextReads++; goal.value = ''; sources.value = []; chosen.value = []; snapshot.value = ''; contexts.value = null
+  actions.value=[];repositoryId.value='';repositoryCommit.value='';artifactSaving.value=false
   contextError.value = ''; contextLoading.value = false
   sourcePage.value = 1; sourceTotal.value = 0; sourceLoading.value = false; sourceError.value = ''
   void loadSources()
@@ -65,19 +78,19 @@ onScopeDispose(() => {disposed = true; reads++; contextReads++})
 
 <template>
   <section class="project-assistant" aria-labelledby="project-assistant-title">
-    <header><div><span class="assistant-kicker">PROJECT ASSISTANT · M2</span><h2 id="project-assistant-title">项目只读助手</h2>
-      <p>描述目标，结合选定资料、源码与已确认知识形成引用报告。最多 4 次协调请求、8 次工具执行。</p></div>
+    <header><div><span class="assistant-kicker">PROJECT ASSISTANT · M3 / M4</span><h2 id="project-assistant-title">项目助手</h2>
+      <p>结合固定资料、笔记与已确认知识整理报告。默认只读；已有内容与正式知识变更必须审批。共享最多 8 次模型请求、16 次工具执行。</p></div>
       <button type="button" :disabled="!projectId || loading || sending" @click="refresh()">刷新助手任务</button></header>
     <div class="assistant-layout">
       <div class="assistant-input">
-        <form aria-label="项目助手目标" @submit.prevent="submit({goal: goal.trim(), source_ids: chosen.map(item => item.id), ...(snapshot ? {snapshot_id: snapshot} : {})})">
+        <form aria-label="项目助手目标" @submit.prevent="start">
           <fieldset :disabled="!projectId || locked"><label for="assistant-goal">希望了解或整理什么</label>
             <textarea id="assistant-goal" v-model="goal" rows="4" maxlength="2000" required placeholder="结合文档、已确认知识和所选源码，解释主要模块，并列出有记录依据的未决问题。" />
             <p>本次范围：当前项目已确认知识 + 所选 {{chosen.length}} 份不可变资料版本（最多 20 份 / 200 KB）。未选择资料时仅检索已确认知识。</p>
             <div class="assistant-sources" aria-label="助手资料范围" :aria-busy="sourceLoading">
               <p v-if="sourceLoading">正在读取资料…</p><p v-else-if="!sources.length">暂无资料，请先在资料工作台上传并解析。</p>
               <label v-for="item in sources" :key="item.id" class="assistant-source"><input type="checkbox"
-                :checked="chosen.some(source => source.id === item.id)" :disabled="item.status !== 'ready' || chosen.length >= 20 && !chosen.some(source => source.id === item.id)"
+                :checked="chosen.some(source => source.id === item.id)" :disabled="item.status !== 'ready' && !actions.includes('request_source_parse') || chosen.length >= 20 && !chosen.some(source => source.id === item.id)"
                 @change="toggle(item, ($event.target as HTMLInputElement).checked)" />
                 <span>{{item.relative_path || item.original_name}} <small>{{item.source_type}} · 版本 {{item.id.slice(0, 8)}} · {{item.status === 'ready' ? '已解析' : '待解析'}}</small></span></label>
             </div>
@@ -89,7 +102,12 @@ onScopeDispose(() => {disposed = true; reads++; contextReads++})
             <p v-if="snapshot">所选代码必须全部属于这个提交；后端会拒绝混合版本。</p>
             <p v-if="contextLoading">正在读取代码快照…</p>
             <p v-if="contextError" role="alert">{{contextError}}。仍可使用已选精确来源版本。<button type="button" @click="loadContexts">重新读取快照</button></p>
-            <button type="submit" :disabled="!goal.trim()">{{sending ? '正在处理目标…' : '开始只读任务'}}</button>
+            <p>已附加 {{noteRevisionIds?.length??0}} 个固定笔记修订。<button v-if="noteRevisionIds?.length" type="button" @click="emit('clearNotes')">清空笔记附件</button></p>
+            <details><summary>本次允许的操作</summary><p>选中即授权创建相应草稿或待审核候选。已有内容和正式知识的提案仍需逐项审批；未选操作会被后端拒绝。</p>
+              <label v-for="(label,action) in actionLabels" :key="action" class="assistant-source"><input v-model="actions" type="checkbox" :value="action" />{{label}}</label>
+              <template v-if="actions.includes('import_repository_snapshot')"><label>仓库 UUID<input v-model="repositoryId" required pattern="[0-9a-fA-F-]{36}" /></label><label>固定提交 SHA<input v-model="repositoryCommit" required pattern="[0-9a-f]{40}" maxlength="40" /></label></template>
+            </details>
+            <button type="submit" :disabled="!goal.trim()">{{sending ? '正在保存目标…' : actions.length?'开始已授权任务':'开始只读任务'}}</button>
           </fieldset>
         </form>
         <p v-if="sourceError" role="alert">{{sourceError}} <button type="button" :disabled="sourceLoading || !projectId" @click="loadSources(sourcePage)">重新读取资料</button></p>
@@ -105,16 +123,24 @@ onScopeDispose(() => {disposed = true; reads++; contextReads++})
           <span>{{history.page}}</span><button type="button" :disabled="loading || history.page * history.page_size >= history.total" @click="refresh(history.page + 1)">下一页</button></nav>
         <p v-if="loading" role="status">正在读取任务…</p>
         <article v-if="selected" :aria-busy="selected.status === 'running'"><h3>{{selected.goal}}</h3><p>{{labels[selected.status]}} · 模型 {{selected.usage.model ?? 0}} / {{selected.usage.limits?.model ?? 8}} · 工具 {{selected.usage.tool ?? 0}} / {{selected.usage.limits?.tool ?? 16}} · 嵌入 {{selected.usage.embedding ?? 0}}</p>
-          <p>已保存范围：{{selected.scope.source_ids.length}} 份资料 · {{selected.scope.commit_sha ? `提交 ${selected.scope.commit_sha}` : '精确来源 UUID'}} · {{selected.scope.valid_at || '当前已确认知识'}}</p>
-          <p v-if="selected.execution_mode==='async_v2'">剩余协调请求 {{Math.max(0,Math.min(4,selected.usage.limits?.model ?? 8)-(selected.usage.model ?? 0))}} 次 · 工具 {{Math.max(0,Math.min(8,selected.usage.limits?.tool ?? 16)-(selected.usage.tool ?? 0))}} 次</p>
+          <p>已保存范围：{{selected.scope.source_ids.length}} 份资料 · {{selected.scope.note_versions?.length??0}} 个笔记修订 · {{selected.scope.commit_sha ? `提交 ${selected.scope.commit_sha}` : '精确来源 UUID'}} · {{selected.scope.valid_at || '当前已确认知识'}}</p>
+          <details v-if="selected.scope.note_versions?.length||selected.scope.allowed_actions?.length"><summary>保存的笔记版本与操作授权</summary><p v-for="revision in selected.scope.note_versions??[]" :key="revision.id">修订 {{revision.id}} · {{revision.sha256.slice(0,12)}}</p><p>允许：{{selected.scope.allowed_actions?.map(a=>actionLabels[a]??a).join('、')||'只读'}}</p></details>
+          <p v-if="selected.execution_mode!=='sync_v1'">剩余协调请求 {{selected.remaining?.model??Math.max(0,4-(selected.usage.model??0))}} 次 · 工具 {{selected.remaining?.tool??Math.max(0,8-(selected.usage.tool??0))}} 次</p>
           <p v-if="selected.error_code" role="alert">任务未完成（{{selected.error_code}}）。{{selected.can_continue?'请核对记录后选择继续或新建目标。':'请核对记录后显式新建目标。'}}</p>
           <p v-if="selected.status==='queued'" role="status">任务已保存，等待独立 runner 认领。刷新页面只读取状态。</p>
-          <button v-if="selected.execution_mode==='async_v2' && ['queued','running','failed','interrupted'].includes(selected.status)" type="button" :disabled="sending" @click="cancel">取消后续步骤</button>
+          <button v-if="selected.execution_mode!=='sync_v1' && ['queued','running','failed','interrupted','waiting_approval'].includes(selected.status)" type="button" :disabled="sending" @click="cancel">取消后续步骤</button>
+          <section v-if="selected.operations?.length" aria-label="操作提案与回执"><h4>操作提案与回执</h4><p v-if="approvalUnknown" role="alert">审批结果尚未确认，请先刷新读取。<button type="button" :disabled="sending" @click="retryApproval">显式重发同一审批</button></p>
+            <article v-for="operation in selected.operations" :key="operation.id"><strong>{{actionLabels[operation.kind]??operation.kind}} · {{operation.status}}</strong><p>提案校验 {{operation.proposal_sha256.slice(0,12)}} <span v-if="operation.error_code">· {{operation.error_code}}</span></p>
+              <details :open="operation.status==='pending'"><summary>查看精确输入、修改前版本和结果</summary><pre>{{JSON.stringify(operation.payload,null,2)}}</pre><pre v-if="operation.result">{{JSON.stringify(operation.result,null,2)}}</pre></details>
+              <button v-if="operation.kind==='create_report_draft'&&typeof operation.result?.artifact_id==='string'" type="button" :disabled="artifactSaving" @click="saveArtifact(operation.result.artifact_id)">保存此报告草稿为笔记</button>
+              <template v-if="operation.status==='pending'&&selected.status==='waiting_approval'"><p>请核对完整内容和对象版本。拒绝提案不会修改已有候选的审核状态。</p><button type="button" :disabled="sending||approvalUnknown" @click="applyProposal(operation)">确认应用此提案</button><button type="button" :disabled="sending||approvalUnknown" @click="approve(operation,'reject')">拒绝此提案</button></template>
+            </article></section>
           <div v-if="selected.can_continue" class="assistant-question"><p>继续将复用已保存检查点，并沿用剩余预算。</p>
-            <label v-if="selected.unknown_model_attempts" class="assistant-source"><input v-model="acknowledgeUnknown" type="checkbox" /><span>已知 {{selected.unknown_model_attempts}} 次调用结果未知，仍计入用量；继续可能发起新的付费尝试。</span></label>
-            <button type="button" :disabled="sending || !!selected.unknown_model_attempts && !acknowledgeUnknown" @click="resume(acknowledgeUnknown)">按保存检查点继续</button></div>
+            <label v-if="unknownCount" class="assistant-source"><input v-model="acknowledgeUnknown" type="checkbox" /><span>已知 {{unknownCount}} 次调用或操作结果未知，仍计入用量；继续可能发起新的付费尝试。</span></label>
+            <button type="button" :disabled="sending || !!unknownCount && !acknowledgeUnknown" @click="resume(acknowledgeUnknown)">按保存检查点继续</button></div>
           <div v-if="selected.result?.action === 'ask_user'" class="assistant-question"><h4>需要补充信息</h4><p>{{selected.result.question}}</p><p>请在目标中补充信息后提交新任务。</p></div>
           <section v-if="selected.result?.report" aria-label="项目引用报告"><h4>{{selected.result.report.title}}</h4>
+            <button v-if="selected.artifact_ids?.length" type="button" :disabled="artifactSaving" @click="saveArtifact()">保存报告为可编辑笔记草稿</button>
             <article v-for="(claim, index) in selected.result.report.claims" :key="index"><p><strong>{{claim.status === 'referenced' ? '附有引用' : '待验证'}}：</strong>{{claim.text}}</p>
               <button v-for="id in claim.reference_ids" :key="id" type="button" @click="openReference(id)">查看引用 {{selected.result.references.findIndex(ref => ref.id === id) + 1}}</button></article>
             <p v-for="missing in selected.result.report.missing_information" :key="missing">缺少信息：{{missing}}</p>

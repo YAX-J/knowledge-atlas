@@ -372,6 +372,8 @@ def sync_github_repository(
     requested_ref: str | None,
     rescan: bool = False,
     continue_from_snapshot: uuid.UUID | None = None,
+    expected_commit_sha: str | None = None,
+    request_guard=None,
 ) -> GithubRepositorySyncResult:
     repository = get_repository(
         db,
@@ -416,6 +418,7 @@ def sync_github_repository(
     with httpx.Client(
         headers=headers,
         timeout=httpx.Timeout(settings.github_timeout_seconds, connect=10),
+        **({'event_hooks':{'request':[lambda _request:request_guard()]}} if request_guard else {}),
     ) as client:
         repository_payload = _get_json(
             client, f"{base_url}/repos/{owner}/{name}"
@@ -444,6 +447,8 @@ def sync_github_repository(
             )
         if continuation and commit_sha != continuation.commit_sha:
             raise AppError(status_code=409,code='GITHUB_CONTINUATION_COMMIT_CONFLICT',message='续传返回了不同提交，已拒绝混合快照')
+        if expected_commit_sha is not None and commit_sha!=expected_commit_sha:
+            raise AppError(status_code=409,code='GITHUB_COMMIT_CONFLICT',message='导入返回了未授权的提交，已拒绝导入文件')
 
         previous_snapshot = continuation or _snapshot(
             db, repository_id=repository.id, ref=selected_ref

@@ -1,5 +1,7 @@
 # Knowledge Atlas implementation plan
 
+Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a31-table backup/verified isolated restore; all30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](docs/PROJECT_ASSISTANT_M34.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.
+
 Latest 2026-10-31: steps1–2 complete: server-derived v3 aggregate support and independent synthetic development/legacy compatibility checks. See [ADR0075](docs/adr/0075-server-derived-answer-support.md) and [development cases](evaluation/development/claim-support-v3/README.md). No live calls or v3 quality measurements. [Prior457 Clef judgments](evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.md) describe historical v2 only; frozen failures/scores/inputs/ledgers remain unchanged, human0%. All prior grants are exhausted. Release freezing and final thesis revisions remain pending.
 
 Offline judging now supports OpenRouter Jev, direct TypeSafe Jev and native CF adapters, with human grading coverage0%. OpenRouter Decisions API and release/snapshot validation are implemented with zero-call preflight; live compatibility/quality remain unverified. See [OpenRouter setup](docs/OPENROUTER_EVALUATION.md) and [ADR0073](docs/adr/0073-openrouter-jev-evaluation.md). Earlier read optimizations remain in ADR0071.

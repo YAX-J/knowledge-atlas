@@ -1,5 +1,7 @@
 # Knowledge Atlas Development Setup
 
+Current M3/M4 schema: `20261031_0023`. Back up and verify recovery before `alembic upgrade head`; API readiness never auto-migrates. Run the existing independent assistant runner for async_v2/v3 queues; no new dependencies/services. [Usage and verification](PROJECT_ASSISTANT_M34.md).
+
 Current source/business head is20261031_0021, upgraded after verified backup/schema recovery and preserved fingerprints. Run `python -m app.assistant_runner` from backend alongside API and the separate source parser. Native start-demo.ps1 and optional Compose include it. Only explicitly submitted async_v2 jobs can invoke the configured model; no historical/failed/expired auto replay. See [M2 usage/verification](PROJECT_ASSISTANT_M2.md); older head notices below describe their original stages.
 
 M1 source head is now `20261031_0020` (additive assistant_tasks), superseding older head announcements below. Read [M1 checks](PROJECT_ASSISTANT_M1.md). The installed database is not automatically upgraded; readiness requires the new head/table. Reuse existing .venv/node_modules; no dependency changes. Back up/rehearse recovery before the normal backend `alembic upgrade head`; disposable verification uses `python -m scripts.verify_native` and preserves the business marker. M1 passed local substitute/native/desktop verification; live quality remains unmeasured.

@@ -1,17 +1,19 @@
 # Knowledge Atlas 项目 Agent 开发方案
 
+M3/M4 当前实现：固定笔记附件、追加修订、有范围的导入/解析/抽取、类型化可编辑报告草稿、版本绑定人工审批和显式继续。参见 [当前实现](PROJECT_ASSISTANT_M34.zh-CN.md)。下文其余拟议 API/数据项仍为设计目标，不代表新增已交付端点。
+
 [English](PROJECT_AGENT_PLAN.md)
 
 - 文档版本：`project-agent-plan-v1`
 - 日期：2026-10-31
-- 状态：**M1–M2 已实现并通过本地替身验收；M3–M5 仍为规划。**
+- 状态：**M1–M4 已实现并通过本地替身验收；M5 仍为规划。**
 - 开发分支：`feat/project-agent`
 - 起始提交：`c0eaa06`，包含 CI 环境适配修复。
-- 基线数据库 head：`20261029_0019`；M1 引入0020；M2 现业务库/源码均为 `20261031_0021`，已验证备份/恢复后升级。
+- 基线数据库 head：`20261029_0019`；M1 引入0020；M2 引入0021；M3/M4 现业务库/源码均为 `20261031_0023`，已验证备份/恢复后升级。
 
 M1 实现五项只读工具、独立任务/报告协议、同步持久化重放和统一目标界面，见 [ADR0076](adr/0076-read-only-project-assistant.zh-CN.md)及[验收记录](PROJECT_ASSISTANT_M1.zh-CN.md)。M1 当时不包含异步执行或写入工具。
 
-M2 现已增加显式队列/runner、尝试/检查点/产物/控制回执、取消和显式继续，见 [ADR0077](adr/0077-durable-assistant-execution.zh-CN.md)和[当前验收](PROJECT_ASSISTANT_M2.zh-CN.md)。thread/input/approval、笔记及写入工具仍为规划。
+M2 现已增加显式队列/runner、尝试/检查点/产物/控制回执、取消和显式继续，见 [ADR0077](adr/0077-durable-assistant-execution.zh-CN.md)和[当前验收](PROJECT_ASSISTANT_M2.zh-CN.md)。M3/M4 已按 ADR0078–0079 增加笔记、动作授权和精确操作审批；thread/input 和 M5 仍为规划，见 [M3/M4](PROJECT_ASSISTANT_M34.zh-CN.md)。
 
 ## 1. 产品目标与范围
 
@@ -152,7 +154,7 @@ flowchart TD
 
 ## 10. 拟议 API
 
-以下是设计示例。已实现 v1/v2 任务、事件/产物、cancel/continue 的正式契约见 API_CONTRACT.md 和 PROJECT_ASSISTANT_M2.zh-CN.md，thread/input/approval 仍为规划。
+以下是设计示例。已实现 v1/v2 任务、事件/产物、cancel/continue 的正式契约见 API_CONTRACT.md 和 PROJECT_ASSISTANT_M2.zh-CN.md，v3 操作审批见 PROJECT_ASSISTANT_M34.zh-CN.md；thread/input 与下表线程级审批仍为规划。
 
 | 方法与路径，统一前缀 `/api/v1` | 拟议语义 |
 | --- | --- |
@@ -185,7 +187,7 @@ flowchart TD
 | M4：全项目动作 | 有范围的导入/解析、抽取候选、报告草稿及受治理的知识变更提案 | 导入→解析→提案→人工审核→查看结果可通过一个任务完成；正式变更具备人工确认、版本绑定和幂等 |
 | M5：验收与发布 | 跨模块回归包、另行授权的真实开发评估、文档、录制演示及发布准备 | 功能/权限/恢复测试和 CI 通过；真实证据与局限如实记录；历史冻结实验保持不变 |
 
-M1–M2 按 ADR0076–0077 已实现并通过本地替身验收；M3–M5 仍为规划。每阶段形成有明确范围、测试和双语文档的可审阅变更。跨越 ADR0064–0068 的同步执行、写工具策略或数据语义边界前，须通过新的已接受 ADR 记录决策。完成某阶段不自动授权下一阶段或真实供应商实验。
+M1–M4 按 ADR0076–0079 已实现并通过本地替身验收；M5 仍为规划。每阶段形成有明确范围、测试和双语文档的可审阅变更。跨越 ADR0064–0068 的同步执行、写工具策略或数据语义边界前，须通过新的已接受 ADR 记录决策。完成某阶段不自动授权下一阶段或真实供应商实验。
 
 ## 13. 验证与质量测量
 

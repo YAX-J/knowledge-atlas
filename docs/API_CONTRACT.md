@@ -1,5 +1,7 @@
 # Knowledge Atlas 前后端接口草案
 
+Implemented M3/M4 (ADR0078–0079), head0023: `POST/GET /projects/{project_id}/notes`, `GET/PUT .../notes/{note_id}`, `GET .../notes/{note_id}/revisions`, `GET .../notes/revisions/{revision_id}`, and `POST .../notes/revisions/{revision_id}/source`. Create binds request_id; edits require request_id + expected_revision_id + title/markdown and return409 on conflict. Search uses query/page/page_size and exposes scanned/truncated. New assistant-task-v3 submissions return202 with exact note_revision_ids, allowed_actions and optional repository_id/repository_commit. Task reads expose operations, unknown_operations, remaining, final_artifact_id and waiting_approval. `POST .../assistant/tasks/{task_id}/approvals` requires request_id, operation_id, proposal_sha256 and decision approve/reject. This never starts a model; explicit checkpoint-bound continue remains separate. `POST .../artifacts/{artifact_id}/note` accepts request_id and creates a provenance-preserving editable draft. Results use assistant-report-v2; note citations carry note_id/revision_id and no fabricated formal evidence IDs. v1/v2 requests/replays remain compatible. See [complete behavior/limits](PROJECT_ASSISTANT_M34.md).
+
 ## 项目助手 M2（ADR0077）
 
 业务/源码 head `20261031_0021`。`POST /api/v1/projects/{project_id}/assistant/tasks` 增加 `protocol=assistant-task-v2`，仅固定输入和保存 queued 任务，返回202；默认 v1 仍同步200。请求范围/预算沿用 v1，新增内部固定 knowledge_at、运行契约/模型和端点/工具摘要；这些由后端绑定，不接受客户端自定义。独立 runner 仅认领 async_v2 queued，解析 Worker/历史 AgentRun 不受影响。详见[实现与验收](PROJECT_ASSISTANT_M2.zh-CN.md)。

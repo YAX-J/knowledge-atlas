@@ -1,0 +1,17 @@
+# ADR 0079: Capability-scoped assistant actions and human approval
+
+[简体中文](0079-governed-assistant-actions.zh-CN.md)
+
+Status: Accepted · 2026-10-31 · M4
+
+`assistant-task-v3` / `async_v3` adds write capabilities to the durable M2 runner. v1/v2 retain their request hashes, prompts, tool definitions, limits and replay semantics. V3 stores explicit `allowed_actions`, exact note revisions and optional repository UUID plus40-character commit SHA. Historical knowledge time excludes raw attachments and writes. Default authorization is read-only. Source selection may include unparsed versions only when parsing is authorized.
+
+The gateway exposes the plan's project/source/evidence/code/note/import/parse/extraction/governance/report matrix. It delegates to existing services; only existing human domain actions write formal knowledge. New drafts, deterministic parsing, immutable import and pending extraction candidates may run when explicitly authorized at submission. Import binds repository identity and commit, checks before every HTTP request, preserves existing file/tree limits, and adds only receipt-derived sources to scope. Raw reads remain20 sources/200000bytes/500chunks with truncation disclosure. There is no shell, arbitrary filesystem, code execution, publishing or remote repository write tool.
+
+Native tool-call IDs derive operation UUIDs under the task UUID. Receipts bind normalized arguments and proposal SHA-256 includes user/project/task, target snapshots and exact content. Replayed successful operations return stored receipts. Existing note edits and candidate confirmation/merge/SUPERSEDES/retirement remain pending until an exact human decision. Full before records and proposed inputs are reviewable. Approval rechecks payload integrity, scope and complete target/evidence versions, then invokes existing services inside savepoints under project/task locks. Domain writes and approval/operation receipts commit atomically. Changed versions yield a saved conflict; rejection changes no underlying candidate. Repeated approval UUIDs never repeat effects.
+
+A tool checkpoint is committed before `waiting_approval`. Approval alone performs no model request or queue restart. After all pending proposals settle, explicit continuation binds the saved revision/checkpoint, retains cumulative budgets and appends the actual decision once. Newly confirmed evidence is supplied as a separately identified approval outcome; historical search time stays frozen. Reports are typed `assistant-report-v2`; final/draft artifacts can be explicitly converted to editable notes with original citations.
+
+V3 shares8 model/16 tool attempts,0 embeddings and230seconds of execution time across coordinator and specialists. Coordinator allows up to8/16 within that shared budget, enabling import→parse→extract→approve→report; specialists keep4/8 each. V2 remains4/8 coordinator. Attempts persist before calls. Unknown model or write outcomes retain counts and require explicit acknowledgement before continuing; no automatic retry/requeue. Write services check ownership before commits, and cancellation/lease loss rolls back late publication. A separate runtime override is task-owned, never model-controlled.
+
+Migration0023 adds operations/approvals and waiting status. Downgrade closes active v3 work before removing audit tables; restore verified backup to retain history. M5 release/live-quality work is separate. Local substitute success does not measure model quality or authorize provider requests.

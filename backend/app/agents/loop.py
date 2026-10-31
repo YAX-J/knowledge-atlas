@@ -22,11 +22,12 @@ class LoopState(TypedDict, total=False):
     calls: list[dict]
     next_node: str
     tool_index: int
+    operation_outcomes: list[str]
 
 
 def structured_loop(settings, *, system, payload, tools, execute, output_model,
                     max_turns=4, max_tools=8, output_limit=20000, input_limit=240000, seconds=230,
-                    resume_state=None, on_checkpoint=None):
+                    resume_state=None, on_checkpoint=None, execute_with_id=None):
     deadline=time.monotonic()+seconds
     allowed={item['function']['name'] for item in tools}
 
@@ -73,7 +74,7 @@ def structured_loop(settings, *, system, payload, tools, execute, output_model,
         for index in range(state.get('tool_index',0),len(state['calls'])):
             call=state['calls'][index]
             function=call['function'];name=function['name'];started=time.monotonic()
-            result=invoke_tool(execute,name,function.get('arguments'))
+            result=invoke_tool(execute_with_id,name,function.get('arguments'),call['id']) if execute_with_id else invoke_tool(execute,name,function.get('arguments'))
             content=json.dumps(result,ensure_ascii=False);total+=len(content)
             if total>output_limit:fail()
             trace.append(dict(name=name if name in allowed else 'not_allowed',status='error' if 'error' in result else 'ok',

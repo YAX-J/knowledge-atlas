@@ -1,5 +1,7 @@
 # Knowledge Atlas 开发环境配置
 
+M3/M4 当前库版本为 `20261031_0023`。运行 `alembic upgrade head` 前先备份并验证恢复；API 就绪检查不自动迁移。异步 v2/v3 复用独立 assistant runner，不新增依赖/服务。[使用与验证](PROJECT_ASSISTANT_M34.zh-CN.md)。
+
 当前源码/业务 head 为20261031_0021，已在验证备份/隔离恢复和旧表指纹后升级。backend 下启动 `python -m app.assistant_runner`，与 API、来源解析 Worker 分开运行。原生 start-demo.ps1 和可选 Compose 已包含 runner；只有显式 async_v2 新任务可调用已配置模型，不自动重放历史/失败/过期任务。见 [M2 使用/验收](PROJECT_ASSISTANT_M2.zh-CN.md)，下方旧 head 公告为原阶段说明。
 
 M1 源码 head 现为 `20261031_0020`（增量 assistant_tasks），取代下方旧 head 公告。见 [M1 检查](PROJECT_ASSISTANT_M1.zh-CN.md)。未自动升级已安装数据库，就绪检查要求新 head/表。复用 .venv/node_modules，无依赖变更。业务库正常升级前先备份/隔离恢复，再在 backend 运行 `alembic upgrade head`；临时验证使用 `python -m scripts.verify_native`，保留业务版本标记。M1 已通过本地替身/原生/桌面验证，真实质量仍未测量。

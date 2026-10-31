@@ -13,6 +13,10 @@ _current: ContextVar['RunContext | None'] = ContextVar('agent_run', default=None
 _agent: ContextVar[str] = ContextVar('agent_name', default='workflow')
 
 
+class AgentPaused(Exception):
+    """A durable human checkpoint, distinct from an execution failure."""
+
+
 @dataclass
 class RunContext:
     user_id: uuid.UUID
@@ -28,6 +32,7 @@ class RunContext:
     events: list[dict] = field(default_factory=list)
     counts: dict[str, int] = field(default_factory=lambda: {'model':0,'tool':0,'embedding':0})
     agent_counts: dict[str, int] = field(default_factory=dict)
+    role_limits: dict[str,dict[str,int]] = field(default_factory=dict)
     started: float = field(default_factory=time.monotonic)
     on_progress: Callable[['RunContext'], None] | None = field(default=None, repr=False, compare=False)
     _progress_failed: bool = field(default=False, init=False, repr=False)
@@ -60,6 +65,7 @@ class RunContext:
             agent=_agent.get(); key=agent+':'+kind
             maximum={'model':self.model_limit,'tool':self.tool_limit,'embedding':self.embedding_limit}[kind]
             own_maximum={'model':4,'tool':8,'embedding':4}[kind]
+            own_maximum=self.role_limits.get(agent,{}).get(kind,own_maximum)
             if time.monotonic()-self.started > self.seconds or self.counts[kind]>=maximum or self.agent_counts.get(key,0)>=own_maximum:
                 raise AppError(status_code=429, code='AGENT_BUDGET_EXCEEDED', message='本次任务的 Agent 调用或时间预算已用尽')
             self.counts[kind]+=1;self.agent_counts[key]=self.agent_counts.get(key,0)+1
@@ -88,6 +94,9 @@ def agent_scope(name):
         if context:context.event('agent','started')
         yield
         if context:context.event('agent','succeeded')
+    except AgentPaused:
+        if context:context.event('agent','waiting_approval')
+        raise
     except Exception:
         if context:context.event('agent','failed')
         raise
@@ -110,6 +119,9 @@ def invoke_tool(callback, *args, **kwargs):
     context=_current.get()
     if context:context.reserve('tool')
     allowed={'read_source_range','get_imports','search_symbols','find_references','get_type_members','read_chunk','read_evidence','search_knowledge','search_sources','read_source_chunk'}
+    allowed|={'get_project_overview','list_project_sources','get_parse_status','search_notes','read_note_revision',
+        'inspect_knowledge_conflicts','analyze_code','create_note_draft','propose_note_revision','snapshot_note_revision',
+        'import_repository_snapshot','request_source_parse','propose_knowledge','propose_knowledge_change','create_report_draft'}
     tool_name = args[0] if args and args[0] in allowed else 'not_allowed'
     try:
         result=callback(*args,**kwargs)

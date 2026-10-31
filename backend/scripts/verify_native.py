@@ -87,6 +87,7 @@ def main():
             env["KA_GITHUB_REPORT"] = str(report)
             tests.append("tests/test_github_public_acceptance.py")
             print(f"Explicit public GitHub read-only acceptance enabled; report: {report}", flush=True)
+        tests.extend(['tests/test_notes.py','tests/test_assistant_workspace.py'])
         # Providers are stubbed inside these tests. No API key or URL is passed in argv.
         result = subprocess.run([sys.executable, "-m", "pytest", *tests, "-o", "addopts=", "-q", "--tb=short", "--show-capture=no"],
                                 cwd=root, env=env, check=False)

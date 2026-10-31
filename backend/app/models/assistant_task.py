@@ -13,7 +13,7 @@ class AssistantTask(TimestampMixin, Base):
     __tablename__ = 'assistant_tasks'
     __table_args__ = (
         Index('ix_assistant_tasks_scope_created', 'user_id', 'project_id', 'created_at'),
-        CheckConstraint("status IN ('queued','running','succeeded','failed','interrupted','cancelled')", name='ck_assistant_tasks_status'),
+        CheckConstraint("status IN ('queued','running','waiting_approval','succeeded','failed','interrupted','cancelled')", name='ck_assistant_tasks_status'),
     )
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True)
     user_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)

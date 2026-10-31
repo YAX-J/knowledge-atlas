@@ -9,12 +9,18 @@ import AgentRunTrace from '../components/agent/AgentRunTrace.vue'
 import AgentCodeResult from '../components/agent/AgentCodeResult.vue'
 import AgentWorkflowForm from '../components/agent/AgentWorkflowForm.vue'
 import ProjectAssistantPanel from '../components/agent/ProjectAssistantPanel.vue'
+import NotesPanel from '../components/agent/NotesPanel.vue'
 
 const props=defineProps<{project:ApiProject|null;projects:ApiProjectList|null;source:ApiSource|null;runId?:string}>()
 const emit=defineEmits<{selectProject:[project:ApiProject];openSource:[sourceId:string];openEvidence:[locator:EvidenceLocator];run:[id:string]}>()
 const {runs,selected,loading,sending,unknown,error,busy,refresh,select,submit,resume,retry}=useAgentRuns(()=>props.project?.id)
 const timeZone=Intl.DateTimeFormat().resolvedOptions().timeZone
 const assistantSending=ref(false)
+const noteAttachments=ref<string[]>([]),noteRevision=ref(''),noteRefresh=ref(0)
+const noteOpenToken=ref(0)
+function openNote(id:string){noteRevision.value=id;noteOpenToken.value++}
+watch(()=>props.project?.id,()=>{noteAttachments.value=[];noteRevision.value='';noteRefresh.value++})
+function attachNote(id:string){if(!noteAttachments.value.includes(id)&&noteAttachments.value.length<20)noteAttachments.value.push(id)}
 const retrievalLabels:Record<QuestionRetrievalMode,string>={bm25:'BM25 词法',bm25_source:'BM25 + 来源位置',rrf:'BM25 + 向量融合',hybrid:'混合 + 图关系',vector:'语义向量'}
 const status:Record<AgentRun['status'],string>={running:'正在协作',awaiting_review:'等待人工审核',succeeded:'已完成',failed:'未完成',interrupted:'执行已中断'}
 watch(()=>[props.project?.id,props.runId],()=>{if(props.runId&&props.runId!==selected.value?.id)void select(props.runId)},{immediate:true})
@@ -28,7 +34,8 @@ onScopeDispose(()=>clearInterval(timer))
   <main class="agent-workspace" aria-labelledby="agent-workspace-title">
     <header><div><span class="agent-kicker">Agent / 有证据的协作</span><h1 id="agent-workspace-title">协作任务</h1><p>代码分析、知识候选整理与证据问答共享任务范围。正式知识经过人工审核后入图。</p></div>
       <label>当前项目<select :value="project?.id??''" :disabled="sending||assistantSending" @change="changeProject"><option disabled value="">请选择项目</option><option v-for="item in projects?.items??[]" :key="item.id" :value="item.id">{{item.name}}</option></select></label></header>
-    <ProjectAssistantPanel :project-id="project?.id" :disabled="sending" @sending="assistantSending=$event" @open-source="emit('openSource',$event)" @open-evidence="emit('openEvidence',$event)" />
+    <NotesPanel :project-id="project?.id" :revision-id="noteRevision" :revision-token="noteOpenToken" :refresh-token="noteRefresh" @attach="attachNote" @open-source="emit('openSource',$event)" />
+    <ProjectAssistantPanel :project-id="project?.id" :disabled="sending" :note-revision-ids="noteAttachments" @clear-notes="noteAttachments=[]" @notes-changed="noteRefresh++" @open-note="openNote" @sending="assistantSending=$event" @open-source="emit('openSource',$event)" @open-evidence="emit('openEvidence',$event)" />
     <div class="agent-columns">
       <AgentWorkflowForm :project="project" :source="source" :busy="busy" :sending="sending" @start="submit($event)">
         <p v-if="unknown" role="alert">处理结果尚未确认，请先读取状态。同一提交的重发会复用任务标识。</p>

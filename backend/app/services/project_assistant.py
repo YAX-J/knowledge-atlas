@@ -46,7 +46,7 @@ def read_task(db, *, user_id, project_id, task_id):
     if item is None:
         _error('ASSISTANT_NOT_FOUND', '助手任务不存在或不属于此项目', 404)
     extra={}
-    if item.execution_mode=='async_v2':
+    if item.execution_mode in {'async_v2','async_v3'}:
         from app.services.assistant_execution import read_execution
         extra=read_execution(db,item)
     return AssistantRead(**_summary(item), scope=item.request['scope'], result=item.result,
@@ -71,7 +71,7 @@ def _freeze_sources(db, *, user_id, project_id, request):
     metadata = list(db.execute(select(SourceDocument.id, SourceDocument.size_bytes, SourceDocument.status).where(*filters)))
     if len(metadata) != len(request.source_ids):
         _error('ASSISTANT_SOURCE_NOT_FOUND', '所选资料不存在或不属于此项目', 404)
-    if any(row.status != 'ready' for row in metadata):
+    if any(row.status != 'ready' for row in metadata) and not (request.protocol=='assistant-task-v3' and 'request_source_parse' in request.allowed_actions):
         _error('SOURCE_NOT_PARSED', '请先完成所选资料解析')
     if sum(row.size_bytes for row in metadata) > 200000:
         _error('ASSISTANT_SCOPE_TOO_LARGE', '所选原文超过 200000 字节，请缩小范围', 422)
@@ -109,11 +109,11 @@ def _freeze_sources(db, *, user_id, project_id, request):
 
 
 def start_task(db, *, user_id, project_id, request, settings):
-    if request.protocol=='assistant-task-v2':
+    if request.protocol in {'assistant-task-v2','assistant-task-v3'}:
         from app.services.assistant_execution import enqueue
         return enqueue(db,user_id=user_id,project_id=project_id,request=request,settings=settings)
     get_project(db, user_id=user_id, project_id=project_id)
-    data = request.model_dump(mode='json', exclude={'request_id'})
+    data = request.request_data()
     digest = hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
     db.execute(select(Project.id).where(Project.id == project_id, Project.user_id == user_id).with_for_update())
     existing = db.get(AssistantTask, request.request_id)

@@ -18,10 +18,13 @@ from app.models.retirement import KnowledgeRetirement
 from app.models.workspace import Conversation, ConversationTurn, EntityAlias, EntityMerge, KnowledgeOperation, KnowledgePeriod
 from app.models.agent_run import AgentRun
 from app.models.assistant_task import AssistantTask, AssistantAttempt, AssistantStep, AssistantArtifact, AssistantContinuation
+from app.models.notes import Note, NoteRevision, NoteSource
+from app.models.assistant_operation import AssistantOperation, AssistantApproval
 
 __all__ = [
     'AssistantTask',
     'AssistantAttempt', 'AssistantStep', 'AssistantArtifact', 'AssistantContinuation',
+    'Note','NoteRevision','NoteSource','AssistantOperation','AssistantApproval',
     'AgentRun',
     'Conversation', 'ConversationTurn', 'EntityAlias', 'EntityMerge', 'KnowledgeOperation', 'KnowledgePeriod',
     "KnowledgeRetirement",

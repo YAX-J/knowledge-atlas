@@ -1,5 +1,7 @@
 # Scoped agents in one project
 
+Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a31-table backup/verified isolated restore; all30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](PROJECT_ASSISTANT_M34.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.
+
 [ADR 0075](adr/0075-server-derived-answer-support.md) implements `evidence-claims-v3`: providers return only confidence, claims and missing_information; the backend derives API supported from all claim statuses. Citation attribution, missing information, budgets and project scope stay strict. v2 and flat history read/replay saved values without recomputation or provider calls; v2 is never a new-output fallback. Independent fictional development cases check structure/compatibility, not live v3 quality. Frozen v2 experiments/ledgers/scores and schema head `20261029_0019` remain unchanged; human coverage0%.
 
 [简体中文](MULTI_AGENT.zh-CN.md)

@@ -1,6 +1,8 @@
 # Knowledge Atlas
 
-项目助手 M2 已实现并通过本地替身、原生数据库和桌面验收：异步排队、独立 runner、逐步检查点/尝试回执、取消和显式继续。业务库与源码 head 均为 `20261031_0021`，迁移前备份/隔离恢复及旧表指纹核验通过。见[使用与验收](docs/PROJECT_ASSISTANT_M2.zh-CN.md)及 [ADR0077](docs/adr/0077-durable-assistant-execution.zh-CN.md)。M3–M5 未启动，零真实模型调用。
+Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a 31-table backup/verified isolated restore; all 30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](docs/PROJECT_ASSISTANT_M34.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.
+
+此前 M2 验收：异步排队、独立 runner、逐步检查点/尝试回执、取消和显式继续。M2 当时业务库与源码 head 为 `20261031_0021`，迁移前备份/隔离恢复及旧表指纹核验通过。见[使用与验收](docs/PROJECT_ASSISTANT_M2.zh-CN.md)及 [ADR0077](docs/adr/0077-durable-assistant-execution.zh-CN.md)。M3/M4 后续实现见上方当前说明，零真实模型调用。
 
 2026-10-31：已完成回答格式与独立开发验证两项：新 `evidence-claims-v3` 由后端计算总体 supported，模型只给逐条结论、置信度和缺失信息；严格引用和旧记录读取保持。见 [ADR0075](docs/adr/0075-server-derived-answer-support.zh-CN.md) 与[合成开发检查](evaluation/development/claim-support-v3/README.zh-CN.md)。本轮零真实调用，v3 真实质量未测量；[既有457次裁判结果](evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.zh-CN.md)属于历史 v2，失败、分数、输入和账本保持，人工覆盖率0%。
 
@@ -31,7 +33,7 @@ BM25 与来源位置 BM25 使用 v2 分批协议：每批 200 个实体，在最
 
 ## 本地启动
 
-先安装 Python、Node.js、原生 PostgreSQL 及 pgvector，并按[环境配置](docs/DEVELOPMENT_SETUP.zh-CN.md)填写后端 `.env`。已有数据先按[备份恢复](docs/BACKUP_RESTORE.zh-CN.md)备份；业务库/源码迁移 head 为 `20261031_0021`（已验证备份/恢复后升级）。就绪检查会拒绝落后、未迁移或缺少关键表/列的数据库。
+先安装 Python、Node.js、原生 PostgreSQL 及 pgvector，并按[环境配置](docs/DEVELOPMENT_SETUP.zh-CN.md)填写后端 `.env`。已有数据先按[备份恢复](docs/BACKUP_RESTORE.zh-CN.md)备份；业务库/源码迁移 head 为 `20261031_0023`（已验证备份/恢复后升级）。就绪检查会拒绝落后、未迁移或缺少关键表/列的数据库。
 
 ```powershell
 cd backend

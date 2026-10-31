@@ -1,5 +1,7 @@
 # Knowledge Atlas 当前路线与验收边界
 
+Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a31-table backup/verified isolated restore; all30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](PROJECT_ASSISTANT_M34.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.
+
 2026-10-31：第1–2项已完成：`evidence-claims-v3` 后端计算总体状态，使用[独立合成开发用例](../evaluation/development/claim-support-v3/README.zh-CN.md)验证正常/非法输出及 v2/平铺历史兼容。没有真实调用或 v3 质量结论。[历史裁判](../evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.zh-CN.md)及其5条 v2 失败、冻结数据/账本原样保留，人工0%。后续版本冻结与论文定稿尚未执行。
 
 当前离线模型评审支持 OpenRouter Jev、直连 TypeSafe Jev 和 CF 原生适配，人工评分覆盖率0%，真实 OpenRouter 评审尚未运行。见 [OpenRouter指南](OPENROUTER_EVALUATION.zh-CN.md) 与 [ADR0073](adr/0073-openrouter-jev-evaluation.zh-CN.md)。此前读取优化保留 ADR0071 记录。

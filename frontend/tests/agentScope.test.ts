@@ -6,6 +6,7 @@ import { getCodeAnalysisContexts, type CodeAnalysisContexts } from '../src/api/k
 import { useCodeContextSelection } from '../src/composables/useCodeContextSelection'
 import AgentWorkspace from '../src/pages/AgentWorkspace.vue'
 vi.mock('../src/components/agent/ProjectAssistantPanel.vue',()=>({default:{template:'<div />'}}))
+vi.mock('../src/components/agent/NotesPanel.vue',()=>({default:{template:'<div />'}}))
 import { project, source } from './fixtures'
 
 vi.mock('../src/api/agents')

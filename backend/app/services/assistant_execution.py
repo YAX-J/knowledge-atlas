@@ -38,32 +38,41 @@ def _attempts(db,item):
     return list(db.scalars(select(AssistantAttempt).where(*_filters(AssistantAttempt,item))))
 
 
-def _remaining(item,last):
+def _remaining(item,last,attempts=()):
     if last and last.state['loop'].get('next_node')=='done':return True
-    return (item.elapsed_ms<230000 and item.usage.get('model',0)<min(4,item.request['model_limit'])
+    coordinator={kind:sum(a.agent=='project_assistant' and a.kind==kind for a in attempts) for kind in ('model','tool')}
+    role_limits=(8,16) if item.execution_mode=='async_v3' else (4,8)
+    return (item.elapsed_ms<230000 and item.usage.get('model',0)<item.request['model_limit'] and coordinator['model']<role_limits[0]
         and (not last or last.state['loop'].get('next_node')!='tools'
-             or item.usage.get('tool',0)<min(8,item.request['tool_limit'])))
+             or item.usage.get('tool',0)<item.request['tool_limit'] and coordinator['tool']<role_limits[1]))
 
 
 def read_execution(db,item):
     last=_last(db,item)
     attempts=_attempts(db,item)
+    from app.services.assistant_operations import operations, public
+    ops=operations(db,item)
+    pending=any(o.status=='pending' for o in ops)
     return dict(checkpoint_id=last.id if last else None,
         unknown_model_attempts=sum(a.kind=='model' and a.status in {'started','unknown'} for a in attempts),
-        can_continue=tasks._status(item) in {'interrupted','failed'} and _remaining(item,last),
+        can_continue=tasks._status(item) in {'interrupted','failed','waiting_approval'} and not pending and _remaining(item,last,attempts),
+        operations=[public(o) for o in ops],unknown_operations=sum(o.status in {'executing','unknown'} for o in ops),
+        final_artifact_id=uuid.uuid5(item.id,'assistant-report-v1') if item.status=='succeeded' and item.result else None,
+        remaining={k:max(0,min(item.request[k+'_limit']-item.usage.get(k,0),limit-sum(a.agent=='project_assistant' and a.kind==k for a in attempts))) for k,limit in ([('model',8),('tool',16)] if item.execution_mode=='async_v3' else [('model',4),('tool',8)])},
         artifact_ids=list(db.scalars(select(AssistantArtifact.id).where(*_filters(AssistantArtifact,item)))))
 
 
-def _contract(settings):
+def _contract(settings,workflow=False):
     from app.agents.project_assistant.agent import PROMPT_VERSION
-    return dict(version='assistant-loop-v2',prompt=PROMPT_VERSION,model=settings.deepseek_model,
+    from app.tools.workspace import WorkspaceTools
+    return dict(version='assistant-loop-v3' if workflow else 'assistant-loop-v2',prompt='project-assistant-v3' if workflow else PROMPT_VERSION,model=settings.deepseek_model,
         endpoint_sha256=hashlib.sha256(settings.deepseek_base_url.rstrip('/').encode()).hexdigest(),
-        tools_sha256=hashlib.sha256(json.dumps(ProjectTools.definitions,sort_keys=True).encode()).hexdigest())
+        tools_sha256=hashlib.sha256(json.dumps(WorkspaceTools.definitions if workflow else ProjectTools.definitions,sort_keys=True).encode()).hexdigest())
 
 
 def enqueue(db,*,user_id,project_id,request,settings):
     get_project(db,user_id=user_id,project_id=project_id)
-    data=request.model_dump(mode='json',exclude={'request_id'})
+    data=request.request_data()
     digest=hashlib.sha256(json.dumps(data,sort_keys=True).encode()).hexdigest()
     db.execute(select(Project.id).where(Project.id==project_id,Project.user_id==user_id).with_for_update())
     existing=db.get(AssistantTask,request.request_id)
@@ -77,14 +86,27 @@ def enqueue(db,*,user_id,project_id,request,settings):
     scope=dict(source_ids=[str(s.id) for s in sources],source_versions=[dict(id=str(s.id),sha256=s.content_sha256) for s in sources],
         snapshot_id=str(request.snapshot_id) if request.snapshot_id else None,commit_sha=commit,
         valid_at=data['valid_at'],knowledge_at=data['valid_at'] or utc_now().isoformat(),retrieval_mode='bm25',
-        runtime_contract=_contract(settings),
+        runtime_contract=_contract(settings,request.protocol=='assistant-task-v3'),
         capabilities=list(ProjectTools.contracts),embedding_limit=0,
         limits=dict(model=request.model_limit,tool=request.tool_limit,seconds=230,coordinator_model=4,coordinator_tool=8,
             source_bytes=200000,chunks=500,references=32))
+    workflow=request.protocol=='assistant-task-v3'
+    if workflow:
+        from app.services import notes
+        from app.tools.workspace import WorkspaceTools
+        revisions=[notes.revision(db,user_id=user_id,project_id=project_id,revision_id=i) for i in request.note_revision_ids]
+        if sum(len(r.markdown)+len(r.title) for r in revisions)>200000:_fail('ASSISTANT_SCOPE_TOO_LARGE','笔记范围超过 200000 字符',422)
+        scope.update(note_versions=[dict(id=str(r.id),note_id=str(r.note_id),sha256=r.content_sha256) for r in revisions],
+            allowed_actions=request.allowed_actions,capabilities=list(WorkspaceTools.contracts))
+        scope['limits'].update(coordinator_model=8,coordinator_tool=16)
+        if request.repository_id:
+            from app.services.repositories import get_repository
+            repo=get_repository(db,user_id=user_id,project_id=project_id,repository_id=request.repository_id)
+            scope['repository_identity']=[repo.provider,repo.remote_owner,repo.remote_name]
     runtime=RunContext(user_id=user_id,project_id=project_id,model_limit=request.model_limit,
         tool_limit=request.tool_limit,embedding_limit=0)
     db.add(AssistantTask(id=request.request_id,user_id=user_id,project_id=project_id,status='queued',
-        execution_mode='async_v2',input_sha256=digest,request={**data,'scope':scope},events=[],usage=runtime.usage()))
+        execution_mode='async_v3' if workflow else 'async_v2',input_sha256=digest,request={**data,'scope':scope},events=[],usage=runtime.usage()))
     db.commit()
     return tasks.read_task(db,user_id=user_id,project_id=project_id,task_id=request.request_id)
 
@@ -94,7 +116,7 @@ def _locked(db,*,user_id,project_id,task_id):
     item=db.scalar(select(AssistantTask).where(AssistantTask.id==task_id,AssistantTask.user_id==user_id,
         AssistantTask.project_id==project_id).with_for_update().execution_options(populate_existing=True))
     if item is None:_fail('ASSISTANT_NOT_FOUND','助手任务不属于当前范围',404)
-    if item.execution_mode!='async_v2':_fail('ASSISTANT_LEGACY_TASK','旧同步任务不支持队列控制')
+    if item.execution_mode not in {'async_v2','async_v3'}:_fail('ASSISTANT_LEGACY_TASK','旧同步任务不支持队列控制')
     return item
 
 
@@ -107,6 +129,9 @@ def _event(item,kind,status):
 def _unknown(db,item):
     for attempt in _attempts(db,item):
         if attempt.status=='started':attempt.status='unknown'
+    from app.services.assistant_operations import operations
+    for op in operations(db,item):
+        if op.status=='executing':op.status='unknown'
 
 
 def cancel(db,*,user_id,project_id,task_id):
@@ -132,9 +157,11 @@ def continue_task(db,*,user_id,project_id,task_id,request):
     last=_last(db,item)
     if item.revision!=request.expected_revision or (last.id if last else None)!=request.checkpoint_id:
         _fail('ASSISTANT_CHECKPOINT_CONFLICT','检查点或执行版本已变化，请刷新')
-    if tasks._status(item) not in {'interrupted','failed'}:_fail('ASSISTANT_NOT_CONTINUABLE','任务尚不能继续')
-    if not _remaining(item,last):_fail('AGENT_BUDGET_EXCEEDED','累计任务预算已用尽',429)
-    if any(a.kind=='model' and a.status in {'started','unknown'} for a in _attempts(db,item)) and not request.acknowledge_unknown:
+    from app.services.assistant_operations import operations
+    ops=operations(db,item)
+    if tasks._status(item) not in {'interrupted','failed','waiting_approval'} or any(o.status=='pending' for o in ops):_fail('ASSISTANT_NOT_CONTINUABLE','任务尚不能继续')
+    if not _remaining(item,last,_attempts(db,item)):_fail('AGENT_BUDGET_EXCEEDED','累计任务预算已用尽',429)
+    if (any(a.kind=='model' and a.status in {'started','unknown'} for a in _attempts(db,item)) or any(o.status in {'executing','unknown'} for o in ops)) and not request.acknowledge_unknown:
         _fail('ASSISTANT_UNKNOWN_ACK_REQUIRED','需明确确认未知调用仍保留计数，继续可能发起新的付费尝试')
     _unknown(db,item)
     _event(item,'continue','saved')
@@ -146,7 +173,7 @@ def continue_task(db,*,user_id,project_id,task_id,request):
 
 def recover_expired(db,*,user_id):
     items=list(db.scalars(select(AssistantTask).where(AssistantTask.user_id==user_id,
-        AssistantTask.execution_mode=='async_v2',AssistantTask.status=='running',
+        AssistantTask.execution_mode.in_(['async_v2','async_v3']),AssistantTask.status=='running',
         or_(AssistantTask.lease_until.is_(None),AssistantTask.lease_until<=utc_now()))
         .order_by(AssistantTask.created_at).limit(20).with_for_update(skip_locked=True).execution_options(populate_existing=True)))
     for item in items:
@@ -160,7 +187,7 @@ def claim_next(db,*,user_id):
     recover_expired(db,user_id=user_id)
     item=db.scalar(select(AssistantTask).join(Project,Project.id==AssistantTask.project_id).where(
         AssistantTask.user_id==user_id,Project.user_id==user_id,Project.archived_at.is_(None),
-        AssistantTask.execution_mode=='async_v2',AssistantTask.status=='queued')
+        AssistantTask.execution_mode.in_(['async_v2','async_v3']),AssistantTask.status=='queued')
         .order_by(AssistantTask.created_at,AssistantTask.id).limit(1).with_for_update(skip_locked=True,of=AssistantTask)
         .execution_options(populate_existing=True))
     if item is None:db.rollback();return None
@@ -186,7 +213,7 @@ def _save(db,item,execution,runtime,*,commit=True):
 
 def execute_claim(db,*,task_id,execution,settings,user_id):
     item=db.scalar(select(AssistantTask).where(AssistantTask.id==task_id,AssistantTask.user_id==user_id,
-        AssistantTask.execution_mode=='async_v2',AssistantTask.execution_id==execution,AssistantTask.status=='running')
+        AssistantTask.execution_mode.in_(['async_v2','async_v3']),AssistantTask.execution_id==execution,AssistantTask.status=='running')
         .execution_options(populate_existing=True))
     if item is None:_fail('ASSISTANT_INTERRUPTED','任务执行归属已失效')
     request=AssistantRequest.model_validate({k:v for k,v in item.request.items() if k!='scope'}|{'request_id':item.id})
@@ -195,6 +222,8 @@ def execute_claim(db,*,task_id,execution,settings,user_id):
     runtime=RunContext(user_id=item.user_id,project_id=item.project_id,run_id=item.id,model_limit=request.model_limit,
         tool_limit=request.tool_limit,embedding_limit=0,seconds=230,events=list(item.events),counts=counts,
         started=time.monotonic()-item.elapsed_ms/1000)
+    if item.execution_mode=='async_v3':
+        runtime.role_limits={'project_assistant':{'model':8,'tool':16}}
     for a in attempts:runtime.agent_counts[a.agent+':'+a.kind]=runtime.agent_counts.get(a.agent+':'+a.kind,0)+1
     def progress(context):
         _save(db,item,execution,context,commit=False)
@@ -204,17 +233,24 @@ def execute_claim(db,*,task_id,execution,settings,user_id):
                 agent=event['agent'],ordinal=event['attempt'],status='started'))
         db.commit()
     runtime.on_progress=progress
-    result=None;error_code=None
+    from app.services.assistant_operations import AwaitingApproval, operations
+    workflow=item.execution_mode=='async_v3'
+    result=None;error_code=None;waiting=False
     try:
         with run_scope(runtime):
             runtime.event('assistant','started')
-            if item.request['scope']['runtime_contract']!=_contract(settings):
+            if item.request['scope']['runtime_contract']!=_contract(settings,workflow):
                 _fail('ASSISTANT_RUNTIME_CHANGED','运行契约或模型配置已变化，请核对后新建任务')
             sources,paths,commit=tasks._freeze_sources(db,user_id=item.user_id,project_id=item.project_id,request=request)
             if [dict(id=str(s.id),sha256=s.content_sha256) for s in sources]!=item.request['scope']['source_versions']:
                 _fail('ASSISTANT_SOURCE_CHANGED','所选来源版本已变化')
             gateway=tasks.make_gateway(db,user_id=item.user_id,project_id=item.project_id,request=request,settings=settings,
                 sources=sources,paths=paths,commit=commit,knowledge_at=datetime.fromisoformat(item.request['scope']['knowledge_at']))
+            if workflow:
+                from app.tools.workspace import WorkspaceTools
+                gateway=WorkspaceTools(gateway,db=db,item=item,execution=execution,settings=settings,request=request)
+                versions=[dict(id=str(r.id),note_id=str(r.note_id),sha256=r.content_sha256) for r in gateway.notes.values()]
+                if versions!=item.request['scope']['note_versions']:_fail('ASSISTANT_NOTE_CHANGED','笔记修订版本已变化')
             last=_last(db,item)
             resume=last.state['loop'] if last else None
             if last:
@@ -225,21 +261,34 @@ def execute_claim(db,*,task_id,execution,settings,user_id):
                 _save(db,item,execution,runtime,commit=False)
                 previous=_last(db,item)
                 sequence=(previous.sequence if previous else 0)+1
-                if sequence>16:_fail('AGENT_BUDGET_EXCEEDED','检查点预算已用尽',429)
+                if sequence>(40 if workflow else 16):_fail('AGENT_BUDGET_EXCEEDED','检查点预算已用尽',429)
                 for a in _attempts(db,item):
-                    if a.kind==kind and a.status=='started':a.status='succeeded'
+                    if a.kind==kind and a.agent=='project_assistant' and a.status=='started':a.status='succeeded'
                 db.add(AssistantStep(task_id=item.id,user_id=item.user_id,project_id=item.project_id,sequence=sequence,kind=kind,state=data))
                 db.commit()
                 runtime.event('step_checkpoint','saved')
+                if any(o.status=='pending' for o in operations(db,item)):raise AwaitingApproval()
+            if workflow and resume:
+                # Approval is read-only here; add the exact saved outcome once per operation.
+                seen=set(resume.get('operation_outcomes',[]))
+                outcomes=[o for o in operations(db,item) if o.status in {'approved','rejected','conflict'} and str(o.id) not in seen]
+                if outcomes:
+                    resume={**resume,'messages':[*resume['messages'],dict(role='user',content=json.dumps(dict(
+                        server_operation_outcomes=[dict(id=str(o.id),status=o.status,result=o.result,error_code=o.error_code,
+                            references=gateway.approved_references(o) if o.status=='approved' else []) for o in outcomes])))],
+                        'operation_outcomes':[*seen,*[str(o.id) for o in outcomes]]}
+                    checkpoint('input',resume)
             has_knowledge=db.scalar(select(KnowledgeEvidence.id).where(KnowledgeEvidence.user_id==item.user_id,
                 KnowledgeEvidence.project_id==item.project_id).limit(1))
-            if not sources and not has_knowledge:
+            if not sources and not has_knowledge and not (workflow and (request.note_revision_ids or request.allowed_actions)):
                 result=AssistantResult(action='finish',report=ReportDraft(title='缺少项目材料',claims=[ReportClaim(
                     text='当前范围没有可读取的资料或已确认知识证据。',status='uncertain',reference_ids=[])],missing_information=['请选择已解析资料或审核项目知识。']))
             else:
                 result=get_agent('project_assistant').run(request,dict(settings=settings,tools=gateway,scope=item.request['scope'],
                     resume_state=resume,on_checkpoint=checkpoint,seconds=max(.01,230-item.elapsed_ms/1000)))
             runtime.event('report_checkpoint','saved')
+    except AwaitingApproval:
+        db.rollback();waiting=True
     except (AppError,CallAgentError) as exc:
         db.rollback();error_code=exc.code
     except Exception:
@@ -251,7 +300,7 @@ def execute_claim(db,*,task_id,execution,settings,user_id):
         db.rollback()
         return tasks.read_task(db,user_id=item.user_id,project_id=item.project_id,task_id=item.id)
     _unknown(db,item)
-    values=dict(status='failed' if error_code else 'succeeded',error_code=error_code,execution_id=None,lease_until=None,
+    values=dict(status='waiting_approval' if waiting else 'failed' if error_code else 'succeeded',error_code=error_code,execution_id=None,lease_until=None,
         result=result.model_dump(mode='json') if result else None,revision=AssistantTask.revision+1)
     db.execute(update(AssistantTask).where(AssistantTask.id==item.id,AssistantTask.execution_id==execution).values(**values)
         .execution_options(synchronize_session=False))
