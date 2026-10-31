@@ -1,0 +1,10 @@
+{
+  "protocol": "project-agent-seal-v1",
+  "files": {
+    "fixture.json": "36de04e3e7e90683f5cd3c1f7e9a5e0b3b98663985881f4f1dcd851e521439ab",
+    "cases.json": "16d9ab14097a3f21de3d50bd2a681fe2ad8f2f007700053b598c720380cf976f",
+    "rubric.json": "6d05914e34f6b69bb1fbc6640aa4f3b13158c2f89da54e0f2f88468b68e42649",
+    "acceptance.json": "91999f4bbae4055f421465e3af76585c1b7391df6b7c373df0a267af82a62aa8"
+  },
+  "packet_sha256": "1b7759bc8acb503b6541ea4711c6ca0ccec8f4fdd757782090fc62efa9e42d9b"
+}

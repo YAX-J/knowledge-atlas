@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- M5 offline preparation: frozen independent20-task packet, zero-call scoped preflight, exact reported-run/grade binding, explicit ungraded/all-attempt denominators, transport-blocked repeatable acceptance and CI packet checks. No live execution or release certification. [Runbook](docs/PROJECT_ASSISTANT_M5.md).
+
 - M3/M4: immutable notes/autosave/history/citations, editable report drafts, explicit capability-scoped import/parse/extract operations and version-bound human approvals for note edits and formal confirmation/merge/replacement/retirement. Migration0023 followed verified31-table backup/recovery and preserved30 old business-table fingerprints. No live calls; M5 remains planned. [Implementation](docs/PROJECT_ASSISTANT_M34.md).
 
 - M2 adds202 async task submission, a separate runner, atomic attempted-call/checkpoint/artifact receipts, cancellation and explicit continuation with unknown-outcome acknowledgement. Preserve sync v1 and historical workflows. Business migration0021 followed verified backups/restores and old-table fingerprints; local full1036/12 skipped, coverage95.42%, native274, frontend143/build and desktop passed. No live providers or M3–M5 work. See [M2](docs/PROJECT_ASSISTANT_M2.md).

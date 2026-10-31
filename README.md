@@ -1,5 +1,7 @@
 # Knowledge Atlas
 
+M5 离线准备（2026-10-31）：已实现冻结的独立20项开发任务、18项验收矩阵、零调用预演、任务/评分导入及统一工程验收命令。M5 整体仍待授权后的真实执行器/夹具重放、真实质量、托管 CI、演示和发布。真实调用为零，无业务迁移，库版本保持0023；历史评估/授权/账本不变。见 [M5 状态与操作说明](docs/PROJECT_ASSISTANT_M5.zh-CN.md)。
+
 Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a 31-table backup/verified isolated restore; all 30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](docs/PROJECT_ASSISTANT_M34.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.
 
 此前 M2 验收：异步排队、独立 runner、逐步检查点/尝试回执、取消和显式继续。M2 当时业务库与源码 head 为 `20261031_0021`，迁移前备份/隔离恢复及旧表指纹核验通过。见[使用与验收](docs/PROJECT_ASSISTANT_M2.zh-CN.md)及 [ADR0077](docs/adr/0077-durable-assistant-execution.zh-CN.md)。M3/M4 后续实现见上方当前说明，零真实模型调用。

@@ -1,0 +1,95 @@
+{
+  "protocol": "project-agent-acceptance-v1",
+  "checks": [
+    {
+      "id": "source-scope",
+      "criterion": "Scope/time/immutable source versions",
+      "test": "tests/test_project_assistant.py::test_project_user_scope_duplicates_and_history_rejected"
+    },
+    {
+      "id": "injection",
+      "criterion": "Untrusted text and unauthorized tools",
+      "test": "tests/test_project_assistant.py::test_gateway_rejects_untrusted_instructions_and_external_ids_and_reports_truncation"
+    },
+    {
+      "id": "citations",
+      "criterion": "Cross-domain exact citations and free replay",
+      "test": "tests/test_project_assistant.py::test_cross_domain_report_and_free_persisted_replay"
+    },
+    {
+      "id": "missing",
+      "criterion": "No evidence does not invent a conclusion",
+      "test": "tests/test_project_assistant.py::test_empty_project_costs_zero_and_reports_missing_input"
+    },
+    {
+      "id": "unknown",
+      "criterion": "Unknown transport requires explicit acknowledgement",
+      "test": "tests/test_assistant_execution.py::test_unknown_transport_requires_explicit_ack_and_never_automatically_replays"
+    },
+    {
+      "id": "checkpoints",
+      "criterion": "Resume only unsaved tool calls",
+      "test": "tests/test_assistant_execution.py::test_mid_tool_batch_resumes_only_unsaved_calls"
+    },
+    {
+      "id": "budget",
+      "criterion": "Unknown attempts retain budgets",
+      "test": "tests/test_assistant_execution.py::test_unknown_attempts_never_reset_task_or_role_budget"
+    },
+    {
+      "id": "progress",
+      "criterion": "No transport after progress persistence failure",
+      "test": "tests/test_assistant_execution.py::test_progress_failure_prevents_transport"
+    },
+    {
+      "id": "notes",
+      "criterion": "Immutable notes, conflicts, search and snapshots",
+      "test": "tests/test_notes.py::test_revision_conflict_replay_search_scope_and_snapshot"
+    },
+    {
+      "id": "approval",
+      "criterion": "Approve/reject/stale note proposal and explicit continue",
+      "test": "tests/test_assistant_workspace.py::test_note_proposal_pauses_bound_approval_then_explicit_continue"
+    },
+    {
+      "id": "governance",
+      "criterion": "Formal merge/supersede/retire only after exact approval",
+      "test": "tests/test_assistant_workspace.py::test_formal_governance_only_applies_after_exact_human_approval"
+    },
+    {
+      "id": "import",
+      "criterion": "Pinned import to confirmed report in one task",
+      "test": "tests/test_assistant_workspace.py::test_import_pins_commit_then_scopes_parse_to_its_receipt"
+    },
+    {
+      "id": "cancel",
+      "criterion": "Cancel nested extraction blocks publication",
+      "test": "tests/test_assistant_workspace.py::test_nested_extraction_cancel_cannot_publish_candidates"
+    },
+    {
+      "id": "identity",
+      "criterion": "Aliases/history invalidate stale formal proposals",
+      "test": "tests/test_assistant_workspace.py::test_identity_change_invalidates_formal_proposal_even_when_original_entity_is_unchanged"
+    },
+    {
+      "id": "accounting",
+      "criterion": "Completed specialists count once",
+      "test": "tests/test_assistant_workspace.py::test_completed_code_specialist_counts_once_and_is_not_reported_unknown"
+    },
+    {
+      "id": "long-note",
+      "criterion": "Large before/after proposals reach human checkpoint",
+      "test": "tests/test_assistant_workspace.py::test_large_note_proposal_reaches_approval_without_repeating_full_before_content_into_model"
+    },
+    {
+      "id": "migration",
+      "criterion": "Nonempty upgrade/downgrade preserves old data",
+      "test": "tests/test_workspace_migration.py::test_notes_and_governed_operations_upgrade_preserves_tasks_and_downgrade_closes_new_work"
+    },
+    {
+      "id": "native-fence",
+      "criterion": "Separate transactions reject late writes",
+      "test": "tests/test_assistant_workspace.py::test_native_cancel_in_another_transaction_rejects_late_note_write"
+    }
+  ]
+}

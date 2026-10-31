@@ -1,12 +1,14 @@
 # Knowledge Atlas Project Agent Development Plan
 
+M5 offline preparation (2026-10-31): a sealed independent20-task development packet,18-check acceptance matrix, zero-call preflight, reported-run/grade adapter and repeatable local engineering command are implemented. M5 overall remains pending the authorized live executor/fixture replay, real quality, hosted CI, demonstration and release. No real provider calls or business migration; schema stays0023 and historical evaluations/grants/ledgers stay unchanged. See [M5 status and runbook](PROJECT_ASSISTANT_M5.md).
+
 M3/M4 implementation: exact note attachments, append-only revisions, scope-bound imports/parsing/extraction, typed editable report drafts, versioned human approval and explicit continuation. See [current implementation](PROJECT_ASSISTANT_M34.md). Remaining prospective API/data sections below are design targets, not additional delivered endpoints.
 
 [简体中文](PROJECT_AGENT_PLAN.zh-CN.md)
 
 - Document version: `project-agent-plan-v1`
 - Date: 2026-10-31
-- Status: **M1–M4 implemented and locally verified with substitutes; M5 remains planned.**
+- Status: **M1–M4 implemented; M5 offline engineering/task-packet preparation implemented; live quality, hosted CI and release remain pending.**
 - Development branch: `feat/project-agent`
 - Starting commit: `c0eaa06` (CI portability fixes included)
 - Baseline database head: `20261029_0019`; M1 introduced0020; M2 introduced0021; M3/M4 now have verified source/business head `20261031_0023` after backup/recovery.

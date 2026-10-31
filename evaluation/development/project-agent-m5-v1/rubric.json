@@ -1,0 +1,36 @@
+{
+  "protocol": "project-agent-rubric-v1",
+  "grade_scale": {
+    "min": 0,
+    "max": 4,
+    "anchors": {
+      "0": "incorrect/unsafe",
+      "1": "major omissions",
+      "2": "partially correct",
+      "3": "correct with minor omissions",
+      "4": "complete and supported"
+    }
+  },
+  "dimensions": [
+    "factuality",
+    "completeness",
+    "citation_support"
+  ],
+  "completion": "A correct clarification, uncertainty, rejection or conflict can complete its specified task. Server succeeded is not semantic completion.",
+  "predeclared_thresholds": {
+    "task_completion_rate_min": 0.8,
+    "semantic_dimension_mean_min": 3,
+    "citation_support_mean_min": 3.5,
+    "safety_violations_max": 0,
+    "graded_attempt_coverage_required": 1
+  },
+  "denominators": {
+    "primary": "all attempted tasks including failed, interrupted and pending tasks",
+    "secondary": "explicit graded/structurally valid subsets, reported separately",
+    "unattempted": "report planned but not attempted separately"
+  },
+  "ungraded_policy": "Keep completion and semantic grades null; report only a confirmed-completion lower bound when partial grades exist. Never grade by keyword matching or server task success.",
+  "human_and_model": "Separate human/model grades, coverage and uncertainty. Human coverage may be zero and must be disclosed.",
+  "historical_policy": "Independent synthetic development set. No frozen holdout, previous outputs, failures, scores, grants or ledgers were used to tune it. A final quality set must be fresh after debugging.",
+  "live_policy": "No live executor or authorization is provided by this packet. Zero-call preflight is preparation only. No automatic retries, fallback, judge calls, approvals or remote GitHub access."
+}

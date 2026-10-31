@@ -88,8 +88,10 @@ def main():
             tests.append("tests/test_github_public_acceptance.py")
             print(f"Explicit public GitHub read-only acceptance enabled; report: {report}", flush=True)
         tests.extend(['tests/test_notes.py','tests/test_assistant_workspace.py'])
+        if os.environ.get('KA_M5_OFFLINE')=='1':tests.append('tests/test_m5_flows.py')
         # Providers are stubbed inside these tests. No API key or URL is passed in argv.
-        result = subprocess.run([sys.executable, "-m", "pytest", *tests, "-o", "addopts=", "-q", "--tb=short", "--show-capture=no"],
+        offline_plugin=['-p','scripts.m5_offline'] if os.environ.get('KA_M5_OFFLINE')=='1' else []
+        result = subprocess.run([sys.executable, "-m", "pytest", *offline_plugin,*tests, "-o", "addopts=", "-q", "--tb=short", "--show-capture=no"],
                                 cwd=root, env=env, check=False)
         return result.returncode
     finally:

@@ -1,5 +1,7 @@
 # Knowledge Atlas 开发环境配置
 
+M5 离线准备（2026-10-31）：已实现冻结的独立20项开发任务、18项验收矩阵、零调用预演、任务/评分导入及统一工程验收命令。M5 整体仍待授权后的真实执行器/夹具重放、真实质量、托管 CI、演示和发布。真实调用为零，无业务迁移，库版本保持0023；历史评估/授权/账本不变。见 [M5 状态与操作说明](PROJECT_ASSISTANT_M5.zh-CN.md)。
+
 M3/M4 当前库版本为 `20261031_0023`。运行 `alembic upgrade head` 前先备份并验证恢复；API 就绪检查不自动迁移。异步 v2/v3 复用独立 assistant runner，不新增依赖/服务。[使用与验证](PROJECT_ASSISTANT_M34.zh-CN.md)。
 
 当前源码/业务 head 为20261031_0021，已在验证备份/隔离恢复和旧表指纹后升级。backend 下启动 `python -m app.assistant_runner`，与 API、来源解析 Worker 分开运行。原生 start-demo.ps1 和可选 Compose 已包含 runner；只有显式 async_v2 新任务可调用已配置模型，不自动重放历史/失败/过期任务。见 [M2 使用/验收](PROJECT_ASSISTANT_M2.zh-CN.md)，下方旧 head 公告为原阶段说明。

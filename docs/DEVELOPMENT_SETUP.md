@@ -1,5 +1,7 @@
 # Knowledge Atlas Development Setup
 
+M5 offline preparation (2026-10-31): a sealed independent20-task development packet,18-check acceptance matrix, zero-call preflight, reported-run/grade adapter and repeatable local engineering command are implemented. M5 overall remains pending the authorized live executor/fixture replay, real quality, hosted CI, demonstration and release. No real provider calls or business migration; schema stays0023 and historical evaluations/grants/ledgers stay unchanged. See [M5 status and runbook](PROJECT_ASSISTANT_M5.md).
+
 Current M3/M4 schema: `20261031_0023`. Back up and verify recovery before `alembic upgrade head`; API readiness never auto-migrates. Run the existing independent assistant runner for async_v2/v3 queues; no new dependencies/services. [Usage and verification](PROJECT_ASSISTANT_M34.md).
 
 Current source/business head is20261031_0021, upgraded after verified backup/schema recovery and preserved fingerprints. Run `python -m app.assistant_runner` from backend alongside API and the separate source parser. Native start-demo.ps1 and optional Compose include it. Only explicitly submitted async_v2 jobs can invoke the configured model; no historical/failed/expired auto replay. See [M2 usage/verification](PROJECT_ASSISTANT_M2.md); older head notices below describe their original stages.
