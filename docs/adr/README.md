@@ -1,5 +1,7 @@
 # Architecture Decision Records
 
+- [ADR0077: Explicit durable assistant execution (accepted; locally verified)](0077-durable-assistant-execution.md)
+
 - [ADR 0076: Bounded read-only project assistant (accepted; locally verified with substitutes)](0076-read-only-project-assistant.md)
 
 [简体中文](README.zh-CN.md)

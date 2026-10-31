@@ -1,5 +1,7 @@
 # Project assistant M1
 
+Historical M1 acceptance record. Current M2 execution/business migration is documented in [PROJECT_ASSISTANT_M2](PROJECT_ASSISTANT_M2.md); the original M1 no-upgrade/no-runner statements below describe that earlier round.
+
 [简体中文](PROJECT_ASSISTANT_M1.zh-CN.md)
 
 Implementation locally verified with provider substitutes; [ADR 0076](adr/0076-read-only-project-assistant.md). Source migration head is `20261031_0020`; the installed business database has not been upgraded.

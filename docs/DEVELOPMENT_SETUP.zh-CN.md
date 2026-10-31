@@ -1,5 +1,7 @@
 # Knowledge Atlas 开发环境配置
 
+当前源码/业务 head 为20261031_0021，已在验证备份/隔离恢复和旧表指纹后升级。backend 下启动 `python -m app.assistant_runner`，与 API、来源解析 Worker 分开运行。原生 start-demo.ps1 和可选 Compose 已包含 runner；只有显式 async_v2 新任务可调用已配置模型，不自动重放历史/失败/过期任务。见 [M2 使用/验收](PROJECT_ASSISTANT_M2.zh-CN.md)，下方旧 head 公告为原阶段说明。
+
 M1 源码 head 现为 `20261031_0020`（增量 assistant_tasks），取代下方旧 head 公告。见 [M1 检查](PROJECT_ASSISTANT_M1.zh-CN.md)。未自动升级已安装数据库，就绪检查要求新 head/表。复用 .venv/node_modules，无依赖变更。业务库正常升级前先备份/隔离恢复，再在 backend 运行 `alembic upgrade head`；临时验证使用 `python -m scripts.verify_native`，保留业务版本标记。M1 已通过本地替身/原生/桌面验证，真实质量仍未测量。
 
 离线评审新增 EVALUATION_PROVIDER=openrouter、本地 OPENROUTER_API_KEY、OPENROUTER_MODEL=typesafe/jev-1.14 和 OPENROUTER_TIMEOUT_SECONDS=60，见 [OpenRouter配置](OPENROUTER_EVALUATION.zh-CN.md)。原生 CF 与直连 TypeSafe 字段继续支持，不改业务供应商；无需新增 SDK，默认仍为零调用预演，凭据仅本地保存。

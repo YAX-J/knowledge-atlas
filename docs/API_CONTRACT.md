@@ -1,5 +1,22 @@
 # Knowledge Atlas 前后端接口草案
 
+## 项目助手 M2（ADR0077）
+
+业务/源码 head `20261031_0021`。`POST /api/v1/projects/{project_id}/assistant/tasks` 增加 `protocol=assistant-task-v2`，仅固定输入和保存 queued 任务，返回202；默认 v1 仍同步200。请求范围/预算沿用 v1，新增内部固定 knowledge_at、运行契约/模型和端点/工具摘要；这些由后端绑定，不接受客户端自定义。独立 runner 仅认领 async_v2 queued，解析 Worker/历史 AgentRun 不受影响。详见[实现与验收](PROJECT_ASSISTANT_M2.zh-CN.md)。
+
+新状态为 queued/running/succeeded/failed/interrupted/cancelled。详情新增 execution_mode(sync_v1|async_v2)、revision、checkpoint_id、unknown_model_attempts、can_continue、artifact_ids，旧字段兼容。GET 过期 running 显示 interrupted，不修改记录或触发执行。只有 runner/显式控制负责状态写入；所有 GET、轮询、事件/产物读取、相同 UUID 提交均零预留/模型调用。
+
+| 接口（同项目/任务前缀） | 契约 |
+| --- | --- |
+| POST /assistant/tasks/{task_id}/cancel | 无请求体；幂等取消，终态 succeeded/cancelled 只读；在途用量保留，清除执行归属 |
+| POST /assistant/tasks/{task_id}/continue | `{request_id:UUID,expected_revision:int>=0,checkpoint_id:UUID|null,acknowledge_unknown:bool=false}`；仅 async_v2 failed/过期 interrupted；核对预算/精确检查点后202 queued，不同步调用模型 |
+| GET /assistant/tasks/{task_id}/events?after=0&limit=100 | 游标非负，limit1..100；`{items:RunEvent[],next_sequence,has_more}`；只读取已提交元数据事件 |
+| GET /assistant/tasks/{task_id}/artifacts/{artifact_id} | 仅读取所属任务的 assistant-report-v1 类型化结果，不重新生成 |
+
+继续请求 UUID 绑定完整控制输入；同 UUID 重发只读回执，同 UUID 改输入409。修订/检查点过期为 ASSISTANT_CHECKPOINT_CONFLICT（409）；未知模型尝试未确认返回 ASSISTANT_UNKNOWN_ACK_REQUIRED（409）；无剩余预算429；不可继续/旧同步任务409。所有操作/事件/产物跨用户/项目/任务拒绝404。运行契约/模型或来源变化保存 ASSISTANT_RUNTIME_CHANGED / ASSISTANT_SOURCE_CHANGED，零新增模型请求。
+
+尝试预留在传输前保存，每个模型决策/单项工具结果后原子保存检查点和完成回执。重复继续不重复已保存步骤；未知尝试不能自动重试。最终报告/产物原子保存，取消和过期令牌使迟到写入失效。角色仍最多4模型/8工具，任务最多8/16，嵌入0；次数累计，时间为检查点保存的活跃时间，未知时长不声称精确墙钟保证。新增 input/threads/approvals/写工具仍未实现，补问需要新目标。
+
 ## 项目只读助手 M1（ADR 0076，已通过本地替身/原生验证）
 
 独立接口：`POST /api/v1/projects/{project_id}/assistant/tasks` 同步返回 200；GET 同路径分页摘要，`GET /.../assistant/tasks/{task_id}` 读取完整记录。请求为 `assistant-task-v1`：request_id UUID、goal 1–2000 字符、source_ids UUID[0..20]、可选 snapshot_id/带时区 valid_at、model_limit 0..8、tool_limit 0..16（严格整数）。拒绝未知字段、重复来源；历史时间不能附原始资料，快照需要所选代码。空原始范围仅使用项目正式知识，不代表所有文档。

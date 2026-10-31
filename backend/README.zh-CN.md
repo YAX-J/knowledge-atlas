@@ -1,5 +1,7 @@
 # Knowledge Atlas 后端
 
+M2 已通过本地验证，业务库迁至源码 head20261031_0021。`python -m app.assistant_runner` 与解析 Worker 分开启动，--once 最多处理一项 async_v2 排队任务。界面使用异步202的 assistant-task-v2，v1 保留同步200。检查点/尝试/产物、取消及版本绑定显式继续见 [ADR0077](../docs/adr/0077-durable-assistant-execution.zh-CN.md)和[命令/结果](../docs/PROJECT_ASSISTANT_M2.zh-CN.md)。零真实调用，不声称真实质量，未启动 M3–M5。下方 M1/head 公告为各轮历史说明。
+
 项目只读助手 M1 已实现并通过本地替身验证，见[使用/检查](../docs/PROJECT_ASSISTANT_M1.zh-CN.md)和 [ADR0076](../docs/adr/0076-read-only-project-assistant.zh-CN.md)。源码 schema head 现为 `20261031_0020`（仅新增 assistant_tasks），未自动迁移业务库。独立 assistant/tasks 接口和类型化报告不改变旧 agent-runs 或 QuestionRead。本轮零真实调用，M2–M5 仍规划中。下方旧版本公告描述各自原始变更。
 
 离线匿名评审支持 OpenRouter Jev、直连 TypeSafe Jev 和 CF 原生适配。配置 EVALUATION_PROVIDER=openrouter、本地 OPENROUTER_API_KEY、OPENROUTER_MODEL=typesafe/jev-1.14 与 OPENROUTER_TIMEOUT_SECONDS=60，旧凭据保留。本轮零真实调用，人工评分覆盖率0%。见 [OpenRouter命令](../docs/OPENROUTER_EVALUATION.zh-CN.md)、[CF](../docs/CLOUDFLARE_EVALUATION.zh-CN.md) 和 [Jev](../docs/JEV_EVALUATION.zh-CN.md)。

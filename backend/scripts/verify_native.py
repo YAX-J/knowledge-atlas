@@ -79,7 +79,7 @@ def main():
                  "tests/test_read_performance.py", "tests/test_retirement.py", "tests/test_workspace_completion.py",
                  "tests/test_conversations.py", "tests/test_answer_claims.py", "tests/test_github_continuation.py", "tests/test_project_workflow.py",
                  "tests/test_code_context.py", "tests/test_embedding_plan.py", "tests/test_holdout_v3.py", "tests/test_multi_agent.py", "tests/test_agent_tools.py", "tests/test_agent_progress.py", "tests/test_agent_scope.py", "tests/test_agent_list_performance.py",
-                 "tests/test_symbol_cache.py", "tests/test_agent_summary.py", "tests/test_jev_evaluation.py", "tests/test_project_assistant.py"]
+                 "tests/test_symbol_cache.py", "tests/test_agent_summary.py", "tests/test_jev_evaluation.py", "tests/test_project_assistant.py", "tests/test_assistant_execution.py"]
         if args.github:
             env["KA_GITHUB_ACCEPTANCE"] = "1"
             report = root.parent / "output" / "native-acceptance" / f"github-{uuid.uuid4().hex}.json"

@@ -3,6 +3,8 @@ name: ka-docs-sync
 description: Knowledge Atlas 的双语文档同步。修改 API、知识模型、架构决策、能力状态或迁移版本后，需要更新 README、docs、ADR、CHANGELOG 时使用。触发词：docs, README, ADR, CHANGELOG, translation, 文档, 翻译, 变更记录.
 ---
 
+
+Current M2 contract/status lives in PROJECT_ASSISTANT_M2 pair and ADR0077. Source/business head0021 follows verified backups/restores; old M1 acceptance is historical. Sync runner startup/native and optional Compose, API202/v1 compatibility, queued/cancelled states, attempts/checkpoints/artifacts/control receipts, cumulative budgets, unknown-duration limitations and M3–M5 deferral. No input/approval/notes/write APIs or live quality are delivered.
 # 文档同步
 
 ADR0076 introduces synchronous M1 assistant/tasks and source head20261031_0020, without automatically upgrading the installed database. Keep paired PROJECT_ASSISTANT_M1 guides, Agent plan/status, backend/setup/ADR indexes and changelogs synchronized. M1 passed user-selected Agent-run local substitute/native/desktop verification; M2–M5 are still planned. Do not conflate new typed raw/code/knowledge reports with QuestionRead, or task-envelope persistence with async runner/recovery. Preserve historical schema announcements as dated context and frozen quality/ledgers.

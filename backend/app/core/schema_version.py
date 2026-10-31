@@ -1,9 +1,10 @@
 """Readiness checks physical ownership as well as the migration marker."""
 from sqlalchemy import inspect, text
 
-EXPECTED_REVISION = '20261031_0020'
+EXPECTED_REVISION = '20261031_0021'
 WORKSPACE_TABLES = frozenset({'entity_aliases', 'entity_merges', 'knowledge_periods',
-    'knowledge_operations', 'conversations', 'conversation_turns', 'agent_runs', 'assistant_tasks'})
+    'knowledge_operations', 'conversations', 'conversation_turns', 'agent_runs', 'assistant_tasks',
+    'assistant_attempts', 'assistant_steps', 'assistant_artifacts', 'assistant_continuations'})
 
 
 def schema_status(db):
@@ -21,5 +22,8 @@ def schema_status(db):
         return False, 'database schema is incomplete; apply or repair migrations'
     columns = {item['name'] for item in inspector.get_columns('repository_snapshots', schema=schema)}
     if 'scan_state' not in columns:
+        return False, 'database schema is incomplete; apply or repair migrations'
+    assistant_columns={item['name'] for item in inspector.get_columns('assistant_tasks',schema=schema)}
+    if not {'execution_mode','revision','elapsed_ms'}.issubset(assistant_columns):
         return False, 'database schema is incomplete; apply or repair migrations'
     return True, None

@@ -1,5 +1,7 @@
 # Knowledge Atlas 系统架构
 
+M2（ADR0077）使用独立助手 runner 消费 async_v2 queued，迁移0021增加尝试/步骤/产物/继续回执及执行模式/修订/耗时。模型/单项工具之间原子保存检查点，显式继续跳过已完成步骤；未知调用不自动重放。取消、租约和版本 fencing 保护发布。v1/AgentRun/解析 Worker 保持原边界；当前业务/源码 head0021。见[当前说明](PROJECT_ASSISTANT_M2.zh-CN.md)，下方 M1 公告为历史基线。
+
 项目助手 M1 新增独立 `assistant_tasks`、同步任务 API、`project_assistant` 协调角色及只读工具网关（ADR0076，已通过本地替身/原生/桌面验证）。旧 AgentRun/工作流/正式知识写入边界保持；源码 head `20261031_0020`，不自动迁移业务库。模型只接收后端固定版本和工具结果，不接收数据库会话。队列、runner、笔记、写入及受控继续仍待 M2–M5。见[实现说明](PROJECT_ASSISTANT_M1.zh-CN.md)。
 
 [ADR0074](adr/0074-evaluation-output-error-isolation.zh-CN.md)新增显式离线执行协议v4：单题无效输出保留失败，不自动重试；基础设施异常仍停止。可显式复用一条输入/范围完全相同的诊断答案；裁判排除清单带覆盖率和哈希。业务API、线上Schema及正式知识写入边界不变。

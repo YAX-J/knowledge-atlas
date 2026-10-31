@@ -1,6 +1,6 @@
 # Knowledge Atlas 仓库代理规范
 
-项目助手 M1（ADR0076）已实现并通过本地替身验证（后端1019通过/11跳过、覆盖率95.44%；原生257；前端140；桌面）。源码 schema head 现为 `20261031_0020`，未自动升级业务库。使用独立 assistant/tasks、assistant-task-v1 / assistant-report-v1 和 AssistantTask，保留旧 AgentRun/QuestionRead。空附件仅用正式知识；精确来源 UUID 不展开最新版本，历史排除原始附件。五项只读工具、后端引用池、零嵌入、协调角色 4 模型/8 工具/230 秒及调用前持久化预留生效。没有 runner/写入/自动继续；M2–M5 和真实质量仍未实现/未测量。下方验证执行方选择规则保持。冻结输入/结果/授权/账本和人工0%保持。
+项目助手 M2（ADR0077）已通过本地验证：assistant-task-v2 排队202，v1 保留同步200。业务库/源码 head 为20261031_0021，备份/隔离恢复和旧表指纹核验通过。只有 app.assistant_runner 消费显式 async_v2 queued，不自动重放/重排失败、过期、未知或历史任务。调用前尝试预留、逐模型/单项工具检查点、类型化产物及精确修订/检查点绑定的继续回执生效。未知模型结果须确认，预算/角色次数累计；取消/租约 fencing 拒绝迟到发布。固定运行时/模型/端点/工具契约及来源哈希；GET/轮询/事件/产物仅读取。M3–M5、写入和真实质量仍未实现/测量，冻结实验/账本和人工0%保持，沿用用户已选择的 Agent 验证。
 
 2026-10-31最新：ADR0075 的新模型输出使用 evidence-claims-v3，顶层只含 confidence/claims/missing_information，总体 supported 由后端计算。模型生成总体/平铺字段、漏引或越界引用仍拒绝，保持预算、不重试/回退。v2 和平铺记录按保存值读取/重放，不重算或调用模型。使用独立虚构 evaluation/development/claim-support-v3 用例，不以冻结holdout/失败输出来调提示词。本轮仅离线验证；历史 v2 失败/分数、输入、授权/账本不变，人工0%，v3真实质量未测量。旧真实授权均已用尽。见 docs/adr/0075-server-derived-answer-support.zh-CN.md；下文旧说明为历史。
 

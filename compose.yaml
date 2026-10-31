@@ -62,6 +62,21 @@ services:
         condition: service_healthy
     stop_grace_period: 30s
 
+  assistant-runner:
+    build:
+      context: ./backend
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://knowledge_atlas:knowledge_atlas@postgres:5432/knowledge_atlas
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-flash}
+    command: python -m app.assistant_runner
+    depends_on:
+      api:
+        condition: service_healthy
+    stop_grace_period: 190s
+
   frontend:
     build:
       context: ./frontend

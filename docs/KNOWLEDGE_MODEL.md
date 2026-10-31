@@ -1,5 +1,7 @@
 # Knowledge Atlas 开发者知识模型
 
+M2（ADR0077，迁移0021）增加 assistant_attempts/assistant_steps/assistant_artifacts/assistant_continuations，保留旧 AgentRun/正式知识语义。尝试元数据记录 started/succeeded/failed/unknown，步骤保存有范围的业务上下文及引用池，最终 artifact 和任务结果原子提交；继续回执绑定请求 UUID/修订/检查点。没有自动知识写入。业务记录随项目保留，无 TTL；归档隐藏，物理项目删除级联。详见[当前 M2](PROJECT_ASSISTANT_M2.zh-CN.md)。
+
 项目助手 M1 使用独立 `assistant_tasks`（迁移 `20261031_0020`）保存目标/固定范围、执行归属、调用预留及 `assistant-report-v1` 结果。source/code 引用是派生片段；knowledge 引用才关联既有正式证据。报告不创建正式实体/关系/证据，“附有引用”不等于语义验证或知识确认。旧 AgentRun、QuestionRead 和历史格式兼容保持，已通过本地替身验证，见 [ADR0076](adr/0076-read-only-project-assistant.zh-CN.md)。
 
 [ADR 0075](adr/0075-server-derived-answer-support.zh-CN.md) 的新回答使用 evidence-claims-v3：模型返回逐条 claims，后端计算总体 supported。有据条目必须引用当前检索证据，不足条目不引用，跨条可复用同一原文。部分有据的回答整体 supported=false，并保留缺失信息。v2/平铺历史按原快照读取，不重算或重调模型，无数据库迁移。claims 不是正式图谱知识，不能自动提升；引用归属合法不证明语义支撑。

@@ -12,7 +12,7 @@ Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max
 
 
 class AssistantRequest(StrictModel):
-    protocol: Literal['assistant-task-v1'] = 'assistant-task-v1'
+    protocol: Literal['assistant-task-v1', 'assistant-task-v2'] = 'assistant-task-v1'
     request_id: uuid.UUID
     goal: Text
     source_ids: list[uuid.UUID] = Field(default_factory=list, max_length=20)
@@ -111,7 +111,7 @@ class AssistantSummary(StrictModel):
     id: uuid.UUID
     project_id: uuid.UUID
     goal: str
-    status: Literal['running', 'succeeded', 'failed', 'interrupted']
+    status: Literal['queued', 'running', 'succeeded', 'failed', 'interrupted', 'cancelled']
     error_code: str | None
     created_at: datetime
     updated_at: datetime
@@ -122,6 +122,25 @@ class AssistantRead(AssistantSummary):
     result: AssistantResult | None
     events: list[RunEvent]
     usage: dict
+    execution_mode: Literal['sync_v1','async_v2'] = 'sync_v1'
+    revision: int = 0
+    checkpoint_id: uuid.UUID | None = None
+    unknown_model_attempts: int = 0
+    can_continue: bool = False
+    artifact_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
+class AssistantContinue(StrictModel):
+    request_id: uuid.UUID
+    expected_revision: int = Field(ge=0, strict=True)
+    checkpoint_id: uuid.UUID | None = None
+    acknowledge_unknown: bool = False
+
+
+class AssistantEvents(StrictModel):
+    items: list[RunEvent]
+    next_sequence: int
+    has_more: bool
 
 
 class AssistantList(StrictModel):

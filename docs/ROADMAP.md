@@ -8,9 +8,9 @@
 
 当前实现及本轮验证见[验收报告](OPTIMIZATION_20261029.zh-CN.md)，任务进度见[计划](../PLANS.zh-CN.md)。按用户要求继续优化，评估采用 Jev 匿名自动评审。早期阶段说明与检查点见[历史路线图](archive/pre-optimization-20261029/docs/ROADMAP.md)。
 
-## 全项目 Agent 改造（M1 已通过本地替身验收）
+## 全项目 Agent 改造（M1–M2 已通过本地替身验收）
 
-`feat/project-agent` 的[中英文开发方案](PROJECT_AGENT_PLAN.zh-CN.md)以 `c0eaa06` 为起点。M1 已实现统一目标、五项资料/知识/代码只读工具、类型化报告、补问和持久化只读恢复，本地替身/原生/桌面验收通过。见 [ADR0076](adr/0076-read-only-project-assistant.zh-CN.md)和[验收记录](PROJECT_ASSISTANT_M1.zh-CN.md)。源码 head `20261031_0020`，未自动升级业务库；旧 API、冻结实验和人工正式写入边界保持。M2–M5 的 runner、恢复、笔记、写入与发布尚未实现。
+M1–M2 已通过本地替身/原生/桌面验收，包含统一只读目标、类型化报告、异步队列/独立 runner、尝试/步骤/产物、取消和显式继续，见[当前 M2](PROJECT_ASSISTANT_M2.zh-CN.md)及 [ADR0077](adr/0077-durable-assistant-execution.zh-CN.md)。业务/源码 head20261031_0021，备份/恢复及旧表指纹已核验。v1/旧 AgentRun 兼容，冻结实验不变。M3–M5 的笔记/写入/质量发布验收未启动。
 
 ## 多 Agent 扩展
 

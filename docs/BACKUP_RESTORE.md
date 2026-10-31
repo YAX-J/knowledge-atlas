@@ -1,5 +1,7 @@
 # Native backup and restore
 
+2026-10-31 M2: the requested business upgrades0019→0020→0021 each followed a fresh backup and isolated schema restoration (26 then27 tables). Preserved25 then26 preexisting business-table fingerprints; both restore targets were cleaned and readiness is up at0021. Private ignored artifacts: output/backups/pre-m2-20261031-01 and pre-m2-0021-20261031-01. See [M2 acceptance](PROJECT_ASSISTANT_M2.md). These schema rehearsals do not establish a full fresh-database restore with CREATEDB.
+
 [简体中文](BACKUP_RESTORE.zh-CN.md)
 
 Run from `backend/` with the existing virtual environment and native PostgreSQL tools. The CLI reads `DATABASE_URL` from backend `.env` without printing it. Use only archives and manifests you generated and trust; they contain application data and restore DDL. Keep the backup directory private and outside Git. The default examples below use ignored `output/`.

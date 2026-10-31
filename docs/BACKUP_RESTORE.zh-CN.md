@@ -1,5 +1,7 @@
 # 原生备份与恢复
 
+2026-10-31 M2：按用户要求将业务库0019→0020→0021升级，每次均先做全新备份及隔离 schema 恢复（先26表、后27表）。保留25再26张原业务表指纹，两个恢复目标已清理，0021就绪 up。私密忽略产物：output/backups/pre-m2-20261031-01 和 pre-m2-0021-20261031-01，详见 [M2 验收](PROJECT_ASSISTANT_M2.zh-CN.md)。schema 演练不等于具备 CREATEDB 的全新库完整恢复。
+
 [English](BACKUP_RESTORE.md)
 
 在 `backend/` 使用既有虚拟环境和本机 PostgreSQL 工具运行。CLI 从后端 `.env` 读取 DATABASE_URL，不打印连接字符串。只使用自己生成并信任的归档和清单，它们包含应用数据与恢复 DDL。备份目录应私密保存且不进入 Git；下列示例使用已忽略的 output。

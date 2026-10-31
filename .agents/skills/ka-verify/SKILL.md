@@ -3,6 +3,8 @@ name: ka-verify
 description: Knowledge Atlas 的快速可靠验证、执行方确认与“完成”判定。修改后端、前端或文档后，用最小充分检查避开本机 Python、Windows 沙箱、浏览器安装、端口与 CORS 等已知耗时陷阱；可见界面只验收桌面端。
 ---
 
+
+M2 user-selected Agent verification: focused87/1 skipped; full1036/12 skipped,95.42%; native274 including race and migration; frontend143/coverage/build, final backend16/1 skipped and frontend29/build; desktop queued-zero-call/reload, unknown ack, explicit continuation/tool reuse/free receipt replay, in-flight cancel, keyboard Space/Tab/Enter, empty/scope/scroll passed. Browser used a separate runner thread/session and blocked transports; actual CLI passed on empty business queue. Real readiness200 and backup/restore/fingerprints passed for0020 then0021. Keep real quality/hosted Docker CI separate and frozen ledgers/human0 unchanged.
 # 验证方案与执行方确认
 
 ## Project assistant M1 acceptance (ADR0076)

@@ -39,6 +39,7 @@ it('submits a goal with explicit source versions and displays typed citations as
   await wrapper.get('form').trigger('submit'); await flushPromises()
   expect(api.startAssistantTask).toHaveBeenCalledOnce()
   expect(vi.mocked(api.startAssistantTask).mock.calls[0]![1]).toMatchObject({goal: task.goal, source_ids: [source.id]})
+  expect(vi.mocked(api.startAssistantTask).mock.calls[0]![1].protocol).toBe('assistant-task-v2')
   expect(wrapper.get('[aria-label="项目引用报告"]').text()).toContain('<script>Storage</script>')
   expect(wrapper.find('script').exists()).toBe(false)
   expect(wrapper.text()).toContain('源码 / 派生结构')
@@ -111,4 +112,50 @@ it('clears source choices on project changes and provides source/context retry',
   await wrapper.setProps({projectId: 'another-project'}); await flushPromises()
   expect(wrapper.text()).toContain('所选 0 份')
   expect(api.startAssistantTask).not.toHaveBeenCalled()
+})
+
+it('polls a queued task without submitting again and supports explicit cancel', async () => {
+  const queued={...task,status:'queued' as const,execution_mode:'async_v2' as const,result:null,revision:0}
+  vi.mocked(api.startAssistantTask).mockResolvedValue(queued)
+  vi.mocked(api.getAssistantTask).mockResolvedValue(queued)
+  vi.mocked(api.cancelAssistantTask).mockResolvedValue({...queued,status:'cancelled',revision:1})
+  const wrapper=mount(ProjectAssistantPanel,{props:{projectId:project.id}});await flushPromises()
+  await wrapper.get('textarea').setValue('Queue a goal');await wrapper.get('form').trigger('submit');await flushPromises()
+  expect(wrapper.text()).toContain('等待独立 runner')
+  expect(wrapper.get('fieldset').attributes('disabled')).toBeDefined()
+  await wrapper.findAll('button').find(item=>item.text()==='取消后续步骤')!.trigger('click');await flushPromises()
+  expect(api.cancelAssistantTask).toHaveBeenCalledWith(project.id,task.id)
+  expect(api.startAssistantTask).toHaveBeenCalledOnce()
+})
+
+it('requires unknown-attempt acknowledgement and binds continuation to the saved revision/checkpoint', async () => {
+  sessionStorage.setItem(`ka-project-assistant:${project.id}`,JSON.stringify({selectedId:task.id}))
+  const interrupted={...task,status:'interrupted' as const,execution_mode:'async_v2' as const,can_continue:true,
+    unknown_model_attempts:1,revision:3,checkpoint_id:'checkpoint-2',result:null}
+  vi.mocked(api.getAssistantTask).mockResolvedValue(interrupted)
+  vi.mocked(api.continueAssistantTask).mockResolvedValue({...interrupted,status:'queued',revision:4,can_continue:false})
+  const wrapper=mount(ProjectAssistantPanel,{props:{projectId:project.id}});await flushPromises()
+  const button=wrapper.findAll('button').find(item=>item.text()==='按保存检查点继续')!
+  expect(button.attributes('disabled')).toBeDefined()
+  const ack=wrapper.findAll('input[type=checkbox]').find(item=>item.element.parentElement?.textContent?.includes('调用结果未知'))!
+  await ack.setValue(true)
+  await button.trigger('click');await flushPromises()
+  expect(api.continueAssistantTask).toHaveBeenCalledWith(project.id,task.id,expect.objectContaining({expected_revision:3,checkpoint_id:'checkpoint-2',acknowledge_unknown:true}))
+  expect(api.startAssistantTask).not.toHaveBeenCalled()
+})
+
+it('retains the control UUID through an unknown response and reload for explicit idempotent retry',async()=>{
+  sessionStorage.setItem(`ka-project-assistant:${project.id}`,JSON.stringify({selectedId:task.id}))
+  const interrupted={...task,status:'interrupted' as const,execution_mode:'async_v2' as const,can_continue:true,unknown_model_attempts:0,revision:2,checkpoint_id:null}
+  vi.mocked(api.getAssistantTask).mockResolvedValue(interrupted)
+  vi.mocked(api.continueAssistantTask).mockRejectedValueOnce(new ApiError(0,{error:{message:'Control outcome unknown'}}))
+  const wrapper=mount(ProjectAssistantPanel,{props:{projectId:project.id}});await flushPromises()
+  await wrapper.findAll('button').find(item=>item.text()==='按保存检查点继续')!.trigger('click');await flushPromises()
+  const input=vi.mocked(api.continueAssistantTask).mock.calls[0]![2]
+  wrapper.unmount()
+  vi.mocked(api.continueAssistantTask).mockResolvedValue({...interrupted,status:'queued',revision:3})
+  const restored=mount(ProjectAssistantPanel,{props:{projectId:project.id}});await flushPromises()
+  expect(api.continueAssistantTask).toHaveBeenCalledOnce()
+  await restored.findAll('button').find(item=>item.text()==='按保存检查点继续')!.trigger('click');await flushPromises()
+  expect(vi.mocked(api.continueAssistantTask).mock.calls[1]![2]).toEqual(input)
 })

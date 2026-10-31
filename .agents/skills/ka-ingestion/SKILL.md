@@ -3,6 +3,8 @@ name: ka-ingestion
 description: Knowledge Atlas 的 Markdown/Java 上传、去重、解析、分块与解析 Worker。修改导入校验、分块规则、任务状态或租约恢复时使用。触发词：upload, ingestion, source, chunk, parse, worker, lease, 上传, 解析, 分块, 去重.
 ---
 
+
+Assistant M2 has a separate app.assistant_runner for explicit async_v2 queued records; app.worker still only parses source jobs and never performs model calls. Do not add assistant queue consumption or failed/unknown paid retry to parsing. See ADR0077 and PROJECT_ASSISTANT_M2; source worker limits/leases remain unchanged.
 # 上传、解析与 Worker
 
 ## 多语言 V1 扩展（ADR 0040）

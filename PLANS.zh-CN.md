@@ -10,7 +10,7 @@
 
 ## 项目 Agent 开发提案
 
-开发分支 `feat/project-agent` 从 `c0eaa06` 起步。[中文方案](docs/PROJECT_AGENT_PLAN.zh-CN.md)/[英文方案](docs/PROJECT_AGENT_PLAN.md)的 M1 已实现并通过本地替身验证：统一只读目标、五项范围内资料/知识/代码工具、类型化引用报告及持久化 GET/重放。独立 assistant/tasks 记录使用增量迁移 `20261031_0020`，保留旧 API，不自动升级业务库。见 [ADR0076](docs/adr/0076-read-only-project-assistant.zh-CN.md)和[验证结果](docs/PROJECT_ASSISTANT_M1.zh-CN.md)。M2–M5 仍规划中，零真实调用，冻结实验/供应商授权保持。
+feat/project-agent 上 M1–M2 已实现并通过本地验证：五项只读工具、类型化报告、异步202、独立 runner、持久化尝试/检查点/产物、取消及版本绑定显式继续。业务库/源码 head20261031_0021，已验证备份/恢复和旧表指纹。见[当前 M2](docs/PROJECT_ASSISTANT_M2.zh-CN.md)及 [ADR0077](docs/adr/0077-durable-assistant-execution.zh-CN.md)。M3–M5 仍规划中，冻结实验/授权保持，本轮零真实调用。
 
 ## 多 Agent 扩展
 

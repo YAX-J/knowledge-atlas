@@ -10,7 +10,7 @@ Offline judging now supports OpenRouter Jev, direct TypeSafe Jev and native CF a
 
 ## Project Agent development proposal
 
-Development branch `feat/project-agent` starts at `c0eaa06`. M1 of the [English plan](docs/PROJECT_AGENT_PLAN.md) / [Chinese plan](docs/PROJECT_AGENT_PLAN.zh-CN.md) is implemented and locally verified with substitutes: a unified read-only goal, five scoped source/knowledge/code tools, typed reference reports and durable GET/replay. Separate assistant/tasks records use additive migration `20261031_0020`; legacy APIs remain unchanged and the business database is not automatically upgraded. See [ADR0076](docs/adr/0076-read-only-project-assistant.md) and [verification results](docs/PROJECT_ASSISTANT_M1.md). M2–M5 remain planned; no live calls or changes to frozen experiments/provider grants.
+M1–M2 are implemented and locally verified on feat/project-agent: five scoped read-only tools, typed reports, asynchronous202 submissions, a separate runner, durable attempts/checkpoints/artifacts, cancellation and explicit bound continuation. Business/source head20261031_0021 followed verified backups/restores and preserved content. See [current M2](docs/PROJECT_ASSISTANT_M2.md) and [ADR0077](docs/adr/0077-durable-assistant-execution.md). M3–M5 remain planned; frozen experiments and grants are unchanged, with zero live calls.
 
 ## Multi-agent extension
 

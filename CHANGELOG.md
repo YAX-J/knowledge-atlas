@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- M2 adds202 async task submission, a separate runner, atomic attempted-call/checkpoint/artifact receipts, cancellation and explicit continuation with unknown-outcome acknowledgement. Preserve sync v1 and historical workflows. Business migration0021 followed verified backups/restores and old-table fingerprints; local full1036/12 skipped, coverage95.42%, native274, frontend143/build and desktop passed. No live providers or M3–M5 work. See [M2](docs/PROJECT_ASSISTANT_M2.md).
+
 ### Project assistant M1 (locally verified with substitutes)
 
 - Added a unified read-only goal entry with scoped document, confirmed knowledge and code tools; typed exact references, clarification and durable read-only replay.

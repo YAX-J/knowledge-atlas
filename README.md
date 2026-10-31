@@ -1,6 +1,6 @@
 # Knowledge Atlas
 
-项目只读助手 M1 已实现并通过本地替身/原生数据库/桌面验收：统一目标、所选资料/正式知识/代码工具、类型化引用报告和只读任务恢复。见[使用与验证](docs/PROJECT_ASSISTANT_M1.zh-CN.md)及 [ADR0076](docs/adr/0076-read-only-project-assistant.zh-CN.md)。源码迁移 head 现为 `20261031_0020`，未自动升级业务库。M2–M5 尚未实现，本轮零真实模型调用。
+项目助手 M2 已实现并通过本地替身、原生数据库和桌面验收：异步排队、独立 runner、逐步检查点/尝试回执、取消和显式继续。业务库与源码 head 均为 `20261031_0021`，迁移前备份/隔离恢复及旧表指纹核验通过。见[使用与验收](docs/PROJECT_ASSISTANT_M2.zh-CN.md)及 [ADR0077](docs/adr/0077-durable-assistant-execution.zh-CN.md)。M3–M5 未启动，零真实模型调用。
 
 2026-10-31：已完成回答格式与独立开发验证两项：新 `evidence-claims-v3` 由后端计算总体 supported，模型只给逐条结论、置信度和缺失信息；严格引用和旧记录读取保持。见 [ADR0075](docs/adr/0075-server-derived-answer-support.zh-CN.md) 与[合成开发检查](evaluation/development/claim-support-v3/README.zh-CN.md)。本轮零真实调用，v3 真实质量未测量；[既有457次裁判结果](evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.zh-CN.md)属于历史 v2，失败、分数、输入和账本保持，人工覆盖率0%。
 
@@ -22,7 +22,7 @@
 | 检索与问答 | 关键词、BM25、来源位置 BM25、向量、混合与 RRF；严格引用、无证据拒答、持久化会话及有界多轮上下文 |
 | 代码分析 | 语法结构、静态候选、单轮/只读工具 Agent；显式 Java/TypeScript/Go 编译器声明解析；可选固定提交/本地重复路径版本 |
 | 工作台 | 真实业务为默认入口，独立 Mock 演示；URL 恢复项目/来源/知识/历史时间/会话；图谱按关系、检索、身份、演化、停用分区 |
-| Agent 协作 | 三个专业角色、两条固定 LangGraph 流程及独立 M1 项目只读助手；显式选择检索方式、历史时间和代码版本，保存请求范围、调用计数及步骤结果；候选等待人工审核后显式恢复 |
+| Agent 协作 | 三个专业角色、两条固定 LangGraph 流程及独立 M2 项目只读助手及异步 runner/取消/显式继续；显式选择检索方式、历史时间和代码版本，保存请求范围、调用计数及步骤结果；候选等待人工审核后显式恢复 |
 | 验证工具 | 迁移、备份/隔离恢复、原生数据库流程验证、公开实验、盲评工具、千级/万级合成性能测量 |
 
 代码分析始终只读，不运行用户代码、构建脚本或自动写入正式图谱。编译器结果是静态声明身份，不代表完整构建上下文或运行时派发。扫描预算和截断会明确显示。
@@ -31,7 +31,7 @@ BM25 与来源位置 BM25 使用 v2 分批协议：每批 200 个实体，在最
 
 ## 本地启动
 
-先安装 Python、Node.js、原生 PostgreSQL 及 pgvector，并按[环境配置](docs/DEVELOPMENT_SETUP.zh-CN.md)填写后端 `.env`。已有数据先按[备份恢复](docs/BACKUP_RESTORE.zh-CN.md)备份；源码迁移 head 为 `20261031_0020`（业务库需按备份流程显式升级）。就绪检查会拒绝落后、未迁移或缺少关键表/列的数据库。
+先安装 Python、Node.js、原生 PostgreSQL 及 pgvector，并按[环境配置](docs/DEVELOPMENT_SETUP.zh-CN.md)填写后端 `.env`。已有数据先按[备份恢复](docs/BACKUP_RESTORE.zh-CN.md)备份；业务库/源码迁移 head 为 `20261031_0021`（已验证备份/恢复后升级）。就绪检查会拒绝落后、未迁移或缺少关键表/列的数据库。
 
 ```powershell
 cd backend

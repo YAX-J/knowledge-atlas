@@ -1,4 +1,5 @@
 import uuid
+import json
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
@@ -28,6 +29,26 @@ def migration_config() -> Config:
     config = Config(str(root / "alembic.ini"))
     config.set_main_option("script_location", str(root / "migrations"))
     return config
+
+
+def test_assistant_runner_migration_preserves_sync_history_and_closes_queue_on_downgrade(tmp_path,monkeypatch):
+    url=f"sqlite+pysqlite:///{(tmp_path/'assistant-runner.db').as_posix()}"
+    monkeypatch.setattr(app_config,'get_settings',lambda:SimpleNamespace(database_url=url))
+    config=migration_config();command.upgrade(config,'20261031_0020')
+    engine=create_engine(url);identifier=uuid.uuid4();user=uuid.uuid4();project=uuid.uuid4()
+    with engine.begin() as connection:
+        connection.execute(text("INSERT INTO projects (id,user_id,name,description,created_at,updated_at) VALUES (:id,:user,'Keep','',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)"),{'id':project.hex,'user':user.hex})
+        connection.execute(text("INSERT INTO assistant_tasks (id,user_id,project_id,status,input_sha256,request,result,events,usage) VALUES (:id,:user,:project,'succeeded',:sha,'{}',:result,'[]','{}')"),{'id':identifier.hex,'user':user.hex,'project':project.hex,'sha':'a'*64,'result':json.dumps({'saved':True})})
+    command.upgrade(config,'head')
+    with engine.begin() as connection:
+        assert connection.execute(text('select execution_mode,revision from assistant_tasks')).one()==('sync_v1',0)
+        connection.execute(text("UPDATE assistant_tasks SET status='queued',execution_mode='async_v2'"))
+    assert {'assistant_attempts','assistant_steps','assistant_artifacts','assistant_continuations'}.issubset(inspect(engine).get_table_names())
+    command.downgrade(config,'20261031_0020')
+    with engine.connect() as connection:
+        row=connection.execute(text('select status,result from assistant_tasks')).one()
+        assert row.status=='interrupted' and json.loads(row.result)=={'saved':True}
+    command.upgrade(config,'head');engine.dispose()
 
 
 def test_assistant_migration_preserves_legacy_and_is_reversible(tmp_path, monkeypatch):

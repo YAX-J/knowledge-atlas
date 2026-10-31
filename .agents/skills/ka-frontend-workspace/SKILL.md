@@ -3,6 +3,8 @@ name: ka-frontend-workspace
 description: Knowledge Atlas 的 Vue 3 前端工作台。修改组件、项目/资料页、候选审核、项目图谱或交互状态时使用。触发词：frontend, Vue, component, workspace, graph UI, accessibility, 前端, 组件, 页面.
 ---
 
+
+M2 defaults assistant-task-v2/202 and polls queued/running without POST. Preserve cancel and exact revision/checkpoint-bound continue controls, unknown-attempt acknowledgement, effective remaining role budgets and persisted continuation UUIDs through unknown response/reload. API errors must not automatically replay control POSTs. Cover projectAssistant tests and desktop Space/Tab/Enter, queued refresh, in-flight cancellation, saved tools and duplicate continuation receipts.
 # Vue 前端工作台
 
 ProjectAssistantPanel/useProjectAssistant use separate assistant/tasks contracts (ADR0076, locally verified with substitutes/desktop). Empty attachments mean confirmed knowledge only. Preserve exact source UUID/hash selection, read-only metadata errors/retry, project/disposal fences, same-UUID unknown-submit recovery and GET-only session restoration/polling. Distinguish source/code/formal knowledge references, navigate exact chunks/sources, use text interpolation and do not imply referenced claims are semantically verified. Old workflow tests stub the new panel; projectAssistant.test.ts exercises it directly. Include new API/composable in coverage and desktop acceptance.

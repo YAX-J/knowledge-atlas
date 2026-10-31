@@ -1,4 +1,4 @@
-"""Synchronous M1 tasks, scoped reads, durable reservations and read-only replay."""
+"""Assistant API reads, queue dispatch and legacy synchronous-v1 execution."""
 from datetime import timedelta, timezone
 import hashlib
 import json
@@ -45,8 +45,12 @@ def read_task(db, *, user_id, project_id, task_id):
         AssistantTask.user_id == user_id, AssistantTask.project_id == project_id).execution_options(populate_existing=True))
     if item is None:
         _error('ASSISTANT_NOT_FOUND', '助手任务不存在或不属于此项目', 404)
+    extra={}
+    if item.execution_mode=='async_v2':
+        from app.services.assistant_execution import read_execution
+        extra=read_execution(db,item)
     return AssistantRead(**_summary(item), scope=item.request['scope'], result=item.result,
-        events=item.events, usage=item.usage)
+        events=item.events, usage=item.usage,execution_mode=item.execution_mode,revision=item.revision,**extra)
 
 
 def list_tasks(db, *, user_id, project_id, page, page_size):
@@ -105,6 +109,9 @@ def _freeze_sources(db, *, user_id, project_id, request):
 
 
 def start_task(db, *, user_id, project_id, request, settings):
+    if request.protocol=='assistant-task-v2':
+        from app.services.assistant_execution import enqueue
+        return enqueue(db,user_id=user_id,project_id=project_id,request=request,settings=settings)
     get_project(db, user_id=user_id, project_id=project_id)
     data = request.model_dump(mode='json', exclude={'request_id'})
     digest = hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
@@ -138,31 +145,8 @@ def start_task(db, *, user_id, project_id, request, settings):
         save_progress(db, context=context, execution_id=execution, record_model=AssistantTask,
             result=result.model_dump(mode='json') if result is not None else None)
 
-    def search(query, gateway):
-        found = search_knowledge(db, user_id=user_id, project_id=project_id, query=query, types=[],
-            valid_at=request.valid_at, top_k=5, mode='bm25', settings=settings)
-        evidence, summary = collect_evidence(found)
-        references = []
-        truncated = summary.truncated
-        for record in evidence.values():
-            source = db.scalar(select(SourceDocument).where(SourceDocument.id == record.source_id,
-                SourceDocument.user_id == user_id, SourceDocument.project_id == project_id))
-            chunk = db.scalar(select(SourceChunk).where(SourceChunk.id == record.chunk_id,
-                SourceChunk.source_id == record.source_id, SourceChunk.user_id == user_id, SourceChunk.project_id == project_id))
-            if source is None or chunk is None or record.quote not in chunk.content:
-                continue
-            frozen = ProjectSource(source.id, user_id, project_id, source.relative_path or source.original_name,
-                source.source_type, '', source.content_sha256, ())
-            ref = gateway._reference(frozen, record.start_line, record.end_line, record.quote,
-                chunk_id=chunk.id, evidence_id=record.id)
-            if ref:
-                references.append(ref)
-            else:
-                truncated = True
-        return dict(references=references, truncated=truncated)
-
-    gateway = ProjectTools(run_id=request.request_id, sources=sources, search=search,
-        snapshot_id=request.snapshot_id, commit_sha=commit, snapshot_paths=paths)
+    gateway = make_gateway(db,user_id=user_id,project_id=project_id,request=request,settings=settings,
+        sources=sources,paths=paths,commit=commit)
     runtime.on_progress = persist
     status, error_code = 'failed', None
     with run_scope(runtime):
@@ -201,3 +185,31 @@ def start_task(db, *, user_id, project_id, request, settings):
         _error('ASSISTANT_INTERRUPTED', '执行归属已失效，请读取已保存状态')
     db.commit()
     return read_task(db, user_id=user_id, project_id=project_id, task_id=request.request_id)
+
+
+def make_gateway(db,*,user_id,project_id,request,settings,sources,paths,commit,knowledge_at=None):
+    def search(query, gateway):
+        found = search_knowledge(db, user_id=user_id, project_id=project_id, query=query, types=[],
+            valid_at=knowledge_at if knowledge_at is not None else request.valid_at, top_k=5, mode='bm25', settings=settings)
+        evidence, summary = collect_evidence(found)
+        references = []
+        truncated = summary.truncated
+        for record in evidence.values():
+            source = db.scalar(select(SourceDocument).where(SourceDocument.id == record.source_id,
+                SourceDocument.user_id == user_id, SourceDocument.project_id == project_id))
+            chunk = db.scalar(select(SourceChunk).where(SourceChunk.id == record.chunk_id,
+                SourceChunk.source_id == record.source_id, SourceChunk.user_id == user_id, SourceChunk.project_id == project_id))
+            if source is None or chunk is None or record.quote not in chunk.content:
+                continue
+            frozen = ProjectSource(source.id, user_id, project_id, source.relative_path or source.original_name,
+                source.source_type, '', source.content_sha256, ())
+            ref = gateway._reference(frozen, record.start_line, record.end_line, record.quote,
+                chunk_id=chunk.id, evidence_id=record.id)
+            if ref:
+                references.append(ref)
+            else:
+                truncated = True
+        return dict(references=references, truncated=truncated)
+
+    return ProjectTools(run_id=request.request_id, sources=sources, search=search,
+        snapshot_id=request.snapshot_id, commit_sha=commit, snapshot_paths=paths)

@@ -7,14 +7,16 @@ import AgentRunTrace from './AgentRunTrace.vue'
 
 const props = defineProps<{projectId?: string; disabled?: boolean}>()
 const emit = defineEmits<{openSource: [id: string]; openEvidence: [locator: EvidenceLocator]; sending: [value: boolean]}>()
-const {history, selected, loading, sending, unknown, error, busy, refresh, select, submit, retry} = useProjectAssistant(() => props.projectId)
+const {history, selected, loading, sending, unknown, error, busy, refresh, select, submit, retry, cancel, resume} = useProjectAssistant(() => props.projectId)
+const acknowledgeUnknown=ref(false)
+watch(()=>[selected.value?.id,selected.value?.revision],()=>{acknowledgeUnknown.value=false})
 const goal = ref(''), sources = ref<SourceListItem[]>([]), chosen = ref<SourceListItem[]>([]), sourcePage = ref(1), sourceTotal = ref(0)
 const sourceLoading = ref(false), sourceError = ref(''), contexts = ref<CodeAnalysisContexts | null>(null), snapshot = ref('')
 const contextError = ref(''), contextLoading = ref(false)
 let reads = 0, contextReads = 0, disposed = false
 const locked = computed(() => busy.value || props.disabled)
 const code = computed(() => chosen.value.find(item => item.source_type !== 'markdown'))
-const labels = {running: '正在执行', succeeded: '已结束', failed: '未完成', interrupted: '执行已中断'}
+const labels = {queued:'等待 runner',running: '正在执行', succeeded: '已结束', failed: '未完成', interrupted: '执行已中断',cancelled:'已取消'}
 const referenceLabels = {source: '原始资料', code: '源码 / 派生结构', knowledge: '已确认知识'}
 function openReference(id: string) {
   const reference = selected.value?.result?.references.find(item => item.id === id)
@@ -63,7 +65,7 @@ onScopeDispose(() => {disposed = true; reads++; contextReads++})
 
 <template>
   <section class="project-assistant" aria-labelledby="project-assistant-title">
-    <header><div><span class="assistant-kicker">PROJECT ASSISTANT · M1</span><h2 id="project-assistant-title">项目只读助手</h2>
+    <header><div><span class="assistant-kicker">PROJECT ASSISTANT · M2</span><h2 id="project-assistant-title">项目只读助手</h2>
       <p>描述目标，结合选定资料、源码与已确认知识形成引用报告。最多 4 次协调请求、8 次工具执行。</p></div>
       <button type="button" :disabled="!projectId || loading || sending" @click="refresh()">刷新助手任务</button></header>
     <div class="assistant-layout">
@@ -104,7 +106,13 @@ onScopeDispose(() => {disposed = true; reads++; contextReads++})
         <p v-if="loading" role="status">正在读取任务…</p>
         <article v-if="selected" :aria-busy="selected.status === 'running'"><h3>{{selected.goal}}</h3><p>{{labels[selected.status]}} · 模型 {{selected.usage.model ?? 0}} / {{selected.usage.limits?.model ?? 8}} · 工具 {{selected.usage.tool ?? 0}} / {{selected.usage.limits?.tool ?? 16}} · 嵌入 {{selected.usage.embedding ?? 0}}</p>
           <p>已保存范围：{{selected.scope.source_ids.length}} 份资料 · {{selected.scope.commit_sha ? `提交 ${selected.scope.commit_sha}` : '精确来源 UUID'}} · {{selected.scope.valid_at || '当前已确认知识'}}</p>
-          <p v-if="selected.error_code" role="alert">任务未完成（{{selected.error_code}}）。请核对记录后显式新建目标。</p>
+          <p v-if="selected.execution_mode==='async_v2'">剩余协调请求 {{Math.max(0,Math.min(4,selected.usage.limits?.model ?? 8)-(selected.usage.model ?? 0))}} 次 · 工具 {{Math.max(0,Math.min(8,selected.usage.limits?.tool ?? 16)-(selected.usage.tool ?? 0))}} 次</p>
+          <p v-if="selected.error_code" role="alert">任务未完成（{{selected.error_code}}）。{{selected.can_continue?'请核对记录后选择继续或新建目标。':'请核对记录后显式新建目标。'}}</p>
+          <p v-if="selected.status==='queued'" role="status">任务已保存，等待独立 runner 认领。刷新页面只读取状态。</p>
+          <button v-if="selected.execution_mode==='async_v2' && ['queued','running','failed','interrupted'].includes(selected.status)" type="button" :disabled="sending" @click="cancel">取消后续步骤</button>
+          <div v-if="selected.can_continue" class="assistant-question"><p>继续将复用已保存检查点，并沿用剩余预算。</p>
+            <label v-if="selected.unknown_model_attempts" class="assistant-source"><input v-model="acknowledgeUnknown" type="checkbox" /><span>已知 {{selected.unknown_model_attempts}} 次调用结果未知，仍计入用量；继续可能发起新的付费尝试。</span></label>
+            <button type="button" :disabled="sending || !!selected.unknown_model_attempts && !acknowledgeUnknown" @click="resume(acknowledgeUnknown)">按保存检查点继续</button></div>
           <div v-if="selected.result?.action === 'ask_user'" class="assistant-question"><h4>需要补充信息</h4><p>{{selected.result.question}}</p><p>请在目标中补充信息后提交新任务。</p></div>
           <section v-if="selected.result?.report" aria-label="项目引用报告"><h4>{{selected.result.report.title}}</h4>
             <article v-for="(claim, index) in selected.result.report.claims" :key="index"><p><strong>{{claim.status === 'referenced' ? '附有引用' : '待验证'}}：</strong>{{claim.text}}</p>

@@ -34,7 +34,8 @@ class ProjectAssistantAgent:
                              'source_type': item.source_type, 'sha256': item.content_sha256,
                              'chunks': [str(chunk[0]) for chunk in item.chunks]} for item in tools.sources.values()]},
                 tools=tools.definitions, execute=tools.execute, output_model=AssistantDecision,
-                max_turns=4, max_tools=8, output_limit=24000, input_limit=160000, seconds=230)
+                max_turns=4, max_tools=8, output_limit=24000, input_limit=160000, seconds=context.get('seconds',230),
+                resume_state=context.get('resume_state'),on_checkpoint=context.get('on_checkpoint'))
             action = decision.root
             if action.action == 'ask_user':
                 return AssistantResult(action='ask_user', question=action.question)
