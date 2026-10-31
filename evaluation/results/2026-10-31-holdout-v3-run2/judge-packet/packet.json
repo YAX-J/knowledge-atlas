@@ -1,0 +1,2950 @@
+[
+  {
+    "review_id": "review-0001",
+    "question": "当前指南的 Annotated 建议与 0.95.0 历史指南的类型别名是否相容？",
+    "answer": "当前指南要求在使用 `Annotated` 前将 FastAPI 版本升级到至少 0.95.1。\n\n当前指南说明相关写法是标准 Python 的“type alias”，并非 FastAPI 特有。\n\n0.95.0 历史指南同样说明相关写法是标准 Python 的“type alias”，并非 FastAPI 特有。\n\n当前指南与 0.95.0 历史指南均说明依赖函数可使用 `async def` 或普通 `def`。\n\n无法确认当前指南的 Annotated 建议与 0.95.0 历史指南的类型别名在具体定义上是否相容，证据未给出两者的类型别名定义或兼容性说明。",
+    "supported": false,
+    "reference_answer": "当前要求至少 0.95.1；0.95.0 文档已介绍 type alias，但版本说明需要分别核对。",
+    "required_facts": [
+      "0.95.1",
+      "type alias"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "当前指南要求在使用 `Annotated` 前将 FastAPI 版本升级到至少 0.95.1。",
+        "passages": [
+          {
+            "quote": "Make sure you [Upgrade the FastAPI version](../../deployment/versions.md#upgrading-the-fastapi-versions) to at least 0.95.1 before using `Annotated`.",
+            "context": "\nIf you have an older version, you would get errors when trying to use `Annotated`.\n\nMake sure you [Upgrade the FastAPI version](../../deployment/versions.md#upgrading-the-fastapi-versions) to at least 0.95.1 before using `Annotated`.\n\n///\n"
+          }
+        ]
+      },
+      {
+        "claim": "当前指南说明相关写法是标准 Python 的“type alias”，并非 FastAPI 特有。",
+        "passages": [
+          {
+            "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.",
+            "context": "\n/// tip\n\nThis is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.\n\nBut because **FastAPI** is based on the Python standards, including `Annotated`, you can use this trick in your code. 😎\n"
+          }
+        ]
+      },
+      {
+        "claim": "0.95.0 历史指南同样说明相关写法是标准 Python 的“type alias”，并非 FastAPI 特有。",
+        "passages": [
+          {
+            "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.",
+            "context": "    ```\n\n!!! tip\n    This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.\n\n    But because **FastAPI** is based on the Python standards, including `Annotated`, you can use this trick in your code. 😎\n"
+          }
+        ]
+      },
+      {
+        "claim": "当前指南与 0.95.0 历史指南均说明依赖函数可使用 `async def` 或普通 `def`。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          },
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0002",
+    "question": "这些文档中实际人工盲评的正确率是多少？",
+    "answer": "无法确认这些文档中实际人工盲评的正确率：所提供的证据均为 FastAPI 技术文档片段，未包含任何关于人工盲评或正确率的数据。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0003",
+    "question": "同一请求重复依赖默认计算几次？",
+    "answer": "同一路径操作中多次声明的依赖，若包含共同的子依赖，FastAPI 知道每个请求只调用该子依赖一次。\n\n默认情况下依赖使用缓存值，因此同一请求内重复依赖只计算一次。\n\n在高级场景下若需要依赖在同一请求的每一步都被调用（可能多次），可在使用 Depends 时设置 use_cache=False 来禁用缓存。",
+    "supported": true,
+    "reference_answer": "共享子依赖每请求计算一次，并缓存结果。",
+    "required_facts": [
+      "每请求计算一次"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "同一路径操作中多次声明的依赖，若包含共同的子依赖，FastAPI 知道每个请求只调用该子依赖一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "默认情况下依赖使用缓存值，因此同一请求内重复依赖只计算一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "在高级场景下若需要依赖在同一请求的每一步都被调用（可能多次），可在使用 Depends 时设置 use_cache=False 来禁用缓存。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0004",
+    "question": "截至 2023-03-16，依赖函数允许哪些定义形式？",
+    "answer": "依赖函数可以使用 `async def` 定义。\n\n依赖函数也可以使用普通的 `def` 定义。",
+    "supported": true,
+    "reference_answer": "当时文档允许 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "依赖函数可以使用 `async def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "依赖函数也可以使用普通的 `def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0005",
+    "question": "截至 2023-03-20，是否已有共享 Annotated 依赖的类型别名说明？",
+    "answer": "证据仅说明“type alias”是标准 Python 概念，并非 FastAPI 特有，但未涉及共享 Annotated 依赖的类型别名说明。\n\n证据提到可使用 `async def` 或普通 `def`，与共享 Annotated 依赖的类型别名说明无关。",
+    "supported": false,
+    "reference_answer": "已有，文档说明它是标准 Python type alias。",
+    "required_facts": [
+      "type alias"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0006",
+    "question": "FastAPI 后台任务在返回响应之前还是之后运行？",
+    "answer": "后台任务被定义为在返回响应之后运行。\n\n多个后台任务会被合并在一起，随后在后台运行。",
+    "supported": true,
+    "reference_answer": "在返回响应之后运行。",
+    "required_facts": [
+      "响应之后"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "后台任务被定义为在返回响应之后运行。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      },
+      {
+        "claim": "多个后台任务会被合并在一起，随后在后台运行。",
+        "passages": [
+          {
+            "quote": "**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:",
+            "context": "\nUsing `BackgroundTasks` also works with the dependency injection system, you can declare a parameter of type `BackgroundTasks` at multiple levels: in a *path operation function*, in a dependency (dependable), in a sub-dependency, etc.\n\n**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:\n\n\n{* ../../docs_src/background_tasks/tutorial002_an_py310.py hl[13,15,22,25] *}"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0007",
+    "question": "重型后台计算与普通请求校验失败各使用什么工具或异常？",
+    "answer": "当请求包含无效数据时，FastAPI 内部会抛出 RequestValidationError。\n\n若需要执行重型后台计算且不必由同一进程运行（例如无需共享内存、变量等），可以使用 Celery 等更大的工具。",
+    "supported": true,
+    "reference_answer": "重型后台计算可考虑 Celery，请求校验失败是 RequestValidationError。",
+    "required_facts": [
+      "Celery",
+      "RequestValidationError"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "当请求包含无效数据时，FastAPI 内部会抛出 RequestValidationError。",
+        "passages": [
+          {
+            "quote": "When a request contains invalid data, **FastAPI** internally raises a `RequestValidationError`.",
+            "context": "\n### Override request validation exceptions { #override-request-validation-exceptions }\n\nWhen a request contains invalid data, **FastAPI** internally raises a `RequestValidationError`.\n\nAnd it also includes a default exception handler for it.\n"
+          }
+        ]
+      },
+      {
+        "claim": "若需要执行重型后台计算且不必由同一进程运行（例如无需共享内存、变量等），可以使用 Celery 等更大的工具。",
+        "passages": [
+          {
+            "quote": "If you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).",
+            "context": "\n## Caveat { #caveat }\n\nIf you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).\n\nThey tend to require more complex configurations, a message/job queue manager, like RabbitMQ or Redis, but they allow you to run background tasks in multiple processes, and especially, in multiple servers.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0008",
+    "question": "错误详情可以返回 JSON，但 204 响应也可以带 JSON 吗？",
+    "answer": "抛出 HTTPException 时，detail 参数可以传入任何能转换为 JSON 的值，不限于 str。\n\n204 是“No Content”的特殊情况，用于没有内容返回给客户端时，因此该响应必须没有响应体。\n\n根据 204 响应必须没有响应体的说明，无法确认 204 响应可以携带 JSON 内容。\n\n证据未直接说明 204 响应与 JSON 内容组合时的具体行为或框架处理方式，无法确认。",
+    "supported": false,
+    "reference_answer": "错误详情可以是 JSON；204 必须没有响应体。",
+    "required_facts": [
+      "JSON",
+      "204",
+      "没有响应体"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "抛出 HTTPException 时，detail 参数可以传入任何能转换为 JSON 的值，不限于 str。",
+        "passages": [
+          {
+            "quote": "When raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.",
+            "context": "\n/// tip\n\nWhen raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.\n\nYou could pass a `dict`, a `list`, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "204 是“No Content”的特殊情况，用于没有内容返回给客户端时，因此该响应必须没有响应体。",
+        "passages": [
+          {
+            "quote": "* A special case is `204`, \"No Content\".  This response is used when there is no content to return to the client, and so the response must not have a body.",
+            "context": "* **`200 - 299`** are for \"Successful\" responses. These are the ones you would use the most.\n    * `200` is the default status code, which means everything was \"OK\".\n    * Another example would be `201`, \"Created\". It is commonly used after creating a new record in the database.\n    * A special case is `204`, \"No Content\".  This response is used when there is no content to return to the client, and so the response must not have a body.\n* **`300 - 399`** are for \"Redirection\".  Responses with these status codes may or may not have a body, except for `304`, \"Not Modified\", which must not have one.\n* **`400 - 499`** are for \"Client error\" responses. These are the second type you would probably use the most.\n    * An example is `404`, for a \"Not Found\" response."
+          }
+        ]
+      },
+      {
+        "claim": "根据 204 响应必须没有响应体的说明，无法确认 204 响应可以携带 JSON 内容。",
+        "passages": [
+          {
+            "quote": "* A special case is `204`, \"No Content\".  This response is used when there is no content to return to the client, and so the response must not have a body.",
+            "context": "* **`200 - 299`** are for \"Successful\" responses. These are the ones you would use the most.\n    * `200` is the default status code, which means everything was \"OK\".\n    * Another example would be `201`, \"Created\". It is commonly used after creating a new record in the database.\n    * A special case is `204`, \"No Content\".  This response is used when there is no content to return to the client, and so the response must not have a body.\n* **`300 - 399`** are for \"Redirection\".  Responses with these status codes may or may not have a body, except for `304`, \"Not Modified\", which must not have one.\n* **`400 - 499`** are for \"Client error\" responses. These are the second type you would probably use the most.\n    * An example is `404`, for a \"Not Found\" response."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0009",
+    "question": "HTTPException 应 return 还是 raise？",
+    "answer": "HTTPException 是 Python 异常，不应 return，而应 raise。\n\n抛出 HTTPException 时，detail 参数可以传入任何能转换为 JSON 的值，不限于 str。\n\n当客户端请求不存在的 ID 对应条目时，应抛出状态码为 404 的异常。",
+    "supported": true,
+    "reference_answer": "应该 raise，而不是 return。",
+    "required_facts": [
+      "raise",
+      "return"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "HTTPException 是 Python 异常，不应 return，而应 raise。",
+        "passages": [
+          {
+            "quote": "Because it's a Python exception, you don't `return` it, you `raise` it.",
+            "context": "\n`HTTPException` is a normal Python exception with additional data relevant for APIs.\n\nBecause it's a Python exception, you don't `return` it, you `raise` it.\n\nThis also means that if you are inside a utility function that you are calling inside of your *path operation function*, and you raise the `HTTPException` from inside of that utility function, it won't run the rest of the code in the *path operation function*, it will terminate that request right away and send the HTTP error from the `HTTPException` to the client.\n"
+          }
+        ]
+      },
+      {
+        "claim": "抛出 HTTPException 时，detail 参数可以传入任何能转换为 JSON 的值，不限于 str。",
+        "passages": [
+          {
+            "quote": "When raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.",
+            "context": "\n/// tip\n\nWhen raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.\n\nYou could pass a `dict`, a `list`, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "当客户端请求不存在的 ID 对应条目时，应抛出状态码为 404 的异常。",
+        "passages": [
+          {
+            "quote": "In this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:",
+            "context": "\nThe benefit of raising an exception over returning a value will be more evident in the section about Dependencies and Security.\n\nIn this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:\n\n{* ../../docs_src/handling_errors/tutorial001_py310.py hl[11] *}\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0010",
+    "question": "HTTPException 应 return 还是 raise？",
+    "answer": "HTTPException 是 Python 异常，应当使用 raise 抛出，而不是 return 返回。\n\n抛出 HTTPException 时，detail 参数可以传入任何能转换为 JSON 的值，不限于 str。\n\n当客户端请求不存在的 ID 对应资源时，示例做法是抛出状态码为 404 的异常。",
+    "supported": true,
+    "reference_answer": "应该 raise，而不是 return。",
+    "required_facts": [
+      "raise",
+      "return"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "HTTPException 是 Python 异常，应当使用 raise 抛出，而不是 return 返回。",
+        "passages": [
+          {
+            "quote": "Because it's a Python exception, you don't `return` it, you `raise` it.",
+            "context": "\n`HTTPException` is a normal Python exception with additional data relevant for APIs.\n\nBecause it's a Python exception, you don't `return` it, you `raise` it.\n\nThis also means that if you are inside a utility function that you are calling inside of your *path operation function*, and you raise the `HTTPException` from inside of that utility function, it won't run the rest of the code in the *path operation function*, it will terminate that request right away and send the HTTP error from the `HTTPException` to the client.\n"
+          }
+        ]
+      },
+      {
+        "claim": "抛出 HTTPException 时，detail 参数可以传入任何能转换为 JSON 的值，不限于 str。",
+        "passages": [
+          {
+            "quote": "When raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.",
+            "context": "\n/// tip\n\nWhen raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.\n\nYou could pass a `dict`, a `list`, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "当客户端请求不存在的 ID 对应资源时，示例做法是抛出状态码为 404 的异常。",
+        "passages": [
+          {
+            "quote": "In this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:",
+            "context": "\nThe benefit of raising an exception over returning a value will be more evident in the section about Dependencies and Security.\n\nIn this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:\n\n{* ../../docs_src/handling_errors/tutorial001_py310.py hl[11] *}\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0011",
+    "question": "怎样让同一请求中的依赖重复计算？",
+    "answer": "默认情况下，同一路径操作中重复声明的依赖（例如多个依赖共享同一子依赖）在每次请求中只会被调用一次。\n\n若希望同一请求中依赖在每一步都被调用（可能多次），而不是使用缓存值，可在使用 Depends 时设置参数 use_cache=False。\n\n依赖函数应作为参数传给 Depends()，而不是直接调用（不在末尾加括号）。",
+    "supported": true,
+    "reference_answer": "在 Depends 中设置 use_cache=False。",
+    "required_facts": [
+      "use_cache=False"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "默认情况下，同一路径操作中重复声明的依赖（例如多个依赖共享同一子依赖）在每次请求中只会被调用一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "若希望同一请求中依赖在每一步都被调用（可能多次），而不是使用缓存值，可在使用 Depends 时设置参数 use_cache=False。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      },
+      {
+        "claim": "依赖函数应作为参数传给 Depends()，而不是直接调用（不在末尾加括号）。",
+        "passages": [
+          {
+            "quote": "You **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.",
+            "context": "\nThis parameter must be something like a function.\n\nYou **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.\n\nAnd that function takes parameters in the same way that *path operation functions* do.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0012",
+    "question": "FastAPI 后台任务在返回响应之前还是之后运行？",
+    "answer": "后台任务被定义为在返回响应之后运行。\n\n多个后台任务会被合并在一起，并在之后于后台运行。",
+    "supported": true,
+    "reference_answer": "在返回响应之后运行。",
+    "required_facts": [
+      "响应之后"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "后台任务被定义为在返回响应之后运行。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      },
+      {
+        "claim": "多个后台任务会被合并在一起，并在之后于后台运行。",
+        "passages": [
+          {
+            "quote": "**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:",
+            "context": "\nUsing `BackgroundTasks` also works with the dependency injection system, you can declare a parameter of type `BackgroundTasks` at multiple levels: in a *path operation function*, in a dependency (dependable), in a sub-dependency, etc.\n\n**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:\n\n\n{* ../../docs_src/background_tasks/tutorial002_an_py310.py hl[13,15,22,25] *}"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0013",
+    "question": "后台任务函数一定要使用 async def 吗？",
+    "answer": "后台任务函数可以是 async def，也可以是普通的 def 函数，FastAPI 会正确处理。\n\n因此后台任务函数并非一定要使用 async def。\n\n后台任务被定义为在返回响应之后运行。",
+    "supported": true,
+    "reference_answer": "不一定，可以使用 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "后台任务函数可以是 async def，也可以是普通的 def 函数，FastAPI 会正确处理。",
+        "passages": [
+          {
+            "quote": "It can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.",
+            "context": "\nIt is just a standard function that can receive parameters.\n\nIt can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.\n\nIn this case, the task function will write to a file (simulating sending an email).\n"
+          }
+        ]
+      },
+      {
+        "claim": "因此后台任务函数并非一定要使用 async def。",
+        "passages": [
+          {
+            "quote": "It can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.",
+            "context": "\nIt is just a standard function that can receive parameters.\n\nIt can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.\n\nIn this case, the task function will write to a file (simulating sending an email).\n"
+          }
+        ]
+      },
+      {
+        "claim": "后台任务被定义为在返回响应之后运行。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0014",
+    "question": "后台任务函数一定要使用 async def 吗？",
+    "answer": "后台任务函数可以是 async def，也可以是普通的 def 函数，FastAPI 会正确处理。\n\n因此后台任务函数并非一定要使用 async def。\n\n后台任务被定义为在返回响应之后运行。",
+    "supported": true,
+    "reference_answer": "不一定，可以使用 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "后台任务函数可以是 async def，也可以是普通的 def 函数，FastAPI 会正确处理。",
+        "passages": [
+          {
+            "quote": "It can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.",
+            "context": "\nIt is just a standard function that can receive parameters.\n\nIt can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.\n\nIn this case, the task function will write to a file (simulating sending an email).\n"
+          }
+        ]
+      },
+      {
+        "claim": "因此后台任务函数并非一定要使用 async def。",
+        "passages": [
+          {
+            "quote": "It can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.",
+            "context": "\nIt is just a standard function that can receive parameters.\n\nIt can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.\n\nIn this case, the task function will write to a file (simulating sending an email).\n"
+          }
+        ]
+      },
+      {
+        "claim": "后台任务被定义为在返回响应之后运行。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0015",
+    "question": "怎样让同一请求中的依赖重复计算？",
+    "answer": "默认情况下，同一路径操作中重复声明的依赖（例如多个依赖共享同一子依赖）在每次请求中只会被调用一次。\n\n若希望同一请求中依赖在每一步都被调用（可能多次），而不是使用缓存值，可在使用 Depends 时设置参数 use_cache=False。\n\n依赖函数应作为参数传给 Depends()，而不是直接调用（不在末尾加括号）。",
+    "supported": true,
+    "reference_answer": "在 Depends 中设置 use_cache=False。",
+    "required_facts": [
+      "use_cache=False"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "默认情况下，同一路径操作中重复声明的依赖（例如多个依赖共享同一子依赖）在每次请求中只会被调用一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "若希望同一请求中依赖在每一步都被调用（可能多次），而不是使用缓存值，可在使用 Depends 时设置参数 use_cache=False。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      },
+      {
+        "claim": "依赖函数应作为参数传给 Depends()，而不是直接调用（不在末尾加括号）。",
+        "passages": [
+          {
+            "quote": "You **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.",
+            "context": "\nThis parameter must be something like a function.\n\nYou **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.\n\nAnd that function takes parameters in the same way that *path operation functions* do.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0016",
+    "question": "找不到资源与成功创建资源分别应返回什么状态码？",
+    "answer": "找不到资源时应返回状态码 `404`。\n\n成功创建资源时应返回状态码 `201`（\"Created\"）。",
+    "supported": true,
+    "reference_answer": "找不到资源返回 404，创建资源通常返回 201。",
+    "required_facts": [
+      "404",
+      "201"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "找不到资源时应返回状态码 `404`。",
+        "passages": [
+          {
+            "quote": "In this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:",
+            "context": "\nThe benefit of raising an exception over returning a value will be more evident in the section about Dependencies and Security.\n\nIn this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:\n\n{* ../../docs_src/handling_errors/tutorial001_py310.py hl[11] *}\n"
+          }
+        ]
+      },
+      {
+        "claim": "成功创建资源时应返回状态码 `201`（\"Created\"）。",
+        "passages": [
+          {
+            "quote": "`201` is the status code for \"Created\".",
+            "context": "\n{* ../../docs_src/response_status_code/tutorial001_py310.py hl[6] *}\n\n`201` is the status code for \"Created\".\n\nBut you don't have to memorize what each of these codes mean.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0017",
+    "question": "本项目的生产数据库密码是什么？",
+    "answer": "无法确认本项目的生产数据库密码：所提供的证据均为 FastAPI 文档笔记，涉及状态码、错误处理与依赖注入，未包含任何数据库凭据信息。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0018",
+    "question": "怎样让同一请求中的依赖重复计算？",
+    "answer": "默认情况下，同一路径操作中重复声明的依赖（例如多个依赖共享同一子依赖）在每次请求中只会被调用一次。\n\n若希望同一请求中依赖在每一步都被调用（可能多次），而不是使用缓存值，可在使用 Depends 时设置参数 use_cache=False。\n\n依赖函数应作为参数传给 Depends()，而不是直接调用（即不在末尾加括号）。",
+    "supported": true,
+    "reference_answer": "在 Depends 中设置 use_cache=False。",
+    "required_facts": [
+      "use_cache=False"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "默认情况下，同一路径操作中重复声明的依赖（例如多个依赖共享同一子依赖）在每次请求中只会被调用一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "若希望同一请求中依赖在每一步都被调用（可能多次），而不是使用缓存值，可在使用 Depends 时设置参数 use_cache=False。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      },
+      {
+        "claim": "依赖函数应作为参数传给 Depends()，而不是直接调用（即不在末尾加括号）。",
+        "passages": [
+          {
+            "quote": "You **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.",
+            "context": "\nThis parameter must be something like a function.\n\nYou **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.\n\nAnd that function takes parameters in the same way that *path operation functions* do.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0019",
+    "question": "传给 Depends 的函数应立即调用吗？",
+    "answer": "传给 Depends 的函数不应直接调用，即不要在末尾加括号，而是把函数本身作为参数传给 Depends()。\n\n依赖函数可以用 async def 或普通 def 定义。\n\n同一请求中，同一路径操作多次声明的依赖（如多个依赖共享的子依赖）只会被调用一次。\n\n在需要依赖在每一步都被调用（同一请求中可能多次）而非使用缓存值的场景，可在使用 Depends 时设置 use_cache=False。",
+    "supported": true,
+    "reference_answer": "不应立即调用，只传函数，不添加调用括号。",
+    "required_facts": [
+      "不添加调用括号"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "传给 Depends 的函数不应直接调用，即不要在末尾加括号，而是把函数本身作为参数传给 Depends()。",
+        "passages": [
+          {
+            "quote": "You **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.",
+            "context": "\nThis parameter must be something like a function.\n\nYou **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.\n\nAnd that function takes parameters in the same way that *path operation functions* do.\n"
+          }
+        ]
+      },
+      {
+        "claim": "依赖函数可以用 async def 或普通 def 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "同一请求中，同一路径操作多次声明的依赖（如多个依赖共享的子依赖）只会被调用一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "在需要依赖在每一步都被调用（同一请求中可能多次）而非使用缓存值的场景，可在使用 Depends 时设置 use_cache=False。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0020",
+    "question": "当前指南的 Annotated 建议与 0.95.0 历史指南的类型别名是否相容？",
+    "answer": "当前指南指出，使用 Annotated 前需将 FastAPI 版本至少升级到 0.95.1。\n\n当前指南与 0.95.0 历史指南都包含相同表述：这是标准 Python 的“type alias”，并非 FastAPI 特有。\n\n当前指南与 0.95.0 历史指南都说明依赖函数可使用 async def 或普通 def。\n\n无法确认当前指南的 Annotated 建议与 0.95.0 历史指南的类型别名在具体写法或兼容性上是否一致，证据未直接比较两者。",
+    "supported": false,
+    "reference_answer": "当前要求至少 0.95.1；0.95.0 文档已介绍 type alias，但版本说明需要分别核对。",
+    "required_facts": [
+      "0.95.1",
+      "type alias"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "当前指南指出，使用 Annotated 前需将 FastAPI 版本至少升级到 0.95.1。",
+        "passages": [
+          {
+            "quote": "Make sure you [Upgrade the FastAPI version](../../deployment/versions.md#upgrading-the-fastapi-versions) to at least 0.95.1 before using `Annotated`.",
+            "context": "\nIf you have an older version, you would get errors when trying to use `Annotated`.\n\nMake sure you [Upgrade the FastAPI version](../../deployment/versions.md#upgrading-the-fastapi-versions) to at least 0.95.1 before using `Annotated`.\n\n///\n"
+          }
+        ]
+      },
+      {
+        "claim": "当前指南与 0.95.0 历史指南都包含相同表述：这是标准 Python 的“type alias”，并非 FastAPI 特有。",
+        "passages": [
+          {
+            "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.",
+            "context": "\n/// tip\n\nThis is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.\n\nBut because **FastAPI** is based on the Python standards, including `Annotated`, you can use this trick in your code. 😎\n"
+          },
+          {
+            "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.",
+            "context": "    ```\n\n!!! tip\n    This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.\n\n    But because **FastAPI** is based on the Python standards, including `Annotated`, you can use this trick in your code. 😎\n"
+          }
+        ]
+      },
+      {
+        "claim": "当前指南与 0.95.0 历史指南都说明依赖函数可使用 async def 或普通 def。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          },
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0021",
+    "question": "重型后台计算与普通请求校验失败各使用什么工具或异常？",
+    "answer": "若需要执行重型后台计算且不要求由同一进程运行（例如无需共享内存、变量等），可考虑使用 Celery 等更大的工具。\n\n当请求包含无效数据时，FastAPI 内部会抛出 RequestValidationError。",
+    "supported": true,
+    "reference_answer": "重型后台计算可考虑 Celery，请求校验失败是 RequestValidationError。",
+    "required_facts": [
+      "Celery",
+      "RequestValidationError"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "若需要执行重型后台计算且不要求由同一进程运行（例如无需共享内存、变量等），可考虑使用 Celery 等更大的工具。",
+        "passages": [
+          {
+            "quote": "If you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).",
+            "context": "\n## Caveat { #caveat }\n\nIf you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).\n\nThey tend to require more complex configurations, a message/job queue manager, like RabbitMQ or Redis, but they allow you to run background tasks in multiple processes, and especially, in multiple servers.\n"
+          }
+        ]
+      },
+      {
+        "claim": "当请求包含无效数据时，FastAPI 内部会抛出 RequestValidationError。",
+        "passages": [
+          {
+            "quote": "When a request contains invalid data, **FastAPI** internally raises a `RequestValidationError`.",
+            "context": "\n### Override request validation exceptions { #override-request-validation-exceptions }\n\nWhen a request contains invalid data, **FastAPI** internally raises a `RequestValidationError`.\n\nAnd it also includes a default exception handler for it.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0022",
+    "question": "传给 Depends 的函数应立即调用吗？",
+    "answer": "传给 Depends 的函数不应直接调用，即不要在末尾加括号，只需把函数本身作为参数传给 Depends()。\n\n依赖函数可以使用 async def 或普通 def 定义。\n\n在需要依赖在同一请求的每一步都被调用（可能多次）而非使用缓存值的场景，可在使用 Depends 时设置 use_cache=False。",
+    "supported": true,
+    "reference_answer": "不应立即调用，只传函数，不添加调用括号。",
+    "required_facts": [
+      "不添加调用括号"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "传给 Depends 的函数不应直接调用，即不要在末尾加括号，只需把函数本身作为参数传给 Depends()。",
+        "passages": [
+          {
+            "quote": "You **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.",
+            "context": "\nThis parameter must be something like a function.\n\nYou **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.\n\nAnd that function takes parameters in the same way that *path operation functions* do.\n"
+          }
+        ]
+      },
+      {
+        "claim": "依赖函数可以使用 async def 或普通 def 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "在需要依赖在同一请求的每一步都被调用（可能多次）而非使用缓存值的场景，可在使用 Depends 时设置 use_cache=False。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0023",
+    "question": "截至 2023-03-20，依赖函数允许哪些定义形式？",
+    "answer": "依赖函数可以使用 async def 定义。\n\n依赖函数也可以使用普通 def 定义。\n\n证据中提到的“type alias”属于标准 Python 特性，并非 FastAPI 特有，但该条未说明其与依赖函数定义形式的关系。",
+    "supported": true,
+    "reference_answer": "当时文档允许 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "依赖函数可以使用 async def 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "依赖函数也可以使用普通 def 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "证据中提到的“type alias”属于标准 Python 特性，并非 FastAPI 特有，但该条未说明其与依赖函数定义形式的关系。",
+        "passages": [
+          {
+            "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.",
+            "context": "    ```\n\n!!! tip\n    This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.\n\n    But because **FastAPI** is based on the Python standards, including `Annotated`, you can use this trick in your code. 😎\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0024",
+    "question": "找不到资源与成功创建资源分别应返回什么状态码？",
+    "answer": "找不到资源时应返回状态码 404。\n\n成功创建资源时应返回状态码 201（\"Created\"）。",
+    "supported": true,
+    "reference_answer": "找不到资源返回 404，创建资源通常返回 201。",
+    "required_facts": [
+      "404",
+      "201"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "找不到资源时应返回状态码 404。",
+        "passages": [
+          {
+            "quote": "In this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:",
+            "context": "\nThe benefit of raising an exception over returning a value will be more evident in the section about Dependencies and Security.\n\nIn this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:\n\n{* ../../docs_src/handling_errors/tutorial001_py310.py hl[11] *}\n"
+          }
+        ]
+      },
+      {
+        "claim": "成功创建资源时应返回状态码 201（\"Created\"）。",
+        "passages": [
+          {
+            "quote": "`201` is the status code for \"Created\".",
+            "context": "\n{* ../../docs_src/response_status_code/tutorial001_py310.py hl[6] *}\n\n`201` is the status code for \"Created\".\n\nBut you don't have to memorize what each of these codes mean.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0025",
+    "question": "后台任务函数一定要使用 async def 吗？",
+    "answer": "后台任务函数可以是 async def，也可以是普通的 def 函数，FastAPI 会正确处理。\n\n因此后台任务函数并非一定要使用 async def。\n\n后台任务被定义为在返回响应之后运行。",
+    "supported": true,
+    "reference_answer": "不一定，可以使用 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "后台任务函数可以是 async def，也可以是普通的 def 函数，FastAPI 会正确处理。",
+        "passages": [
+          {
+            "quote": "It can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.",
+            "context": "\nIt is just a standard function that can receive parameters.\n\nIt can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.\n\nIn this case, the task function will write to a file (simulating sending an email).\n"
+          }
+        ]
+      },
+      {
+        "claim": "因此后台任务函数并非一定要使用 async def。",
+        "passages": [
+          {
+            "quote": "It can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.",
+            "context": "\nIt is just a standard function that can receive parameters.\n\nIt can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.\n\nIn this case, the task function will write to a file (simulating sending an email).\n"
+          }
+        ]
+      },
+      {
+        "claim": "后台任务被定义为在返回响应之后运行。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0026",
+    "question": "这些文档中实际人工盲评的正确率是多少？",
+    "answer": "所提供的证据均未涉及人工盲评，也未给出任何正确率数据，因此无法确认实际人工盲评的正确率。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0027",
+    "question": "Celery 在任意硬件上每秒能处理多少任务？",
+    "answer": "现有证据仅提到 Celery 是一种可用于执行重型后台计算的更大工具，未给出任何任务处理速率数据。\n\n无法确认 Celery 在任意硬件上每秒能处理多少任务，证据中没有相关性能指标。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "现有证据仅提到 Celery 是一种可用于执行重型后台计算的更大工具，未给出任何任务处理速率数据。",
+        "passages": [
+          {
+            "quote": "If you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).",
+            "context": "\n## Caveat { #caveat }\n\nIf you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).\n\nThey tend to require more complex configurations, a message/job queue manager, like RabbitMQ or Redis, but they allow you to run background tasks in multiple processes, and especially, in multiple servers.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0028",
+    "question": "重型后台计算与普通请求校验失败各使用什么工具或异常？",
+    "answer": "若需要执行重型后台计算且不要求由同一进程运行（例如无需共享内存、变量等），可考虑使用 Celery 等更大的工具。\n\n当请求包含无效数据时，FastAPI 内部会抛出 RequestValidationError。",
+    "supported": true,
+    "reference_answer": "重型后台计算可考虑 Celery，请求校验失败是 RequestValidationError。",
+    "required_facts": [
+      "Celery",
+      "RequestValidationError"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "若需要执行重型后台计算且不要求由同一进程运行（例如无需共享内存、变量等），可考虑使用 Celery 等更大的工具。",
+        "passages": [
+          {
+            "quote": "If you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).",
+            "context": "\n## Caveat { #caveat }\n\nIf you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).\n\nThey tend to require more complex configurations, a message/job queue manager, like RabbitMQ or Redis, but they allow you to run background tasks in multiple processes, and especially, in multiple servers.\n"
+          }
+        ]
+      },
+      {
+        "claim": "当请求包含无效数据时，FastAPI 内部会抛出 RequestValidationError。",
+        "passages": [
+          {
+            "quote": "When a request contains invalid data, **FastAPI** internally raises a `RequestValidationError`.",
+            "context": "\n### Override request validation exceptions { #override-request-validation-exceptions }\n\nWhen a request contains invalid data, **FastAPI** internally raises a `RequestValidationError`.\n\nAnd it also includes a default exception handler for it.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0029",
+    "question": "共享依赖和多个层级的后台任务分别怎样避免重复对象？",
+    "answer": "当同一个路径操作多次声明某个依赖，例如多个依赖共享同一个子依赖时，FastAPI 会知道每个请求只调用该子依赖一次。\n\n对于后台任务，FastAPI 知道每种情况下该怎么做，以及如何复用同一个对象，因此所有后台任务会被合并在一起，随后在后台运行。\n\n在高级场景中，如果确实需要在同一请求的每一步都调用依赖（可能多次），而不是使用缓存值，可以在使用 Depends 时设置参数 use_cache=False。\n\n证据未说明多个层级的后台任务之间具体如何避免重复对象，因此无法确认其机制。",
+    "supported": false,
+    "reference_answer": "依赖按请求缓存；后台任务复用对象并合并任务。",
+    "required_facts": [
+      "缓存",
+      "合并任务"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "当同一个路径操作多次声明某个依赖，例如多个依赖共享同一个子依赖时，FastAPI 会知道每个请求只调用该子依赖一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "对于后台任务，FastAPI 知道每种情况下该怎么做，以及如何复用同一个对象，因此所有后台任务会被合并在一起，随后在后台运行。",
+        "passages": [
+          {
+            "quote": "**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:",
+            "context": "\nUsing `BackgroundTasks` also works with the dependency injection system, you can declare a parameter of type `BackgroundTasks` at multiple levels: in a *path operation function*, in a dependency (dependable), in a sub-dependency, etc.\n\n**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:\n\n\n{* ../../docs_src/background_tasks/tutorial002_an_py310.py hl[13,15,22,25] *}"
+          }
+        ]
+      },
+      {
+        "claim": "在高级场景中，如果确实需要在同一请求的每一步都调用依赖（可能多次），而不是使用缓存值，可以在使用 Depends 时设置参数 use_cache=False。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0030",
+    "question": "成功创建资源通常使用什么状态码？",
+    "answer": "成功创建资源使用的状态码是 `201`，即 \"Created\"。",
+    "supported": true,
+    "reference_answer": "通常使用 201 Created。",
+    "required_facts": [
+      "201"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "成功创建资源使用的状态码是 `201`，即 \"Created\"。",
+        "passages": [
+          {
+            "quote": "`201` is the status code for \"Created\".",
+            "context": "\n{* ../../docs_src/response_status_code/tutorial001_py310.py hl[6] *}\n\n`201` is the status code for \"Created\".\n\nBut you don't have to memorize what each of these codes mean.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0031",
+    "question": "当前指南的 Annotated 建议与 0.95.0 历史指南的类型别名是否相容？",
+    "answer": "当前指南要求在使用 `Annotated` 前将 FastAPI 版本升级到至少 0.95.1。\n\n当前指南说明所谓“type alias”只是标准 Python 特性，并非 FastAPI 特有。\n\n0.95.0 历史指南同样说明“type alias”只是标准 Python 特性，并非 FastAPI 特有。\n\n当前指南与 0.95.0 历史指南都允许依赖函数使用 `async def` 或普通 `def`。\n\n无法确认当前指南的 Annotated 建议与 0.95.0 历史指南的类型别名在具体写法上是否相容，证据未给出两者的类型别名定义内容。",
+    "supported": false,
+    "reference_answer": "当前要求至少 0.95.1；0.95.0 文档已介绍 type alias，但版本说明需要分别核对。",
+    "required_facts": [
+      "0.95.1",
+      "type alias"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "当前指南要求在使用 `Annotated` 前将 FastAPI 版本升级到至少 0.95.1。",
+        "passages": [
+          {
+            "quote": "Make sure you [Upgrade the FastAPI version](../../deployment/versions.md#upgrading-the-fastapi-versions) to at least 0.95.1 before using `Annotated`.",
+            "context": "\nIf you have an older version, you would get errors when trying to use `Annotated`.\n\nMake sure you [Upgrade the FastAPI version](../../deployment/versions.md#upgrading-the-fastapi-versions) to at least 0.95.1 before using `Annotated`.\n\n///\n"
+          }
+        ]
+      },
+      {
+        "claim": "当前指南说明所谓“type alias”只是标准 Python 特性，并非 FastAPI 特有。",
+        "passages": [
+          {
+            "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.",
+            "context": "\n/// tip\n\nThis is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.\n\nBut because **FastAPI** is based on the Python standards, including `Annotated`, you can use this trick in your code. 😎\n"
+          }
+        ]
+      },
+      {
+        "claim": "0.95.0 历史指南同样说明“type alias”只是标准 Python 特性，并非 FastAPI 特有。",
+        "passages": [
+          {
+            "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.",
+            "context": "    ```\n\n!!! tip\n    This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.\n\n    But because **FastAPI** is based on the Python standards, including `Annotated`, you can use this trick in your code. 😎\n"
+          }
+        ]
+      },
+      {
+        "claim": "当前指南与 0.95.0 历史指南都允许依赖函数使用 `async def` 或普通 `def`。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          },
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0032",
+    "question": "这些指南作者在生产环境的每月后台任务费用是多少？",
+    "answer": "现有证据只涉及后台任务的执行时机、函数形式、依赖共享和重型任务工具，未提及任何指南作者或生产环境。\n\n无法确认这些指南作者在生产环境每月后台任务的费用，证据中没有费用、成本或计费相关信息。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0033",
+    "question": "依赖函数和后台任务函数是否都能混用同步与异步定义？",
+    "answer": "依赖函数可以使用 `async def` 或普通 `def` 定义。\n\n后台任务函数可以是 `async def` 或普通 `def` 函数，FastAPI 会正确处理。\n\n历史版本的依赖函数文档同样说明可以使用 `async def` 或普通 `def`。",
+    "supported": true,
+    "reference_answer": "两者都可以使用 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "依赖函数可以使用 `async def` 或普通 `def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "后台任务函数可以是 `async def` 或普通 `def` 函数，FastAPI 会正确处理。",
+        "passages": [
+          {
+            "quote": "It can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.",
+            "context": "\nIt is just a standard function that can receive parameters.\n\nIt can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.\n\nIn this case, the task function will write to a file (simulating sending an email).\n"
+          }
+        ]
+      },
+      {
+        "claim": "历史版本的依赖函数文档同样说明可以使用 `async def` 或普通 `def`。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0034",
+    "question": "如何同时避免同一请求重复计算依赖，并在响应后执行附带任务？",
+    "answer": "当同一路径操作中某个依赖被多次声明（例如多个依赖共享同一个子依赖）时，FastAPI 会知道每个请求只调用该子依赖一次。\n\n可以定义在返回响应之后运行的后台任务。\n\nFastAPI 会合并所有后台任务，并在之后于后台运行它们，同时复用同一对象。\n\n在需要同一请求内每步都调用依赖（可能多次）而非使用缓存值的场景，可在使用 Depends 时设置 use_cache=False。\n\n若需要执行重型后台计算且不要求由同一进程运行（例如无需共享内存、变量等），可考虑使用 Celery 等更大的工具。",
+    "supported": true,
+    "reference_answer": "使用默认每请求缓存，并用后台任务在响应之后执行。",
+    "required_facts": [
+      "每请求缓存",
+      "响应之后"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "当同一路径操作中某个依赖被多次声明（例如多个依赖共享同一个子依赖）时，FastAPI 会知道每个请求只调用该子依赖一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "可以定义在返回响应之后运行的后台任务。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      },
+      {
+        "claim": "FastAPI 会合并所有后台任务，并在之后于后台运行它们，同时复用同一对象。",
+        "passages": [
+          {
+            "quote": "**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:",
+            "context": "\nUsing `BackgroundTasks` also works with the dependency injection system, you can declare a parameter of type `BackgroundTasks` at multiple levels: in a *path operation function*, in a dependency (dependable), in a sub-dependency, etc.\n\n**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:\n\n\n{* ../../docs_src/background_tasks/tutorial002_an_py310.py hl[13,15,22,25] *}"
+          }
+        ]
+      },
+      {
+        "claim": "在需要同一请求内每步都调用依赖（可能多次）而非使用缓存值的场景，可在使用 Depends 时设置 use_cache=False。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      },
+      {
+        "claim": "若需要执行重型后台计算且不要求由同一进程运行（例如无需共享内存、变量等），可考虑使用 Celery 等更大的工具。",
+        "passages": [
+          {
+            "quote": "If you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).",
+            "context": "\n## Caveat { #caveat }\n\nIf you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).\n\nThey tend to require more complex configurations, a message/job queue manager, like RabbitMQ or Redis, but they allow you to run background tasks in multiple processes, and especially, in multiple servers.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0035",
+    "question": "HTTPException 的 detail 必须是字符串吗？",
+    "answer": "HTTPException 的 detail 参数不必须是字符串，可以传入任何能转换为 JSON 的值。\n\nHTTPException 是 Python 异常，应使用 raise 抛出而不是 return。",
+    "supported": true,
+    "reference_answer": "不必，可以是任何可转换为 JSON 的值。",
+    "required_facts": [
+      "JSON"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "HTTPException 的 detail 参数不必须是字符串，可以传入任何能转换为 JSON 的值。",
+        "passages": [
+          {
+            "quote": "When raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.",
+            "context": "\n/// tip\n\nWhen raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.\n\nYou could pass a `dict`, a `list`, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "HTTPException 是 Python 异常，应使用 raise 抛出而不是 return。",
+        "passages": [
+          {
+            "quote": "Because it's a Python exception, you don't `return` it, you `raise` it.",
+            "context": "\n`HTTPException` is a normal Python exception with additional data relevant for APIs.\n\nBecause it's a Python exception, you don't `return` it, you `raise` it.\n\nThis also means that if you are inside a utility function that you are calling inside of your *path operation function*, and you raise the `HTTPException` from inside of that utility function, it won't run the rest of the code in the *path operation function*, it will terminate that request right away and send the HTTP error from the `HTTPException` to the client.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0036",
+    "question": "HTTPException 应 return 还是 raise？",
+    "answer": "HTTPException 是 Python 异常，不应 return，而应 raise。\n\n示例中，当客户端请求的 ID 对应条目不存在时，应抛出状态码为 404 的异常。\n\n抛出 HTTPException 时，detail 参数可传入任何可转换为 JSON 的值，不限于 str。",
+    "supported": true,
+    "reference_answer": "应该 raise，而不是 return。",
+    "required_facts": [
+      "raise",
+      "return"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "HTTPException 是 Python 异常，不应 return，而应 raise。",
+        "passages": [
+          {
+            "quote": "Because it's a Python exception, you don't `return` it, you `raise` it.",
+            "context": "\n`HTTPException` is a normal Python exception with additional data relevant for APIs.\n\nBecause it's a Python exception, you don't `return` it, you `raise` it.\n\nThis also means that if you are inside a utility function that you are calling inside of your *path operation function*, and you raise the `HTTPException` from inside of that utility function, it won't run the rest of the code in the *path operation function*, it will terminate that request right away and send the HTTP error from the `HTTPException` to the client.\n"
+          }
+        ]
+      },
+      {
+        "claim": "示例中，当客户端请求的 ID 对应条目不存在时，应抛出状态码为 404 的异常。",
+        "passages": [
+          {
+            "quote": "In this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:",
+            "context": "\nThe benefit of raising an exception over returning a value will be more evident in the section about Dependencies and Security.\n\nIn this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:\n\n{* ../../docs_src/handling_errors/tutorial001_py310.py hl[11] *}\n"
+          }
+        ]
+      },
+      {
+        "claim": "抛出 HTTPException 时，detail 参数可传入任何可转换为 JSON 的值，不限于 str。",
+        "passages": [
+          {
+            "quote": "When raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.",
+            "context": "\n/// tip\n\nWhen raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.\n\nYou could pass a `dict`, a `list`, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0037",
+    "question": "依赖函数和后台任务函数是否都能混用同步与异步定义？",
+    "answer": "依赖函数可以使用 `async def` 或普通 `def` 定义。\n\n后台任务函数可以是 `async def` 或普通 `def` 函数，FastAPI 会正确处理。\n\n历史文档同样说明依赖函数可使用 `async def` 或普通 `def`。",
+    "supported": true,
+    "reference_answer": "两者都可以使用 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "依赖函数可以使用 `async def` 或普通 `def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "后台任务函数可以是 `async def` 或普通 `def` 函数，FastAPI 会正确处理。",
+        "passages": [
+          {
+            "quote": "It can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.",
+            "context": "\nIt is just a standard function that can receive parameters.\n\nIt can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.\n\nIn this case, the task function will write to a file (simulating sending an email).\n"
+          }
+        ]
+      },
+      {
+        "claim": "历史文档同样说明依赖函数可使用 `async def` 或普通 `def`。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0038",
+    "question": "更改正常响应的状态码与中断请求分别在哪里设置？",
+    "answer": "status_code 是装饰器方法（get、post 等）的参数，而不是路径操作函数的参数。\n\n证据仅说明 status_code 属于装饰器方法参数，未说明更改正常响应状态码的具体设置位置。\n\n证据未提及中断请求（如抛出异常或中止处理）应在何处设置。",
+    "supported": false,
+    "reference_answer": "正常状态码放在 decorator；中断请求使用 raise HTTPException。",
+    "required_facts": [
+      "decorator",
+      "raise",
+      "HTTPException"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "status_code 是装饰器方法（get、post 等）的参数，而不是路径操作函数的参数。",
+        "passages": [
+          {
+            "quote": "Notice that `status_code` is a parameter of the \"decorator\" method (`get`, `post`, etc). Not of your *path operation function*, like all the parameters and body.",
+            "context": "\n/// note\n\nNotice that `status_code` is a parameter of the \"decorator\" method (`get`, `post`, etc). Not of your *path operation function*, like all the parameters and body.\n\n///\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0039",
+    "question": "后台任务函数一定要使用 async def 吗？",
+    "answer": "后台任务函数可以是 async def，也可以是普通的 def 函数，FastAPI 会正确处理。\n\n因此后台任务函数并非一定要使用 async def。\n\n后台任务被定义为在返回响应之后运行。",
+    "supported": true,
+    "reference_answer": "不一定，可以使用 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "后台任务函数可以是 async def，也可以是普通的 def 函数，FastAPI 会正确处理。",
+        "passages": [
+          {
+            "quote": "It can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.",
+            "context": "\nIt is just a standard function that can receive parameters.\n\nIt can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.\n\nIn this case, the task function will write to a file (simulating sending an email).\n"
+          }
+        ]
+      },
+      {
+        "claim": "因此后台任务函数并非一定要使用 async def。",
+        "passages": [
+          {
+            "quote": "It can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.",
+            "context": "\nIt is just a standard function that can receive parameters.\n\nIt can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.\n\nIn this case, the task function will write to a file (simulating sending an email).\n"
+          }
+        ]
+      },
+      {
+        "claim": "后台任务被定义为在返回响应之后运行。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0040",
+    "question": "截至 2023-03-16，依赖函数允许哪些定义形式？",
+    "answer": "依赖函数可以使用 `async def` 定义。\n\n依赖函数也可以使用普通的 `def` 定义。",
+    "supported": true,
+    "reference_answer": "当时文档允许 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "依赖函数可以使用 `async def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "依赖函数也可以使用普通的 `def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0041",
+    "question": "截至 2023-03-20，依赖函数允许哪些定义形式？",
+    "answer": "证据表明依赖函数可以使用 `async def` 或普通 `def` 定义。\n\n证据提到这是标准 Python 的“type alias”，且并非 FastAPI 特有，但未说明其与依赖函数定义形式的关系。\n\n无法确认截至 2023-03-20 依赖函数允许的全部定义形式，证据仅覆盖 `async def` 和普通 `def`。",
+    "supported": false,
+    "reference_answer": "当时文档允许 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "证据表明依赖函数可以使用 `async def` 或普通 `def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0042",
+    "question": "这些文档中实际人工盲评的正确率是多少？",
+    "answer": "无法确认这些文档中实际人工盲评的正确率：所提供的证据均为 FastAPI 技术文档片段，未包含任何关于人工盲评或正确率的数据。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0043",
+    "question": "截至 2023-03-20，依赖函数允许哪些定义形式？",
+    "answer": "依赖函数可以使用 async def 定义。\n\n依赖函数也可以使用普通 def 定义。\n\n证据中提到的“type alias”属于标准 Python 特性，并非 FastAPI 特有，但该条未说明其与依赖函数定义形式的关系。",
+    "supported": true,
+    "reference_answer": "当时文档允许 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "依赖函数可以使用 async def 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "依赖函数也可以使用普通 def 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "证据中提到的“type alias”属于标准 Python 特性，并非 FastAPI 特有，但该条未说明其与依赖函数定义形式的关系。",
+        "passages": [
+          {
+            "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.",
+            "context": "    ```\n\n!!! tip\n    This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.\n\n    But because **FastAPI** is based on the Python standards, including `Annotated`, you can use this trick in your code. 😎\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0044",
+    "question": "成功创建资源通常使用什么状态码？",
+    "answer": "成功创建资源通常使用状态码 `201`，即 \"Created\"。",
+    "supported": true,
+    "reference_answer": "通常使用 201 Created。",
+    "required_facts": [
+      "201"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "成功创建资源通常使用状态码 `201`，即 \"Created\"。",
+        "passages": [
+          {
+            "quote": "`201` is the status code for \"Created\".",
+            "context": "\n{* ../../docs_src/response_status_code/tutorial001_py310.py hl[6] *}\n\n`201` is the status code for \"Created\".\n\nBut you don't have to memorize what each of these codes mean.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0045",
+    "question": "FastAPI 后台任务在返回响应之前还是之后运行？",
+    "answer": "FastAPI 的后台任务被定义为在返回响应之后运行。\n\n后台任务函数可以是 async def 或普通 def 函数，FastAPI 会正确处理。\n\n多个后台任务会被合并在一起，并在之后于后台运行。",
+    "supported": true,
+    "reference_answer": "在返回响应之后运行。",
+    "required_facts": [
+      "响应之后"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "FastAPI 的后台任务被定义为在返回响应之后运行。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      },
+      {
+        "claim": "后台任务函数可以是 async def 或普通 def 函数，FastAPI 会正确处理。",
+        "passages": [
+          {
+            "quote": "It can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.",
+            "context": "\nIt is just a standard function that can receive parameters.\n\nIt can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.\n\nIn this case, the task function will write to a file (simulating sending an email).\n"
+          }
+        ]
+      },
+      {
+        "claim": "多个后台任务会被合并在一起，并在之后于后台运行。",
+        "passages": [
+          {
+            "quote": "**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:",
+            "context": "\nUsing `BackgroundTasks` also works with the dependency injection system, you can declare a parameter of type `BackgroundTasks` at multiple levels: in a *path operation function*, in a dependency (dependable), in a sub-dependency, etc.\n\n**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:\n\n\n{* ../../docs_src/background_tasks/tutorial002_an_py310.py hl[13,15,22,25] *}"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0046",
+    "question": "更改正常响应的状态码与中断请求分别在哪里设置？",
+    "answer": "status_code 是装饰器方法（get、post 等）的参数，而不是路径操作函数的参数。\n\n无法从给定证据确认“中断请求”应在何处设置。",
+    "supported": false,
+    "reference_answer": "正常状态码放在 decorator；中断请求使用 raise HTTPException。",
+    "required_facts": [
+      "decorator",
+      "raise",
+      "HTTPException"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "status_code 是装饰器方法（get、post 等）的参数，而不是路径操作函数的参数。",
+        "passages": [
+          {
+            "quote": "Notice that `status_code` is a parameter of the \"decorator\" method (`get`, `post`, etc). Not of your *path operation function*, like all the parameters and body.",
+            "context": "\n/// note\n\nNotice that `status_code` is a parameter of the \"decorator\" method (`get`, `post`, etc). Not of your *path operation function*, like all the parameters and body.\n\n///\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0047",
+    "question": "截至 2023-03-20，是否已有共享 Annotated 依赖的类型别名说明？",
+    "answer": "证据仅说明“type alias”是标准 Python 概念，并非 FastAPI 特有，但未涉及共享 Annotated 依赖的类型别名。\n\n证据提到可使用 `async def` 或普通 `def`，与共享 Annotated 依赖的类型别名说明无关。\n\n无法确认截至 2023-03-20 是否已有共享 Annotated 依赖的类型别名说明。",
+    "supported": false,
+    "reference_answer": "已有，文档说明它是标准 Python type alias。",
+    "required_facts": [
+      "type alias"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "证据仅说明“type alias”是标准 Python 概念，并非 FastAPI 特有，但未涉及共享 Annotated 依赖的类型别名。",
+        "passages": [
+          {
+            "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.",
+            "context": "    ```\n\n!!! tip\n    This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.\n\n    But because **FastAPI** is based on the Python standards, including `Annotated`, you can use this trick in your code. 😎\n"
+          }
+        ]
+      },
+      {
+        "claim": "证据提到可使用 `async def` 或普通 `def`，与共享 Annotated 依赖的类型别名说明无关。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0048",
+    "question": "如何同时避免同一请求重复计算依赖，并在响应后执行附带任务？",
+    "answer": "对于同一路径操作中多次声明的依赖，若多个依赖共享同一子依赖，FastAPI 会在每个请求中只调用该子依赖一次，从而避免重复计算。\n\n可以定义在返回响应之后运行的后台任务。\n\nFastAPI 会复用同一对象，将所有后台任务合并在一起，并在之后于后台运行。",
+    "supported": true,
+    "reference_answer": "使用默认每请求缓存，并用后台任务在响应之后执行。",
+    "required_facts": [
+      "每请求缓存",
+      "响应之后"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "对于同一路径操作中多次声明的依赖，若多个依赖共享同一子依赖，FastAPI 会在每个请求中只调用该子依赖一次，从而避免重复计算。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "可以定义在返回响应之后运行的后台任务。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      },
+      {
+        "claim": "FastAPI 会复用同一对象，将所有后台任务合并在一起，并在之后于后台运行。",
+        "passages": [
+          {
+            "quote": "**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:",
+            "context": "\nUsing `BackgroundTasks` also works with the dependency injection system, you can declare a parameter of type `BackgroundTasks` at multiple levels: in a *path operation function*, in a dependency (dependable), in a sub-dependency, etc.\n\n**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:\n\n\n{* ../../docs_src/background_tasks/tutorial002_an_py310.py hl[13,15,22,25] *}"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0049",
+    "question": "这些指南作者在生产环境的每月后台任务费用是多少？",
+    "answer": "现有证据只涉及 FastAPI 后台任务的执行时机、依赖共享、函数形式以及重型任务工具（如 Celery），未提及任何指南作者或生产环境。\n\n无法确认这些指南作者在生产环境每月后台任务的费用，证据中没有任何费用或成本数据。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0050",
+    "question": "截至 2023-03-16，依赖函数允许哪些定义形式？",
+    "answer": "依赖函数可以使用 `async def` 定义。\n\n依赖函数也可以使用普通的 `def` 定义。",
+    "supported": true,
+    "reference_answer": "当时文档允许 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "依赖函数可以使用 `async def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "依赖函数也可以使用普通的 `def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0051",
+    "question": "更改正常响应的状态码与中断请求分别在哪里设置？",
+    "answer": "正常响应的状态码通过装饰器方法（如 get、post 等）的 status_code 参数设置，而不是在路径操作函数中设置。\n\n无法确认“中断请求”应在何处设置，现有证据未涉及中断请求的设置位置。",
+    "supported": false,
+    "reference_answer": "正常状态码放在 decorator；中断请求使用 raise HTTPException。",
+    "required_facts": [
+      "decorator",
+      "raise",
+      "HTTPException"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "正常响应的状态码通过装饰器方法（如 get、post 等）的 status_code 参数设置，而不是在路径操作函数中设置。",
+        "passages": [
+          {
+            "quote": "Notice that `status_code` is a parameter of the \"decorator\" method (`get`, `post`, etc). Not of your *path operation function*, like all the parameters and body.",
+            "context": "\n/// note\n\nNotice that `status_code` is a parameter of the \"decorator\" method (`get`, `post`, etc). Not of your *path operation function*, like all the parameters and body.\n\n///\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0052",
+    "question": "传给 Depends 的函数应立即调用吗？",
+    "answer": "传给 Depends 的函数不应直接调用，即不要在末尾加括号，只需把函数本身作为参数传给 Depends()。\n\n依赖函数可以用 async def 或普通 def 定义。\n\n默认情况下，同一请求中重复声明的依赖（如多个依赖共享的子依赖）只会被调用一次。\n\n若需要依赖在同一请求的每一步都被调用（可能多次）而非使用缓存值，可在使用 Depends 时设置 use_cache=False。",
+    "supported": true,
+    "reference_answer": "不应立即调用，只传函数，不添加调用括号。",
+    "required_facts": [
+      "不添加调用括号"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "传给 Depends 的函数不应直接调用，即不要在末尾加括号，只需把函数本身作为参数传给 Depends()。",
+        "passages": [
+          {
+            "quote": "You **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.",
+            "context": "\nThis parameter must be something like a function.\n\nYou **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.\n\nAnd that function takes parameters in the same way that *path operation functions* do.\n"
+          }
+        ]
+      },
+      {
+        "claim": "依赖函数可以用 async def 或普通 def 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "默认情况下，同一请求中重复声明的依赖（如多个依赖共享的子依赖）只会被调用一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "若需要依赖在同一请求的每一步都被调用（可能多次）而非使用缓存值，可在使用 Depends 时设置 use_cache=False。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0053",
+    "question": "如何同时避免同一请求重复计算依赖，并在响应后执行附带任务？",
+    "answer": "同一路径操作中多次声明的依赖（例如多个依赖共享同一子依赖）会被 FastAPI 识别，并在每个请求中只调用该子依赖一次。\n\n可以定义在返回响应之后运行的后台任务。\n\nFastAPI 会复用同一对象，将各处的后台任务合并在一起，并在之后于后台运行。\n\n若需要执行重型后台计算且不要求由同一进程运行（例如无需共享内存、变量等），可考虑使用 Celery 等更大的工具。",
+    "supported": true,
+    "reference_answer": "使用默认每请求缓存，并用后台任务在响应之后执行。",
+    "required_facts": [
+      "每请求缓存",
+      "响应之后"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "同一路径操作中多次声明的依赖（例如多个依赖共享同一子依赖）会被 FastAPI 识别，并在每个请求中只调用该子依赖一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "可以定义在返回响应之后运行的后台任务。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      },
+      {
+        "claim": "FastAPI 会复用同一对象，将各处的后台任务合并在一起，并在之后于后台运行。",
+        "passages": [
+          {
+            "quote": "**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:",
+            "context": "\nUsing `BackgroundTasks` also works with the dependency injection system, you can declare a parameter of type `BackgroundTasks` at multiple levels: in a *path operation function*, in a dependency (dependable), in a sub-dependency, etc.\n\n**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:\n\n\n{* ../../docs_src/background_tasks/tutorial002_an_py310.py hl[13,15,22,25] *}"
+          }
+        ]
+      },
+      {
+        "claim": "若需要执行重型后台计算且不要求由同一进程运行（例如无需共享内存、变量等），可考虑使用 Celery 等更大的工具。",
+        "passages": [
+          {
+            "quote": "If you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).",
+            "context": "\n## Caveat { #caveat }\n\nIf you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).\n\nThey tend to require more complex configurations, a message/job queue manager, like RabbitMQ or Redis, but they allow you to run background tasks in multiple processes, and especially, in multiple servers.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0054",
+    "question": "本项目的生产数据库密码是什么？",
+    "answer": "无法确认本项目的生产数据库密码：所提供的证据均为 FastAPI 文档笔记，涉及状态码参数位置、201 状态码、Annotated 版本要求、404 响应和依赖函数定义形式，与数据库密码无关。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0055",
+    "question": "共享依赖和多个层级的后台任务分别怎样避免重复对象？",
+    "answer": "对于共享依赖，如果同一个路径操作中多次声明了某个依赖（例如多个依赖拥有共同的子依赖），FastAPI 会知道每个请求只调用该子依赖一次。\n\n对于后台任务，FastAPI 知道在每种情况下该怎么做，以及如何复用同一个对象，因此所有后台任务会被合并在一起，随后在后台运行。\n\n后台任务被定义为在返回响应之后运行。\n\n证据没有说明“多个层级的后台任务”具体如何逐层去重或复用对象，因此无法确认该场景下的机制。",
+    "supported": false,
+    "reference_answer": "依赖按请求缓存；后台任务复用对象并合并任务。",
+    "required_facts": [
+      "缓存",
+      "合并任务"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "对于共享依赖，如果同一个路径操作中多次声明了某个依赖（例如多个依赖拥有共同的子依赖），FastAPI 会知道每个请求只调用该子依赖一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "对于后台任务，FastAPI 知道在每种情况下该怎么做，以及如何复用同一个对象，因此所有后台任务会被合并在一起，随后在后台运行。",
+        "passages": [
+          {
+            "quote": "**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:",
+            "context": "\nUsing `BackgroundTasks` also works with the dependency injection system, you can declare a parameter of type `BackgroundTasks` at multiple levels: in a *path operation function*, in a dependency (dependable), in a sub-dependency, etc.\n\n**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:\n\n\n{* ../../docs_src/background_tasks/tutorial002_an_py310.py hl[13,15,22,25] *}"
+          }
+        ]
+      },
+      {
+        "claim": "后台任务被定义为在返回响应之后运行。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0056",
+    "question": "截至 2023-03-20，依赖函数允许哪些定义形式？",
+    "answer": "证据表明依赖函数可以使用 `async def` 或普通 `def` 定义。\n\n证据提到“type alias”是标准 Python 的写法，并非 FastAPI 特有，但未说明它是否属于依赖函数的定义形式。\n\n无法确认截至 2023-03-20 依赖函数允许的全部定义形式，证据仅覆盖 `async def` 和 `def` 两种。",
+    "supported": false,
+    "reference_answer": "当时文档允许 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "证据表明依赖函数可以使用 `async def` 或普通 `def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0057",
+    "question": "截至 2023-03-20，是否已有共享 Annotated 依赖的类型别名说明？",
+    "answer": "证据仅说明“type alias”是标准 Python 概念，并非 FastAPI 特有，但未涉及共享 Annotated 依赖的类型别名。\n\n证据提到可使用 `async def` 或普通 `def`，但未说明与共享 Annotated 依赖类型别名相关的内容。\n\n无法确认截至 2023-03-20 是否已有共享 Annotated 依赖的类型别名说明。",
+    "supported": false,
+    "reference_answer": "已有，文档说明它是标准 Python type alias。",
+    "required_facts": [
+      "type alias"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "证据仅说明“type alias”是标准 Python 概念，并非 FastAPI 特有，但未涉及共享 Annotated 依赖的类型别名。",
+        "passages": [
+          {
+            "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.",
+            "context": "    ```\n\n!!! tip\n    This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.\n\n    But because **FastAPI** is based on the Python standards, including `Annotated`, you can use this trick in your code. 😎\n"
+          }
+        ]
+      },
+      {
+        "claim": "证据提到可使用 `async def` 或普通 `def`，但未说明与共享 Annotated 依赖类型别名相关的内容。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0058",
+    "question": "如何同时避免同一请求重复计算依赖，并在响应后执行附带任务？",
+    "answer": "对于同一路径操作中多次声明的依赖（例如多个依赖共享同一个子依赖），FastAPI 会在每个请求中只调用该子依赖一次。\n\n可以定义在返回响应之后运行的后台任务。\n\nFastAPI 会合并后台任务，并在之后于后台运行它们。\n\n在需要同一请求内多次调用依赖而非使用缓存值的场景，可在使用 Depends 时设置 use_cache=False。\n\n若需要执行重型后台计算且无需同一进程运行，可考虑使用 Celery 等更大的工具。",
+    "supported": true,
+    "reference_answer": "使用默认每请求缓存，并用后台任务在响应之后执行。",
+    "required_facts": [
+      "每请求缓存",
+      "响应之后"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "对于同一路径操作中多次声明的依赖（例如多个依赖共享同一个子依赖），FastAPI 会在每个请求中只调用该子依赖一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "可以定义在返回响应之后运行的后台任务。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      },
+      {
+        "claim": "FastAPI 会合并后台任务，并在之后于后台运行它们。",
+        "passages": [
+          {
+            "quote": "**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:",
+            "context": "\nUsing `BackgroundTasks` also works with the dependency injection system, you can declare a parameter of type `BackgroundTasks` at multiple levels: in a *path operation function*, in a dependency (dependable), in a sub-dependency, etc.\n\n**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:\n\n\n{* ../../docs_src/background_tasks/tutorial002_an_py310.py hl[13,15,22,25] *}"
+          }
+        ]
+      },
+      {
+        "claim": "在需要同一请求内多次调用依赖而非使用缓存值的场景，可在使用 Depends 时设置 use_cache=False。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      },
+      {
+        "claim": "若需要执行重型后台计算且无需同一进程运行，可考虑使用 Celery 等更大的工具。",
+        "passages": [
+          {
+            "quote": "If you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).",
+            "context": "\n## Caveat { #caveat }\n\nIf you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).\n\nThey tend to require more complex configurations, a message/job queue manager, like RabbitMQ or Redis, but they allow you to run background tasks in multiple processes, and especially, in multiple servers.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0059",
+    "question": "同一请求重复依赖默认计算几次？",
+    "answer": "同一路径操作中重复声明的依赖（例如多个依赖共享同一子依赖）在每次请求中只会被调用一次。\n\n若确实需要在同一请求的每一步都调用该依赖（可能多次），可在使用 Depends 时设置 use_cache=False 来禁用缓存。",
+    "supported": true,
+    "reference_answer": "共享子依赖每请求计算一次，并缓存结果。",
+    "required_facts": [
+      "每请求计算一次"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "同一路径操作中重复声明的依赖（例如多个依赖共享同一子依赖）在每次请求中只会被调用一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "若确实需要在同一请求的每一步都调用该依赖（可能多次），可在使用 Depends 时设置 use_cache=False 来禁用缓存。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0060",
+    "question": "Celery 在任意硬件上每秒能处理多少任务？",
+    "answer": "现有证据未提供 Celery 在任意硬件上每秒可处理任务数量的任何数据。\n\n证据仅提到，若需要执行重型后台计算且不要求由同一进程运行，可考虑使用 Celery 这类更大的工具。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "证据仅提到，若需要执行重型后台计算且不要求由同一进程运行，可考虑使用 Celery 这类更大的工具。",
+        "passages": [
+          {
+            "quote": "If you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).",
+            "context": "\n## Caveat { #caveat }\n\nIf you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).\n\nThey tend to require more complex configurations, a message/job queue manager, like RabbitMQ or Redis, but they allow you to run background tasks in multiple processes, and especially, in multiple servers.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0061",
+    "question": "同一请求重复依赖默认计算几次？",
+    "answer": "同一路径操作中重复声明的依赖（例如多个依赖共享同一子依赖）在默认情况下，FastAPI 每个请求只调用该子依赖一次。\n\n若确实需要在同一请求的每一步都调用该依赖（可能多次），可在使用 Depends 时设置 use_cache=False 来禁用缓存。",
+    "supported": true,
+    "reference_answer": "共享子依赖每请求计算一次，并缓存结果。",
+    "required_facts": [
+      "每请求计算一次"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "同一路径操作中重复声明的依赖（例如多个依赖共享同一子依赖）在默认情况下，FastAPI 每个请求只调用该子依赖一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "若确实需要在同一请求的每一步都调用该依赖（可能多次），可在使用 Depends 时设置 use_cache=False 来禁用缓存。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0062",
+    "question": "这些文档中实际人工盲评的正确率是多少？",
+    "answer": "所提供的证据未包含任何关于人工盲评正确率的数据，因此无法确认该正确率。\n\n证据仅涉及不存在资源时返回 404 状态码的示例，与人工盲评正确率无关。\n\n证据仅涉及重型后台计算可考虑使用 Celery 等工具，与人工盲评正确率无关。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0063",
+    "question": "依赖函数和后台任务函数是否都能混用同步与异步定义？",
+    "answer": "依赖函数可以使用 `async def` 或普通 `def` 定义。\n\n后台任务函数可以是 `async def` 或普通 `def` 函数，FastAPI 会正确处理。\n\n历史版本的依赖函数文档同样说明可以使用 `async def` 或普通 `def`。",
+    "supported": true,
+    "reference_answer": "两者都可以使用 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "依赖函数可以使用 `async def` 或普通 `def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "后台任务函数可以是 `async def` 或普通 `def` 函数，FastAPI 会正确处理。",
+        "passages": [
+          {
+            "quote": "It can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.",
+            "context": "\nIt is just a standard function that can receive parameters.\n\nIt can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.\n\nIn this case, the task function will write to a file (simulating sending an email).\n"
+          }
+        ]
+      },
+      {
+        "claim": "历史版本的依赖函数文档同样说明可以使用 `async def` 或普通 `def`。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0064",
+    "question": "成功创建资源通常使用什么状态码？",
+    "answer": "成功创建资源使用的状态码是 `201`，即 \"Created\"。",
+    "supported": true,
+    "reference_answer": "通常使用 201 Created。",
+    "required_facts": [
+      "201"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "成功创建资源使用的状态码是 `201`，即 \"Created\"。",
+        "passages": [
+          {
+            "quote": "`201` is the status code for \"Created\".",
+            "context": "\n{* ../../docs_src/response_status_code/tutorial001_py310.py hl[6] *}\n\n`201` is the status code for \"Created\".\n\nBut you don't have to memorize what each of these codes mean.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0065",
+    "question": "找不到资源与成功创建资源分别应返回什么状态码？",
+    "answer": "找不到资源时应返回状态码 404。\n\n成功创建资源时应返回状态码 201，即 \"Created\"。",
+    "supported": true,
+    "reference_answer": "找不到资源返回 404，创建资源通常返回 201。",
+    "required_facts": [
+      "404",
+      "201"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "找不到资源时应返回状态码 404。",
+        "passages": [
+          {
+            "quote": "In this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:",
+            "context": "\nThe benefit of raising an exception over returning a value will be more evident in the section about Dependencies and Security.\n\nIn this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:\n\n{* ../../docs_src/handling_errors/tutorial001_py310.py hl[11] *}\n"
+          }
+        ]
+      },
+      {
+        "claim": "成功创建资源时应返回状态码 201，即 \"Created\"。",
+        "passages": [
+          {
+            "quote": "`201` is the status code for \"Created\".",
+            "context": "\n{* ../../docs_src/response_status_code/tutorial001_py310.py hl[6] *}\n\n`201` is the status code for \"Created\".\n\nBut you don't have to memorize what each of these codes mean.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0066",
+    "question": "截至 2023-03-15，当时的文档是否要求依赖必须异步定义？",
+    "answer": "证据文档说明依赖函数可以使用 `async def` 或普通 `def`。\n\n由于普通 `def` 也被允许，该文档并未要求依赖必须异步定义。",
+    "supported": true,
+    "reference_answer": "不要求，可以使用 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "证据文档说明依赖函数可以使用 `async def` 或普通 `def`。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "由于普通 `def` 也被允许，该文档并未要求依赖必须异步定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0067",
+    "question": "成功创建资源通常使用什么状态码？",
+    "answer": "成功创建资源使用的状态码是 `201`，即 \"Created\"。",
+    "supported": true,
+    "reference_answer": "通常使用 201 Created。",
+    "required_facts": [
+      "201"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "成功创建资源使用的状态码是 `201`，即 \"Created\"。",
+        "passages": [
+          {
+            "quote": "`201` is the status code for \"Created\".",
+            "context": "\n{* ../../docs_src/response_status_code/tutorial001_py310.py hl[6] *}\n\n`201` is the status code for \"Created\".\n\nBut you don't have to memorize what each of these codes mean.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0068",
+    "question": "共享依赖和多个层级的后台任务分别怎样避免重复对象？",
+    "answer": "当同一个路径操作多次声明某个依赖，例如多个依赖共享同一个子依赖时，FastAPI 会知道每个请求只调用该子依赖一次。\n\n对于后台任务，FastAPI 知道每种情况下该怎么做以及如何复用同一个对象，因此所有后台任务会被合并在一起，随后在后台运行。\n\n在高级场景下，如果确实需要在同一请求的每一步都调用依赖（可能多次），而不是使用缓存值，可以在使用 Depends 时设置参数 use_cache=False。\n\n证据未说明“多个层级的后台任务”具体如何逐层避免重复对象，无法确认其机制细节。",
+    "supported": false,
+    "reference_answer": "依赖按请求缓存；后台任务复用对象并合并任务。",
+    "required_facts": [
+      "缓存",
+      "合并任务"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "当同一个路径操作多次声明某个依赖，例如多个依赖共享同一个子依赖时，FastAPI 会知道每个请求只调用该子依赖一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      },
+      {
+        "claim": "对于后台任务，FastAPI 知道每种情况下该怎么做以及如何复用同一个对象，因此所有后台任务会被合并在一起，随后在后台运行。",
+        "passages": [
+          {
+            "quote": "**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:",
+            "context": "\nUsing `BackgroundTasks` also works with the dependency injection system, you can declare a parameter of type `BackgroundTasks` at multiple levels: in a *path operation function*, in a dependency (dependable), in a sub-dependency, etc.\n\n**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:\n\n\n{* ../../docs_src/background_tasks/tutorial002_an_py310.py hl[13,15,22,25] *}"
+          }
+        ]
+      },
+      {
+        "claim": "在高级场景下，如果确实需要在同一请求的每一步都调用依赖（可能多次），而不是使用缓存值，可以在使用 Depends 时设置参数 use_cache=False。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0069",
+    "question": "Celery 在任意硬件上每秒能处理多少任务？",
+    "answer": "现有证据未提供 Celery 每秒可处理任务数量的任何数据，因此无法确认其在任意硬件上的任务处理速率。\n\n证据仅提到，若需要执行重型后台计算且不要求由同一进程运行，可考虑使用 Celery 这类更大的工具。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "证据仅提到，若需要执行重型后台计算且不要求由同一进程运行，可考虑使用 Celery 这类更大的工具。",
+        "passages": [
+          {
+            "quote": "If you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).",
+            "context": "\n## Caveat { #caveat }\n\nIf you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).\n\nThey tend to require more complex configurations, a message/job queue manager, like RabbitMQ or Redis, but they allow you to run background tasks in multiple processes, and especially, in multiple servers.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0070",
+    "question": "HTTPException 应 return 还是 raise？",
+    "answer": "HTTPException 是 Python 异常，不应 return，而应 raise。\n\n示例中，当客户端请求的条目 ID 不存在时，应抛出状态码为 404 的异常。\n\n抛出 HTTPException 时，detail 参数可传入任何能转换为 JSON 的值，不限于 str。",
+    "supported": true,
+    "reference_answer": "应该 raise，而不是 return。",
+    "required_facts": [
+      "raise",
+      "return"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "HTTPException 是 Python 异常，不应 return，而应 raise。",
+        "passages": [
+          {
+            "quote": "Because it's a Python exception, you don't `return` it, you `raise` it.",
+            "context": "\n`HTTPException` is a normal Python exception with additional data relevant for APIs.\n\nBecause it's a Python exception, you don't `return` it, you `raise` it.\n\nThis also means that if you are inside a utility function that you are calling inside of your *path operation function*, and you raise the `HTTPException` from inside of that utility function, it won't run the rest of the code in the *path operation function*, it will terminate that request right away and send the HTTP error from the `HTTPException` to the client.\n"
+          }
+        ]
+      },
+      {
+        "claim": "示例中，当客户端请求的条目 ID 不存在时，应抛出状态码为 404 的异常。",
+        "passages": [
+          {
+            "quote": "In this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:",
+            "context": "\nThe benefit of raising an exception over returning a value will be more evident in the section about Dependencies and Security.\n\nIn this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:\n\n{* ../../docs_src/handling_errors/tutorial001_py310.py hl[11] *}\n"
+          }
+        ]
+      },
+      {
+        "claim": "抛出 HTTPException 时，detail 参数可传入任何能转换为 JSON 的值，不限于 str。",
+        "passages": [
+          {
+            "quote": "When raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.",
+            "context": "\n/// tip\n\nWhen raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.\n\nYou could pass a `dict`, a `list`, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0071",
+    "question": "依赖函数和后台任务函数是否都能混用同步与异步定义？",
+    "answer": "依赖函数可以使用 `async def` 或普通 `def` 定义。\n\n后台任务函数可以是 `async def` 或普通 `def` 函数，FastAPI 会正确处理。\n\n历史依赖文档同样说明依赖函数可使用 `async def` 或普通 `def`。",
+    "supported": true,
+    "reference_answer": "两者都可以使用 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "依赖函数可以使用 `async def` 或普通 `def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "后台任务函数可以是 `async def` 或普通 `def` 函数，FastAPI 会正确处理。",
+        "passages": [
+          {
+            "quote": "It can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.",
+            "context": "\nIt is just a standard function that can receive parameters.\n\nIt can be an `async def` or normal `def` function, **FastAPI** will know how to handle it correctly.\n\nIn this case, the task function will write to a file (simulating sending an email).\n"
+          }
+        ]
+      },
+      {
+        "claim": "历史依赖文档同样说明依赖函数可使用 `async def` 或普通 `def`。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0072",
+    "question": "同一请求重复依赖默认计算几次？",
+    "answer": "如果某个依赖在同一路径操作中被多次声明（例如多个依赖共享同一个子依赖），FastAPI 会知道每个请求只调用该子依赖一次。",
+    "supported": true,
+    "reference_answer": "共享子依赖每请求计算一次，并缓存结果。",
+    "required_facts": [
+      "每请求计算一次"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "如果某个依赖在同一路径操作中被多次声明（例如多个依赖共享同一个子依赖），FastAPI 会知道每个请求只调用该子依赖一次。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0073",
+    "question": "共享依赖和多个层级的后台任务分别怎样避免重复对象？",
+    "answer": "FastAPI 知道在每种情况下该怎么做以及如何复用同一个对象，因此所有后台任务会被合并在一起，随后在后台运行。\n\n后台任务可以定义为在返回响应之后运行。\n\n无法从现有证据确认多个层级的后台任务具体如何避免重复对象。\n\n无法从现有证据确认共享依赖在多个层级中避免重复对象的具体机制。",
+    "supported": false,
+    "reference_answer": "依赖按请求缓存；后台任务复用对象并合并任务。",
+    "required_facts": [
+      "缓存",
+      "合并任务"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "FastAPI 知道在每种情况下该怎么做以及如何复用同一个对象，因此所有后台任务会被合并在一起，随后在后台运行。",
+        "passages": [
+          {
+            "quote": "**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:",
+            "context": "\nUsing `BackgroundTasks` also works with the dependency injection system, you can declare a parameter of type `BackgroundTasks` at multiple levels: in a *path operation function*, in a dependency (dependable), in a sub-dependency, etc.\n\n**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:\n\n\n{* ../../docs_src/background_tasks/tutorial002_an_py310.py hl[13,15,22,25] *}"
+          }
+        ]
+      },
+      {
+        "claim": "后台任务可以定义为在返回响应之后运行。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0074",
+    "question": "Celery 在任意硬件上每秒能处理多少任务？",
+    "answer": "现有证据仅提到，若需要执行重型后台计算且不要求由同一进程运行，可以考虑使用 Celery 等更大的工具，但未给出任何吞吐量数据。\n\n无法确认 Celery 在任意硬件上每秒能处理多少任务；证据中没有关于任务处理速率或性能基准的内容。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "现有证据仅提到，若需要执行重型后台计算且不要求由同一进程运行，可以考虑使用 Celery 等更大的工具，但未给出任何吞吐量数据。",
+        "passages": [
+          {
+            "quote": "If you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).",
+            "context": "\n## Caveat { #caveat }\n\nIf you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).\n\nThey tend to require more complex configurations, a message/job queue manager, like RabbitMQ or Redis, but they allow you to run background tasks in multiple processes, and especially, in multiple servers.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0075",
+    "question": "重型后台计算与普通请求校验失败各使用什么工具或异常？",
+    "answer": "当请求包含无效数据时，FastAPI 内部会抛出 RequestValidationError。\n\n如果需要执行重型后台计算，且不要求由同一进程运行（例如无需共享内存、变量等），可以使用 Celery 这类更大的工具。\n\n无法确认普通请求校验失败时除 RequestValidationError 之外是否还使用其他工具或异常。",
+    "supported": false,
+    "reference_answer": "重型后台计算可考虑 Celery，请求校验失败是 RequestValidationError。",
+    "required_facts": [
+      "Celery",
+      "RequestValidationError"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "当请求包含无效数据时，FastAPI 内部会抛出 RequestValidationError。",
+        "passages": [
+          {
+            "quote": "When a request contains invalid data, **FastAPI** internally raises a `RequestValidationError`.",
+            "context": "\n### Override request validation exceptions { #override-request-validation-exceptions }\n\nWhen a request contains invalid data, **FastAPI** internally raises a `RequestValidationError`.\n\nAnd it also includes a default exception handler for it.\n"
+          }
+        ]
+      },
+      {
+        "claim": "如果需要执行重型后台计算，且不要求由同一进程运行（例如无需共享内存、变量等），可以使用 Celery 这类更大的工具。",
+        "passages": [
+          {
+            "quote": "If you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).",
+            "context": "\n## Caveat { #caveat }\n\nIf you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev).\n\nThey tend to require more complex configurations, a message/job queue manager, like RabbitMQ or Redis, but they allow you to run background tasks in multiple processes, and especially, in multiple servers.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0076",
+    "question": "这些指南作者在生产环境的每月后台任务费用是多少？",
+    "answer": "无法确认这些指南作者在生产环境的每月后台任务费用，因为提供的证据只涉及后台任务的执行时机、函数形式、依赖共享和重型任务工具，未包含任何费用信息。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0077",
+    "question": "截至 2023-03-20，是否已有共享 Annotated 依赖的类型别名说明？",
+    "answer": "证据仅说明“type alias”是标准 Python 概念，并非 FastAPI 特有，但未涉及共享 Annotated 依赖的类型别名。\n\n证据提到可使用 `async def` 或普通 `def`，与共享 Annotated 依赖的类型别名说明无关。",
+    "supported": false,
+    "reference_answer": "已有，文档说明它是标准 Python type alias。",
+    "required_facts": [
+      "type alias"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0078",
+    "question": "当前指南的 Annotated 建议与 0.95.0 历史指南的类型别名是否相容？",
+    "answer": "当前指南要求在使用 `Annotated` 前将 FastAPI 版本升级到至少 0.95.1。\n\n当前指南说明相关写法是标准 Python 的“type alias”，并非 FastAPI 特有。\n\n0.95.0 历史指南同样说明相关写法是标准 Python 的“type alias”，并非 FastAPI 特有。\n\n当前指南与 0.95.0 历史指南均说明依赖函数可使用 `async def` 或普通 `def`。\n\n无法确认当前指南的 Annotated 建议与 0.95.0 历史指南的类型别名是否相容，证据未直接比较两者的类型别名定义或兼容性。",
+    "supported": false,
+    "reference_answer": "当前要求至少 0.95.1；0.95.0 文档已介绍 type alias，但版本说明需要分别核对。",
+    "required_facts": [
+      "0.95.1",
+      "type alias"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "当前指南要求在使用 `Annotated` 前将 FastAPI 版本升级到至少 0.95.1。",
+        "passages": [
+          {
+            "quote": "Make sure you [Upgrade the FastAPI version](../../deployment/versions.md#upgrading-the-fastapi-versions) to at least 0.95.1 before using `Annotated`.",
+            "context": "\nIf you have an older version, you would get errors when trying to use `Annotated`.\n\nMake sure you [Upgrade the FastAPI version](../../deployment/versions.md#upgrading-the-fastapi-versions) to at least 0.95.1 before using `Annotated`.\n\n///\n"
+          }
+        ]
+      },
+      {
+        "claim": "当前指南说明相关写法是标准 Python 的“type alias”，并非 FastAPI 特有。",
+        "passages": [
+          {
+            "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.",
+            "context": "\n/// tip\n\nThis is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.\n\nBut because **FastAPI** is based on the Python standards, including `Annotated`, you can use this trick in your code. 😎\n"
+          }
+        ]
+      },
+      {
+        "claim": "0.95.0 历史指南同样说明相关写法是标准 Python 的“type alias”，并非 FastAPI 特有。",
+        "passages": [
+          {
+            "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.",
+            "context": "    ```\n\n!!! tip\n    This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**.\n\n    But because **FastAPI** is based on the Python standards, including `Annotated`, you can use this trick in your code. 😎\n"
+          }
+        ]
+      },
+      {
+        "claim": "当前指南与 0.95.0 历史指南均说明依赖函数可使用 `async def` 或普通 `def`。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          },
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0079",
+    "question": "本项目的生产数据库密码是什么？",
+    "answer": "无法确认本项目的生产数据库密码：所提供的证据均为 FastAPI 框架文档片段，未包含任何数据库凭据信息。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0080",
+    "question": "截至 2023-03-16，依赖函数允许哪些定义形式？",
+    "answer": "依赖函数可以使用 `async def` 定义。\n\n依赖函数也可以使用普通的 `def` 定义。",
+    "supported": true,
+    "reference_answer": "当时文档允许 async def 或普通 def。",
+    "required_facts": [
+      "async def",
+      "def"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "依赖函数可以使用 `async def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "依赖函数也可以使用普通的 `def` 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0081",
+    "question": "错误详情可以返回 JSON，但 204 响应也可以带 JSON 吗？",
+    "answer": "抛出 HTTPException 时，detail 参数可以传入任何能转换为 JSON 的值，不限于 str。\n\n204「No Content」是特殊情况，用于没有内容返回给客户端时，因此该响应必须没有响应体。\n\n根据 204 响应必须没有响应体的说明，无法确认 204 响应可以携带 JSON 内容。\n\n证据未直接说明错误详情 JSON 与 204 响应之间的关系，无法确认两者是否可结合使用。",
+    "supported": false,
+    "reference_answer": "错误详情可以是 JSON；204 必须没有响应体。",
+    "required_facts": [
+      "JSON",
+      "204",
+      "没有响应体"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "抛出 HTTPException 时，detail 参数可以传入任何能转换为 JSON 的值，不限于 str。",
+        "passages": [
+          {
+            "quote": "When raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.",
+            "context": "\n/// tip\n\nWhen raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.\n\nYou could pass a `dict`, a `list`, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "204「No Content」是特殊情况，用于没有内容返回给客户端时，因此该响应必须没有响应体。",
+        "passages": [
+          {
+            "quote": "* A special case is `204`, \"No Content\".  This response is used when there is no content to return to the client, and so the response must not have a body.",
+            "context": "* **`200 - 299`** are for \"Successful\" responses. These are the ones you would use the most.\n    * `200` is the default status code, which means everything was \"OK\".\n    * Another example would be `201`, \"Created\". It is commonly used after creating a new record in the database.\n    * A special case is `204`, \"No Content\".  This response is used when there is no content to return to the client, and so the response must not have a body.\n* **`300 - 399`** are for \"Redirection\".  Responses with these status codes may or may not have a body, except for `304`, \"Not Modified\", which must not have one.\n* **`400 - 499`** are for \"Client error\" responses. These are the second type you would probably use the most.\n    * An example is `404`, for a \"Not Found\" response."
+          }
+        ]
+      },
+      {
+        "claim": "根据 204 响应必须没有响应体的说明，无法确认 204 响应可以携带 JSON 内容。",
+        "passages": [
+          {
+            "quote": "* A special case is `204`, \"No Content\".  This response is used when there is no content to return to the client, and so the response must not have a body.",
+            "context": "* **`200 - 299`** are for \"Successful\" responses. These are the ones you would use the most.\n    * `200` is the default status code, which means everything was \"OK\".\n    * Another example would be `201`, \"Created\". It is commonly used after creating a new record in the database.\n    * A special case is `204`, \"No Content\".  This response is used when there is no content to return to the client, and so the response must not have a body.\n* **`300 - 399`** are for \"Redirection\".  Responses with these status codes may or may not have a body, except for `304`, \"Not Modified\", which must not have one.\n* **`400 - 499`** are for \"Client error\" responses. These are the second type you would probably use the most.\n    * An example is `404`, for a \"Not Found\" response."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0082",
+    "question": "更改正常响应的状态码与中断请求分别在哪里设置？",
+    "answer": "status_code 是装饰器方法（get、post 等）的参数，而不是路径操作函数的参数。\n\n201 是表示“Created”的状态码。\n\n204 是“No Content”的特殊情况，用于没有内容返回给客户端时，且响应不能有正文。\n\n无法确认“中断请求”应在何处设置，证据中未提供相关说明。",
+    "supported": false,
+    "reference_answer": "正常状态码放在 decorator；中断请求使用 raise HTTPException。",
+    "required_facts": [
+      "decorator",
+      "raise",
+      "HTTPException"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "status_code 是装饰器方法（get、post 等）的参数，而不是路径操作函数的参数。",
+        "passages": [
+          {
+            "quote": "Notice that `status_code` is a parameter of the \"decorator\" method (`get`, `post`, etc). Not of your *path operation function*, like all the parameters and body.",
+            "context": "\n/// note\n\nNotice that `status_code` is a parameter of the \"decorator\" method (`get`, `post`, etc). Not of your *path operation function*, like all the parameters and body.\n\n///\n"
+          }
+        ]
+      },
+      {
+        "claim": "201 是表示“Created”的状态码。",
+        "passages": [
+          {
+            "quote": "`201` is the status code for \"Created\".",
+            "context": "\n{* ../../docs_src/response_status_code/tutorial001_py310.py hl[6] *}\n\n`201` is the status code for \"Created\".\n\nBut you don't have to memorize what each of these codes mean.\n"
+          }
+        ]
+      },
+      {
+        "claim": "204 是“No Content”的特殊情况，用于没有内容返回给客户端时，且响应不能有正文。",
+        "passages": [
+          {
+            "quote": "* A special case is `204`, \"No Content\".  This response is used when there is no content to return to the client, and so the response must not have a body.",
+            "context": "* **`200 - 299`** are for \"Successful\" responses. These are the ones you would use the most.\n    * `200` is the default status code, which means everything was \"OK\".\n    * Another example would be `201`, \"Created\". It is commonly used after creating a new record in the database.\n    * A special case is `204`, \"No Content\".  This response is used when there is no content to return to the client, and so the response must not have a body.\n* **`300 - 399`** are for \"Redirection\".  Responses with these status codes may or may not have a body, except for `304`, \"Not Modified\", which must not have one.\n* **`400 - 499`** are for \"Client error\" responses. These are the second type you would probably use the most.\n    * An example is `404`, for a \"Not Found\" response."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0083",
+    "question": "找不到资源与成功创建资源分别应返回什么状态码？",
+    "answer": "找不到资源时应返回状态码 404。\n\n成功创建资源时应返回状态码 201（Created）。",
+    "supported": true,
+    "reference_answer": "找不到资源返回 404，创建资源通常返回 201。",
+    "required_facts": [
+      "404",
+      "201"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "找不到资源时应返回状态码 404。",
+        "passages": [
+          {
+            "quote": "In this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:",
+            "context": "\nThe benefit of raising an exception over returning a value will be more evident in the section about Dependencies and Security.\n\nIn this example, when the client requests an item by an ID that doesn't exist, raise an exception with a status code of `404`:\n\n{* ../../docs_src/handling_errors/tutorial001_py310.py hl[11] *}\n"
+          }
+        ]
+      },
+      {
+        "claim": "成功创建资源时应返回状态码 201（Created）。",
+        "passages": [
+          {
+            "quote": "`201` is the status code for \"Created\".",
+            "context": "\n{* ../../docs_src/response_status_code/tutorial001_py310.py hl[6] *}\n\n`201` is the status code for \"Created\".\n\nBut you don't have to memorize what each of these codes mean.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0084",
+    "question": "HTTPException 的 detail 必须是字符串吗？",
+    "answer": "HTTPException 的 detail 不必是字符串，可以传入任何能转换为 JSON 的值。",
+    "supported": true,
+    "reference_answer": "不必，可以是任何可转换为 JSON 的值。",
+    "required_facts": [
+      "JSON"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "HTTPException 的 detail 不必是字符串，可以传入任何能转换为 JSON 的值。",
+        "passages": [
+          {
+            "quote": "When raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.",
+            "context": "\n/// tip\n\nWhen raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.\n\nYou could pass a `dict`, a `list`, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0085",
+    "question": "本项目的生产数据库密码是什么？",
+    "answer": "无法确认本项目的生产数据库密码：所提供的证据均未涉及数据库密码或任何凭据信息。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0086",
+    "question": "怎样让同一请求中的依赖重复计算？",
+    "answer": "证据表明，FastAPI 对同一请求中重复声明的依赖（包括多个依赖共享的公共子依赖）只会调用一次，即默认按请求缓存，不会重复计算。\n\n现有证据未提供任何让同一请求中的依赖被重复计算的方法或配置，因此无法确认如何实现重复计算。",
+    "supported": false,
+    "reference_answer": "在 Depends 中设置 use_cache=False。",
+    "required_facts": [
+      "use_cache=False"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "证据表明，FastAPI 对同一请求中重复声明的依赖（包括多个依赖共享的公共子依赖）只会调用一次，即默认按请求缓存，不会重复计算。",
+        "passages": [
+          {
+            "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.",
+            "context": "\n## Using the same dependency multiple times { #using-the-same-dependency-multiple-times }\n\nIf one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request.\n\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0087",
+    "question": "HTTPException 的 detail 必须是字符串吗？",
+    "answer": "抛出 HTTPException 时，detail 参数可以传入任何能转换为 JSON 的值，不限于 str。",
+    "supported": true,
+    "reference_answer": "不必，可以是任何可转换为 JSON 的值。",
+    "required_facts": [
+      "JSON"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "抛出 HTTPException 时，detail 参数可以传入任何能转换为 JSON 的值，不限于 str。",
+        "passages": [
+          {
+            "quote": "When raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.",
+            "context": "\n/// tip\n\nWhen raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.\n\nYou could pass a `dict`, a `list`, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0088",
+    "question": "这些指南作者在生产环境的每月后台任务费用是多少？",
+    "answer": "无法确认这些指南作者在生产环境的每月后台任务费用，因为提供的证据只涉及后台任务的执行时机、依赖共享、函数形式及重型任务工具建议，未包含任何费用或成本数据。",
+    "supported": false,
+    "reference_answer": "文档没有足够证据，需要额外资料。",
+    "required_facts": [],
+    "answerable": false,
+    "granularity": "claim",
+    "units": []
+  },
+  {
+    "review_id": "review-0089",
+    "question": "传给 Depends 的函数应立即调用吗？",
+    "answer": "传给 Depends 的函数不应直接调用，即不要在末尾加括号，而是把函数本身作为参数传给 Depends()。\n\n依赖函数可以使用 async def 或普通 def 定义。\n\n在需要同一请求中每一步都调用依赖（可能多次）而非使用缓存值的场景，可在使用 Depends 时设置 use_cache=False。",
+    "supported": true,
+    "reference_answer": "不应立即调用，只传函数，不添加调用括号。",
+    "required_facts": [
+      "不添加调用括号"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "传给 Depends 的函数不应直接调用，即不要在末尾加括号，而是把函数本身作为参数传给 Depends()。",
+        "passages": [
+          {
+            "quote": "You **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.",
+            "context": "\nThis parameter must be something like a function.\n\nYou **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`.\n\nAnd that function takes parameters in the same way that *path operation functions* do.\n"
+          }
+        ]
+      },
+      {
+        "claim": "依赖函数可以使用 async def 或普通 def 定义。",
+        "passages": [
+          {
+            "quote": "You can use `async def` or normal `def`.",
+            "context": "\nAs dependencies will also be called by **FastAPI** (the same as your *path operation functions*), the same rules apply while defining your functions.\n\nYou can use `async def` or normal `def`.\n\nAnd you can declare dependencies with `async def` inside of normal `def` *path operation functions*, or `def` dependencies inside of `async def` *path operation functions*, etc.\n"
+          }
+        ]
+      },
+      {
+        "claim": "在需要同一请求中每一步都调用依赖（可能多次）而非使用缓存值的场景，可在使用 Depends 时设置 use_cache=False。",
+        "passages": [
+          {
+            "quote": "In an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:",
+            "context": "\nAnd it will save the returned value in a <dfn title=\"A utility/system to store computed/generated values, to reuse them instead of computing them again.\">\"cache\"</dfn> and pass it to all the \"dependants\" that need it in that specific request, instead of calling the dependency multiple times for the same request.\n\nIn an advanced scenario where you know you need the dependency to be called at every step (possibly multiple times) in the same request instead of using the \"cached\" value, you can set the parameter `use_cache=False` when using `Depends`:\n\n//// tab | Python 3.10+\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0090",
+    "question": "HTTPException 的 detail 必须是字符串吗？",
+    "answer": "HTTPException 的 detail 参数不必须是字符串，可以传入任何能转换为 JSON 的值。",
+    "supported": true,
+    "reference_answer": "不必，可以是任何可转换为 JSON 的值。",
+    "required_facts": [
+      "JSON"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "HTTPException 的 detail 参数不必须是字符串，可以传入任何能转换为 JSON 的值。",
+        "passages": [
+          {
+            "quote": "When raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.",
+            "context": "\n/// tip\n\nWhen raising an `HTTPException`, you can pass any value that can be converted to JSON as the parameter `detail`, not only `str`.\n\nYou could pass a `dict`, a `list`, etc.\n"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "review_id": "review-0091",
+    "question": "FastAPI 后台任务在返回响应之前还是之后运行？",
+    "answer": "后台任务被定义为在返回响应之后运行。\n\n多个后台任务会被合并在一起，并在之后于后台运行。",
+    "supported": true,
+    "reference_answer": "在返回响应之后运行。",
+    "required_facts": [
+      "响应之后"
+    ],
+    "answerable": true,
+    "granularity": "claim",
+    "units": [
+      {
+        "claim": "后台任务被定义为在返回响应之后运行。",
+        "passages": [
+          {
+            "quote": "You can define background tasks to be run *after* returning a response.",
+            "context": "# Background Tasks { #background-tasks }\n\nYou can define background tasks to be run *after* returning a response.\n\nThis is useful for operations that need to happen after a request, but that the client doesn't really have to be waiting for the operation to complete before receiving the response.\n"
+          }
+        ]
+      },
+      {
+        "claim": "多个后台任务会被合并在一起，并在之后于后台运行。",
+        "passages": [
+          {
+            "quote": "**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:",
+            "context": "\nUsing `BackgroundTasks` also works with the dependency injection system, you can declare a parameter of type `BackgroundTasks` at multiple levels: in a *path operation function*, in a dependency (dependable), in a sub-dependency, etc.\n\n**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:\n\n\n{* ../../docs_src/background_tasks/tutorial002_an_py310.py hl[13,15,22,25] *}"
+          }
+        ]
+      }
+    ]
+  }
+]

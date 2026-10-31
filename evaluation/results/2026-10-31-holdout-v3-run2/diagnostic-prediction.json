@@ -1,0 +1,173 @@
+{
+  "id": "holdout-v3-05",
+  "valid_at": null,
+  "retrieved_evidence": [
+    {
+      "source": "corpus/notes/sub-dependencies.md",
+      "start_line": 59,
+      "end_line": 59,
+      "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request."
+    },
+    {
+      "source": "corpus/notes/handling-errors.md",
+      "start_line": 122,
+      "end_line": 122,
+      "quote": "When a request contains invalid data, **FastAPI** internally raises a `RequestValidationError`."
+    },
+    {
+      "source": "corpus/notes/dependencies-current.md",
+      "start_line": 147,
+      "end_line": 147,
+      "quote": "You can use `async def` or normal `def`."
+    },
+    {
+      "source": "corpus/notes/dependencies-current.md",
+      "start_line": 80,
+      "end_line": 80,
+      "quote": "You **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`."
+    },
+    {
+      "source": "corpus/notes/dependencies-0950.md",
+      "start_line": 234,
+      "end_line": 234,
+      "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**."
+    },
+    {
+      "source": "corpus/notes/dependencies-0950.md",
+      "start_line": 246,
+      "end_line": 246,
+      "quote": "You can use `async def` or normal `def`."
+    }
+  ],
+  "citations": [
+    {
+      "source": "corpus/notes/sub-dependencies.md",
+      "start_line": 59,
+      "end_line": 59,
+      "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request."
+    }
+  ],
+  "answer": "证据表明，FastAPI 对同一请求中重复声明的依赖（包括多个依赖共享的公共子依赖）只会调用一次，即默认按请求缓存，不会重复计算。\n\n现有证据未提供任何让同一请求中的依赖被重复计算的方法或配置，因此无法确认如何实现重复计算。",
+  "supported": false,
+  "latency_ms": 2147.519,
+  "answer_correct": null,
+  "explainability_score": null,
+  "answer_protocol": "evidence-claims-v2",
+  "claims": [
+    {
+      "text": "证据表明，FastAPI 对同一请求中重复声明的依赖（包括多个依赖共享的公共子依赖）只会调用一次，即默认按请求缓存，不会重复计算。",
+      "status": "supported",
+      "citation_ids": [
+        "0a132332-405d-574b-aff9-68513d61149f"
+      ]
+    },
+    {
+      "text": "现有证据未提供任何让同一请求中的依赖被重复计算的方法或配置，因此无法确认如何实现重复计算。",
+      "status": "insufficient",
+      "citation_ids": []
+    }
+  ],
+  "claim_evidence": [
+    {
+      "id": "0a132332-405d-574b-aff9-68513d61149f",
+      "source": "corpus/notes/sub-dependencies.md",
+      "start_line": 59,
+      "end_line": 59,
+      "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request."
+    }
+  ],
+  "answer_input_evidence": [
+    {
+      "id": "0a132332-405d-574b-aff9-68513d61149f",
+      "source": "corpus/notes/sub-dependencies.md",
+      "start_line": 59,
+      "end_line": 59,
+      "quote": "If one of your dependencies is declared multiple times for the same *path operation*, for example, multiple dependencies have a common sub-dependency, **FastAPI** will know to call that sub-dependency only once per request."
+    },
+    {
+      "id": "bfa12ae7-d278-5338-92e8-dd8e4ab40324",
+      "source": "corpus/notes/handling-errors.md",
+      "start_line": 122,
+      "end_line": 122,
+      "quote": "When a request contains invalid data, **FastAPI** internally raises a `RequestValidationError`."
+    },
+    {
+      "id": "0f2d26ae-e431-518d-adbc-4ee3644a130b",
+      "source": "corpus/notes/dependencies-current.md",
+      "start_line": 147,
+      "end_line": 147,
+      "quote": "You can use `async def` or normal `def`."
+    },
+    {
+      "id": "3be31ad0-0e06-5b7e-a259-226edad7428a",
+      "source": "corpus/notes/dependencies-current.md",
+      "start_line": 80,
+      "end_line": 80,
+      "quote": "You **don't call it** directly (don't add the parenthesis at the end), you just pass it as a parameter to `Depends()`."
+    },
+    {
+      "id": "619fa62c-6059-5776-bd88-a1012bf02efb",
+      "source": "corpus/notes/dependencies-0950.md",
+      "start_line": 234,
+      "end_line": 234,
+      "quote": "This is just standard Python, it's called a \"type alias\", it's actually not specific to **FastAPI**."
+    },
+    {
+      "id": "049eb876-7a4a-5b65-ba51-b2e8095bde49",
+      "source": "corpus/notes/dependencies-0950.md",
+      "start_line": 246,
+      "end_line": 246,
+      "quote": "You can use `async def` or normal `def`."
+    }
+  ],
+  "retrieval_metadata": {
+    "query": "怎样让同一请求中的依赖重复计算？",
+    "mode": "bm25",
+    "truncated": true,
+    "indexed_count": null,
+    "eligible_count": 18,
+    "weights": null,
+    "lexical": {
+      "protocol": "mixed-bm25-v2",
+      "query_terms": [
+        "怎",
+        "样",
+        "让",
+        "同",
+        "一",
+        "请",
+        "求",
+        "中",
+        "的",
+        "依",
+        "赖",
+        "重",
+        "复",
+        "计",
+        "算",
+        "怎样",
+        "样让",
+        "让同",
+        "同一",
+        "一请",
+        "请求",
+        "求中",
+        "中的",
+        "的依",
+        "依赖",
+        "赖重",
+        "重复",
+        "复计",
+        "计算"
+      ],
+      "scanned_count": 18,
+      "entity_limit": 50000,
+      "text_limit_per_entity": 4000,
+      "batch_size": 200,
+      "evidence_limit_per_entity": 32,
+      "matched_count": 10,
+      "results_truncated": true,
+      "truncated_reasons": []
+    }
+  }
+}

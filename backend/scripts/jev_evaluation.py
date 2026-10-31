@@ -52,11 +52,11 @@ def verified_passage(root,item):
     return dict(quote=item['quote'],context='\n'.join(lines[max(0,start-4):min(len(lines),end+3)]))
 
 
-def prepare(dataset,predictions,output):
+def prepare(dataset,predictions,output,*,exclude_output_errors=False):
     root=Path(dataset)
     _,cases,summary=validate_dataset(root)
     by_id={item['id']:item for item in cases}
-    rows=[];keys=[]
+    rows=[];keys=[];excluded=[]
     for file in predictions:
         values=read_jsonl(Path(file))
         if len(values)!=len(by_id) or {item['id'] for item in values}!=set(by_id):
@@ -64,6 +64,12 @@ def prepare(dataset,predictions,output):
         for value in values:
             case=by_id[value['id']]
             if not isinstance(value.get('answer'),str) or not value['answer'].strip():
+                if (exclude_output_errors and value.get('failure',{}).get('code')=='QUESTION_OUTPUT_INVALID'
+                        and value.get('answer') is None and value.get('supported') is None
+                        and not value.get('citations') and value.get('claims') is None
+                        and value.get('answer_correct') is None and value.get('explainability_score') is None):
+                    excluded.append(dict(prediction=Path(file).name,case_id=value['id'],code='QUESTION_OUTPUT_INVALID'))
+                    continue
                 raise ValueError('JEV_ANSWER_EXPORT_REQUIRED')
             citations=[verified_passage(root,item) for item in value.get('citations',[])]
             units=[]
@@ -85,11 +91,18 @@ def prepare(dataset,predictions,output):
             keys.append(dict(prediction=Path(file).name,case_id=case['id']))
     order=list(range(len(rows)));random.Random(20261030).shuffle(order)
     packet=[dict(review_id=f'review-{index+1:04}',**rows[position]) for index,position in enumerate(order)]
+    if not packet:
+        raise ValueError('JEV_NO_VALID_ANSWER_EXPORTS')
     target=Path(output);target.mkdir(parents=True,exist_ok=False)
     write(target/'packet.json',packet)
     write(target/'grading-key.json',{packet[index]['review_id']:keys[position] for index,position in enumerate(order)})
-    write(target/'packet-manifest.json',dict(protocol=jev.PROTOCOL,dataset=summary,packet_sha256=digest(packet),
-        reference_source='Frozen dataset annotations; not human evaluation scores',human_grading_coverage=0))
+    manifest=dict(protocol=jev.PROTOCOL,dataset=summary,packet_sha256=digest(packet),
+        reference_source='Frozen dataset annotations; not human evaluation scores',human_grading_coverage=0)
+    if exclude_output_errors:
+        write(target/'excluded-answers.json',excluded)
+        manifest.update(coverage_policy='explicit-output-error-exclusions-v1',excluded_answers_sha256=digest(excluded),
+            answer_coverage=dict(exported=len(rows)+len(excluded),gradable=len(rows),invalid_output=len(excluded)))
+    write(target/'packet-manifest.json',manifest)
     return packet
 
 
@@ -122,6 +135,8 @@ def run(packet_dir,output,*,allow_calls=False,max_requests=0,settings=None,judge
     manifest=json.loads((root/'packet-manifest.json').read_text(encoding='utf-8'))
     if manifest['protocol']!=jev.PROTOCOL or manifest['packet_sha256']!=digest(packet):
         raise ValueError('JEV_PACKET_CHANGED')
+    if 'excluded_answers_sha256' in manifest and digest(json.loads((root/'excluded-answers.json').read_text(encoding='utf-8')))!=manifest['excluded_answers_sha256']:
+        raise ValueError('JEV_EXCLUSIONS_CHANGED')
     if not packet or len(packet)>5000 or len({row['review_id'] for row in packet})!=len(packet):
         raise ValueError('JEV_PACKET_INVALID')
     jobs=[(row,name,state,questions) for row in packet for name,state,questions in requests(row)]
@@ -178,13 +193,14 @@ def main():
     commands=parser.add_subparsers(dest='command',required=True)
     prep=commands.add_parser('prepare');prep.add_argument('--dataset',required=True)
     prep.add_argument('--predictions',nargs='+',required=True);prep.add_argument('--output',required=True)
+    prep.add_argument('--exclude-output-errors',action='store_true',help='Explicitly list invalid-output cases separately; never fabricate answers or grades')
     grading=commands.add_parser('run');grading.add_argument('--packet',required=True);grading.add_argument('--output',required=True)
     grading.add_argument('--provider',choices=['jev','cloudflare','openrouter'])
     grading.add_argument('--allow-judge-calls',action='store_true')
     grading.add_argument('--allow-jev-calls',action='store_true');grading.add_argument('--max-requests',type=int,default=0)
     args=parser.parse_args()
     try:
-        if args.command=='prepare':prepare(args.dataset,args.predictions,args.output)
+        if args.command=='prepare':prepare(args.dataset,args.predictions,args.output,exclude_output_errors=args.exclude_output_errors)
         else:
             settings=get_settings()
             if args.provider:settings=settings.model_copy(update={'evaluation_provider':args.provider})

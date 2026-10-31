@@ -1,6 +1,8 @@
 # Knowledge Atlas Evaluation Set
 
-Latest: the [first authorized live holdout-v3 attempt](results/2026-10-31-holdout-v3-run1/REPORT.md) stopped on answer5 with invalid output, saving4 BM25 answers. Separate grant usage5 model/1 embedding; no retry or judging, no complete comparison. Historical84/61 remains unchanged.
+Latest retry: [96 records,91 valid/5 invalid](results/2026-10-31-holdout-v3-run2/REPORT.md) completed under explicit ADR0074 isolation, without online Schema/prompt/ranking changes. One diagnostic reuse is disclosed. Retry usage96 model/73 embedding includes diagnostic; old ledgers unchanged. Judge coverage91/96 and zero-call CF Clef plan457; live judging unauthorized, human grades0%.
+
+Earlier failed attempt: the [first authorized live holdout-v3 attempt](results/2026-10-31-holdout-v3-run1/REPORT.md) stopped on answer5 with invalid output, saving4 BM25 answers. Separate grant usage5 model/1 embedding; no retry or judging, no complete comparison. Historical84/61 remains unchanged.
 
 Earlier preparation checkpoint, before live authorization: [80-answer historical failure analysis](results/2026-10-31-public-v2-diagnostics/REPORT.md) used no new provider calls. The [current online entry](../docs/CURRENT_SYSTEM_EVALUATION.md) planned96 model/73 embedding requests but the old authorization was insufficient. The later independently authorized partial live attempt is recorded above; human grades remain absent.
 

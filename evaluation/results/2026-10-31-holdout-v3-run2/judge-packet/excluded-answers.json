@@ -1,0 +1,27 @@
+[
+  {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-13",
+    "code": "QUESTION_OUTPUT_INVALID"
+  },
+  {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-20",
+    "code": "QUESTION_OUTPUT_INVALID"
+  },
+  {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-20",
+    "code": "QUESTION_OUTPUT_INVALID"
+  },
+  {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-13",
+    "code": "QUESTION_OUTPUT_INVALID"
+  },
+  {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-20",
+    "code": "QUESTION_OUTPUT_INVALID"
+  }
+]

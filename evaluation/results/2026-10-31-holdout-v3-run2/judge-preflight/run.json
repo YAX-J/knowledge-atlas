@@ -1,0 +1,26 @@
+{
+  "protocol": "cf-decision-anonymous-claims-v1",
+  "packet_protocol": "jev-anonymous-claims-v1",
+  "status": "prepared",
+  "annotation_source": "model",
+  "evaluator": "Cloudflare Workers AI",
+  "requested_model": "@cf/cloudflare/clef",
+  "judge_config": {
+    "provider": "cloudflare",
+    "evaluator": "Cloudflare Workers AI",
+    "model": "@cf/cloudflare/clef",
+    "protocol": "cf-decision-anonymous-claims-v1",
+    "mode": "decision",
+    "confidence_source": "provider_reported",
+    "model_revision_pinned": false
+  },
+  "judge_config_sha256": "80d307768b34ebfed674f428942586e9faf7652edab218e11363ef8761388812",
+  "packet_sha256": "a42f8ced9f8e1b4f8b421fbc01c7755db001b54755cb1cd7b3bfa4e1cdac0ae6",
+  "human_grading_coverage": 0,
+  "planned_requests": 457,
+  "reserved_requests": 0,
+  "completed_requests": 0,
+  "max_requests": 0,
+  "model_graded_reviews": 0,
+  "results": []
+}

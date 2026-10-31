@@ -1,0 +1,14 @@
+{
+  "authorization": {
+    "id": "holdout-v3-repair-20261031-benchmark-01",
+    "source": "User: 错误修复后重试. Main cap95 answer/73 embedding plus already-used one diagnostic answer stays within the 96/73 retry ceiling. No judge calls.",
+    "authorized_at": "2026-10-31T03:43:33.595862+00:00"
+  },
+  "diagnostic_model_attempts": 1,
+  "main_model_cap": 95,
+  "combined_model_cap": 96,
+  "embedding_cap": 73,
+  "judge_authorized": false,
+  "historical_sha256": "d5e582bf2e4112cc5067cca6643258967fb1543808d31b39afa7bb7c4014b74a",
+  "prior_failed_grant_sha256": "94b25d7f10faa76014d578f3c16576f1b561d3520031728a3bec304e8252420c"
+}

@@ -1,0 +1,37 @@
+{
+  "case_count": 24,
+  "scoring_protocol": "line-evidence-v2",
+  "retrieval": {
+    "evidence_recall_at_1": 0.6666666666666667,
+    "evidence_recall_at_3": 0.9333333333333333,
+    "evidence_recall_at_5": 0.975
+  },
+  "citations": {
+    "precision": 0.5813953488372093,
+    "recall": 0.8928571428571429,
+    "f1": 0.7042253521126761,
+    "evaluation_coverage": 0.9166666666666666
+  },
+  "answers": {
+    "supported_or_refusal_accuracy": 0.7727272727272727,
+    "required_fact_coverage": 0.75,
+    "automatic_evaluation_coverage": 0.9166666666666666,
+    "manual_answer_accuracy": null,
+    "manual_grade_coverage": 0.0,
+    "cross_document_accuracy": null,
+    "historical_trace_accuracy": null
+  },
+  "latency_ms": {
+    "mean": 2344.514083333333,
+    "p95": 2936.99
+  },
+  "explainability": {
+    "mean_score_1_to_5": null,
+    "grade_coverage": 0.0
+  },
+  "answer_outcomes": {
+    "total": 24,
+    "invalid_output": 2,
+    "available": 22
+  }
+}

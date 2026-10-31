@@ -1,0 +1,366 @@
+{
+  "review-0001": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-15"
+  },
+  "review-0002": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-24"
+  },
+  "review-0003": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-04"
+  },
+  "review-0004": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-17"
+  },
+  "review-0005": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-19"
+  },
+  "review-0006": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-01"
+  },
+  "review-0007": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-16"
+  },
+  "review-0008": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-13"
+  },
+  "review-0009": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-06"
+  },
+  "review-0010": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-06"
+  },
+  "review-0011": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-05"
+  },
+  "review-0012": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-01"
+  },
+  "review-0013": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-02"
+  },
+  "review-0014": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-02"
+  },
+  "review-0015": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-05"
+  },
+  "review-0016": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-12"
+  },
+  "review-0017": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-22"
+  },
+  "review-0018": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-05"
+  },
+  "review-0019": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-03"
+  },
+  "review-0020": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-15"
+  },
+  "review-0021": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-16"
+  },
+  "review-0022": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-03"
+  },
+  "review-0023": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-18"
+  },
+  "review-0024": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-12"
+  },
+  "review-0025": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-02"
+  },
+  "review-0026": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-24"
+  },
+  "review-0027": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-23"
+  },
+  "review-0028": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-16"
+  },
+  "review-0029": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-11"
+  },
+  "review-0030": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-08"
+  },
+  "review-0031": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-15"
+  },
+  "review-0032": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-21"
+  },
+  "review-0033": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-09"
+  },
+  "review-0034": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-10"
+  },
+  "review-0035": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-07"
+  },
+  "review-0036": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-06"
+  },
+  "review-0037": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-09"
+  },
+  "review-0038": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-14"
+  },
+  "review-0039": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-02"
+  },
+  "review-0040": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-17"
+  },
+  "review-0041": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-18"
+  },
+  "review-0042": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-24"
+  },
+  "review-0043": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-18"
+  },
+  "review-0044": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-08"
+  },
+  "review-0045": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-01"
+  },
+  "review-0046": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-14"
+  },
+  "review-0047": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-19"
+  },
+  "review-0048": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-10"
+  },
+  "review-0049": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-21"
+  },
+  "review-0050": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-17"
+  },
+  "review-0051": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-14"
+  },
+  "review-0052": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-03"
+  },
+  "review-0053": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-10"
+  },
+  "review-0054": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-22"
+  },
+  "review-0055": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-11"
+  },
+  "review-0056": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-18"
+  },
+  "review-0057": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-19"
+  },
+  "review-0058": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-10"
+  },
+  "review-0059": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-04"
+  },
+  "review-0060": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-23"
+  },
+  "review-0061": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-04"
+  },
+  "review-0062": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-24"
+  },
+  "review-0063": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-09"
+  },
+  "review-0064": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-08"
+  },
+  "review-0065": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-12"
+  },
+  "review-0066": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-20"
+  },
+  "review-0067": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-08"
+  },
+  "review-0068": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-11"
+  },
+  "review-0069": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-23"
+  },
+  "review-0070": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-06"
+  },
+  "review-0071": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-09"
+  },
+  "review-0072": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-04"
+  },
+  "review-0073": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-11"
+  },
+  "review-0074": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-23"
+  },
+  "review-0075": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-16"
+  },
+  "review-0076": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-21"
+  },
+  "review-0077": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-19"
+  },
+  "review-0078": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-15"
+  },
+  "review-0079": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-22"
+  },
+  "review-0080": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-17"
+  },
+  "review-0081": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-13"
+  },
+  "review-0082": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-14"
+  },
+  "review-0083": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-12"
+  },
+  "review-0084": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-07"
+  },
+  "review-0085": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-22"
+  },
+  "review-0086": {
+    "prediction": "bm25.jsonl",
+    "case_id": "holdout-v3-05"
+  },
+  "review-0087": {
+    "prediction": "hybrid.jsonl",
+    "case_id": "holdout-v3-07"
+  },
+  "review-0088": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-21"
+  },
+  "review-0089": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-03"
+  },
+  "review-0090": {
+    "prediction": "vector.jsonl",
+    "case_id": "holdout-v3-07"
+  },
+  "review-0091": {
+    "prediction": "rrf.jsonl",
+    "case_id": "holdout-v3-01"
+  }
+}

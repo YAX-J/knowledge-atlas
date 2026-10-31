@@ -1,0 +1,94 @@
+{
+  "status": "prepared",
+  "protocol": "online-acceptance-plan-v1",
+  "dataset": {
+    "dataset_id": "knowledge-atlas-holdout-v3",
+    "version": "3.0.0",
+    "source_count": 7,
+    "case_count": 24,
+    "answerable_count": 20,
+    "category_counts": {
+      "cross_document": 8,
+      "direct_fact": 8,
+      "temporal": 4,
+      "unanswerable": 4
+    },
+    "fingerprint_sha256": "3215df76dd621e2fe8c9a7bc60fe640d6d7d171fe8be141b061f067fe12d1801"
+  },
+  "answer_protocol": "evidence-claims-v2",
+  "modes": [
+    "bm25",
+    "vector",
+    "hybrid",
+    "rrf"
+  ],
+  "strategy": "single_step",
+  "top_k_entities": 5,
+  "max_answer_evidence": 12,
+  "valid_at": "each case.valid_at, never forced to current time",
+  "fixture_sha256": "8f8d022587b1a0393cb001e8ca1affe1d27ba5cfc3ddabc5cc89561eec2823a1",
+  "dataset_protocol_sha256": "00c38a61990df0696d7e1644358d9f13ed4b8db18b326bc823579c7324f905e8",
+  "embedding_batch_size": 32,
+  "embedding_dimensions": 1024,
+  "answer_model": "deepseek-flash",
+  "embedding_model": "qwen3.7-text-embedding-flash",
+  "code_sha256": "821d21c1f5827290b587fc68dd5a9e315d3cb75af8bb0155ba7ab16e4659da27",
+  "request_limits": {
+    "model": 95,
+    "embedding": 73
+  },
+  "isolate_output_errors": true,
+  "reuse_answer": {
+    "case_id": "holdout-v3-05",
+    "sha256": "38b1c553266f9d3f8dec2338d3af82a701c65804216d055a854e836fb79b924b",
+    "mode": "bm25",
+    "prior_model_attempts": 1
+  },
+  "planned_upper_bounds": {
+    "model": 95,
+    "embedding": 73
+  },
+  "historical_remaining": {
+    "model": 36,
+    "embedding": 99
+  },
+  "blockers": [],
+  "extraction_smoke": false,
+  "authorization_scope": {
+    "dataset_id": "knowledge-atlas-holdout-v3",
+    "dataset_fingerprint_sha256": "3215df76dd621e2fe8c9a7bc60fe640d6d7d171fe8be141b061f067fe12d1801",
+    "answer_model": "deepseek-flash",
+    "embedding_model": "qwen3.7-text-embedding-flash",
+    "embedding_dimensions": 1024,
+    "embedding_batch_size": 32,
+    "diagnostic_reuse_sha256": "38b1c553266f9d3f8dec2338d3af82a701c65804216d055a854e836fb79b924b"
+  },
+  "round_authorization": {
+    "id": "holdout-v3-repair-20261031-benchmark-01",
+    "sha256": "2590e81c12e12d6879e322d1390990565e61d9da2f2ad32de0407e8036d19b1e",
+    "remaining": {
+      "model": 96,
+      "embedding": 73
+    },
+    "scope": {
+      "dataset_id": "knowledge-atlas-holdout-v3",
+      "dataset_fingerprint_sha256": "3215df76dd621e2fe8c9a7bc60fe640d6d7d171fe8be141b061f067fe12d1801",
+      "answer_model": "deepseek-flash",
+      "embedding_model": "qwen3.7-text-embedding-flash",
+      "embedding_dimensions": 1024,
+      "embedding_batch_size": 32,
+      "diagnostic_reuse_sha256": "38b1c553266f9d3f8dec2338d3af82a701c65804216d055a854e836fb79b924b"
+    }
+  },
+  "human_coverage": 0,
+  "reserved_requests": 0,
+  "completed_requests": 0,
+  "judge_protocol": {
+    "provider": "cloudflare",
+    "model": "@cf/cloudflare/clef",
+    "mode": "decision",
+    "citation_confidence_threshold": 0.8,
+    "model_revision_pinned": false
+  },
+  "judge_requests": "separate authorization after complete answer export; 1 + 2*cited supported claims per answer"
+}

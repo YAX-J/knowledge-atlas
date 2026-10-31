@@ -35,6 +35,26 @@ def packet(tmp_path):
     return root
 
 
+def test_explicit_invalid_output_exclusions_preserve_full_export_coverage_and_default_rejection(tmp_path):
+    dataset=Path(__file__).resolve().parents[2]/'evaluation/public-v2'
+    _,cases,_=validate_dataset(dataset)
+    values=[dict(id=case['id'],answer='Validated exported answer.',supported=False,citations=[],claims=[],
+                 claim_evidence=[],answer_correct=None,explainability_score=None) for case in cases]
+    values[0].update(answer=None,supported=None,claims=None,failure=dict(code='QUESTION_OUTPUT_INVALID'))
+    path=tmp_path/'method.jsonl';path.write_text(''.join(json.dumps(item)+'\n' for item in values))
+    with pytest.raises(ValueError,match='ANSWER_EXPORT_REQUIRED'):
+        runner.prepare(dataset,[path],tmp_path/'strict')
+    rows=runner.prepare(dataset,[path],tmp_path/'packet',exclude_output_errors=True)
+    assert len(rows)==len(cases)-1 and all(row['answer'] is not None for row in rows)
+    manifest=json.loads((tmp_path/'packet/packet-manifest.json').read_text())
+    assert manifest['answer_coverage']==dict(exported=20,gradable=19,invalid_output=1)
+    excluded=json.loads((tmp_path/'packet/excluded-answers.json').read_text())
+    assert excluded==[dict(prediction=path.name,case_id=cases[0]['id'],code='QUESTION_OUTPUT_INVALID')]
+    (tmp_path/'packet/excluded-answers.json').write_text('[]')
+    with pytest.raises(ValueError,match='EXCLUSIONS_CHANGED'):
+        runner.run(tmp_path/'packet',tmp_path/'bad',settings=Settings(_env_file=None))
+
+
 @pytest.mark.parametrize('mode',['success','foreign_model','unknown_choice','bad_sum','missing_answer','nan','usage','usage_null','401','timeout','oversized'])
 def test_jev_transport_is_bounded_strict_and_never_retries(monkeypatch,mode):
     calls=[]

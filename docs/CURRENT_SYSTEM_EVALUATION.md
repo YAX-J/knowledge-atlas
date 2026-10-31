@@ -2,7 +2,11 @@
 
 [简体中文](CURRENT_SYSTEM_EVALUATION.zh-CN.md)
 
-Latest 2026-10-31 status: the user authorized an independent96/73 round and live holdout-v3 started. The fifth BM25 answer failed with `QUESTION_OUTPUT_INVALID`;4 answers are saved and round usage is5/1. No retry, judge requests0, human coverage0%. See the [live run record](../evaluation/results/2026-10-31-holdout-v3-run1/REPORT.md). The original protocol and pre-authorization budget checkpoint below remain; partial output is not completed quality acceptance.
+Latest2026-10-31: the authorized v4 retry completed96 cases with91 valid/5 invalid, using diagnostic1+main95 answers/73 embeddings. Online Schema/prompts/ranking remain unchanged and semantic quality is ungraded. The [full report](../evaluation/results/2026-10-31-holdout-v3-run2/REPORT.md) discloses failures and one diagnostic reuse; old ledgers and the [first failed run](../evaluation/results/2026-10-31-holdout-v3-run1/REPORT.md) remain preserved. Early budget checkpoints below are historical.
+
+[ADR0074](adr/0074-evaluation-output-error-isolation.md): explicit `--isolate-output-errors` preserves null answers/failures and continues independent cases without repair/retry; other errors still stop. `--reuse-answer` permits one successful BM25 diagnostic export only with matching dataset/fixture/application/model/protocol and complete ordered retrieval/input evidence. Check before paid indexing; preserve provenance/original latency. Diagnostic1+main cap95 remains96.
+
+Exports cover96 cases. Explicit `--exclude-output-errors` hashes5 failed-case exclusions while preparing91 gradable answers; retain total-case/subset coverage. The [CF Clef zero-call preflight](../evaluation/results/2026-10-31-holdout-v3-run2/judge-preflight/run.json) plans457 requests; live judging remains unauthorized. This is not all answers passed or human grading.
 
 The recorded local zero-call configuration, fingerprints and budget blocker are in [preflight.json](../evaluation/experiments/2026-10-31-current-system-v3/preflight.json). This record consumes no authorization and is not a budget approval.
 

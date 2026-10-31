@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Repair opt-in evaluation: invalid outputs remain explicit case failures instead of aborting independent cases; production validation/other-error fail-stop stay strict. Add exact scoped diagnostic reuse, sanitized constraint codes and hashed judge exclusions (ADR0074). Retry96 records:91 valid/5 invalid, diagnostic1+main95 model/73 embedding requests. No prompt/ranking/gold changes; CF Clef preflight457, no new live judge calls.
+
 - Add explicitly granted96/73 holdout round ledgers with immutable scope, atomic before-call reservations and one-output claims, preserving historical usage. The first live attempt stopped on invalid answer5, saved4 BM25 answers and consumed5/1; no automatic retry/judge. Archive partial artifacts and native cleanup proof. Subsequent errors retain sanitized exception/validation types and case IDs without inputs or response text.
 
 - Add read-only historical answer diagnostics and a current online QA acceptance plan for frozen public-v2/holdout-v3. Preserve per-case historical time, claim/input-pool exports and a separate compatible numeric-scoring projection; gate live use on cumulative budgets and an exact reviewed preflight. Historical Clef80-answer/214-request analysis is separate from current-system quality. New real calls0; human grading0%.

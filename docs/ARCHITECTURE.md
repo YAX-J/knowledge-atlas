@@ -1,5 +1,7 @@
 # Knowledge Atlas 系统架构
 
+[ADR0074](adr/0074-evaluation-output-error-isolation.zh-CN.md)新增显式离线执行协议v4：单题无效输出保留失败，不自动重试；基础设施异常仍停止。可显式复用一条输入/范围完全相同的诊断答案；裁判排除清单带覆盖率和哈希。业务API、线上Schema及正式知识写入边界不变。
+
 [ADR0073](adr/0073-openrouter-jev-evaluation.zh-CN.md)：离线评审新增 OpenRouter Jev Decisions API，复用匿名包/落盘预留，显式供应商授权；校验发布/日期快照并在批内模型漂移时停止，记录实际模型/用量/费用。保留环境代理、禁用重试及回退，不进入业务 API/Worker 或正式写入路径。
 
 [ADR0072](adr/0072-cloudflare-judge-adapter.zh-CN.md)：离线评审选择 Jev 或 Cloudflare Workers AI，后者区分 Clef 的 state/questions 与文本模型的 messages/JSON Schema。共用匿名包、落盘预留和零调用预演；chat 不生成概率，记录模型版本边界，不进入 API/Worker 或正式写入路径。

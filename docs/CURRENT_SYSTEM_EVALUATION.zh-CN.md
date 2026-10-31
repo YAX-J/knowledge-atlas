@@ -2,7 +2,11 @@
 
 [English](CURRENT_SYSTEM_EVALUATION.md)
 
-2026-10-31 最新状态：用户已授权独立96/73轮次并启动真实holdout-v3；第5次BM25回答以 `QUESTION_OUTPUT_INVALID` 停止，保存4条答案，本轮用量5/1。未重试，裁判调用0、人工覆盖率0%。见[真实运行记录](../evaluation/results/2026-10-31-holdout-v3-run1/REPORT.zh-CN.md)。下文保留原实验口径与授权前预算检查点，部分结果不算完成的质量验收。
+2026-10-31最新：按用户授权完成v4修复重试，四组96题中91条有效、5条格式失败，诊断1+主跑95问答/73嵌入未超授权。线上Schema、提示词及排序未改，语义质量尚未评分。[完整报告](../evaluation/results/2026-10-31-holdout-v3-run2/REPORT.zh-CN.md)披露5条失败及一条诊断复用；旧账本及[首次失败轮次](../evaluation/results/2026-10-31-holdout-v3-run1/REPORT.zh-CN.md)保留。下文早期预算检查点为历史。
+
+[ADR0074](adr/0074-evaluation-output-error-isolation.zh-CN.md)：显式 `--isolate-output-errors` 将单题输出不合格记为空答案/失败，继续其他独立题，不自动修补或重试；其他错误仍停止。`--reuse-answer` 只允许绑定数据/夹具/应用代码/模型/协议、且有序检索和输入池完全一致的一条成功BM25诊断答案，保留来源及原生成耗时，付费建索引前校验。诊断1+主跑上限95仍为96。
+
+完整导出覆盖96题；`--exclude-output-errors` 将5条失败放入带哈希的排除清单，只评91条有效答案，必须并报全部题数和子集覆盖率。[CF Clef零调用预演](../evaluation/results/2026-10-31-holdout-v3-run2/judge-preflight/run.json)为457次，真实裁判尚未授权。不是全部回答通过或人工评分。
 
 本机零调用配置、指纹和预算拦截记录见 [preflight.json](../evaluation/experiments/2026-10-31-current-system-v3/preflight.json)。该记录未消耗授权，也不是预算批准文件。
 

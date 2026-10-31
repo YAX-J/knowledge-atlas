@@ -1,0 +1,868 @@
+{
+  "protocol": "holdout-provider-authorization-v1",
+  "authorization": {
+    "id": "holdout-v3-repair-20261031-benchmark-01",
+    "source": "User: 错误修复后重试. Main cap95 answer/73 embedding plus already-used one diagnostic answer stays within the 96/73 retry ceiling. No judge calls.",
+    "authorized_at": "2026-10-31T03:43:33.595862+00:00"
+  },
+  "scope": {
+    "dataset_id": "knowledge-atlas-holdout-v3",
+    "dataset_fingerprint_sha256": "3215df76dd621e2fe8c9a7bc60fe640d6d7d171fe8be141b061f067fe12d1801",
+    "answer_model": "deepseek-flash",
+    "embedding_model": "qwen3.7-text-embedding-flash",
+    "embedding_dimensions": 1024,
+    "embedding_batch_size": 32,
+    "diagnostic_reuse_sha256": "38b1c553266f9d3f8dec2338d3af82a701c65804216d055a854e836fb79b924b"
+  },
+  "limits": {
+    "model": 96,
+    "embedding": 73
+  },
+  "reserved": {
+    "model": 95,
+    "embedding": 73
+  },
+  "attempts": [
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:43:38.844281+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:39.772264+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:41.128850+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:42.466156+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:44.050146+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:45.612339+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:47.049916+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:47.963703+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:49.077059+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:50.587449+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:52.756013+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:54.467489+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:55.676820+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:58.114359+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:43:59.756577+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:01.764122+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:03.125392+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:04.628082+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:06.295021+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:07.918550+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:09.290582+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:10.465191+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:11.648775+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:12.876902+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:14.569044+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:14.839067+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:16.298401+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:16.505238+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:17.862052+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:18.068023+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:20.119104+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:20.408262+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:21.839349+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:22.050285+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:23.850943+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:24.079191+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:25.254784+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:25.476238+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:26.348520+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:26.569627+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:27.367706+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:27.578750+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:29.031777+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:29.273707+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:31.196364+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:31.409596+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:33.459488+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:33.688752+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:35.050544+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:35.266327+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:37.362643+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:37.677227+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:39.831193+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:40.684697+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:42.682590+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:42.946248+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:44.992266+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:45.231899+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:46.493669+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:46.725658+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:48.474598+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:48.698037+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:50.126785+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:50.406327+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:51.959852+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:52.228206+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:53.526854+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:53.764688+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:54.813408+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:55.024470+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:56.656509+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:56.919452+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:58.288420+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:58.542895+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:44:59.383497+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:44:59.617188+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:00.972908+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:01.196922+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:02.866776+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:03.145294+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:04.246004+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:04.472846+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:06.380597+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:06.639445+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:08.505450+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:08.736176+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:10.129474+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:10.363655+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:11.237599+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:11.483493+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:13.018500+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:13.249472+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:15.245648+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:15.492421+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:17.715801+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:17.945227+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:19.283920+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:19.524370+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:21.338608+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:21.628880+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:23.062987+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:23.298732+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:25.286789+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:25.499192+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:26.629364+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:26.869271+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:28.277645+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:28.506489+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:29.828655+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:30.067404+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:31.522124+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:31.777401+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:33.228939+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:33.452798+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:34.888143+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:35.119475+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:36.186431+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:36.434747+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:37.988945+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:38.562167+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:40.139597+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:40.375898+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:41.491370+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:41.723160+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:43.036522+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:43.285616+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:44.737202+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:44.965593+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:46.378897+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:46.631427+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:48.027474+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:48.272971+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:49.503770+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:49.761848+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:50.703535+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:50.953662+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:51.947122+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:52.256812+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:53.472542+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:53.776754+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:45:55.445557+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:45:55.668771+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:46:10.857449+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:46:11.091066+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:46:13.129844+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:46:13.348683+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:46:15.412818+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:46:15.636964+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:46:17.938789+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:46:18.191838+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:46:20.875499+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:46:21.094662+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:46:23.095701+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:46:23.321851+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:46:25.134079+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:46:25.362829+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:46:27.250044+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:46:27.466118+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:46:29.166999+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:46:29.404185+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:46:30.845631+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:46:31.063150+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:46:32.425242+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:46:32.662455+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:46:33.791306+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:46:34.000830+00:00"
+    },
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:46:35.179786+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:46:35.392691+00:00"
+    }
+  ],
+  "run_output": "D:\\Graduation project\\knowledge-atlas\\output\\holdout-v3-repair-20261031\\benchmark-01\\live"
+}

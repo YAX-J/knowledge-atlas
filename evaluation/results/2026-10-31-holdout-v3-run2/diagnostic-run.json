@@ -1,0 +1,42 @@
+{
+  "status": "succeeded",
+  "authorization": "User explicitly requested fix and retry; one diagnostic request within the 96/73 retry ceiling, no judge.",
+  "model_limit": 1,
+  "embedding_limit": 0,
+  "reserved_model": 1,
+  "case_id": "holdout-v3-05",
+  "dataset": {
+    "dataset_id": "knowledge-atlas-holdout-v3",
+    "version": "3.0.0",
+    "source_count": 7,
+    "case_count": 24,
+    "answerable_count": 20,
+    "category_counts": {
+      "cross_document": 8,
+      "direct_fact": 8,
+      "temporal": 4,
+      "unanswerable": 4
+    },
+    "fingerprint_sha256": "3215df76dd621e2fe8c9a7bc60fe640d6d7d171fe8be141b061f067fe12d1801"
+  },
+  "provider_requests_before_this_step": 0,
+  "bm25_local_refusals": [],
+  "attempt_kind": "answer",
+  "model_usage": {
+    "limit": 1,
+    "attempted": 1,
+    "usage_reported": 1,
+    "prompt_tokens": 1285,
+    "completion_tokens": 179,
+    "calls": [
+      {
+        "kind": "answer",
+        "usage_reported": true,
+        "prompt_tokens": 1285,
+        "completion_tokens": 179
+      }
+    ]
+  },
+  "isolated_context_exited": true,
+  "sealed_prior_grant_unchanged": true
+}

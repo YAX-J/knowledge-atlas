@@ -1,0 +1,73 @@
+{
+  "status": "succeeded",
+  "protocol": "curated-review-replay-v1",
+  "dataset": {
+    "dataset_id": "knowledge-atlas-holdout-v3",
+    "version": "3.0.0",
+    "source_count": 7,
+    "case_count": 24,
+    "answerable_count": 20,
+    "category_counts": {
+      "cross_document": 8,
+      "direct_fact": 8,
+      "temporal": 4,
+      "unanswerable": 4
+    },
+    "fingerprint_sha256": "3215df76dd621e2fe8c9a7bc60fe640d6d7d171fe8be141b061f067fe12d1801"
+  },
+  "fixture_id": "upstream-notes-holdout-v3",
+  "fixture_version": "3.0.0",
+  "fixture_fingerprint_sha256": "8f8d022587b1a0393cb001e8ca1affe1d27ba5cfc3ddabc5cc89561eec2823a1",
+  "accepted_curated_fixture": true,
+  "synthetic_history": true,
+  "provider_call_count": 0,
+  "project_id": "353c60b1-0630-452b-894f-3326f460d1d8",
+  "repository_id": "8607b1bf-709e-44d8-b276-3c7307829f75",
+  "counts": {
+    "sources": 7,
+    "chunks": 531,
+    "tasks": 14,
+    "candidates": 19,
+    "reviews": 19,
+    "entities": 19,
+    "relationships": 0,
+    "evidence": 20,
+    "changes": 1
+  },
+  "snapshot": {
+    "knowledge_sha256": "94cea2712f3ad351f42ba696dd9543c7aa49cda277cca048c2860be7a5b32a78",
+    "index_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "record_count": 47,
+    "indexed_entity_count": 0
+  },
+  "source_ids": {
+    "corpus/notes/dependencies-0941.md": "90d43fe1-13fe-48e7-97c8-f59da0b3d898",
+    "corpus/notes/dependencies-0950.md": "5affd577-9d3f-42b3-80ed-811ad844cfaa",
+    "corpus/notes/background-tasks.md": "935b4e81-68f6-4f99-afb5-330f783212a3",
+    "corpus/notes/dependencies-current.md": "41e8f884-ffac-4cbd-ac12-47de1e5a7365",
+    "corpus/notes/handling-errors.md": "c2fd6769-644c-4385-9ef0-9b0e08e55dd2",
+    "corpus/notes/response-status.md": "089dd96b-dbab-47d4-9965-88ecf7e49351",
+    "corpus/notes/sub-dependencies.md": "c1b2f6b2-afd2-41f0-be42-fa514265eb13"
+  },
+  "knowledge_ids": {
+    "old-history": "ec9ea5ca-2054-5311-a6f4-80c41e42a8c3",
+    "new-history": "a4ef3a56-4cdf-5b8f-aabd-93d830bd1d2e",
+    "background": "1f0defc9-f8b6-5ade-bfdd-2a870eb28894",
+    "background-functions": "9676816b-0e75-5bd1-bb12-1a6fabfe96b3",
+    "background-sharing": "6c2925fc-de36-549e-975e-6c7af03c9ab1",
+    "background-heavy": "fee53ed0-c8fa-57b9-b06e-6d571e2a4a15",
+    "dependency-call": "684409d2-0d02-52c9-940e-41e13280560d",
+    "dependency-functions": "70b7ff06-7b2c-5d18-be17-3d7e90daee1d",
+    "dependency-alias": "cfb8d474-d885-5d22-bae6-369297e1445c",
+    "dependency-version": "e55412e3-2dd5-5618-8b51-ad7503b42563",
+    "errors-raise": "f9fe5a4a-f1d4-5280-9ddc-ab6ec65c5361",
+    "errors-detail": "eb19c29b-bd41-50a7-b140-993797eddbad",
+    "errors-validation": "f3d7473c-257b-5d34-a6c1-9b5948b79918",
+    "errors-404": "874c1e08-b238-503a-b68b-45be6ea4f0da",
+    "status-location": "fcc31b8d-10e1-5130-8b28-f41aab44c1b6",
+    "status-201": "7bea3cef-691e-5663-8ff0-a227c9258249",
+    "status-204": "122b67d1-2b23-5165-99c7-8876880c767d",
+    "cache": "8731ab0c-3bb9-52ae-b702-c6cf9b8d79ae",
+    "cache-disable": "8f95f327-c872-596a-9db9-f430ec0bf5b2"
+  }
+}

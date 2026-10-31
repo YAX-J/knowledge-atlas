@@ -1,0 +1,27 @@
+{
+  "protocol": "jev-anonymous-claims-v1",
+  "dataset": {
+    "dataset_id": "knowledge-atlas-holdout-v3",
+    "version": "3.0.0",
+    "source_count": 7,
+    "case_count": 24,
+    "answerable_count": 20,
+    "category_counts": {
+      "cross_document": 8,
+      "direct_fact": 8,
+      "temporal": 4,
+      "unanswerable": 4
+    },
+    "fingerprint_sha256": "3215df76dd621e2fe8c9a7bc60fe640d6d7d171fe8be141b061f067fe12d1801"
+  },
+  "packet_sha256": "a42f8ced9f8e1b4f8b421fbc01c7755db001b54755cb1cd7b3bfa4e1cdac0ae6",
+  "reference_source": "Frozen dataset annotations; not human evaluation scores",
+  "human_grading_coverage": 0,
+  "coverage_policy": "explicit-output-error-exclusions-v1",
+  "excluded_answers_sha256": "83cbe8989b9761817a82ec8b63cc066d21ca19b16d8823eeb096552ed8ac4422",
+  "answer_coverage": {
+    "exported": 96,
+    "gradable": 91,
+    "invalid_output": 5
+  }
+}
