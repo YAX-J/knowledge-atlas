@@ -191,6 +191,14 @@ The graph still reads `frontend/src/mock/data.ts`. Open “我的项目” or �
 
 `/api/v1/health/ready` reports `degraded` while PostgreSQL is unavailable. Check the native service's running state, host/port, database existence, and credentials in `backend/.env`, then apply the latest migration. With optional Docker only, `docker compose ps` can inspect container state.
 
+## CI environment boundaries
+
+The `backend` job installs Python dependencies only. Mocked TypeScript compiler failure tests create a presence-only dependency in a temporary workspace and substitute the process; they must not depend on `frontend/node_modules`. Missing SDK/package tests still check `SEMANTIC_BACKEND_UNAVAILABLE` before any process starts. Real compiler acceptance remains explicit through `KA_NATIVE_COMPILERS=1` and requires the actual SDKs/dependencies.
+
+Provider-free API tests must explicitly inject settings into every route they exercise. The extraction `configured` fixture configures extraction only; question routes need their own injected settings. Never use local `.env` credentials to make tests pass, skip assertions or lower the 90% backend coverage gate to work around CI failures.
+
+In `.github/workflows/ci.yml`, keep the PostgreSQL service option as `--health-cmd "pg_isready -U knowledge_atlas -d knowledge_atlas"`. Actions passes service options to the Docker process; shell-style single quotes can split this command and expose `-U` as a Docker flag. YAML/argument checks are separate from successfully starting a service container. After pushing a fix, confirm both `backend` and `postgres` pass on that new commit before publishing a graduation baseline; rerunning the old commit cannot load the fix.
+
 ## Before finishing a task
 
 ```bash

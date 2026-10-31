@@ -5,6 +5,7 @@ import pytest
 
 from app.schemas.questions import AnswerDraft
 from app.services import deepseek
+from app.api.routes import questions as question_routes
 from tests.test_graph import confirm
 from tests.test_knowledge import configured
 
@@ -13,6 +14,9 @@ CASES = json.loads((Path(__file__).resolve().parents[2] / 'evaluation/regression
 
 @pytest.mark.parametrize('case', CASES, ids=lambda case: case['id'])
 def test_independent_source_location_cases(client, db_session, configured, monkeypatch, case):
+    # The extraction fixture configures its own route; QA needs the same explicit settings.
+    monkeypatch.setattr(question_routes,'get_settings',lambda:configured)
+    answer_calls=[]
     project = client.post('/api/v1/projects', json={'name': 'Independent source cases'}).json()['id']
     quote = case['quote']
     if case['filename'].endswith('.java'):
@@ -45,7 +49,13 @@ def test_independent_source_location_cases(client, db_session, configured, monke
         assert after['items'][0]['evidence'][0]['chunk_id'] == items[0]['evidence'][0]['chunk_id']
         assert 'provenance' in after['items'][0]['matched_fields'] or case['id'] in {'direct', 'misleading-overlap'}
     if not case['answerable']:
-        monkeypatch.setattr(deepseek, 'answer_question', lambda *_: AnswerDraft(supported=False, answer='证据不足。', confidence=0., citation_ids=[], missing_information=['缺少问题所述能力的证据']) if case.get('retrieval_match') else pytest.fail('No evidence must skip model'))
+        def answer(*_args):
+            answer_calls.append(1)
+            assert case.get('retrieval_match'), 'No evidence must skip model'
+            return AnswerDraft(supported=False, answer='证据不足。', confidence=0., citation_ids=[], missing_information=['缺少问题所述能力的证据'])
+        monkeypatch.setattr(deepseek,'answer_question',answer)
         response = client.post(f'/api/v1/projects/{project}/questions', json={'question': case['query'], 'retrieval_mode': 'bm25_source'})
-        assert response.status_code == 200 and not response.json()['supported']
+        assert response.status_code == 200,response.text
+        assert not response.json()['supported']
+        assert len(answer_calls)==int(bool(case.get('retrieval_match')))
     assert client.get(url, params={'q': case['query'], 'mode': 'bm25'}).json() == before

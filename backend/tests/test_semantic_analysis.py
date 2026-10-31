@@ -54,12 +54,36 @@ def test_missing_native_sdk_is_a_clear_error_without_provider(monkeypatch,langua
     assert failure.value.code=='SEMANTIC_BACKEND_UNAVAILABLE'
 
 
+@pytest.fixture
+def compiler_workspace(tmp_path,monkeypatch):
+    # Process-error tests must reach the substituted process even without npm ci.
+    backend=tmp_path/'backend'
+    backend.mkdir()
+    dependency=tmp_path/'frontend/node_modules/typescript/lib/typescript.js'
+    dependency.parent.mkdir(parents=True)
+    dependency.write_text('// Presence-only fixture; the compiler process is substituted.\n',encoding='utf-8')
+    monkeypatch.setattr(code_semantics,'ROOT',backend)
+    return dependency
+
+
+def test_missing_typescript_package_stops_before_compiler(monkeypatch,compiler_workspace):
+    from app.core.errors import AppError
+    compiler_workspace.unlink()
+    monkeypatch.setattr(code_semantics.shutil,'which',lambda _:'trusted-node')
+    monkeypatch.setattr(code_semantics.subprocess,'run',lambda *_a,**_k:pytest.fail('Missing dependency must skip process'))
+    with pytest.raises(AppError) as result:
+        code_semantics.analyze(source('main.ts','const run = () => 1;'),[])
+    assert result.value.code=='SEMANTIC_BACKEND_UNAVAILABLE'
+
+
 @pytest.mark.parametrize('failure',['timeout','process-error','oversized','invalid-json'])
-def test_compiler_failures_are_sanitized_and_bounded(monkeypatch,failure):
+def test_compiler_failures_are_sanitized_and_bounded(monkeypatch,compiler_workspace,failure):
     from app.core.errors import AppError
     import subprocess
     monkeypatch.setattr(code_semantics.shutil,'which',lambda _:'trusted-node')
+    calls=[]
     def process(command,**kwargs):
+        calls.append(command)
         assert command[0]=='trusted-node' and command[1].endswith('typescript_semantics.cjs')
         assert kwargs['timeout']==30 and kwargs['cwd']==code_semantics.ROOT
         if failure=='timeout': raise subprocess.TimeoutExpired(command,30)
@@ -69,6 +93,7 @@ def test_compiler_failures_are_sanitized_and_bounded(monkeypatch,failure):
     with pytest.raises(AppError) as result:
         code_semantics.analyze(source('main.ts','const run = () => 1;'),[])
     assert result.value.code=='SEMANTIC_ANALYSIS_FAILED' and 'secret' not in result.value.message
+    assert len(calls)==1
 
 
 @pytest.mark.skipif(os.environ.get('KA_NATIVE_COMPILERS')!='1',reason='explicit native compiler acceptance')

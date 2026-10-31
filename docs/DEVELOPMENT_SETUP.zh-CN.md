@@ -193,6 +193,14 @@ npm run dev -- --port 5174
 
 PostgreSQL 不可用时，`/api/v1/health/ready` 返回 `degraded`。检查原生服务的运行状态、主机/端口、数据库是否存在，以及 `backend/.env` 中的凭据，再应用最新迁移。只有选择可选 Docker 方案时，才使用 `docker compose ps` 查看容器状态。
 
+## CI 环境边界
+
+`backend` 任务只安装 Python 依赖。模拟 TypeScript 编译器失败测试在临时工作区创建仅用于存在性检查的依赖文件，并替换进程调用，不能依赖 `frontend/node_modules`。SDK/包缺失测试仍须验证启动进程前返回 `SEMANTIC_BACKEND_UNAVAILABLE`。真实编译器验收仍由 `KA_NATIVE_COMPILERS=1` 显式启用，并要求实际 SDK/依赖。
+
+无供应商调用的 API 测试必须为涉及的每个路由显式注入配置。抽取 `configured` 夹具仅配置抽取接口，问答路由须另行注入；不能依靠本机 `.env` 凭据使测试通过，也不能跳过断言或降低后端 90% 覆盖率门槛来绕过 CI 失败。
+
+`.github/workflows/ci.yml` 的 PostgreSQL 服务参数保持为 `--health-cmd "pg_isready -U knowledge_atlas -d knowledge_atlas"`。Actions 将参数交给 Docker 进程，shell 风格的单引号可能使命令拆开，令 `-U` 被误作 Docker 参数。YAML/参数检查与容器实际启动通过是不同验证。推送修复后，应确认新提交的 `backend`、`postgres` 均通过再发布毕业基线；重跑旧提交不会加载本次修复。
+
 ## 完成任务前
 
 ```bash
