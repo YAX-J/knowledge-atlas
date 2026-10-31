@@ -12,7 +12,7 @@ def test_persistent_conversation_idempotence_followups_and_project_boundary(clie
     calls=[]
     def answer(_settings, question, evidence, **kwargs):
         calls.append(kwargs.get('context'))
-        return ClaimAnswerDraft(supported=True, confidence=.9,
+        return ClaimAnswerDraft(confidence=.9,
             claims=[dict(text='PostgreSQL stores the knowledge.',status='supported',citation_ids=[evidence[0]['id']])], missing_information=[])
     monkeypatch.setattr(deepseek,'answer_question',answer)
     base=f'/api/v1/projects/{project}/conversations'
@@ -22,7 +22,7 @@ def test_persistent_conversation_idempotence_followups_and_project_boundary(clie
     first=client.post(path,json=body)
     assert first.status_code==200,first.text
     assert first.json()['status']=='succeeded'
-    assert first.json()['answer']['answer_protocol']=='evidence-claims-v2'
+    assert first.json()['answer']['answer_protocol']=='evidence-claims-v3'
     assert first.json()['answer']['claims'][0]['citation_ids']==[first.json()['answer']['evidence'][0]['id']]
     assert client.post(path,json=body).json()==first.json() and len(calls)==1
     assert client.post(path,json={**body,'question':'changed'}).status_code==409

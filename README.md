@@ -1,6 +1,6 @@
 # Knowledge Atlas
 
-2026-10-31：holdout-v3的457次Cloudflare Clef裁判请求已全部完成，91条有效答案中83条被标为正确，5条格式失败仍单列；183个引用结论中80个不确定，拒答维度全部低置信，人工评分0%。不将标签写成人工正确率或普遍方法优势。见[完整裁判报告](evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.zh-CN.md)与[论文讨论/演示草稿](docs/HOLDOUT_DISCUSSION_AND_DEMO.zh-CN.md)。旧输入、账本与问答结果不变，本轮只新增457次裁判，无额外问答/嵌入调用。
+2026-10-31：已完成回答格式与独立开发验证两项：新 `evidence-claims-v3` 由后端计算总体 supported，模型只给逐条结论、置信度和缺失信息；严格引用和旧记录读取保持。见 [ADR0075](docs/adr/0075-server-derived-answer-support.zh-CN.md) 与[合成开发检查](evaluation/development/claim-support-v3/README.zh-CN.md)。本轮零真实调用，v3 真实质量未测量；[既有457次裁判结果](evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.zh-CN.md)属于历史 v2，失败、分数、输入和账本保持，人工覆盖率0%。
 
 当前离线评审支持 OpenRouter Jev、直连 TypeSafe Jev 和 CF 原生评审，人工评分覆盖率0%。本轮新增 OpenRouter Decisions API、版本/日期快照校验、代理支持及零调用预演；尚未运行真实 OpenRouter 评审。配置见 [OpenRouter](docs/OPENROUTER_EVALUATION.zh-CN.md)、[CF](docs/CLOUDFLARE_EVALUATION.zh-CN.md) 和 [ADR0073](docs/adr/0073-openrouter-jev-evaluation.zh-CN.md)。此前读取优化保留 ADR0071 记录。
 

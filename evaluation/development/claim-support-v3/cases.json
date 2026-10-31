@@ -1,0 +1,45 @@
+{
+  "protocol": "claim-support-v3-development-v1",
+  "purpose": "Independent synthetic schema and compatibility checks; not a quality benchmark.",
+  "evidence": [
+    {"id": "10000000-0000-4000-8000-000000000001", "quote": "The fictional Nimbus notebook saves entries in a local ledger."},
+    {"id": "10000000-0000-4000-8000-000000000002", "quote": "The fictional Nimbus notebook verifies its ledger checksum every 12 hours."}
+  ],
+  "cases": [
+    {
+      "id": "all-supported",
+      "question": "Where does Nimbus save entries and how often does it verify the checksum?",
+      "draft": {"confidence": 0.9, "claims": [
+        {"text": "Nimbus saves entries in a local ledger.", "status": "supported", "citation_ids": ["10000000-0000-4000-8000-000000000001"]},
+        {"text": "It verifies the ledger checksum every 12 hours.", "status": "supported", "citation_ids": ["10000000-0000-4000-8000-000000000002"]}
+      ], "missing_information": []},
+      "expected_supported": true
+    },
+    {
+      "id": "mixed-support",
+      "question": "Where does Nimbus save entries and what is its maximum throughput?",
+      "draft": {"confidence": 0.5, "claims": [
+        {"text": "Nimbus saves entries in a local ledger.", "status": "supported", "citation_ids": ["10000000-0000-4000-8000-000000000001"]},
+        {"text": "Its maximum throughput cannot be confirmed from these excerpts.", "status": "insufficient", "citation_ids": []}
+      ], "missing_information": ["A measured maximum throughput."]},
+      "expected_supported": false
+    },
+    {
+      "id": "all-insufficient",
+      "question": "What encryption algorithm does Nimbus use?",
+      "draft": {"confidence": 0.0, "claims": [
+        {"text": "The excerpts do not identify an encryption algorithm.", "status": "insufficient", "citation_ids": []}
+      ], "missing_information": ["The encryption algorithm and its configuration."]},
+      "expected_supported": false
+    },
+    {
+      "id": "shared-citation",
+      "question": "What ledger check does Nimbus perform and how often?",
+      "draft": {"confidence": 0.9, "claims": [
+        {"text": "Nimbus verifies its ledger checksum.", "status": "supported", "citation_ids": ["10000000-0000-4000-8000-000000000002"]},
+        {"text": "The verification interval is 12 hours.", "status": "supported", "citation_ids": ["10000000-0000-4000-8000-000000000002"]}
+      ], "missing_information": []},
+      "expected_supported": true
+    }
+  ]
+}

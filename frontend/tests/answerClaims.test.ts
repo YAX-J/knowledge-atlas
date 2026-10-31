@@ -6,8 +6,8 @@ import { project, answerFixture } from './fixtures'
 
 enableAutoUnmount(afterEach)
 
-it('renders mixed support without unbound prose and emits the exact citation, in claim order',async()=>{
-  const answer=answerFixture()
+it.each(['evidence-claims-v2', 'evidence-claims-v3'] as const)('renders %s mixed support with exact citations in claim order',async(protocol)=>{
+  const answer=answerFixture();answer.answer_protocol=protocol
   const wrapper=mount(AnswerClaims,{props:{answer}})
   expect(wrapper.findAll('.answer-claim')).toHaveLength(2)
   expect(wrapper.find('script').exists()).toBe(false)

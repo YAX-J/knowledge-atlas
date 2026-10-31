@@ -1,6 +1,6 @@
 # Knowledge Atlas 开发者知识模型
 
-[ADR 0069](adr/0069-answer-claim-evidence.zh-CN.md) 的回答 claims 只组织当前检索证据：有据条目必须引用，不足条目不引用，跨条可复用同一原文。部分有据的回答整体 supported=false，并保留缺失信息。claims 不是正式图谱知识，不能自动提升；引用归属合法不证明语义支撑。
+[ADR 0075](adr/0075-server-derived-answer-support.zh-CN.md) 的新回答使用 evidence-claims-v3：模型返回逐条 claims，后端计算总体 supported。有据条目必须引用当前检索证据，不足条目不引用，跨条可复用同一原文。部分有据的回答整体 supported=false，并保留缺失信息。v2/平铺历史按原快照读取，不重算或重调模型，无数据库迁移。claims 不是正式图谱知识，不能自动提升；引用归属合法不证明语义支撑。
 
 当前迁移 head 为 `20261029_0019`，增加 Agent 协作执行记录，正式知识类型和人工确认边界不变；见[协作审计](#agent-协作审计)。以下日期段落保留原有知识模型演进记录。
 

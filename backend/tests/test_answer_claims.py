@@ -12,7 +12,7 @@ from tests.test_questions import prepared_project
 
 
 def draft(citation=None):
-    return dict(supported=True, confidence=.8, claims=[dict(
+    return dict(confidence=.8, claims=[dict(
         text='PostgreSQL stores knowledge.', status='supported', citation_ids=[str(citation or uuid.uuid4())])],
         missing_information=[])
 
@@ -32,7 +32,6 @@ def test_claim_schema_rejects_incomplete_or_inconsistent_support(mutation):
     if mutation == 'unknown_status': claim['status'] = 'verified'
     if mutation == 'overall_support': value['supported'] = False
     if mutation == 'missing_information':
-        value['supported'] = False
         claim.update(status='insufficient', citation_ids=[])
     if mutation == 'long_text': claim['text'] = 'x' * 501
     if mutation == 'flat_answer': value['answer'] = 'An unbound factual assertion.'
@@ -57,14 +56,14 @@ def test_partial_claims_are_returned_with_exact_citation_mapping(client, configu
     project, _ = prepared_project(client, monkeypatch)
     def answer(_settings, _question, evidence):
         value = draft(evidence[0]['id'])
-        value.update(supported=False,missing_information=['No performance benchmark evidence.'])
+        value.update(missing_information=['No performance benchmark evidence.'])
         value['claims'].append(dict(text='Performance cannot be confirmed.',status='insufficient',citation_ids=[]))
         return ClaimAnswerDraft.model_validate(value)
     monkeypatch.setattr(deepseek,'answer_question',answer)
     response = client.post(f'/api/v1/projects/{project}/questions',json={'question':'PostgreSQL storage and performance?','retrieval_mode':'bm25'})
     assert response.status_code == 200, response.text
     result = response.json()
-    assert result['answer_protocol'] == 'evidence-claims-v2' and not result['supported']
+    assert result['answer_protocol'] == 'evidence-claims-v3' and not result['supported']
     assert result['claims'][0]['citation_ids'] == [result['evidence'][0]['id']]
     assert result['claims'][1]['citation_ids'] == []
     assert result['answer'] == '\n\n'.join(item['text'] for item in result['claims'])
@@ -105,7 +104,8 @@ def test_provider_requires_claims_without_flat_output_fallback(monkeypatch, conf
         assert deepseek.answer_question(configured,'Question',[]).claims[0].text == value['claims'][0]['text']
 
 
-def test_legacy_persisted_answer_remains_readable_without_new_provider_call(client, db_session, monkeypatch):
+@pytest.mark.parametrize('protocol', [None, 'evidence-claims-v2'])
+def test_legacy_persisted_answer_remains_readable_without_new_provider_call(client, db_session, monkeypatch, protocol):
     from app.models.workspace import ConversationTurn
     project=client.post('/api/v1/projects',json={'name':'Legacy answer'}).json()['id']
     base=f'/api/v1/projects/{project}/conversations'
@@ -116,13 +116,19 @@ def test_legacy_persisted_answer_remains_readable_without_new_provider_call(clie
     assert response.status_code == 200
     record=db_session.get(ConversationTurn,uuid.UUID(response.json()['id']))
     old=dict(record.answer)
-    old.pop('claims');old.pop('answer_protocol')
+    if protocol is None:
+        old.pop('claims');old.pop('answer_protocol')
+    else:
+        old['answer_protocol'] = protocol
     record.answer=old
     db_session.commit()
     monkeypatch.setattr(deepseek,'answer_question',lambda *_a,**_k: pytest.fail('History cannot call provider'))
     history=client.get(path).json()['items'][0]['answer']
-    assert history['answer'] == old['answer'] and history['claims'] is None and history['answer_protocol'] is None
+    assert history['answer'] == old['answer'] and history['supported'] == old['supported']
+    assert history['claims'] == old.get('claims') and history['answer_protocol'] == protocol
     assert client.post(path,json=body).json()['answer'] == history
+    db_session.refresh(record)
+    assert record.answer == old
 
 
 @pytest.mark.parametrize('legacy', [False, True])

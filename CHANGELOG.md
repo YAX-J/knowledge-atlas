@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- New answers use `evidence-claims-v3`: the server derives aggregate support from claims; strict citations and saved v2/flat history stay compatible. Add independent synthetic development regressions for both provider paths and explicit versioned diagnostics (ADR0075). No live calls or v3 quality claims; historical failures, scores and ledgers stay unchanged.
+
 - Complete the explicitly authorized457-request CF Clef holdout judgment, preserving91 graded/96 total and5 invalid-output exclusions. Add offline fingerprint-checked summaries, confidence/uncertainty/denominator reporting, figures and a thesis/demo draft.83 correct labels are model-only;80/183 citations uncertain and all abstention low-confidence. No changes to frozen inputs/prior ledgers or new answer/embedding calls.
 
 - Repair opt-in evaluation: invalid outputs remain explicit case failures instead of aborting independent cases; production validation/other-error fail-stop stay strict. Add exact scoped diagnostic reuse, sanitized constraint codes and hashed judge exclusions (ADR0074). Retry96 records:91 valid/5 invalid, diagnostic1+main95 model/73 embedding requests. No prompt/ranking/gold changes; CF Clef preflight457, no new live judge calls.

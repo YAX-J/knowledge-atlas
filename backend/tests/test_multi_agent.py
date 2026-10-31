@@ -122,7 +122,7 @@ def test_question_agent_reads_tools_and_validates_final_citations(client,configu
         calls.append(messages)
         initial=json.loads(messages[1]['content'])['initial_evidence']
         if len(calls)==1:return tool('read_evidence',{'evidence_id':initial[0]['id']})
-        return {'content':json.dumps(dict(supported=True,confidence=.9,
+        return {'content':json.dumps(dict(confidence=.9,
             claims=[dict(text='PostgreSQL stores knowledge.',status='supported',citation_ids=[initial[0]['id']])],missing_information=[]))}
     monkeypatch.setattr(deepseek,'call_agent_turn',answer)
     body=dict(request_id=str(uuid.uuid4()),kind='question_pipeline',question='PostgreSQL',retrieval_mode='bm25')
@@ -131,7 +131,7 @@ def test_question_agent_reads_tools_and_validates_final_citations(client,configu
     data=result.json();assert data['status']=='succeeded' and data['result']['answer']['supported']
     assert data['usage']['model']==2 and len(calls)==2
     monkeypatch.setattr(deepseek,'call_agent_turn',lambda *_args,**_kwargs:{'content':json.dumps(dict(
-        supported=True,confidence=.9,claims=[dict(text='Invented evidence',status='supported',citation_ids=[str(uuid.uuid4())])],missing_information=[]))})
+        confidence=.9,claims=[dict(text='Invented evidence',status='supported',citation_ids=[str(uuid.uuid4())])],missing_information=[]))})
     bad=client.post(f'/api/v1/projects/{project}/agent-runs',json={**body,'request_id':str(uuid.uuid4())}).json()
     assert bad['status']=='failed' and bad['error_code']=='QUESTION_EVIDENCE_INVALID'
 

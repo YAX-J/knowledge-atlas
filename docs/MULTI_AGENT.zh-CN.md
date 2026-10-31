@@ -1,6 +1,6 @@
 # 单项目内的受限多 Agent
 
-[ADR 0069](adr/0069-answer-claim-evidence.zh-CN.md) 已实现结论逐条关联证据：`evidence-claims-v2` 将有据结论绑定当前范围内的引用，将证据不足条目分开标明，引用可直达原文。后端生成兼容平铺字段；历史记录保留旧格式，不推断对应关系或重调模型。结构校验不证明语义蕴含。冻结实验、84/61 调用账本和 schema head `20261029_0019` 不变；评估改为 Jev 匿名自动评审，人工覆盖率0%。
+[ADR 0075](adr/0075-server-derived-answer-support.zh-CN.md) 已实现 `evidence-claims-v3`：模型只返回 confidence、claims、missing_information，后端按所有条目状态计算 API 的 supported；逐条引用、缺失信息、预算与项目边界保持严格。v2 和平铺历史按原保存值读取/重放，不重算或调模型；v2 不作为新输出回退。使用独立虚构开发用例验证结构与兼容性，未测量 v3 真实质量。冻结 v2 实验/账本/评分和 schema head `20261029_0019` 不变，人工覆盖率0%。
 
 [English](MULTI_AGENT.md)
 

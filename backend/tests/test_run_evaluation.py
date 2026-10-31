@@ -79,7 +79,7 @@ def test_answer_generation_accepts_only_retrieved_citations(claim_format):
         assert question == "question"
         assert payload[0]["id"] == str(evidence_id)
         if claim_format:
-            return ClaimAnswerDraft(supported=True,confidence=.9,
+            return ClaimAnswerDraft(confidence=.9,
                 claims=[dict(text='grounded answer',status='supported',citation_ids=[evidence_id])],missing_information=[])
         return AnswerDraft(
             supported=True,

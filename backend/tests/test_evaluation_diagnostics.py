@@ -8,7 +8,7 @@ import pytest
 from pydantic import SecretStr
 
 from app.core.config import Settings
-from app.schemas.questions import ClaimAnswerDraft
+from app.schemas.questions import ClaimAnswerDraft, ClaimAnswerDraftV2
 from app.schemas.search import SearchRead
 from app.services import deepseek
 from scripts import evaluation_diagnostics as diagnostics
@@ -130,7 +130,7 @@ def test_online_export_uses_real_current_qa_claim_pool_and_historical_time(clien
         return original(*args, **kwargs)
     monkeypatch.setattr(online.questions, 'search_knowledge', search)
     def answer(_settings, _question, evidence):
-        return ClaimAnswerDraft(supported=True, confidence=.8,
+        return ClaimAnswerDraft(confidence=.8,
             claims=[dict(text='Evidence exists', status='supported', citation_ids=[evidence[0]['id']])], missing_information=[])
     monkeypatch.setattr(deepseek, 'answer_question', answer)
     from app.models.domain import SourceDocument
@@ -141,7 +141,7 @@ def test_online_export_uses_real_current_qa_claim_pool_and_historical_time(clien
     value = online.online_prediction(db_session, case=case, mode='bm25', project_id=uuid.UUID(project),
                                     settings=settings, mapping=mapping)
     assert captured[0].year == 2099
-    assert value['answer_protocol'] == 'evidence-claims-v2' and value['claims']
+    assert value['answer_protocol'] == 'evidence-claims-v3' and value['claims']
     assert value['answer_correct'] is value['explainability_score'] is None
     assert value['answer_input_evidence'] and value['claim_evidence']
     pool = {item['id'] for item in value['answer_input_evidence']}
@@ -217,7 +217,7 @@ def test_complete_holdout_runner_with_local_provider_substitutes_keeps_history_a
             raise RuntimeError('local substitute failure')
         if provider_failure=='output':
             raise deepseek.QuestionError('QUESTION_OUTPUT_INVALID','local substitute invalid output')
-        return ClaimAnswerDraft(supported=True, confidence=.8, claims=[dict(
+        return ClaimAnswerDraft(confidence=.8, claims=[dict(
             text='Local substitute only.', status='supported', citation_ids=[evidence[0]['id']])], missing_information=[])
     monkeypatch.setattr(online.embeddings, 'embed_texts', embedding)
     monkeypatch.setattr(deepseek, 'answer_question', answer)
@@ -243,7 +243,7 @@ def test_complete_holdout_runner_with_local_provider_substitutes_keeps_history_a
     for mode in online.HOLDOUT_MODES:
         rows = [json.loads(line) for line in (target/f'{mode}.jsonl').read_text(encoding='utf-8').splitlines()]
         assert len(rows) == 24 and sum(row['valid_at'] is not None for row in rows) == 4
-        assert all(row['answer_protocol'] == 'evidence-claims-v2' for row in rows)
+        assert all(row['answer_protocol'] == 'evidence-claims-v3' for row in rows)
         if provider_failure=='output':
             assert all(row.get('failure',{}).get('code')=='QUESTION_OUTPUT_INVALID' and row['answer'] is None for row in rows)
             assert result['modes'][mode]['answer_outcomes']==dict(total=24,invalid_output=24,available=0)
@@ -306,7 +306,7 @@ def test_failure_classification_retains_validation_types_without_private_input_o
 
 def test_safe_classification_identifies_static_constraint_without_response_values():
     try:
-        ClaimAnswerDraft.model_validate(dict(supported=True,confidence=.8,claims=[dict(
+        ClaimAnswerDraftV2.model_validate(dict(supported=True,confidence=.8,claims=[dict(
             text='private-untrusted-answer',status='insufficient',citation_ids=[])],
             missing_information=['private-missing-detail']))
     except Exception as invalid:
@@ -315,7 +315,7 @@ def test_safe_classification_identifies_static_constraint_without_response_value
     assert 'private-' not in json.dumps(result)
 
 
-@pytest.mark.parametrize('mutation',['none','input','citation','model','global_support'])
+@pytest.mark.parametrize('mutation',['none','input','citation','model','global_support','old_protocol'])
 def test_explicit_diagnostic_reuse_requires_same_scope_and_exact_passages(client,configured,db_session,tmp_path,monkeypatch,mutation):
     from app.models.domain import SourceDocument
     from sqlalchemy import select
@@ -324,7 +324,7 @@ def test_explicit_diagnostic_reuse_requires_same_scope_and_exact_passages(client
     sources=list(db_session.scalars(select(SourceDocument).where(SourceDocument.project_id==project)))
     mapping={source.id:'corpus/'+source.original_name for source in sources}
     def answer(_settings,_question,evidence):
-        return ClaimAnswerDraft(supported=True,confidence=.8,claims=[dict(
+        return ClaimAnswerDraft(confidence=.8,claims=[dict(
             text='Development fact.',status='supported',citation_ids=[evidence[0]['id']])],missing_information=[])
     monkeypatch.setattr(deepseek,'answer_question',answer)
     case=dict(id='development-case',question='PostgreSQL',valid_at=None)
@@ -336,11 +336,12 @@ def test_explicit_diagnostic_reuse_requires_same_scope_and_exact_passages(client
     for claim in old['claims']: claim['citation_ids']=[remap[item] for item in claim['citation_ids']]
     summary={'fingerprint_sha256':'development-fingerprint'}
     scope=dict(dataset_fingerprint_sha256=summary['fingerprint_sha256'],fixture_sha256='fixture',
-        answer_model=settings.deepseek_model,answer_protocol='evidence-claims-v2',application_sha256=online.application_fingerprint())
+        answer_model=settings.deepseek_model,answer_protocol='evidence-claims-v3',application_sha256=online.application_fingerprint())
     if mutation=='input': old['answer_input_evidence'][0]['quote']='different source content'
     if mutation=='citation': old['claims'][0]['citation_ids']=[str(uuid.uuid4())]
     if mutation=='model': scope['answer_model']='different-model'
     if mutation=='global_support': old['supported']=False
+    if mutation=='old_protocol': scope['answer_protocol']='evidence-claims-v2'
     manifest=dict(protocol='verified-evaluation-answer-reuse-v1',scope=scope,prediction=old,
         source_run=dict(status='succeeded',reserved_model=1,case_id=case['id']))
     path=tmp_path/'reuse.json';path.write_text(json.dumps(manifest))

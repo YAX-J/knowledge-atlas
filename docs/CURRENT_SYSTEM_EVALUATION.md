@@ -2,6 +2,8 @@
 
 [简体中文](CURRENT_SYSTEM_EVALUATION.zh-CN.md)
 
+Current code uses `evidence-claims-v3` under [ADR0075](adr/0075-server-derived-answer-support.md), with server-derived aggregate support. Its [independent fictional development checks](../evaluation/development/claim-support-v3/README.md) use no live providers. All completed runs, scores and preflight fingerprints below describe historical v2; preserve their five invalid outputs, versions and ledgers. Old approved plans/reuse scopes cannot authorize or become v3 runs. Any future live experiment needs fresh fingerprints, a separate output and explicit authorization; v3 quality remains unmeasured.
+
 Latest2026-10-31: all [457 CF Clef jobs](../evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.md) completed for91 gradable answers/96 records, leaving5 invalid outputs ungraded.83 correct labels are not human accuracy. Citations80/183 uncertain, all abstention low-confidence, human coverage0%. Prior QA results/frozen inputs/exclusions/ledgers are unchanged. Read-only reports/figures and a [thesis/demo draft](HOLDOUT_DISCUSSION_AND_DEMO.md) are delivered; no further call authorization. Early budget checkpoints below are historical.
 
 [ADR0074](adr/0074-evaluation-output-error-isolation.md): explicit `--isolate-output-errors` preserves null answers/failures and continues independent cases without repair/retry; other errors still stop. `--reuse-answer` permits one successful BM25 diagnostic export only with matching dataset/fixture/application/model/protocol and complete ordered retrieval/input evidence. Check before paid indexing; preserve provenance/original latency. Diagnostic1+main cap95 remains96.
@@ -19,7 +21,7 @@ The recorded local zero-call configuration, fingerprints and budget blocker are 
 | Development/test | v1/public-v2 for development; holdout-v3 for independent testing, never ranking/prompt/judge/threshold tuning |
 | Data | Existing 7 pinned public documents, 24 cases: 8 direct, 8 cross-document, 4 temporal, 4 unanswerable; bytes and reference annotations unchanged |
 | Methods | BM25, Vector, Hybrid, RRF, 24 cases each; same curated reviewed graph, index, answer model and configuration |
-| Online path | `questions.answer_question`, `single_step`, 5 entities, at most 12 answer input passages, `evidence-claims-v2` |
+| Recorded online path | Historical `questions.answer_question`, `single_step`, 5 entities, at most 12 answer input passages, `evidence-claims-v2`; current code uses v3, without a new live run |
 | Time | Pass each `case.valid_at`; never force historical cases to current time; check vector coverage in that scope |
 | Primary metric | Existing `line-evidence-v2` macro evidence Recall@5; K counts exported evidence records, not entities |
 | Additional metrics | Citation F1, raw model correctness/completeness/abstention labels, low-confidence rates, per-claim double-order support/uncertainty, latency and attempted/reported usage |

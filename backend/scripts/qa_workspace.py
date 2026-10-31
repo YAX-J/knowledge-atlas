@@ -28,7 +28,7 @@ def extraction(_settings,chunks):
 
 
 def answer(_settings,question,evidence,**kwargs):
-    return ClaimAnswerDraft(supported=False,confidence=.9, claims=[
+    return ClaimAnswerDraft(confidence=.9, claims=[
         dict(text='本地验收替身引用当前原文：'+evidence[0]['quote'][:450],status='supported',citation_ids=[evidence[0]['id']]),
         dict(text='本地验收替身无法确认未出现在证据中的其他细节。',status='insufficient',citation_ids=[])],
         missing_information=['请补充其他细节的原文证据。'])

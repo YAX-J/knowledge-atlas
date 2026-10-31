@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.errors import AppError
-from app.schemas.questions import AnswerClaim, ClaimAnswerDraft, EvidenceEntityRead, QuestionEvidenceRead, QuestionRead, RetrievalSummary
+from app.schemas.questions import AnswerClaim, ClaimAnswerDraft, ClaimAnswerDraftV2, EvidenceEntityRead, QuestionEvidenceRead, QuestionRead, RetrievalSummary
 from app.llm.prompts import ANSWER_PROMPT_VERSION
 from app.services import deepseek
 from app.services.search import search_knowledge
@@ -124,6 +124,7 @@ def validated_answer(question,evidence_by_id,retrieval,draft):
         answer=draft.answer, confidence=draft.confidence, entity_ids=entity_ids,
         evidence=evidence, retrieval=retrieval,
         missing_information=draft.missing_information,
-        answer_protocol=ANSWER_PROMPT_VERSION if isinstance(draft, ClaimAnswerDraft) else None,
-        claims=draft.claims if isinstance(draft, ClaimAnswerDraft) else None,
+        answer_protocol=(ANSWER_PROMPT_VERSION if isinstance(draft, ClaimAnswerDraft)
+                         else 'evidence-claims-v2' if isinstance(draft, ClaimAnswerDraftV2) else None),
+        claims=draft.claims if isinstance(draft, (ClaimAnswerDraft, ClaimAnswerDraftV2)) else None,
     )

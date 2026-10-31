@@ -1,10 +1,10 @@
 # Knowledge Atlas 当前路线与验收边界
 
-2026-10-31：[457次裁判](../evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.zh-CN.md)完成，覆盖91/96答案（5条格式失败单列）。83个模型正确标签、103/183高置信双序引用支持、80不确定；拒答全低置信，人工0%。共同有效22题四方法均20个正确标签，不能据此证明方法优劣。[论文讨论/固定演示草稿](HOLDOUT_DISCUSSION_AND_DEMO.zh-CN.md)已准备，后续以独立开发夹具复现问题，不改holdout或自动新增调用。
+2026-10-31：第1–2项已完成：`evidence-claims-v3` 后端计算总体状态，使用[独立合成开发用例](../evaluation/development/claim-support-v3/README.zh-CN.md)验证正常/非法输出及 v2/平铺历史兼容。没有真实调用或 v3 质量结论。[历史裁判](../evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.zh-CN.md)及其5条 v2 失败、冻结数据/账本原样保留，人工0%。后续版本冻结与论文定稿尚未执行。
 
 当前离线模型评审支持 OpenRouter Jev、直连 TypeSafe Jev 和 CF 原生适配，人工评分覆盖率0%，真实 OpenRouter 评审尚未运行。见 [OpenRouter指南](OPENROUTER_EVALUATION.zh-CN.md) 与 [ADR0073](adr/0073-openrouter-jev-evaluation.zh-CN.md)。此前读取优化保留 ADR0071 记录。
 
-[ADR 0069](adr/0069-answer-claim-evidence.zh-CN.md) 已实现结论逐条关联证据：`evidence-claims-v2` 将有据结论绑定当前范围内的引用，将证据不足条目分开标明，引用可直达原文。后端生成兼容平铺字段；历史记录保留旧格式，不推断对应关系或重调模型。结构校验不证明语义蕴含。冻结实验、84/61 调用账本和 schema head `20261029_0019` 不变；评估改为 Jev 匿名自动评审，人工覆盖率0%。
+[ADR 0075](adr/0075-server-derived-answer-support.zh-CN.md) 已实现 `evidence-claims-v3`：模型只返回 confidence、claims、missing_information，后端按所有条目状态计算 API 的 supported；逐条引用、缺失信息、预算与项目边界保持严格。v2 和平铺历史按原保存值读取/重放，不重算或调模型；v2 不作为新输出回退。使用独立虚构开发用例验证结构与兼容性，未测量 v3 真实质量。冻结 v2 实验/账本/评分和 schema head `20261029_0019` 不变，人工覆盖率0%。
 
 当前实现及本轮验证见[验收报告](OPTIMIZATION_20261029.zh-CN.md)，任务进度见[计划](../PLANS.zh-CN.md)。按用户要求继续优化，评估采用 Jev 匿名自动评审。早期阶段说明与检查点见[历史路线图](archive/pre-optimization-20261029/docs/ROADMAP.md)。
 

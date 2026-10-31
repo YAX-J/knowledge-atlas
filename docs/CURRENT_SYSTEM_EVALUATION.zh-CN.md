@@ -2,6 +2,8 @@
 
 [English](CURRENT_SYSTEM_EVALUATION.md)
 
+当前代码按 [ADR0075](adr/0075-server-derived-answer-support.zh-CN.md) 使用 `evidence-claims-v3`，由后端计算总体支持状态；[独立虚构开发检查](../evaluation/development/claim-support-v3/README.zh-CN.md)不调用真实供应商。下文已完成实验、分数和预演指纹均属于历史 v2，保留其五条格式失败、版本及账本。旧批准方案/复用 scope 不能授权或转换为 v3 运行。后续真实实验必须重新生成指纹、使用独立输出并明确授权；v3 质量仍未测量。
+
 2026-10-31最新：[457次CF Clef评审](../evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.zh-CN.md)已全部完成，91条有效答案、96总记录、5条格式失败保持未评审；83个正确标签不等于人工正确率。引用80/183不确定、拒答全部低置信，人工覆盖率0%。旧问答结果、冻结输入/排除清单和账本不变。本轮只读汇总/图表及[论文讨论和演示草稿](HOLDOUT_DISCUSSION_AND_DEMO.zh-CN.md)已生成，无后续调用授权。下文早期预算检查点为历史。
 
 [ADR0074](adr/0074-evaluation-output-error-isolation.zh-CN.md)：显式 `--isolate-output-errors` 将单题输出不合格记为空答案/失败，继续其他独立题，不自动修补或重试；其他错误仍停止。`--reuse-answer` 只允许绑定数据/夹具/应用代码/模型/协议、且有序检索和输入池完全一致的一条成功BM25诊断答案，保留来源及原生成耗时，付费建索引前校验。诊断1+主跑上限95仍为96。
@@ -19,7 +21,7 @@
 | 开发 / 测试 | v1/public-v2 仅开发诊断；holdout-v3 独立测试，不据其结果调排序、提示词、裁判或阈值 |
 | 数据 | 原有 7 份固定提交公开文档、24 题：8 直接、8 跨文档、4 历史、4 无答案；字节和参考标注均不修改 |
 | 模式 | BM25、Vector、Hybrid、RRF，各 24 题；相同已审核夹具图谱、向量索引、回答模型及配置 |
-| 在线入口 | `questions.answer_question`，`single_step`，5 个实体、最多 12 条回答输入证据；`evidence-claims-v2` |
+| 已记录在线入口 | 历史 `questions.answer_question`，`single_step`，5 个实体、最多 12 条回答输入证据；`evidence-claims-v2`。当前代码为 v3，未新增真实运行 |
 | 时间 | 每题实际传入 `case.valid_at`；历史问题不使用当前时间；按该时间检查向量覆盖 |
 | 主指标 | 沿用 `line-evidence-v2` 的宏平均 evidence Recall@5；这里 K 指导出顺序前五条证据 |
 | 补充指标 | 引用 F1、原始模型正确性/完整性/拒答标签、低置信比例、逐条结论双序支持与不确定比例、时延、请求/供应商上报用量 |

@@ -2,13 +2,13 @@
 
 新增可选 GET /projects/{project_id}/agent-runs?summary=true：items 仅含 id、project_id、source_id、kind、status、error_code、created_at、updated_at，不含 result/events/request/usage/scope/review_counts，读取为3次 SELECT。默认 summary=false 保留完整列表；分页排序和过期判定保持，单条 GET/POST 响应不变。前端只给列表启用摘要。见 [ADR0071](adr/0071-bounded-read-caches-and-summaries.zh-CN.md)。
 
-## 结论与引用契约（ADR 0069）
+## 结论与引用契约（ADR 0069、0075）
 
-`QuestionRead` 新增可空 `answer_protocol: "evidence-claims-v2"` 和 `claims: {text, status, citation_ids}[]`。每条 text 1–500 字符、status 为 supported|insufficient，全答 1–8 条、双换行连接后至多 4000 字符、最多 5 个不同引用 UUID。同条引用不重复，跨条可复用。supported 条目必须引用，不足条目不引用；仅全部条目有据时顶层 supported=true，否则 missing_information 非空。部分有据保留各条引用，不做全答拒弃。
+`QuestionRead.answer_protocol` 接受新 `"evidence-claims-v3"`、历史 `"evidence-claims-v2"` 或 null；`claims: {text, status, citation_ids}[]` 保持可空。每条 text 1–500 字符、status 为 supported|insufficient，全答 1–8 条、双换行连接后至多 4000 字符、最多 5 个不同引用 UUID。同条引用不重复，跨条可复用。supported 条目必须引用，不足条目不引用；新回答仅全部条目有据时后端计算顶层 supported=true，否则为 false 且 missing_information 非空。部分有据保留各条引用。
 
-模型不生成独立 answer 或顶层 citation_ids。服务端 answer 为条目文本双换行连接，evidence 为按条目引用首次出现顺序去重的原文，entity_ids 保持主实体归属规则。置信度和 retrieval 字段保持原有含义。未知引用仍为 QUESTION_EVIDENCE_INVALID；单轮结构错误为 QUESTION_OUTPUT_INVALID，工具结构错误为 CALL_AGENT_OUTPUT_INVALID，不自动重试模型。无证据直接生成不足条目。单轮、会话和协作共享此契约。
+模型顶层只生成 confidence、claims、missing_information，不生成 supported、独立 answer 或顶层 citation_ids；即使多余 supported 与条目一致也拒绝。服务端 answer 为条目文本双换行连接，evidence 为按条目引用首次出现顺序去重的原文，entity_ids 保持主实体归属规则。置信度和 retrieval 字段保持原有含义。未知引用仍为 QUESTION_EVIDENCE_INVALID；单轮结构错误为 QUESTION_OUTPUT_INVALID，工具结构错误为 CALL_AGENT_OUTPUT_INVALID，不自动重试模型。无证据直接生成 v3 不足条目。单轮、会话和协作共享此契约。
 
-旧持久化响应两字段默认 null，前端保留平铺正文，不推断逐条对应。AnswerDraft 只为旧诊断适配器/夹具保留，真实模型和工具严格解析 ClaimAnswerDraft，没有平铺输出回退。新实验清单记录 answer_protocol，历史产物不变。引用归属和漏引校验不证明语义蕴含。详情见 [ADR 0069](adr/0069-answer-claim-evidence.zh-CN.md)。
+旧平铺响应缺省两字段为 null，前端保留正文，不推断逐条对应；v2 保留其版本、条目和原 supported。读取/同 UUID 重放不重算或调用模型。AnswerDraft、ClaimAnswerDraftV2 仅为显式旧诊断适配器保留；真实模型和工具严格解析 v3 ClaimAnswerDraft，没有 v2/平铺回退。新实验清单记录 v3，拒绝复用旧 v2 scope；历史产物、格式失败和评分不变。引用归属和漏引校验不证明语义蕴含。见 [ADR 0075](adr/0075-server-derived-answer-support.zh-CN.md)。
 
 当前说明见本轮验收与 ADR 0060–0063；迁移 head `20261029_0019`。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](OPTIMIZATION_20261029.zh-CN.md)
 

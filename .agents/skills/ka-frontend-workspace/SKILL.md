@@ -193,3 +193,7 @@ AnswerClaims is shared by question/conversation and AgentWorkspace. Show claim s
 ## Summary history and form boundary (ADR0071)
 
 listAgentRuns uses summary=true and Page<AgentRunSummary>; full details remain separate GETs on selection/restoration/selected refresh. Never treat a summary as an AgentRun or trigger a POST while loading detail. AgentWorkflowForm owns draft state/context loading and emits start intent; AgentWorkspace retains runs, unknown submission recovery, polling and navigation. Retain all source/project/history/version fences and form keyboard/focus/scroll behavior. Cover true summary-only fixtures in agentRuns plus agentScope, coverage/build and named desktop native-stub walkthrough.
+
+## Answer protocol compatibility (ADR0075)
+
+QuestionAnswer.answer_protocol accepts evidence-claims-v3, historical evidence-claims-v2 and null. The API retains supported, derived on the server for new v3 answers. Render saved claims for both versions, with exact evidence navigation; retain flat historical text without invented attribution. Do not recompute historical support in Vue or replay providers on reads. Keep the v2 fixture and parameterize claim rendering for v2/v3. Types/tests-only protocol changes require answerClaims tests and npm run build, with no visible UI change requiring a browser walk.

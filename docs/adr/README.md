@@ -163,3 +163,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [0072 — Cloudflare judge adapters](0072-cloudflare-judge-adapter.md)
 - [0073 — OpenRouter Jev evaluation](0073-openrouter-jev-evaluation.md)
 - [0074 — Evaluation output error isolation](0074-evaluation-output-error-isolation.md)
+- [0075 — Server-derived answer support](0075-server-derived-answer-support.md)

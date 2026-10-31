@@ -54,8 +54,7 @@ class AnswerClaim(StrictModel):
         return self
 
 
-class ClaimAnswerDraft(StrictModel):
-    supported: bool
+class _ClaimAnswerFields(StrictModel):
     confidence: float = Field(ge=0, le=1, strict=True)
     claims: list[AnswerClaim] = Field(min_length=1, max_length=8)
     missing_information: list[MissingText] = Field(max_length=5)
@@ -70,12 +69,30 @@ class ClaimAnswerDraft(StrictModel):
 
     @model_validator(mode='after')
     def validate_support(self):
-        if self.supported != all(claim.status == 'supported' for claim in self.claims):
-            raise ValueError('Overall support must agree with claim support')
-        if not self.supported and not self.missing_information:
+        if any(claim.status == 'insufficient' for claim in self.claims) and not self.missing_information:
             raise ValueError('Insufficient claims must identify missing information')
         if len(self.citation_ids) > 5 or len(self.answer) > 4000:
             raise ValueError('Answer exceeds citation or text budget')
+        return self
+
+
+class ClaimAnswerDraft(_ClaimAnswerFields):
+    """Current v3 provider output; aggregate support belongs to the backend."""
+
+    @property
+    def supported(self) -> bool:
+        return all(claim.status == 'supported' for claim in self.claims)
+
+
+class ClaimAnswerDraftV2(_ClaimAnswerFields):
+    """Strict historical v2 diagnostic adapter, never a provider fallback."""
+
+    supported: bool
+
+    @model_validator(mode='after')
+    def validate_overall_support(self):
+        if self.supported != all(claim.status == 'supported' for claim in self.claims):
+            raise ValueError('Overall support must agree with claim support')
         return self
 
 
@@ -113,5 +130,5 @@ class QuestionRead(BaseModel):
     evidence: list[QuestionEvidenceRead]
     retrieval: RetrievalSummary
     missing_information: list[str]
-    answer_protocol: Literal['evidence-claims-v2'] | None = None
+    answer_protocol: Literal['evidence-claims-v2', 'evidence-claims-v3'] | None = None
     claims: list[AnswerClaim] | None = None

@@ -2,7 +2,7 @@
 
 离线匿名评审支持 OpenRouter Jev、直连 TypeSafe Jev 和 CF 原生适配。配置 EVALUATION_PROVIDER=openrouter、本地 OPENROUTER_API_KEY、OPENROUTER_MODEL=typesafe/jev-1.14 与 OPENROUTER_TIMEOUT_SECONDS=60，旧凭据保留。本轮零真实调用，人工评分覆盖率0%。见 [OpenRouter命令](../docs/OPENROUTER_EVALUATION.zh-CN.md)、[CF](../docs/CLOUDFLARE_EVALUATION.zh-CN.md) 和 [Jev](../docs/JEV_EVALUATION.zh-CN.md)。
 
-[ADR 0069](../docs/adr/0069-answer-claim-evidence.zh-CN.md) 已实现结论逐条关联证据：`evidence-claims-v2` 将有据结论绑定当前范围内的引用，将证据不足条目分开标明，引用可直达原文。后端生成兼容平铺字段；历史记录保留旧格式，不推断对应关系或重调模型。结构校验不证明语义蕴含。冻结实验、84/61 调用账本和 schema head `20261029_0019` 不变；评估支持 OpenRouter Jev、直连 TypeSafe 或 CF 原生匿名评审，人工覆盖率0%。
+[ADR 0075](../docs/adr/0075-server-derived-answer-support.zh-CN.md) 已实现 `evidence-claims-v3`：模型只返回 confidence、claims、missing_information，后端按所有条目状态计算 API 的 supported；逐条引用、缺失信息、预算与项目边界保持严格。v2 和平铺历史按原保存值读取/重放，不重算或调模型；v2 不作为新输出回退。使用独立虚构开发用例验证结构与兼容性，未测量 v3 真实质量。冻结 v2 实验/账本/评分和 schema head `20261029_0019` 不变，人工覆盖率0%。
 
 单项目 Agent 协作已接通。更新依赖后使用迁移 `20261029_0019`；新增固定版本 LangGraph，继续使用现有虚拟环境，执行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"`（backend 目录）。已有数据先备份与隔离恢复核验，再 `alembic upgrade head`。三个角色、四个协作接口和同步/人工审核边界见[实现说明](../docs/MULTI_AGENT.zh-CN.md)。
 
