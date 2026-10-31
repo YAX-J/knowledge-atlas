@@ -1,0 +1,21 @@
+{
+  "id": "holdout-v3-clef-20261031-r1",
+  "authorized_at": "2026-10-31T04:03:02.464639+00:00",
+  "source": "User explicitly authorized the proposed457 Cloudflare Clef judge requests in this chat.",
+  "provider": "cloudflare",
+  "model": "@cf/cloudflare/clef",
+  "request_limit": 457,
+  "packet_sha256": "a42f8ced9f8e1b4f8b421fbc01c7755db001b54755cb1cd7b3bfa4e1cdac0ae6",
+  "judge_config_sha256": "80d307768b34ebfed674f428942586e9faf7652edab218e11363ef8761388812",
+  "human_grading_coverage": 0,
+  "inputs_sha256": {
+    "evaluation/results/2026-10-31-holdout-v3-run2/judge-packet/excluded-answers.json": "64c412cdadea860809a22e33b2c16ea5e4963699a6c2133b67a4719ed3fcbcb4",
+    "evaluation/results/2026-10-31-holdout-v3-run2/judge-packet/grading-key.json": "3be21c53c7ee821041315d3c03c6fdf216f29ba91c2e214d49504f81f99e27ca",
+    "evaluation/results/2026-10-31-holdout-v3-run2/judge-packet/packet-manifest.json": "de7c90c0065e571e937a38f5044c9e5dcdf8ccc7966aaa923ae24fb8b7c0dbdd",
+    "evaluation/results/2026-10-31-holdout-v3-run2/judge-packet/packet.json": "22b9b195383ecfe13388411b536965db746c08dde6ad95cacb1a95f090f6e425",
+    "evaluation/results/2026-10-31-holdout-v3-run2/judge-preflight/run.json": "8a80c4839595a774c3512cd80c5adb3bee59e1fe1722cc6bc05c28c14c125285",
+    "output/completeness-20261026/provider-budget.json": "d5e582bf2e4112cc5067cca6643258967fb1543808d31b39afa7bb7c4014b74a",
+    "output/holdout-v3-live-20261031-r1/authorization.json": "94b25d7f10faa76014d578f3c16576f1b561d3520031728a3bec304e8252420c",
+    "output/holdout-v3-repair-20261031/benchmark-01/authorization.json": "c2e40c36c8a742058f03d7a0efba1509171d8fecc23d52825514dd69ce1da13a"
+  }
+}

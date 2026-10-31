@@ -1,6 +1,8 @@
 # Knowledge Atlas Evaluation Set
 
-Latest retry: [96 records,91 valid/5 invalid](results/2026-10-31-holdout-v3-run2/REPORT.md) completed under explicit ADR0074 isolation, without online Schema/prompt/ranking changes. One diagnostic reuse is disclosed. Retry usage96 model/73 embedding includes diagnostic; old ledgers unchanged. Judge coverage91/96 and zero-call CF Clef plan457; live judging unauthorized, human grades0%.
+Latest judging: [457 completed CF Clef requests](results/2026-10-31-holdout-v3-clef-run1/REPORT.md),91 graded/96 total,5 invalid outputs ungraded;83 correct MODEL labels, human0%. Preserve80/183 uncertain citations and all low-confidence abstention judgments. Shared22-case supplementary comparison is20 correct labels per method; no default selection or holdout tuning. Reports/figures and thesis/demo draft are offline, no extra calls.
+
+Earlier QA retry: [96 records,91 valid/5 invalid](results/2026-10-31-holdout-v3-run2/REPORT.md) completed under explicit ADR0074 isolation, without online Schema/prompt/ranking changes. One diagnostic reuse is disclosed. Retry usage96 model/73 embedding includes diagnostic; old ledgers unchanged. Judge coverage91/96 and zero-call CF Clef plan457; subsequent live judging is recorded above, human grades0%.
 
 Earlier failed attempt: the [first authorized live holdout-v3 attempt](results/2026-10-31-holdout-v3-run1/REPORT.md) stopped on answer5 with invalid output, saving4 BM25 answers. Separate grant usage5 model/1 embedding; no retry or judging, no complete comparison. Historical84/61 remains unchanged.
 

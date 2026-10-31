@@ -1,6 +1,6 @@
 # Knowledge Atlas implementation plan
 
-Latest2026-10-31: the [repaired retry](evaluation/results/2026-10-31-holdout-v3-run2/REPORT.md) traversed96 cases:91 valid/5 invalid. Explicit [ADR0074](docs/adr/0074-evaluation-output-error-isolation.md) isolation keeps online validation/prompts/ranking unchanged; other errors still stop. One diagnostic reuse is disclosed. Diagnostic1+main95 model/73 embedding calls respect authorization. Historical84/61 and failed5/1 ledgers are unchanged. Judge coverage91/96, zero-call plan457; real judge calls0, human coverage0%.
+Latest2026-10-31: all [457 Clef requests](evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.md) completed for91 valid/96 total records:83 correct labels,5 invalid outputs ungraded. Citation support103/183 high-confidence double-order,80/183 uncertain; abstention91/91 low-confidence, human coverage0%. On22 shared valid cases all methods have20 correct labels; no default selection/holdout tuning. Prior QA/judge ledgers are unchanged. Read-only summaries/figures and a [thesis/demo draft](docs/HOLDOUT_DISCUSSION_AND_DEMO.md) are delivered; the457-call grant is exhausted, with no new call budget.
 
 Offline judging now supports OpenRouter Jev, direct TypeSafe Jev and native CF adapters, with human grading coverage0%. OpenRouter Decisions API and release/snapshot validation are implemented with zero-call preflight; live compatibility/quality remain unverified. See [OpenRouter setup](docs/OPENROUTER_EVALUATION.md) and [ADR0073](docs/adr/0073-openrouter-jev-evaluation.md). Earlier read optimizations remain in ADR0071.
 
@@ -27,7 +27,7 @@ The user's ordered P0/P1/P2 optimization is implemented in code. Acceptance evid
 
 ## External work still pending
 
-Keep historical80-answer grading separate. The completed retry has5 invalid outputs: never fabricate answers/grades. Judge91 valid exports while retaining96 total and5 failures. Next dependency: separate authorization for457 CF Clef requests. Human coverage0%; never tune prompts/ranking/thresholds on holdout.
+Keep historical80-answer whole-answer grading separate from91 new claim-level exports. The457 jobs completed with human coverage0%. Retain full/subset denominators, failures and uncertainty; all methods have20 correct labels on22 shared valid cases, so defaults are unchanged. Markdown thesis/demo drafts are ready, without editing a Word thesis or publishing.
 
 Private repository acceptance, privileged fresh-database recovery, Docker and remote CI need their actual environments. They remain explicit limits, not hidden assumptions about completion.
 

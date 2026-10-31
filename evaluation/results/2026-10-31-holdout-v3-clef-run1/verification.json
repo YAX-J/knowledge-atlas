@@ -1,0 +1,30 @@
+{
+  "grading_core_commit": "c39a6486b5a903c0a398b82f055b27e069bbacc7",
+  "grading_core_sha256": {
+    "backend/scripts/jev_evaluation.py": "ea088ed4b2aea938c38adf4f8a74ff8ad897e4e183a2078cbbd205d89ba27ec6",
+    "backend/app/llm/providers/cloudflare.py": "c3da66611c26d803458a82904264838c5194527531a5df9518e4ba60f11d4c15",
+    "backend/app/llm/providers/evaluation.py": "7b630f80f41cca5e3a105ea00f36bb45a1c8791dc6a91ffb3077a15156712ae3",
+    "backend/app/llm/providers/judging.py": "13ed58e8e8efe04c6e29cfce43b99b1e8db718d033247e4358f2959ebc009edb"
+  },
+  "summarizer_sha256": "daa69be0098fc642c4fd4cbc610c43e60be5674667e2c492011d7178965901ae",
+  "planned_reserved_completed": 457,
+  "model_graded_answers": 91,
+  "total_execution_records": 96,
+  "invalid_outputs_ungraded": 5,
+  "citation_units": 183,
+  "uncertain_citations": 80,
+  "all_authorized_input_hashes_unchanged": true,
+  "prior_business_and_judge_ledgers_unchanged": true,
+  "raw_run_archived_exactly": true,
+  "human_fields_unchanged_and_null": true,
+  "summary_provider_requests": 0,
+  "reported_models": [
+    "clef"
+  ],
+  "model_revision_pinned": false,
+  "checks": {
+    "focused_passed": 76,
+    "full_passed": 960,
+    "full_skipped": 11
+  }
+}

@@ -1,5 +1,7 @@
 # Cloudflare Workers AI anonymous evaluation
 
+Live holdout-v3 Clef judging completed457 requests under explicit user authorization; see the [model-only results and limits](../evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.md). No human grades, calibration or immutable weights are implied. Earlier adapter-development/preflight examples below are historical; this completion grants no further calls.
+
 [简体中文](CLOUDFLARE_EVALUATION.zh-CN.md)
 
 OpenRouter Jev is available as a separate [offline adapter](OPENROUTER_EVALUATION.md). Set --provider cloudflare explicitly to keep using this guide; the new environment example selects openrouter. CF native support does not include the third-party unified Jev route.

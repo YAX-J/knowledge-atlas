@@ -1,0 +1,276 @@
+[
+  {
+    "category": "direct_fact",
+    "method": "vector",
+    "case_id": "holdout-v3-01",
+    "question": "FastAPI 后台任务在返回响应之前还是之后运行？",
+    "valid_at": null,
+    "answer": "后台任务被定义为在返回响应之后运行。\n\n多个后台任务会被合并在一起，随后在后台运行。",
+    "claims": [
+      {
+        "text": "后台任务被定义为在返回响应之后运行。",
+        "status": "supported",
+        "citation_ids": [
+          "26af7a46-b694-57d8-aace-7598294a4f68"
+        ]
+      },
+      {
+        "text": "多个后台任务会被合并在一起，随后在后台运行。",
+        "status": "supported",
+        "citation_ids": [
+          "f2de1417-2eea-57a3-a8c9-3678535a5f4c"
+        ]
+      }
+    ],
+    "citations": [
+      {
+        "source": "corpus/notes/background-tasks.md",
+        "start_line": 3,
+        "end_line": 3,
+        "quote": "You can define background tasks to be run *after* returning a response."
+      },
+      {
+        "source": "corpus/notes/background-tasks.md",
+        "start_line": 52,
+        "end_line": 52,
+        "quote": "**FastAPI** knows what to do in each case and how to reuse the same object, so that all the background tasks are merged together and are run in the background afterwards:"
+      }
+    ],
+    "judge_quality": {
+      "correctness": {
+        "type": "choice",
+        "choice": "correct",
+        "confidence": 0.8769,
+        "probabilities": {
+          "correct": 0.9575,
+          "incorrect": 0.029,
+          "uncertain": 0.0135
+        }
+      },
+      "completeness": {
+        "type": "choice",
+        "choice": "complete",
+        "confidence": 0.8918,
+        "probabilities": {
+          "complete": 0.9582,
+          "partial": 0.0187,
+          "missing": 0.0139,
+          "uncertain": 0.0092
+        }
+      },
+      "abstention": {
+        "type": "choice",
+        "choice": "appropriate",
+        "confidence": 0.0553,
+        "probabilities": {
+          "appropriate": 0.4244,
+          "inappropriate": 0.3983,
+          "uncertain": 0.1773
+        }
+      }
+    },
+    "citation_uncertain": 0,
+    "selection": "Illustrative saved examples, not representative sampling or independent quality evidence"
+  },
+  {
+    "category": "cross_document",
+    "method": "vector",
+    "case_id": "holdout-v3-16",
+    "question": "重型后台计算与普通请求校验失败各使用什么工具或异常？",
+    "valid_at": null,
+    "answer": "若需要执行重型后台计算且不要求由同一进程运行（例如无需共享内存、变量等），可考虑使用 Celery 等更大的工具。\n\n当请求包含无效数据时，FastAPI 内部会抛出 RequestValidationError。",
+    "claims": [
+      {
+        "text": "若需要执行重型后台计算且不要求由同一进程运行（例如无需共享内存、变量等），可考虑使用 Celery 等更大的工具。",
+        "status": "supported",
+        "citation_ids": [
+          "ca171c91-ec57-5fb2-bc3d-8b2ab8a14764"
+        ]
+      },
+      {
+        "text": "当请求包含无效数据时，FastAPI 内部会抛出 RequestValidationError。",
+        "status": "supported",
+        "citation_ids": [
+          "dc57d432-a9a6-5c80-bc17-b6147c959d7d"
+        ]
+      }
+    ],
+    "citations": [
+      {
+        "source": "corpus/notes/background-tasks.md",
+        "start_line": 78,
+        "end_line": 78,
+        "quote": "If you need to perform heavy background computation and you don't necessarily need it to be run by the same process (for example, you don't need to share memory, variables, etc), you might benefit from using other bigger tools like [Celery](https://docs.celeryq.dev)."
+      },
+      {
+        "source": "corpus/notes/handling-errors.md",
+        "start_line": 122,
+        "end_line": 122,
+        "quote": "When a request contains invalid data, **FastAPI** internally raises a `RequestValidationError`."
+      }
+    ],
+    "judge_quality": {
+      "correctness": {
+        "type": "choice",
+        "choice": "correct",
+        "confidence": 0.8765,
+        "probabilities": {
+          "correct": 0.9574,
+          "incorrect": 0.0294,
+          "uncertain": 0.0132
+        }
+      },
+      "completeness": {
+        "type": "choice",
+        "choice": "complete",
+        "confidence": 0.9032,
+        "probabilities": {
+          "complete": 0.9628,
+          "partial": 0.0158,
+          "missing": 0.0124,
+          "uncertain": 0.009
+        }
+      },
+      "abstention": {
+        "type": "choice",
+        "choice": "appropriate",
+        "confidence": 0.0736,
+        "probabilities": {
+          "appropriate": 0.4743,
+          "inappropriate": 0.361,
+          "uncertain": 0.1647
+        }
+      }
+    },
+    "citation_uncertain": 0,
+    "selection": "Illustrative saved examples, not representative sampling or independent quality evidence"
+  },
+  {
+    "category": "temporal",
+    "method": "vector",
+    "case_id": "holdout-v3-17",
+    "question": "截至 2023-03-16，依赖函数允许哪些定义形式？",
+    "valid_at": "2023-03-16T00:00:00Z",
+    "answer": "依赖函数可以使用 `async def` 定义。\n\n依赖函数也可以使用普通的 `def` 定义。",
+    "claims": [
+      {
+        "text": "依赖函数可以使用 `async def` 定义。",
+        "status": "supported",
+        "citation_ids": [
+          "e2e037a8-72f8-504a-a172-ac1284268d37"
+        ]
+      },
+      {
+        "text": "依赖函数也可以使用普通的 `def` 定义。",
+        "status": "supported",
+        "citation_ids": [
+          "e2e037a8-72f8-504a-a172-ac1284268d37"
+        ]
+      }
+    ],
+    "citations": [
+      {
+        "source": "corpus/notes/dependencies-0941.md",
+        "start_line": 133,
+        "end_line": 133,
+        "quote": "You can use `async def` or normal `def`."
+      }
+    ],
+    "judge_quality": {
+      "correctness": {
+        "type": "choice",
+        "choice": "correct",
+        "confidence": 0.8685,
+        "probabilities": {
+          "correct": 0.9546,
+          "incorrect": 0.0297,
+          "uncertain": 0.0157
+        }
+      },
+      "completeness": {
+        "type": "choice",
+        "choice": "complete",
+        "confidence": 0.872,
+        "probabilities": {
+          "complete": 0.9503,
+          "partial": 0.0219,
+          "missing": 0.0157,
+          "uncertain": 0.0121
+        }
+      },
+      "abstention": {
+        "type": "choice",
+        "choice": "appropriate",
+        "confidence": 0.0756,
+        "probabilities": {
+          "appropriate": 0.477,
+          "inappropriate": 0.36,
+          "uncertain": 0.163
+        }
+      }
+    },
+    "citation_uncertain": 1,
+    "selection": "Illustrative saved examples, not representative sampling or independent quality evidence"
+  },
+  {
+    "category": "unanswerable",
+    "method": "bm25",
+    "case_id": "holdout-v3-24",
+    "question": "这些文档中实际人工盲评的正确率是多少？",
+    "valid_at": null,
+    "answer": "所提供的证据未包含任何关于人工盲评正确率的数据，因此无法确认该正确率。\n\n证据仅涉及不存在资源时返回 404 状态码的示例，与人工盲评正确率无关。\n\n证据仅涉及重型后台计算可考虑使用 Celery 等工具，与人工盲评正确率无关。",
+    "claims": [
+      {
+        "text": "所提供的证据未包含任何关于人工盲评正确率的数据，因此无法确认该正确率。",
+        "status": "insufficient",
+        "citation_ids": []
+      },
+      {
+        "text": "证据仅涉及不存在资源时返回 404 状态码的示例，与人工盲评正确率无关。",
+        "status": "insufficient",
+        "citation_ids": []
+      },
+      {
+        "text": "证据仅涉及重型后台计算可考虑使用 Celery 等工具，与人工盲评正确率无关。",
+        "status": "insufficient",
+        "citation_ids": []
+      }
+    ],
+    "citations": [],
+    "judge_quality": {
+      "correctness": {
+        "type": "choice",
+        "choice": "correct",
+        "confidence": 0.8196,
+        "probabilities": {
+          "correct": 0.9369,
+          "incorrect": 0.0339,
+          "uncertain": 0.0292
+        }
+      },
+      "completeness": {
+        "type": "choice",
+        "choice": "complete",
+        "confidence": 0.8692,
+        "probabilities": {
+          "complete": 0.9492,
+          "partial": 0.0122,
+          "missing": 0.0269,
+          "uncertain": 0.0117
+        }
+      },
+      "abstention": {
+        "type": "choice",
+        "choice": "appropriate",
+        "confidence": 0.7527,
+        "probabilities": {
+          "appropriate": 0.9114,
+          "inappropriate": 0.0599,
+          "uncertain": 0.0287
+        }
+      }
+    },
+    "citation_uncertain": 0,
+    "selection": "Illustrative saved examples, not representative sampling or independent quality evidence"
+  }
+]

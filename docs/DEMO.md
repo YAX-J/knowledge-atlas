@@ -1,5 +1,7 @@
 # Complete local demo and CI
 
+Current saved evaluation demo: see the [thesis discussion and fixed five-minute script](HOLDOUT_DISCUSSION_AND_DEMO.md) and [completed457-request judge report](../evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.md). Show saved direct/cross-document/historical/refusal examples plus failures and uncertainty; do not generate paid answers live or imply the cleaned temporary project exists in the application DB. Human grades remain0%.
+
 [简体中文](DEMO.zh-CN.md)
 
 Local single-user graduation demo only: authentication is not implemented; do not expose it publicly. Native PostgreSQL/pgvector is the default, Docker optional. Startup makes no paid provider calls.

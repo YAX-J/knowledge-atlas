@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Complete the explicitly authorized457-request CF Clef holdout judgment, preserving91 graded/96 total and5 invalid-output exclusions. Add offline fingerprint-checked summaries, confidence/uncertainty/denominator reporting, figures and a thesis/demo draft.83 correct labels are model-only;80/183 citations uncertain and all abstention low-confidence. No changes to frozen inputs/prior ledgers or new answer/embedding calls.
+
 - Repair opt-in evaluation: invalid outputs remain explicit case failures instead of aborting independent cases; production validation/other-error fail-stop stay strict. Add exact scoped diagnostic reuse, sanitized constraint codes and hashed judge exclusions (ADR0074). Retry96 records:91 valid/5 invalid, diagnostic1+main95 model/73 embedding requests. No prompt/ranking/gold changes; CF Clef preflight457, no new live judge calls.
 
 - Add explicitly granted96/73 holdout round ledgers with immutable scope, atomic before-call reservations and one-output claims, preserving historical usage. The first live attempt stopped on invalid answer5, saved4 BM25 answers and consumed5/1; no automatic retry/judge. Archive partial artifacts and native cleanup proof. Subsequent errors retain sanitized exception/validation types and case IDs without inputs or response text.

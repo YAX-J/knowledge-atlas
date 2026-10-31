@@ -2,11 +2,11 @@
 
 [简体中文](CURRENT_SYSTEM_EVALUATION.zh-CN.md)
 
-Latest2026-10-31: the authorized v4 retry completed96 cases with91 valid/5 invalid, using diagnostic1+main95 answers/73 embeddings. Online Schema/prompts/ranking remain unchanged and semantic quality is ungraded. The [full report](../evaluation/results/2026-10-31-holdout-v3-run2/REPORT.md) discloses failures and one diagnostic reuse; old ledgers and the [first failed run](../evaluation/results/2026-10-31-holdout-v3-run1/REPORT.md) remain preserved. Early budget checkpoints below are historical.
+Latest2026-10-31: all [457 CF Clef jobs](../evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.md) completed for91 gradable answers/96 records, leaving5 invalid outputs ungraded.83 correct labels are not human accuracy. Citations80/183 uncertain, all abstention low-confidence, human coverage0%. Prior QA results/frozen inputs/exclusions/ledgers are unchanged. Read-only reports/figures and a [thesis/demo draft](HOLDOUT_DISCUSSION_AND_DEMO.md) are delivered; no further call authorization. Early budget checkpoints below are historical.
 
 [ADR0074](adr/0074-evaluation-output-error-isolation.md): explicit `--isolate-output-errors` preserves null answers/failures and continues independent cases without repair/retry; other errors still stop. `--reuse-answer` permits one successful BM25 diagnostic export only with matching dataset/fixture/application/model/protocol and complete ordered retrieval/input evidence. Check before paid indexing; preserve provenance/original latency. Diagnostic1+main cap95 remains96.
 
-Exports cover96 cases. Explicit `--exclude-output-errors` hashes5 failed-case exclusions while preparing91 gradable answers; retain total-case/subset coverage. The [CF Clef zero-call preflight](../evaluation/results/2026-10-31-holdout-v3-run2/judge-preflight/run.json) plans457 requests; live judging remains unauthorized. This is not all answers passed or human grading.
+QA exports cover96 cases with5 explicit invalid-output exclusions. The subsequently authorized91-answer judging completed457 requests. The old zero-call preflight remains historical; see the live report above. Retain96 total/91 subset and confidence/uncertainty; never populate human grades.
 
 The recorded local zero-call configuration, fingerprints and budget blocker are in [preflight.json](../evaluation/experiments/2026-10-31-current-system-v3/preflight.json). This record consumes no authorization and is not a budget approval.
 

@@ -1,0 +1,787 @@
+{
+  "protocol": "model-judgment-summary-v1",
+  "source_status": "succeeded",
+  "dataset": {
+    "dataset_id": "knowledge-atlas-holdout-v3",
+    "version": "3.0.0",
+    "source_count": 7,
+    "case_count": 24,
+    "answerable_count": 20,
+    "category_counts": {
+      "cross_document": 8,
+      "direct_fact": 8,
+      "temporal": 4,
+      "unanswerable": 4
+    },
+    "fingerprint_sha256": "3215df76dd621e2fe8c9a7bc60fe640d6d7d171fe8be141b061f067fe12d1801"
+  },
+  "annotation_source": "model",
+  "human_grading_coverage": 0,
+  "judge_config": {
+    "provider": "cloudflare",
+    "evaluator": "Cloudflare Workers AI",
+    "model": "@cf/cloudflare/clef",
+    "protocol": "cf-decision-anonymous-claims-v1",
+    "mode": "decision",
+    "confidence_source": "provider_reported",
+    "model_revision_pinned": false
+  },
+  "provider_requests_this_summary": 0,
+  "source_reserved_requests": 457,
+  "source_completed_requests": 457,
+  "global_summary": {
+    "total_cases": 96,
+    "invalid_outputs": 5,
+    "valid_exports": 91,
+    "quality_graded": 91,
+    "raw_quality_labels": {
+      "correctness": {
+        "correct": 83,
+        "incorrect": 8
+      },
+      "completeness": {
+        "complete": 80,
+        "missing": 2,
+        "partial": 9
+      },
+      "abstention": {
+        "inappropriate": 25,
+        "appropriate": 66
+      }
+    },
+    "quality_low_confidence": {
+      "correctness": 47,
+      "completeness": 50,
+      "abstention": 91
+    },
+    "model_correct_label_fraction_all": 0.8645833333333334,
+    "model_correct_label_fraction_graded": 0.9120879120879121,
+    "citation_units": 183,
+    "citation_units_judged": 183,
+    "citation_uncertain": 80,
+    "citation_order_disagreement": 0,
+    "high_confidence_double_order_supported": 103,
+    "stable_supported_fraction_all_cited_units": 0.5628415300546448,
+    "valid_answers_without_cited_units": 14,
+    "human_grading_coverage": 0
+  },
+  "methods": {
+    "bm25": {
+      "total_cases": 24,
+      "invalid_outputs": 2,
+      "valid_exports": 22,
+      "quality_graded": 22,
+      "raw_quality_labels": {
+        "correctness": {
+          "correct": 20,
+          "incorrect": 2
+        },
+        "completeness": {
+          "complete": 18,
+          "missing": 1,
+          "partial": 3
+        },
+        "abstention": {
+          "inappropriate": 11,
+          "appropriate": 11
+        }
+      },
+      "quality_low_confidence": {
+        "correctness": 11,
+        "completeness": 12,
+        "abstention": 22
+      },
+      "model_correct_label_fraction_all": 0.8333333333333334,
+      "model_correct_label_fraction_graded": 0.9090909090909091,
+      "citation_units": 37,
+      "citation_units_judged": 37,
+      "citation_uncertain": 13,
+      "citation_order_disagreement": 0,
+      "high_confidence_double_order_supported": 24,
+      "stable_supported_fraction_all_cited_units": 0.6486486486486487,
+      "valid_answers_without_cited_units": 4,
+      "human_grading_coverage": 0
+    },
+    "hybrid": {
+      "total_cases": 24,
+      "invalid_outputs": 1,
+      "valid_exports": 23,
+      "quality_graded": 23,
+      "raw_quality_labels": {
+        "correctness": {
+          "correct": 21,
+          "incorrect": 2
+        },
+        "completeness": {
+          "complete": 21,
+          "partial": 1,
+          "missing": 1
+        },
+        "abstention": {
+          "appropriate": 18,
+          "inappropriate": 5
+        }
+      },
+      "quality_low_confidence": {
+        "correctness": 12,
+        "completeness": 12,
+        "abstention": 23
+      },
+      "model_correct_label_fraction_all": 0.875,
+      "model_correct_label_fraction_graded": 0.9130434782608695,
+      "citation_units": 50,
+      "citation_units_judged": 50,
+      "citation_uncertain": 22,
+      "citation_order_disagreement": 0,
+      "high_confidence_double_order_supported": 28,
+      "stable_supported_fraction_all_cited_units": 0.56,
+      "valid_answers_without_cited_units": 3,
+      "human_grading_coverage": 0
+    },
+    "rrf": {
+      "total_cases": 24,
+      "invalid_outputs": 2,
+      "valid_exports": 22,
+      "quality_graded": 22,
+      "raw_quality_labels": {
+        "correctness": {
+          "correct": 20,
+          "incorrect": 2
+        },
+        "completeness": {
+          "complete": 19,
+          "partial": 3
+        },
+        "abstention": {
+          "appropriate": 17,
+          "inappropriate": 5
+        }
+      },
+      "quality_low_confidence": {
+        "correctness": 11,
+        "completeness": 12,
+        "abstention": 22
+      },
+      "model_correct_label_fraction_all": 0.8333333333333334,
+      "model_correct_label_fraction_graded": 0.9090909090909091,
+      "citation_units": 46,
+      "citation_units_judged": 46,
+      "citation_uncertain": 19,
+      "citation_order_disagreement": 0,
+      "high_confidence_double_order_supported": 27,
+      "stable_supported_fraction_all_cited_units": 0.5869565217391305,
+      "valid_answers_without_cited_units": 4,
+      "human_grading_coverage": 0
+    },
+    "vector": {
+      "total_cases": 24,
+      "invalid_outputs": 0,
+      "valid_exports": 24,
+      "quality_graded": 24,
+      "raw_quality_labels": {
+        "correctness": {
+          "correct": 22,
+          "incorrect": 2
+        },
+        "completeness": {
+          "complete": 22,
+          "partial": 2
+        },
+        "abstention": {
+          "appropriate": 20,
+          "inappropriate": 4
+        }
+      },
+      "quality_low_confidence": {
+        "correctness": 13,
+        "completeness": 14,
+        "abstention": 24
+      },
+      "model_correct_label_fraction_all": 0.9166666666666666,
+      "model_correct_label_fraction_graded": 0.9166666666666666,
+      "citation_units": 50,
+      "citation_units_judged": 50,
+      "citation_uncertain": 26,
+      "citation_order_disagreement": 0,
+      "high_confidence_double_order_supported": 24,
+      "stable_supported_fraction_all_cited_units": 0.48,
+      "valid_answers_without_cited_units": 3,
+      "human_grading_coverage": 0
+    }
+  },
+  "categories": {
+    "bm25": {
+      "cross_document": {
+        "total_cases": 8,
+        "invalid_outputs": 1,
+        "valid_exports": 7,
+        "quality_graded": 7,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 7
+          },
+          "completeness": {
+            "complete": 5,
+            "partial": 2
+          },
+          "abstention": {
+            "inappropriate": 5,
+            "appropriate": 2
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 4,
+          "completeness": 4,
+          "abstention": 7
+        },
+        "model_correct_label_fraction_all": 0.875,
+        "model_correct_label_fraction_graded": 1.0,
+        "citation_units": 16,
+        "citation_units_judged": 16,
+        "citation_uncertain": 6,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 10,
+        "stable_supported_fraction_all_cited_units": 0.625,
+        "valid_answers_without_cited_units": 0,
+        "human_grading_coverage": 0
+      },
+      "direct_fact": {
+        "total_cases": 8,
+        "invalid_outputs": 0,
+        "valid_exports": 8,
+        "quality_graded": 8,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 7,
+            "incorrect": 1
+          },
+          "completeness": {
+            "complete": 7,
+            "missing": 1
+          },
+          "abstention": {
+            "inappropriate": 5,
+            "appropriate": 3
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 2,
+          "completeness": 6,
+          "abstention": 8
+        },
+        "model_correct_label_fraction_all": 0.875,
+        "model_correct_label_fraction_graded": 0.875,
+        "citation_units": 17,
+        "citation_units_judged": 17,
+        "citation_uncertain": 4,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 13,
+        "stable_supported_fraction_all_cited_units": 0.7647058823529411,
+        "valid_answers_without_cited_units": 0,
+        "human_grading_coverage": 0
+      },
+      "temporal": {
+        "total_cases": 4,
+        "invalid_outputs": 1,
+        "valid_exports": 3,
+        "quality_graded": 3,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 2,
+            "incorrect": 1
+          },
+          "completeness": {
+            "complete": 2,
+            "partial": 1
+          },
+          "abstention": {
+            "appropriate": 2,
+            "inappropriate": 1
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 2,
+          "completeness": 2,
+          "abstention": 3
+        },
+        "model_correct_label_fraction_all": 0.5,
+        "model_correct_label_fraction_graded": 0.6666666666666666,
+        "citation_units": 3,
+        "citation_units_judged": 3,
+        "citation_uncertain": 2,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 1,
+        "stable_supported_fraction_all_cited_units": 0.3333333333333333,
+        "valid_answers_without_cited_units": 1,
+        "human_grading_coverage": 0
+      },
+      "unanswerable": {
+        "total_cases": 4,
+        "invalid_outputs": 0,
+        "valid_exports": 4,
+        "quality_graded": 4,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 4
+          },
+          "completeness": {
+            "complete": 4
+          },
+          "abstention": {
+            "appropriate": 4
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 3,
+          "completeness": 0,
+          "abstention": 4
+        },
+        "model_correct_label_fraction_all": 1.0,
+        "model_correct_label_fraction_graded": 1.0,
+        "citation_units": 1,
+        "citation_units_judged": 1,
+        "citation_uncertain": 1,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 0,
+        "stable_supported_fraction_all_cited_units": 0.0,
+        "valid_answers_without_cited_units": 3,
+        "human_grading_coverage": 0
+      }
+    },
+    "hybrid": {
+      "cross_document": {
+        "total_cases": 8,
+        "invalid_outputs": 0,
+        "valid_exports": 8,
+        "quality_graded": 8,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 7,
+            "incorrect": 1
+          },
+          "completeness": {
+            "complete": 7,
+            "partial": 1
+          },
+          "abstention": {
+            "appropriate": 6,
+            "inappropriate": 2
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 5,
+          "completeness": 6,
+          "abstention": 8
+        },
+        "model_correct_label_fraction_all": 0.875,
+        "model_correct_label_fraction_graded": 0.875,
+        "citation_units": 23,
+        "citation_units_judged": 23,
+        "citation_uncertain": 9,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 14,
+        "stable_supported_fraction_all_cited_units": 0.6086956521739131,
+        "valid_answers_without_cited_units": 0,
+        "human_grading_coverage": 0
+      },
+      "direct_fact": {
+        "total_cases": 8,
+        "invalid_outputs": 0,
+        "valid_exports": 8,
+        "quality_graded": 8,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 8
+          },
+          "completeness": {
+            "complete": 8
+          },
+          "abstention": {
+            "appropriate": 6,
+            "inappropriate": 2
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 3,
+          "completeness": 5,
+          "abstention": 8
+        },
+        "model_correct_label_fraction_all": 1.0,
+        "model_correct_label_fraction_graded": 1.0,
+        "citation_units": 19,
+        "citation_units_judged": 19,
+        "citation_uncertain": 7,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 12,
+        "stable_supported_fraction_all_cited_units": 0.631578947368421,
+        "valid_answers_without_cited_units": 0,
+        "human_grading_coverage": 0
+      },
+      "temporal": {
+        "total_cases": 4,
+        "invalid_outputs": 1,
+        "valid_exports": 3,
+        "quality_graded": 3,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 2,
+            "incorrect": 1
+          },
+          "completeness": {
+            "complete": 2,
+            "missing": 1
+          },
+          "abstention": {
+            "appropriate": 2,
+            "inappropriate": 1
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 1,
+          "completeness": 1,
+          "abstention": 3
+        },
+        "model_correct_label_fraction_all": 0.5,
+        "model_correct_label_fraction_graded": 0.6666666666666666,
+        "citation_units": 7,
+        "citation_units_judged": 7,
+        "citation_uncertain": 5,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 2,
+        "stable_supported_fraction_all_cited_units": 0.2857142857142857,
+        "valid_answers_without_cited_units": 0,
+        "human_grading_coverage": 0
+      },
+      "unanswerable": {
+        "total_cases": 4,
+        "invalid_outputs": 0,
+        "valid_exports": 4,
+        "quality_graded": 4,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 4
+          },
+          "completeness": {
+            "complete": 4
+          },
+          "abstention": {
+            "appropriate": 4
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 3,
+          "completeness": 0,
+          "abstention": 4
+        },
+        "model_correct_label_fraction_all": 1.0,
+        "model_correct_label_fraction_graded": 1.0,
+        "citation_units": 1,
+        "citation_units_judged": 1,
+        "citation_uncertain": 1,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 0,
+        "stable_supported_fraction_all_cited_units": 0.0,
+        "valid_answers_without_cited_units": 3,
+        "human_grading_coverage": 0
+      }
+    },
+    "rrf": {
+      "cross_document": {
+        "total_cases": 8,
+        "invalid_outputs": 1,
+        "valid_exports": 7,
+        "quality_graded": 7,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 6,
+            "incorrect": 1
+          },
+          "completeness": {
+            "complete": 5,
+            "partial": 2
+          },
+          "abstention": {
+            "appropriate": 5,
+            "inappropriate": 2
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 5,
+          "completeness": 6,
+          "abstention": 7
+        },
+        "model_correct_label_fraction_all": 0.75,
+        "model_correct_label_fraction_graded": 0.8571428571428571,
+        "citation_units": 21,
+        "citation_units_judged": 21,
+        "citation_uncertain": 8,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 13,
+        "stable_supported_fraction_all_cited_units": 0.6190476190476191,
+        "valid_answers_without_cited_units": 0,
+        "human_grading_coverage": 0
+      },
+      "direct_fact": {
+        "total_cases": 8,
+        "invalid_outputs": 0,
+        "valid_exports": 8,
+        "quality_graded": 8,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 8
+          },
+          "completeness": {
+            "complete": 8
+          },
+          "abstention": {
+            "appropriate": 6,
+            "inappropriate": 2
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 1,
+          "completeness": 5,
+          "abstention": 8
+        },
+        "model_correct_label_fraction_all": 1.0,
+        "model_correct_label_fraction_graded": 1.0,
+        "citation_units": 19,
+        "citation_units_judged": 19,
+        "citation_uncertain": 7,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 12,
+        "stable_supported_fraction_all_cited_units": 0.631578947368421,
+        "valid_answers_without_cited_units": 0,
+        "human_grading_coverage": 0
+      },
+      "temporal": {
+        "total_cases": 4,
+        "invalid_outputs": 1,
+        "valid_exports": 3,
+        "quality_graded": 3,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 2,
+            "incorrect": 1
+          },
+          "completeness": {
+            "complete": 2,
+            "partial": 1
+          },
+          "abstention": {
+            "appropriate": 2,
+            "inappropriate": 1
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 1,
+          "completeness": 1,
+          "abstention": 3
+        },
+        "model_correct_label_fraction_all": 0.5,
+        "model_correct_label_fraction_graded": 0.6666666666666666,
+        "citation_units": 5,
+        "citation_units_judged": 5,
+        "citation_uncertain": 3,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 2,
+        "stable_supported_fraction_all_cited_units": 0.4,
+        "valid_answers_without_cited_units": 1,
+        "human_grading_coverage": 0
+      },
+      "unanswerable": {
+        "total_cases": 4,
+        "invalid_outputs": 0,
+        "valid_exports": 4,
+        "quality_graded": 4,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 4
+          },
+          "completeness": {
+            "complete": 4
+          },
+          "abstention": {
+            "appropriate": 4
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 4,
+          "completeness": 0,
+          "abstention": 4
+        },
+        "model_correct_label_fraction_all": 1.0,
+        "model_correct_label_fraction_graded": 1.0,
+        "citation_units": 1,
+        "citation_units_judged": 1,
+        "citation_uncertain": 1,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 0,
+        "stable_supported_fraction_all_cited_units": 0.0,
+        "valid_answers_without_cited_units": 3,
+        "human_grading_coverage": 0
+      }
+    },
+    "vector": {
+      "cross_document": {
+        "total_cases": 8,
+        "invalid_outputs": 0,
+        "valid_exports": 8,
+        "quality_graded": 8,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 7,
+            "incorrect": 1
+          },
+          "completeness": {
+            "complete": 7,
+            "partial": 1
+          },
+          "abstention": {
+            "appropriate": 5,
+            "inappropriate": 3
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 5,
+          "completeness": 6,
+          "abstention": 8
+        },
+        "model_correct_label_fraction_all": 0.875,
+        "model_correct_label_fraction_graded": 0.875,
+        "citation_units": 23,
+        "citation_units_judged": 23,
+        "citation_uncertain": 11,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 12,
+        "stable_supported_fraction_all_cited_units": 0.5217391304347826,
+        "valid_answers_without_cited_units": 0,
+        "human_grading_coverage": 0
+      },
+      "direct_fact": {
+        "total_cases": 8,
+        "invalid_outputs": 0,
+        "valid_exports": 8,
+        "quality_graded": 8,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 8
+          },
+          "completeness": {
+            "complete": 8
+          },
+          "abstention": {
+            "appropriate": 8
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 2,
+          "completeness": 5,
+          "abstention": 8
+        },
+        "model_correct_label_fraction_all": 1.0,
+        "model_correct_label_fraction_graded": 1.0,
+        "citation_units": 19,
+        "citation_units_judged": 19,
+        "citation_uncertain": 9,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 10,
+        "stable_supported_fraction_all_cited_units": 0.5263157894736842,
+        "valid_answers_without_cited_units": 0,
+        "human_grading_coverage": 0
+      },
+      "temporal": {
+        "total_cases": 4,
+        "invalid_outputs": 0,
+        "valid_exports": 4,
+        "quality_graded": 4,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 3,
+            "incorrect": 1
+          },
+          "completeness": {
+            "complete": 3,
+            "partial": 1
+          },
+          "abstention": {
+            "appropriate": 3,
+            "inappropriate": 1
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 2,
+          "completeness": 3,
+          "abstention": 4
+        },
+        "model_correct_label_fraction_all": 0.75,
+        "model_correct_label_fraction_graded": 0.75,
+        "citation_units": 7,
+        "citation_units_judged": 7,
+        "citation_uncertain": 5,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 2,
+        "stable_supported_fraction_all_cited_units": 0.2857142857142857,
+        "valid_answers_without_cited_units": 0,
+        "human_grading_coverage": 0
+      },
+      "unanswerable": {
+        "total_cases": 4,
+        "invalid_outputs": 0,
+        "valid_exports": 4,
+        "quality_graded": 4,
+        "raw_quality_labels": {
+          "correctness": {
+            "correct": 4
+          },
+          "completeness": {
+            "complete": 4
+          },
+          "abstention": {
+            "appropriate": 4
+          }
+        },
+        "quality_low_confidence": {
+          "correctness": 4,
+          "completeness": 0,
+          "abstention": 4
+        },
+        "model_correct_label_fraction_all": 1.0,
+        "model_correct_label_fraction_graded": 1.0,
+        "citation_units": 1,
+        "citation_units_judged": 1,
+        "citation_uncertain": 1,
+        "citation_order_disagreement": 0,
+        "high_confidence_double_order_supported": 0,
+        "stable_supported_fraction_all_cited_units": 0.0,
+        "valid_answers_without_cited_units": 3,
+        "human_grading_coverage": 0
+      }
+    }
+  },
+  "usage": {
+    "complete": true,
+    "input_tokens": 188615,
+    "output_tokens": 0,
+    "actual_billed_cost": null
+  },
+  "input_sha256": {
+    "evaluation/holdout-v3/manifest.json": "bb313e239083dbb7602ca0fe9326c25878cd4b7fe0e8d7544957b7c815574a2f",
+    "evaluation/holdout-v3/cases.jsonl": "85e595627646cd0052a32d88f0a63e21525b39fae97c9bcc08dc180cde50f694",
+    "output/holdout-v3-clef-20261031-r1/live/run.json": "ae093d9dd8a84a0cb669be87fb04fb3ca29e5ad4caa6a7170497cfa2e4f8866d",
+    "evaluation/results/2026-10-31-holdout-v3-run2/judge-packet/packet.json": "22b9b195383ecfe13388411b536965db746c08dde6ad95cacb1a95f090f6e425",
+    "evaluation/results/2026-10-31-holdout-v3-run2/judge-packet/packet-manifest.json": "de7c90c0065e571e937a38f5044c9e5dcdf8ccc7966aaa923ae24fb8b7c0dbdd",
+    "evaluation/results/2026-10-31-holdout-v3-run2/judge-packet/grading-key.json": "3be21c53c7ee821041315d3c03c6fdf216f29ba91c2e214d49504f81f99e27ca",
+    "evaluation/results/2026-10-31-holdout-v3-run2/judge-packet/excluded-answers.json": "64c412cdadea860809a22e33b2c16ea5e4963699a6c2133b67a4719ed3fcbcb4",
+    "evaluation/results/2026-10-31-holdout-v3-run2/bm25.jsonl": "1faa069953ff7c11a068e28f82908f3ab50aa53f9e68ebc8f9e7a482c6b4fa31",
+    "evaluation/results/2026-10-31-holdout-v3-run2/hybrid.jsonl": "643494697579be4e0ec4cb6e0cb839794e0dc87ee12fcafdbe92e9d5aa836523",
+    "evaluation/results/2026-10-31-holdout-v3-run2/rrf.jsonl": "b71f625cadb1a273994b2252f4badacd8db0544387d513cecbcc088a59a543bc",
+    "evaluation/results/2026-10-31-holdout-v3-run2/vector.jsonl": "558ce5c712ba614f3e1ece4b01cab684af0af42e738e1bd9ec433f01454ab703"
+  },
+  "limitations": [
+    "Model labels are not human accuracy or calibrated probabilities.",
+    "Correct/all and correct/graded are separate label fractions; invalid outputs remain explicit.",
+    "Quality low-confidence counts are descriptive; raw labels and citation threshold0.8 are unchanged.",
+    "Agent-authored references and unpinned judge weights limit inference."
+  ]
+}

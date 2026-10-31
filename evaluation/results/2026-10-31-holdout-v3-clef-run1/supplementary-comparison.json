@@ -1,0 +1,47 @@
+{
+  "definition": "Supplementary intersection of valid quality-graded cases across all methods, without filtering by correctness. Does not replace all-case results; coverage selection may be biased.",
+  "source_sha256": "3a3f81d328b0daba0e35bf20dfa47ef647d51df94ad35a3809eb1d0ff3fcd0ed",
+  "case_ids": [
+    "holdout-v3-01",
+    "holdout-v3-02",
+    "holdout-v3-03",
+    "holdout-v3-04",
+    "holdout-v3-05",
+    "holdout-v3-06",
+    "holdout-v3-07",
+    "holdout-v3-08",
+    "holdout-v3-09",
+    "holdout-v3-10",
+    "holdout-v3-11",
+    "holdout-v3-12",
+    "holdout-v3-14",
+    "holdout-v3-15",
+    "holdout-v3-16",
+    "holdout-v3-17",
+    "holdout-v3-18",
+    "holdout-v3-19",
+    "holdout-v3-21",
+    "holdout-v3-22",
+    "holdout-v3-23",
+    "holdout-v3-24"
+  ],
+  "case_count": 22,
+  "methods": {
+    "bm25": {
+      "graded": 22,
+      "correct_label": 20
+    },
+    "hybrid": {
+      "graded": 22,
+      "correct_label": 20
+    },
+    "rrf": {
+      "graded": 22,
+      "correct_label": 20
+    },
+    "vector": {
+      "graded": 22,
+      "correct_label": 20
+    }
+  }
+}
