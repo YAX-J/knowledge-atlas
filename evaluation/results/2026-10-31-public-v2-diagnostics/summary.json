@@ -1,0 +1,97 @@
+{
+  "protocol": "offline-development-diagnostics-v1",
+  "dataset": {
+    "dataset_id": "knowledge-atlas-public-v2",
+    "version": "2.0.0",
+    "source_count": 10,
+    "case_count": 20,
+    "answerable_count": 16,
+    "category_counts": {
+      "code_location": 4,
+      "cross_document": 4,
+      "direct_fact": 8,
+      "unanswerable": 4
+    },
+    "fingerprint_sha256": "0341a422f40d91e9d8f18e40d74ffd5d90cf225994fbbfc5eef6bcfe2a2bd606"
+  },
+  "methods": {
+    "bm25": {
+      "answers": 20,
+      "flags": {
+        "quality_low_confidence": 19,
+        "citation_judge_uncertain": 12,
+        "retrieval_pool_gold_gap": 3,
+        "top5_gold_gap": 6,
+        "citation_gold_gap": 4,
+        "model_flagged_incomplete": 4,
+        "model_flagged_incorrect": 2
+      }
+    },
+    "vector": {
+      "answers": 20,
+      "flags": {
+        "quality_low_confidence": 20,
+        "citation_judge_uncertain": 12,
+        "retrieval_pool_gold_gap": 4,
+        "top5_gold_gap": 6,
+        "citation_gold_gap": 5,
+        "model_flagged_incomplete": 4,
+        "model_flagged_incorrect": 4
+      }
+    },
+    "hybrid": {
+      "answers": 20,
+      "flags": {
+        "top5_gold_gap": 13,
+        "quality_low_confidence": 18,
+        "retrieval_pool_gold_gap": 7,
+        "citation_gold_gap": 8,
+        "model_flagged_incomplete": 7,
+        "model_flagged_incorrect": 7,
+        "citation_judge_uncertain": 10
+      }
+    },
+    "rrf": {
+      "answers": 20,
+      "flags": {
+        "quality_low_confidence": 20,
+        "citation_judge_uncertain": 11,
+        "retrieval_pool_gold_gap": 3,
+        "top5_gold_gap": 5,
+        "citation_gold_gap": 5,
+        "model_flagged_incomplete": 4,
+        "model_flagged_incorrect": 3
+      }
+    }
+  },
+  "rows": 80,
+  "human_grading_coverage": 0,
+  "provider_requests_this_analysis": 0,
+  "source_requests": 214,
+  "source_judge": {
+    "provider": "cloudflare",
+    "evaluator": "Cloudflare Workers AI",
+    "model": "@cf/cloudflare/clef",
+    "protocol": "cf-decision-anonymous-claims-v1",
+    "mode": "decision",
+    "confidence_source": "provider_reported",
+    "model_revision_pinned": false
+  },
+  "input_sha256": {
+    "evaluation/public-v2/manifest.json": "b2ef76fd7d346ba363d26fe4cc2cd78287e400c64f05191db8dee0da1eb3b966",
+    "evaluation/public-v2/cases.jsonl": "dcdd9e1c84758f5c963a8b8ee1740ad34ce80bc82cd09608640b4cf08167214f",
+    "output/clef-blind-01/live/run.json": "32a777c5ec491441765fad6cf462f037c763ea23180966240018693d1196deb3",
+    "output/clef-blind-01/packet/packet.json": "53fff6cdbf23347db9db525bbfd74fc9c155a450a5a4f2368f13925cf993bb79",
+    "output/clef-blind-01/packet/packet-manifest.json": "8dcaf8d5cec30cb92857c139ebcd63e705103dd646bf721b6d8faecea420e55e",
+    "output/clef-blind-01/packet/grading-key.json": "b6fc1fff97bc79d6b1c9ce6a7a4ea89813952770507b5d17a8641deccdd20ec0",
+    "evaluation/results/2026-10-26-public-v2-run1/bm25.jsonl": "28e6d4bdaee54e45eafe3a361e07bf2bfb266781b73cae5081cce396ea177b7a",
+    "evaluation/results/2026-10-26-public-v2-run1/vector.jsonl": "fc130c415e10a093453adda8c098a7688d65f689204b15759d64c2398c33c39b",
+    "evaluation/results/2026-10-26-public-v2-run1/hybrid.jsonl": "94b899eec1a87e1113442898a1f7fed68f34536864c68bd3823dc00d9e844949",
+    "evaluation/results/2026-10-26-public-v2-run1/rrf.jsonl": "052e53cbd58d7cdd07f20a0375c0decaae2322b50fcb0e49831300782b415ed9"
+  },
+  "limitations": [
+    "Flags are not human grades or established root causes.",
+    "Top5 evidence recall differs from the full retrieved pool and actual prompt pool.",
+    "Reference facts are Agent-authored; no holdout cases analyzed."
+  ]
+}

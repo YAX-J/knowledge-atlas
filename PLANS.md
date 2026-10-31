@@ -1,5 +1,7 @@
 # Knowledge Atlas implementation plan
 
+2026-10-31: [Historical diagnostics](evaluation/results/2026-10-31-public-v2-diagnostics/REPORT.md) cover 80 answers and the completed historical Clef 214-request run. The [current-system experiment](docs/CURRENT_SYSTEM_EVALUATION.md) adds per-case historical time, claim/input-pool exports, compatible numeric projections and zero-call preflight. Holdout-v3 remains frozen; its prospective four-method upper bounds are96 model/73 embedding calls against historical remaining36/99. Live use is blocked pending explicit additional authorization; this turn makes0 real calls. Human grading remains0%.
+
 Offline judging now supports OpenRouter Jev, direct TypeSafe Jev and native CF adapters, with human grading coverage0%. OpenRouter Decisions API and release/snapshot validation are implemented with zero-call preflight; live compatibility/quality remain unverified. See [OpenRouter setup](docs/OPENROUTER_EVALUATION.md) and [ADR0073](docs/adr/0073-openrouter-jev-evaluation.md). Earlier read optimizations remain in ADR0071.
 
 Claim-level answers are implemented in [ADR 0069](docs/adr/0069-answer-claim-evidence.md): `evidence-claims-v2` binds each supported claim to current scoped evidence, marks insufficient claims separately and supports exact source navigation. The server derives legacy flat fields; old records remain readable without inferred attribution or new provider calls. Structural validation does not establish semantic entailment. Frozen experiments, the 84/61 provider ledger and schema head `20261029_0019` remain unchanged; evaluation uses anonymous model grading with human coverage0%.
@@ -25,7 +27,7 @@ The user's ordered P0/P1/P2 optimization is implemented in code. Acceptance evid
 
 ## External work still pending
 
-The user selects anonymous model grading with human coverage0%. OpenRouter Jev, direct TypeSafe and native CF adapters are available; this turn uses only substitutes and provider-free packet/preflight, with no live model evaluation. Keep v3 frozen and separate from development data; never tune judge prompts, ranking or thresholds against it. Historical human-score fields remain untouched.
+The historical Clef model review is complete for80 old public-v2 answers; it is not current-system or holdout-v3 quality evidence. The user selects anonymous model grading with human coverage0%. OpenRouter Jev, direct TypeSafe and native CF adapters are available. Current holdout preflight is blocked by answer authorization; a new live round and its exact subsequent judge request count require separate approval. Keep v3 frozen and separate from development data; never tune judge prompts, ranking or thresholds against it. Historical human-score fields remain untouched.
 
 Private repository acceptance, privileged fresh-database recovery, Docker and remote CI need their actual environments. They remain explicit limits, not hidden assumptions about completion.
 

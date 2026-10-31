@@ -24,8 +24,8 @@ from app.services.search import search_knowledge
 from scripts.evaluate_dataset import _evidence_key, score_predictions, validate_dataset
 from scripts.evaluation_snapshot import project_snapshot
 from scripts.isolated_workspace import isolated_workspace
-from scripts.prepare_evaluation import prepare_project
-from scripts.run_evaluation import _evidence_record, ordered_evidence
+from scripts.prepare_evaluation import load_fixture, prepare_project
+from scripts.run_evaluation import _evidence_record, ordered_evidence, parse_valid_at
 from scripts.provider_ledger import ProviderLedger
 
 
@@ -33,33 +33,130 @@ def save(path,value):
     path.write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 
 
-def run(dataset,output,*,model_limit=120,embedding_limit=160):
+LEDGER_PATH = Path(__file__).resolve().parents[2]/'output/completeness-20261026/provider-budget.json'
+HOLDOUT_MODES = ['bm25', 'vector', 'hybrid', 'rrf']
+
+
+def plan(dataset, *, settings=None, ledger_path=LEDGER_PATH, model_limit=120, embedding_limit=160):
+    """Provider/DB-free plan; the historical authorization is never reset here."""
+    settings = settings or get_settings()
+    _, cases, summary = validate_dataset(dataset)
+    protocol = json.loads((dataset/'protocol.json').read_text(encoding='utf-8'))
+    if protocol['dataset'] != summary:
+        raise ValueError('Frozen protocol fingerprint changed')
+    if summary['dataset_id'] not in {'knowledge-atlas-public-v2', 'knowledge-atlas-holdout-v3'}:
+        raise ValueError('Only frozen public-v2/holdout-v3 datasets are allowed')
+    fixture, _, fixture_hash = load_fixture(dataset)
+    modes = HOLDOUT_MODES if summary['dataset_id'] == 'knowledge-atlas-holdout-v3' else protocol['modes']
+    extraction = summary['dataset_id'] == 'knowledge-atlas-public-v2'
+    entities = sum(len(source.entities) for source in fixture.sources)
+    model_requests = len(cases) * sum(mode != 'keyword' for mode in modes) + (2 if extraction else 0)
+    embedding_requests = ((entities + settings.embedding_batch_size - 1) // settings.embedding_batch_size
+                          + len(cases) * sum(mode in {'vector', 'hybrid', 'rrf'} for mode in modes))
+    # A missing ledger is unknown authorization, not a fresh zero-use grant.
+    ledger = json.loads(ledger_path.read_text(encoding='utf-8')) if ledger_path.exists() else None
+    remaining = {kind: ledger['limits'][kind] - ledger['reserved'][kind] for kind in ('model', 'embedding')} if ledger else None
+    blockers = []
+    if type(model_limit) is not int or type(embedding_limit) is not int or not 1 <= model_limit <= 120 or not 1 <= embedding_limit <= 160:
+        raise ValueError('Budget exceeds the existing authorization')
+    if ledger is None:
+        blockers.append('Historical ledger missing; authorization must be reconciled before any call')
+    elif ledger['limits'] != {'model': 120, 'embedding': 160}:
+        raise ValueError('Historical authorization limits changed')
+    for kind, count, limit in (('model', model_requests, model_limit), ('embedding', embedding_requests, embedding_limit)):
+        if count > limit or (remaining is not None and count > remaining[kind]):
+            blockers.append(f'{kind}: planned upper bound {count} exceeds per-run or remaining cumulative budget')
+    backend = Path(__file__).resolve().parents[1]
+    code_files = [*sorted((backend/'app').rglob('*.py')), *(backend/'scripts'/name for name in (
+        'run_public_acceptance.py', 'run_evaluation.py', 'evaluate_dataset.py', 'prepare_evaluation.py',
+        'evaluation_snapshot.py', 'provider_ledger.py', 'isolated_workspace.py'))]
+    code_hash = hashlib.sha256(json.dumps({path.relative_to(backend).as_posix():
+        hashlib.sha256(path.read_bytes()).hexdigest() for path in code_files}, sort_keys=True).encode()).hexdigest()
+    return dict(status='prepared', protocol='online-acceptance-plan-v1', dataset=summary,
+                answer_protocol=ANSWER_PROMPT_VERSION, modes=modes, strategy='single_step',
+                top_k_entities=5, max_answer_evidence=12, valid_at='each case.valid_at, never forced to current time',
+                fixture_sha256=fixture_hash, dataset_protocol_sha256=hashlib.sha256((dataset/'protocol.json').read_bytes()).hexdigest(),
+                embedding_batch_size=settings.embedding_batch_size, embedding_dimensions=settings.embedding_dimensions,
+                answer_model=settings.deepseek_model, embedding_model=settings.embedding_model,
+                code_sha256=code_hash,
+                request_limits=dict(model=model_limit,embedding=embedding_limit),
+                planned_upper_bounds=dict(model=model_requests, embedding=embedding_requests),
+                historical_remaining=remaining, blockers=blockers, extraction_smoke=extraction,
+                human_coverage=0, reserved_requests=0, completed_requests=0,
+                judge_protocol=dict(provider='cloudflare',model='@cf/cloudflare/clef',mode='decision',
+                    citation_confidence_threshold=.8,model_revision_pinned=False),
+                judge_requests='separate authorization after complete answer export; 1 + 2*cited supported claims per answer')
+
+
+def online_prediction(db, *, case, mode, project_id, settings, mapping):
+    """Call the current application service once, preserving the actual prompt pool."""
+    captured = {}
+    original_search = questions.search_knowledge
+
+    def capture_search(*args, **kwargs):
+        result = original_search(*args, **kwargs)
+        if mode in {'vector', 'hybrid', 'rrf'} and result.indexed_count != result.eligible_count:
+            raise ValueError('Incomplete vector index for requested historical scope')
+        captured['result'] = result
+        return result
+
+    began = time.perf_counter()
+    at = parse_valid_at(case['valid_at'])
+    if mode == 'keyword':
+        result = search_knowledge(db, user_id=USER, project_id=project_id, query=case['question'],
+                                 types=[], valid_at=at, top_k=5, mode=mode, settings=settings)
+        response = None
+    else:
+        with patch.object(questions, 'search_knowledge', capture_search):
+            response = questions.answer_question(db, user_id=USER, project_id=project_id,
+                question=case['question'], valid_at=at, settings=settings, retrieval_mode=mode,
+                strategy='single_step')
+        result = captured['result']
+        if response.answer_protocol != ANSWER_PROMPT_VERSION or response.claims is None:
+            raise ValueError('Current claim-level answer protocol is required')
+    prediction = dict(id=case['id'], valid_at=case['valid_at'],
+        retrieved_evidence=[_evidence_record(item, mapping) for item in ordered_evidence(result)],
+        citations=[_evidence_record(item, mapping) for item in response.evidence] if response else [],
+        answer=response.answer if response else None, supported=response.supported if response else None,
+        latency_ms=round((time.perf_counter()-began)*1000, 3), answer_correct=None, explainability_score=None)
+    if response:
+        pool, _ = questions.collect_evidence(result)
+        prediction.update(answer_protocol=response.answer_protocol,
+            claims=[item.model_dump(mode='json') for item in response.claims],
+            claim_evidence=[dict(id=str(item.id), **_evidence_record(item, mapping)) for item in response.evidence],
+            answer_input_evidence=[dict(id=str(item.id), **_evidence_record(item, mapping)) for item in pool.values()],
+            retrieval_metadata=result.model_dump(mode='json', exclude={'items'}))
+    return prediction
+
+
+def run(dataset,output,*,model_limit=120,embedding_limit=160,approved_plan=None):
     if output.exists():
         raise ValueError('Output directory must be new')
-    manifest,cases,summary=validate_dataset(dataset)
-    protocol=json.loads((dataset/'protocol.json').read_text(encoding='utf-8'))
-    if protocol['dataset']!=summary:
-        raise ValueError('Frozen protocol fingerprint changed')
-    # This command deliberately accepts only the public, provenance-pinned pack.
-    if summary['dataset_id']!='knowledge-atlas-public-v2':
-        raise ValueError('Only the approved public-v2 dataset is allowed')
     settings=get_settings()
+    prepared_plan=plan(dataset,settings=settings,model_limit=model_limit,embedding_limit=embedding_limit)
+    if prepared_plan['blockers']:
+        raise ValueError('Insufficient cumulative authorization; inspect --preflight before any provider call')
+    if prepared_plan['dataset']['dataset_id'] == 'knowledge-atlas-holdout-v3' and approved_plan is None:
+        raise ValueError('Holdout requires an explicit --approved-plan from the zero-call preflight')
+    if approved_plan is not None and json.loads(Path(approved_plan).read_text(encoding='utf-8')) != prepared_plan:
+        raise ValueError('Approved plan changed; repeat zero-call preflight and review before provider use')
+    _,cases,summary=validate_dataset(dataset)
     if not settings.deepseek_api_key or not settings.embedding_api_key:
         raise ValueError('Providers are not configured')
     if not 1<=model_limit<=120 or not 1<=embedding_limit<=160:
         raise ValueError('Budget exceeds the user authorization')
     output.mkdir(parents=True)
-    report=dict(status='running',protocol='public-online-v2',answer_protocol=ANSWER_PROMPT_VERSION,dataset=summary,
-        started_at=datetime.now(timezone.utc).isoformat(),private_inputs=False,human_coverage=0,planned_judge='Jev',human_review_status='not_planned',
+    report=dict(status='running',protocol='online-claims-v3',prediction_protocol='online-claims-export-v1',
+        answer_protocol=ANSWER_PROMPT_VERSION,dataset=summary,plan=prepared_plan,
+        started_at=datetime.now(timezone.utc).isoformat(),private_inputs=False,human_coverage=0,
+        planned_judge=prepared_plan['judge_protocol'],human_review_status='not_planned',
         billing_cost=None,embedding_calls=0,model_limit=model_limit,embedding_limit=embedding_limit,
         schema_removed=False,modes={},errors=[])
     report_path=output/'run.json'
     save(report_path,report)
     original_embedding=embeddings.embed_texts
     original_begin=model_usage.begin_call
-    ledger=ProviderLedger(Path(__file__).resolve().parents[2]/'output/completeness-20261026/provider-budget.json')
-    original_search=questions.search_knowledge
-    captured={}
+    ledger=ProviderLedger(LEDGER_PATH)
     blind=[]
     predictions={}
     def measured_embedding(configuration,texts):
@@ -72,10 +169,8 @@ def run(dataset,output,*,model_limit=120,embedding_limit=160):
     def measured_begin(kind):
         ledger.reserve(kind)
         original_begin(kind)
-    def capture_search(*args,**kwargs):
-        result=original_search(*args,**kwargs)
-        captured['result']=result
-        return result
+        report['model_usage']=meter.summary()
+        save(report_path,report)
     try:
         with model_usage.usage_budget(model_limit) as meter, patch.object(model_usage,'begin_call',measured_begin), patch.object(embeddings,'embed_texts',measured_embedding), isolated_workspace(settings) as (engine,native,schema):
             report['model_usage']=meter.summary()
@@ -89,28 +184,12 @@ def run(dataset,output,*,model_limit=120,embedding_limit=160):
             with Session(engine) as db:
                 frozen=project_snapshot(db,user_id=USER,project_id=project_id)
             report['snapshot']=frozen
-            for mode in protocol['modes']:
+            for mode in prepared_plan['modes']:
                 records=[]
                 partial=output/f'{mode}.partial.jsonl'
                 for case in cases:
-                    began=time.perf_counter()
                     with Session(engine) as db:
-                        if mode=='keyword':
-                            result=search_knowledge(db,user_id=USER,project_id=project_id,query=case['question'],types=[],valid_at=None,top_k=5,mode=mode,settings=native)
-                            answer,supported,citations=None,None,[]
-                        else:
-                            with patch.object(questions,'search_knowledge',capture_search):
-                                response=questions.answer_question(db,user_id=USER,project_id=project_id,question=case['question'],valid_at=None,
-                                    settings=native,retrieval_mode=mode)
-                            result=captured['result']
-                            answer,supported=response.answer,response.supported
-                            citations=[_evidence_record(item,mapping) for item in response.evidence]
-                        prediction=dict(id=case['id'],retrieved_evidence=[_evidence_record(item,mapping) for item in ordered_evidence(result)],
-                            citations=citations,answer=answer,supported=supported,latency_ms=round((time.perf_counter()-began)*1000,3),
-                            answer_correct=None,explainability_score=None)
-                        if mode!='keyword':
-                            prediction['claims']=[item.model_dump(mode='json') for item in response.claims] if response.claims is not None else None
-                            prediction['claim_evidence']=[dict(id=str(item.id),**_evidence_record(item,mapping)) for item in response.evidence]
+                        prediction=online_prediction(db,case=case,mode=mode,project_id=project_id,settings=native,mapping=mapping)
                     records.append(prediction)
                     with partial.open('a',encoding='utf-8') as file:
                         file.write(json.dumps(prediction,ensure_ascii=False)+'\n')
@@ -119,7 +198,15 @@ def run(dataset,output,*,model_limit=120,embedding_limit=160):
                     report['model_usage']=meter.summary()
                     save(report_path,report)
                     print(f"{mode} {case['id']}: saved; model={len(meter.calls)}, embedding={report['embedding_calls']}",flush=True)
-                metrics=score_predictions(cases=cases,predictions=records)
+                # Keep the frozen line-evidence-v2 scorer/schema unchanged. The
+                # richer claim export is for judging; numeric metrics use its
+                # explicit legacy-field projection, also saved for reproduction.
+                fields=('id','retrieved_evidence','citations','answer','supported','latency_ms',
+                        'answer_correct','explainability_score')
+                scoring_records=[{key:record[key] for key in fields} for record in records]
+                metrics=score_predictions(cases=cases,predictions=scoring_records)
+                (output/f'{mode}.metrics-input.jsonl').write_text(''.join(
+                    json.dumps(record,ensure_ascii=False)+'\n' for record in scoring_records),encoding='utf-8')
                 save(output/f'{mode}.metrics.json',metrics)
                 partial.rename(output/f'{mode}.jsonl')
                 report['modes'][mode]=metrics
@@ -129,20 +216,21 @@ def run(dataset,output,*,model_limit=120,embedding_limit=160):
                         raise RuntimeError('Knowledge/index changed during evaluation')
                 save(report_path,report)
             # Independent extraction smoke: no fixture task reuse and no automatic promotion.
-            with Session(engine,expire_on_commit=False) as db:
-                raw=Project(user_id=USER,name='[EVAL] public raw extraction')
-                db.add(raw);db.commit()
-                extraction=[]
-                for relative in ('fastapi/first_steps.py','fastapi/dependencies.py'):
-                    source,task,_=ingestion.create_source_and_task_from_bytes(db,settings=native,user_id=USER,project_id=raw.id,
-                        filename=Path(relative).name,raw_content=(dataset/'corpus'/relative).read_bytes(),source_type=None,relative_path=relative,repository_id=None)
-                    parsing.run_task(db,user_id=USER,task_id=task.id,settings=native)
-                    result=knowledge.run_extraction(db,user_id=USER,source_id=source.id,settings=native)
-                    candidates=list(db.scalars(select(CandidateKnowledge).where(CandidateKnowledge.source_id==source.id)))
-                    extraction.append(dict(source=relative,status=result.task.status,error=result.task.error,
-                        candidates=[dict(type=item.candidate_type,name=item.name,summary=item.summary,kind=item.payload['kind'],
-                            evidence=item.payload['evidence']) for item in candidates],human_reviewed=False))
-                save(output/'extraction.json',extraction)
+            if prepared_plan['extraction_smoke']:
+                with Session(engine,expire_on_commit=False) as db:
+                    raw=Project(user_id=USER,name='[EVAL] public raw extraction')
+                    db.add(raw);db.commit()
+                    extraction=[]
+                    for relative in ('fastapi/first_steps.py','fastapi/dependencies.py'):
+                        source,task,_=ingestion.create_source_and_task_from_bytes(db,settings=native,user_id=USER,project_id=raw.id,
+                            filename=Path(relative).name,raw_content=(dataset/'corpus'/relative).read_bytes(),source_type=None,relative_path=relative,repository_id=None)
+                        parsing.run_task(db,user_id=USER,task_id=task.id,settings=native)
+                        result=knowledge.run_extraction(db,user_id=USER,source_id=source.id,settings=native)
+                        candidates=list(db.scalars(select(CandidateKnowledge).where(CandidateKnowledge.source_id==source.id)))
+                        extraction.append(dict(source=relative,status=result.task.status,error=result.task.error,
+                            candidates=[dict(type=item.candidate_type,name=item.name,summary=item.summary,kind=item.payload['kind'],
+                                evidence=item.payload['evidence']) for item in candidates],human_reviewed=False))
+                    save(output/'extraction.json',extraction)
             report['model_usage']=meter.summary()
         report['schema_removed']=True
         report['paired_bootstrap']=paired(predictions,cases)
@@ -195,11 +283,24 @@ if __name__=='__main__':
     parser.add_argument('--output-dir',type=Path,required=True)
     parser.add_argument('--allow-model-calls',action='store_true')
     parser.add_argument('--allow-embedding-calls',action='store_true')
+    parser.add_argument('--preflight',action='store_true',help='Provider/DB-free plan only; no credentials required')
+    parser.add_argument('--model-limit',type=int,default=120)
+    parser.add_argument('--embedding-limit',type=int,default=160)
+    parser.add_argument('--approved-plan',type=Path,help='Exact reviewed zero-call plan; required for holdout live runs')
     args=parser.parse_args()
+    if args.preflight:
+        if args.allow_model_calls or args.allow_embedding_calls:
+            parser.error('Preflight must not include provider authorization flags')
+        report=plan(args.dataset.resolve(),model_limit=args.model_limit,embedding_limit=args.embedding_limit)
+        args.output_dir.mkdir(parents=True,exist_ok=False)
+        save(args.output_dir/'run.json',report)
+        print(json.dumps(dict(status=report['status'],planned_upper_bounds=report['planned_upper_bounds'],blockers=report['blockers'])))
+        raise SystemExit(0)
     if not args.allow_model_calls or not args.allow_embedding_calls:
         parser.error('Both explicit provider authorizations are required')
     try:
-        report=run(args.dataset.resolve(),args.output_dir.resolve())
+        report=run(args.dataset.resolve(),args.output_dir.resolve(),model_limit=args.model_limit,
+                   embedding_limit=args.embedding_limit,approved_plan=args.approved_plan)
         print(json.dumps(dict(status=report['status'],models=report['model_usage']['attempted'],embeddings=report['embedding_calls'])))
     except Exception as exc:
         print(f'Public acceptance failed ({type(exc).__name__}); see run.json, never print credentials.')

@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Add read-only historical answer diagnostics and a current online QA acceptance plan for frozen public-v2/holdout-v3. Preserve per-case historical time, claim/input-pool exports and a separate compatible numeric-scoring projection; gate live use on cumulative budgets and an exact reviewed preflight. Historical Clef80-answer/214-request analysis is separate from current-system quality. New real calls0; human grading0%.
+
 - Add OpenRouter Jev Decisions API for offline anonymous grading, with separate credentials, explicit provider authorization, proxy support, strict release/dated-snapshot validation and fail-stop on model drift. Preserve actual token usage/optional cost and old providers; no live requests this turn (ADR0073).
 
 - Add explicit Cloudflare Workers AI offline judging: native REST, Clef decision format and configurable text-model JSON Schema labels. Preserve Jev commands, anonymity, attempt reservations and zero-call preflight; record provider/model/configuration and missing chat confidence without fabricated probabilities. No live calls or business-provider changes (ADR0072).
