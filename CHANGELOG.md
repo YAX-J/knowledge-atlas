@@ -8,6 +8,13 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+### Project assistant M1 (locally verified with substitutes)
+
+- Added a unified read-only goal entry with scoped document, confirmed knowledge and code tools; typed exact references, clarification and durable read-only replay.
+- Added separate assistant/tasks contracts and reversible migration `20261031_0020`, preserving legacy workflows. No live calls, auto migration, async runner or write tools; M2–M5 remain planned. See [M1 checks](docs/PROJECT_ASSISTANT_M1.md).
+
+### Earlier unreleased changes
+
 - Document the proposed whole-project Agent development plan in English and Chinese on `feat/project-agent`, covering tool scope, durable execution, artifacts, note revisions, approvals and M0–M5 acceptance. New capabilities remain planned; no runtime, migration or live-provider change.
 
 - Fix GitHub CI portability: keep the PostgreSQL health command in one quoted argument, isolate mocked compiler failures from local TypeScript installation, and configure source-retrieval QA tests explicitly instead of depending on local credentials. Preserve coverage thresholds and production validation.

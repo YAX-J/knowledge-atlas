@@ -1,0 +1,114 @@
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { effectScope, ref } from 'vue'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import * as api from '../src/api/assistant'
+import { ApiError } from '../src/api/client'
+import { getCodeAnalysisContexts, listSources } from '../src/api/knowledgeAtlas'
+import { useProjectAssistant } from '../src/composables/useProjectAssistant'
+import ProjectAssistantPanel from '../src/components/agent/ProjectAssistantPanel.vue'
+import { project, source } from './fixtures'
+
+vi.mock('../src/api/assistant')
+vi.mock('../src/api/knowledgeAtlas', () => ({listSources: vi.fn(), getCodeAnalysisContexts: vi.fn()}))
+enableAutoUnmount(afterEach)
+const task: api.AssistantTask = {
+  id: 'assistant-1', project_id: project.id, goal: 'Explain project modules', status: 'succeeded',
+  created_at: project.created_at, updated_at: project.updated_at, error_code: null,
+  scope: {source_ids: [source.id], snapshot_id: null, commit_sha: null, valid_at: null},
+  usage: {model: 2, tool: 2, embedding: 0, limits: {model: 8, tool: 16, embedding: 0}}, events: [],
+  result: {protocol: 'assistant-report-v1', action: 'finish', question: null,
+    report: {title: 'Project modules', claims: [{text: '<script>Storage</script>', status: 'referenced', reference_ids: ['ref-1']}], missing_information: ['No performance results.']},
+    references: [{id: 'ref-1', kind: 'code', source_id: source.id, chunk_id: 'chunk-1', evidence_id: null,
+      source_sha256: source.content_sha256, path: 'src/main.py', start_line: 1, end_line: 2, quote: 'def store():\n    return 1', snapshot_id: null, commit_sha: null}]},
+}
+const summary = () => {const {result: _result, usage: _usage, events: _events, scope: _scope, ...row} = task; return row}
+beforeEach(() => {
+  vi.resetAllMocks(); sessionStorage.clear()
+  vi.mocked(api.listAssistantTasks).mockResolvedValue({items: [], total: 0, page: 1, page_size: 10})
+  vi.mocked(api.getAssistantTask).mockResolvedValue(task)
+  vi.mocked(api.startAssistantTask).mockResolvedValue(task)
+  vi.mocked(listSources).mockResolvedValue({items: [{...source, task_id: null, task_status: null}], total: 1, page: 1, page_size: 20})
+  vi.mocked(getCodeAnalysisContexts).mockResolvedValue({default_snapshot_id: null, snapshots: [], version_groups: [], truncated: false})
+})
+
+it('submits a goal with explicit source versions and displays typed citations as escaped text', async () => {
+  const wrapper = mount(ProjectAssistantPanel, {props: {projectId: project.id}})
+  await flushPromises()
+  await wrapper.get('textarea').setValue('Explain project modules')
+  await wrapper.get('input[type=checkbox]').setValue(true); await flushPromises()
+  await wrapper.get('form').trigger('submit'); await flushPromises()
+  expect(api.startAssistantTask).toHaveBeenCalledOnce()
+  expect(vi.mocked(api.startAssistantTask).mock.calls[0]![1]).toMatchObject({goal: task.goal, source_ids: [source.id]})
+  expect(wrapper.get('[aria-label="项目引用报告"]').text()).toContain('<script>Storage</script>')
+  expect(wrapper.find('script').exists()).toBe(false)
+  expect(wrapper.text()).toContain('源码 / 派生结构')
+  await wrapper.findAll('button').find(item => item.text() === '查看引用 1')!.trigger('click')
+  expect(wrapper.emitted('openEvidence')).toEqual([[{source_id: source.id, chunk_id: 'chunk-1'}]])
+  expect(wrapper.text()).toContain('No performance results.')
+})
+
+it('restores saved task IDs and history through GET without replaying submissions', async () => {
+  sessionStorage.setItem(`ka-project-assistant:${project.id}`, JSON.stringify({selectedId: task.id, pending: null}))
+  vi.mocked(api.listAssistantTasks).mockResolvedValue({items: [summary()], total: 1, page: 1, page_size: 10})
+  const wrapper = mount(ProjectAssistantPanel, {props: {projectId: project.id}}); await flushPromises()
+  expect(api.getAssistantTask).toHaveBeenCalledWith(project.id, task.id)
+  expect(wrapper.text()).toContain('精确来源 UUID')
+  expect(api.startAssistantTask).not.toHaveBeenCalled()
+})
+
+it('preserves unknown request UUIDs on reload and requires an explicit retry after a failed read', async () => {
+  vi.mocked(api.startAssistantTask).mockRejectedValueOnce(new ApiError(0, {error: {message: 'Unknown transport outcome'}}))
+  const wrapper = mount(ProjectAssistantPanel, {props: {projectId: project.id}}); await flushPromises()
+  await wrapper.get('textarea').setValue('Explain project modules')
+  await wrapper.get('form').trigger('submit'); await flushPromises()
+  const body = vi.mocked(api.startAssistantTask).mock.calls[0]![1]
+  expect(wrapper.text()).toContain('提交结果尚未确认')
+  wrapper.unmount()
+  vi.mocked(api.getAssistantTask).mockRejectedValueOnce(new ApiError(404, {error: {message: 'Not stored yet'}}))
+  const restored = mount(ProjectAssistantPanel, {props: {projectId: project.id}}); await flushPromises()
+  expect(api.startAssistantTask).toHaveBeenCalledOnce()
+  expect(restored.get('fieldset').attributes('disabled')).toBeDefined()
+  await restored.findAll('button').find(item => item.text() === '重发同一助手任务')!.trigger('click'); await flushPromises()
+  expect(vi.mocked(api.startAssistantTask).mock.calls[1]![1]).toEqual(body)
+})
+
+it('discards delayed task results from another project', async () => {
+  const id = ref<string | undefined>(project.id), scope = effectScope()
+  let resolve!: (value: api.AssistantTask) => void
+  vi.mocked(api.startAssistantTask).mockImplementationOnce(() => new Promise(done => {resolve = done}))
+  const assistant = scope.run(() => useProjectAssistant(() => id.value))!
+  await flushPromises()
+  const submitting = assistant.submit({goal: task.goal, source_ids: []})
+  id.value = 'project-2'; await flushPromises()
+  resolve(task); await submitting
+  expect(assistant.selected.value).toBeNull()
+  expect(assistant.sending.value).toBe(false)
+  scope.stop()
+})
+
+it('renders clarification and errors without inventing a saved report', async () => {
+  sessionStorage.setItem(`ka-project-assistant:${project.id}`, JSON.stringify({selectedId: task.id}))
+  vi.mocked(api.getAssistantTask).mockResolvedValue({...task, result: {protocol: 'assistant-report-v1', action: 'ask_user', question: 'Which module?', report: null, references: []}})
+  const wrapper = mount(ProjectAssistantPanel, {props: {projectId: project.id}}); await flushPromises()
+  expect(wrapper.text()).toContain('Which module?')
+  expect(wrapper.find('[aria-label="项目引用报告"]').exists()).toBe(false)
+  vi.mocked(api.getAssistantTask).mockResolvedValue({...task, status: 'failed', error_code: 'AGENT_BUDGET_EXCEEDED', result: null})
+  await wrapper.findAll('button').find(item => item.text() === '刷新助手任务')!.trigger('click'); await flushPromises()
+  expect(wrapper.text()).toContain('AGENT_BUDGET_EXCEEDED')
+  expect(api.startAssistantTask).not.toHaveBeenCalled()
+})
+
+it('clears source choices on project changes and provides source/context retry', async () => {
+  vi.mocked(listSources).mockRejectedValueOnce(new Error('Source unavailable'))
+  const wrapper = mount(ProjectAssistantPanel, {props: {projectId: project.id}}); await flushPromises()
+  expect(wrapper.text()).toContain('Source unavailable')
+  await wrapper.findAll('button').find(item => item.text() === '重新读取资料')!.trigger('click'); await flushPromises()
+  vi.mocked(getCodeAnalysisContexts).mockRejectedValueOnce(new Error('Context unavailable'))
+  await wrapper.get('input[type=checkbox]').setValue(true); await flushPromises()
+  expect(wrapper.text()).toContain('Context unavailable')
+  await wrapper.findAll('button').find(item => item.text() === '重新读取快照')!.trigger('click'); await flushPromises()
+  expect(wrapper.text()).not.toContain('Context unavailable')
+  await wrapper.setProps({projectId: 'another-project'}); await flushPromises()
+  expect(wrapper.text()).toContain('所选 0 份')
+  expect(api.startAssistantTask).not.toHaveBeenCalled()
+})

@@ -8,6 +8,7 @@ import AgentWorkspace from '../src/pages/AgentWorkspace.vue'
 import { project, source, answerFixture } from './fixtures'
 
 vi.mock('../src/api/agents')
+vi.mock('../src/components/agent/ProjectAssistantPanel.vue',()=>({default:{template:'<div />'}}))
 enableAutoUnmount(afterEach)
 const page=(items:api.AgentRun[]=[])=>({items,total:items.length,page:1,page_size:10})
 const run:api.AgentRun={id:'run-1',project_id:project.id,source_id:source.id,kind:'knowledge_pipeline',

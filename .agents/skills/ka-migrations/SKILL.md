@@ -36,7 +36,7 @@ description: Knowledge Atlas 的 SQLAlchemy 模型与 Alembic 迁移。新增/�
 
 新增 `20261025_0016`：每项目最近一次索引更新归属、租约、状态与结果。
 
-当前 head 是 `20261029_0019`。文档里若仍写旧版本，以 `alembic heads` 和迁移目录为准，并顺手修正文档。
+当前源码 head 是 `20261031_0020`，新增独立 assistant_tasks（ADR0076）；业务库未自动升级，用户选择 Agent 后，M1 原生隔离迁移/257项回归已通过。文档里若仍写旧版本，以迁移目录为准；alembic heads 等验证命令仍遵守执行方选择规则。
 
 原生临时 schema 验收使用 `python -m scripts.verify_native`：Alembic Config 必须设置 `attributes["version_table_schema"]`，`migrations/env.py` 传给在线 context；同时保留 public 以解析 vector。仅设置 `search_path=temp,public` 会回退到业务版本表和业务表，不能作为隔离保证。测试前检查所有核心表确在生成 schema 且初始项目为空；结束只删除自己生成的 schema 并核对业务迁移标记未变。不要对业务 schema 运行验收降级或清理。
 

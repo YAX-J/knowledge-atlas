@@ -1,5 +1,7 @@
 # Knowledge Atlas 系统架构
 
+项目助手 M1 新增独立 `assistant_tasks`、同步任务 API、`project_assistant` 协调角色及只读工具网关（ADR0076，已通过本地替身/原生/桌面验证）。旧 AgentRun/工作流/正式知识写入边界保持；源码 head `20261031_0020`，不自动迁移业务库。模型只接收后端固定版本和工具结果，不接收数据库会话。队列、runner、笔记、写入及受控继续仍待 M2–M5。见[实现说明](PROJECT_ASSISTANT_M1.zh-CN.md)。
+
 [ADR0074](adr/0074-evaluation-output-error-isolation.zh-CN.md)新增显式离线执行协议v4：单题无效输出保留失败，不自动重试；基础设施异常仍停止。可显式复用一条输入/范围完全相同的诊断答案；裁判排除清单带覆盖率和哈希。业务API、线上Schema及正式知识写入边界不变。
 
 [ADR0073](adr/0073-openrouter-jev-evaluation.zh-CN.md)：离线评审新增 OpenRouter Jev Decisions API，复用匿名包/落盘预留，显式供应商授权；校验发布/日期快照并在批内模型漂移时停止，记录实际模型/用量/费用。保留环境代理、禁用重试及回退，不进入业务 API/Worker 或正式写入路径。

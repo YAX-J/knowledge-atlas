@@ -5,6 +5,8 @@ description: Knowledge Atlas 的 Vue 3 前端工作台。修改组件、项目/�
 
 # Vue 前端工作台
 
+ProjectAssistantPanel/useProjectAssistant use separate assistant/tasks contracts (ADR0076, locally verified with substitutes/desktop). Empty attachments mean confirmed knowledge only. Preserve exact source UUID/hash selection, read-only metadata errors/retry, project/disposal fences, same-UUID unknown-submit recovery and GET-only session restoration/polling. Distinguish source/code/formal knowledge references, navigate exact chunks/sources, use text interpolation and do not imply referenced claims are semantically verified. Old workflow tests stub the new panel; projectAssistant.test.ts exercises it directly. Include new API/composable in coverage and desktop acceptance.
+
 多语言 V1（ADR 0040/0041）：文件选择/标签共用 `sourceLanguages.ts`，支持 Markdown、Java、Python、JS/JSX、TS/TSX、Go、C/C++、C#。上传由后端推断类型，不再强填 markdown；全部代码读取原结构接口，展示 `language`、`has_syntax_errors` 和截断，函数/方法与字段/属性共用旧类型。默认大纲不显示虚构调用；源码结构区的显式 Agent 按钮由 `App.vue` 调用独立接口并维护 `agentCallRequest` fencing，展示候选证据、置信度、简短依据及加载/空/错误/重试/截断状态。切资料清空旧结果，组件不直发请求。旧 Java 确定性分析保持；仓库卡片 `rescan` checkbox 仍由 App 经 API 发送。
 
 前端同时服务两种数据：Mock 演示图谱，以及接真实 API 的项目/资料/审核/图谱/证据问答页面。两者必须保持边界，不能互相冒充。

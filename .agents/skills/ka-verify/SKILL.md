@@ -5,6 +5,12 @@ description: Knowledge Atlas 的快速可靠验证、执行方确认与“完成
 
 # 验证方案与执行方确认
 
+## Project assistant M1 acceptance (ADR0076)
+
+The user explicitly selected Agent execution. Focused61 and full1019/11 skipped passed, backend coverage95.44% with the existing90% gate. Native PostgreSQL17.10/pgvector0.8.7 isolated upgrade/downgrade/upgrade plus257 regressions passed without changing the business marker. Frontend140/coverage/build and final affected26 passed. System Chrome1440x1000 used a disposable native API with all provider transports blocked: typed source/code/knowledge references, exact chunk focus, cross-page selection/fixed commit, missing/ask/failure/empty states, unknown-response GET recovery, refresh/reload zero new calls, keyboard focus, wrapping and panel scroll passed. Preserve these as substitute engineering results, not live quality or hosted CI.
+
+On this host, TestClient may hang silently and Vite can fail every suite before collection with temporary rename EPERM. Rerun authorized commands outside the sandbox, do not alter production semantics or reinstall dependencies. ListSources returns SourceListItem without content_sha256; scope selectors use exact source UUIDs and the backend binds hashes. Temporary Alembic URLs must escape percent signs only for Config interpolation; never log connection strings. Keep business schema upgrades separate from disposable acceptance and clean only owned browser sessions/ports/schemas. Final diff/staging checks and local commit follow acceptance; see paired PROJECT_ASSISTANT_M1 guides.
+
 本技能只做一件事：在说“实现完成”之前，按改动范围准备足够、可复现且不过度的验证步骤，由用户选择执行方，并如实报告结果。仓库现有 CI 定义与组件/API 测试，仍不能省略本地与真实服务验证。
 
 仓库级规则：执行验证前先提供步骤、命令、前置条件和预期结果，再询问由用户还是 Agent 执行。用户选择 Agent 前不得自行运行；当前请求已经明确选择时无需再次询问。Agent 实际执行通过或用户反馈通过后，才可将对应项目标为已验证。

@@ -30,6 +30,38 @@ def migration_config() -> Config:
     return config
 
 
+def test_assistant_migration_preserves_legacy_and_is_reversible(tmp_path, monkeypatch):
+    url = f"sqlite+pysqlite:///{(tmp_path / 'assistant.db').as_posix()}"
+    monkeypatch.setattr(app_config, 'get_settings', lambda: SimpleNamespace(database_url=url))
+    config = migration_config()
+    command.upgrade(config, '20261029_0019')
+    engine = create_engine(url)
+    with Session(engine) as db:
+        project = Project(user_id=uuid.uuid4(), name='Existing project')
+        db.add(project); db.commit(); identifier = project.id
+    command.upgrade(config, 'head')
+    assert 'assistant_tasks' in inspect(engine).get_table_names()
+    assert 'agent_runs' in inspect(engine).get_table_names()
+    assert 'ix_assistant_tasks_scope_created' in {item['name'] for item in inspect(engine).get_indexes('assistant_tasks')}
+    command.downgrade(config, '20261029_0019')
+    assert 'assistant_tasks' not in inspect(engine).get_table_names()
+    with Session(engine) as db:
+        assert db.get(Project, identifier).name == 'Existing project'
+    command.upgrade(config, 'head')
+    engine.dispose()
+
+
+def test_assistant_postgres_sql_is_offline_and_scoped(monkeypatch):
+    monkeypatch.setattr(app_config, 'get_settings', lambda: SimpleNamespace(
+        database_url='postgresql+psycopg://placeholder:placeholder@localhost/placeholder'))
+    output = StringIO()
+    config = migration_config(); config.output_buffer = output
+    command.upgrade(config, '20261029_0019:head', sql=True)
+    sql = output.getvalue()
+    assert 'CREATE TABLE assistant_tasks' in sql and 'ck_assistant_tasks_status' in sql
+    assert 'DROP TABLE agent_runs' not in sql
+
+
 def test_retirement_migration_is_additive_and_reversible(tmp_path, monkeypatch):
     url=f"sqlite+pysqlite:///{(tmp_path/'retirements.db').as_posix()}"
     monkeypatch.setattr(app_config,'get_settings',lambda:SimpleNamespace(database_url=url))

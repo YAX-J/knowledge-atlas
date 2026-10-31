@@ -1,5 +1,17 @@
 # Knowledge Atlas 前后端接口草案
 
+## 项目只读助手 M1（ADR 0076，已通过本地替身/原生验证）
+
+独立接口：`POST /api/v1/projects/{project_id}/assistant/tasks` 同步返回 200；GET 同路径分页摘要，`GET /.../assistant/tasks/{task_id}` 读取完整记录。请求为 `assistant-task-v1`：request_id UUID、goal 1–2000 字符、source_ids UUID[0..20]、可选 snapshot_id/带时区 valid_at、model_limit 0..8、tool_limit 0..16（严格整数）。拒绝未知字段、重复来源；历史时间不能附原始资料，快照需要所选代码。空原始范围仅使用项目正式知识，不代表所有文档。
+
+响应含 id/project_id/goal/status/error_code/created_at/updated_at，以及 scope/result/events/usage；摘要仅包含前七项。状态仅 running/succeeded/failed/interrupted。scope 固定来源 UUID/内容哈希、可选提交/知识时间、BM25、能力白名单及上限。源文本最多 200000 UTF-8 字节、分块最多 500 / 240000 字符，超限在传输前拒绝。协调角色最多 4 模型 / 8 工具 / 230 秒，嵌入为零。
+
+result.protocol=assistant-report-v1，action 为 finish 或 ask_user。finish 提供 `{title,claims:[{text,status:referenced|uncertain,reference_ids}],missing_information}` 和后端引用表；ask_user 提供 question，用户补充目标后新建任务，无补充输入接口。报告最多 12 条，每条最多 8 引用、文本最多 2000 字符，报告 JSON 最多 16000 字符。uncertain 必须说明缺失信息，referenced 必须引用实际返回 ID。引用表至多 32 项：id、kind(source|code|knowledge)、source_id、可空 chunk_id/evidence_id、source_sha256、path、start_line/end_line、quote、可空 snapshot_id/commit_sha。只有 knowledge 使用正式证据 ID；标记不证明语义正确，不得当作 QuestionRead 或 evidence-claims-v3 回答。
+
+工具仅 search_sources/read_source_chunk/search_knowledge/search_symbols/read_source_range，参数严格校验。资料/符号搜索最多 8 片段，单个引用最多 4000 字符；行读取最多 60 行，显式报告截断/语法警告。正式知识每次最多 5 实体/12 证据，遵守知识时间。执行前保存预留；GET/刷新/同 UUID 重放零工具/模型请求。同 UUID 改参数返回 ASSISTANT_REQUEST_CONFLICT（409），越权来源/任务/快照返回 404，未解析/快照不匹配返回 409，范围超限返回 422。无效报告引用记录 ASSISTANT_REFERENCE_INVALID，预算耗尽记录 AGENT_BUDGET_EXCEEDED；进度失败停止调用，归属失效拒绝发布。执行错误保存到任务 error_code；前置校验使用统一 error envelope。
+
+迁移 `20261031_0020` 新增 assistant_tasks，旧 agent-runs/QuestionRead 保持原契约。M1 没有异步 202、runner、取消、补充输入、确认、继续执行或写入工具。见[实现与验证步骤](PROJECT_ASSISTANT_M1.zh-CN.md)。
+
 新增可选 GET /projects/{project_id}/agent-runs?summary=true：items 仅含 id、project_id、source_id、kind、status、error_code、created_at、updated_at，不含 result/events/request/usage/scope/review_counts，读取为3次 SELECT。默认 summary=false 保留完整列表；分页排序和过期判定保持，单条 GET/POST 响应不变。前端只给列表启用摘要。见 [ADR0071](adr/0071-bounded-read-caches-and-summaries.zh-CN.md)。
 
 ## 结论与引用契约（ADR 0069、0075）
@@ -10,7 +22,7 @@
 
 旧平铺响应缺省两字段为 null，前端保留正文，不推断逐条对应；v2 保留其版本、条目和原 supported。读取/同 UUID 重放不重算或调用模型。AnswerDraft、ClaimAnswerDraftV2 仅为显式旧诊断适配器保留；真实模型和工具严格解析 v3 ClaimAnswerDraft，没有 v2/平铺回退。新实验清单记录 v3，拒绝复用旧 v2 scope；历史产物、格式失败和评分不变。引用归属和漏引校验不证明语义蕴含。见 [ADR 0075](adr/0075-server-derived-answer-support.zh-CN.md)。
 
-当前说明见本轮验收与 ADR 0060–0063；迁移 head `20261029_0019`。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](OPTIMIZATION_20261029.zh-CN.md)
+当前说明见本轮验收与 ADR 0060–0063；源码迁移 head `20261031_0020`，未自动升级业务库。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](OPTIMIZATION_20261029.zh-CN.md)
 
 ## Agent 协作契约（ADR 0064–0065）
 

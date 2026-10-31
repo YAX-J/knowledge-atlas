@@ -17,8 +17,10 @@ from app.models.embedding_job import EmbeddingJob
 from app.models.retirement import KnowledgeRetirement
 from app.models.workspace import Conversation, ConversationTurn, EntityAlias, EntityMerge, KnowledgeOperation, KnowledgePeriod
 from app.models.agent_run import AgentRun
+from app.models.assistant_task import AssistantTask
 
 __all__ = [
+    'AssistantTask',
     'AgentRun',
     'Conversation', 'ConversationTurn', 'EntityAlias', 'EntityMerge', 'KnowledgeOperation', 'KnowledgePeriod',
     "KnowledgeRetirement",

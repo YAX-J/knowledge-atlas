@@ -10,7 +10,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/App.vue', 'src/api/{client,knowledgeAtlas}.ts', 'src/components/{SourceWorkspace,QuestionWorkspace,KnowledgeSearch,CandidateReview,ProjectGraph,KnowledgeEvolution}.vue',
-        'src/pages/AgentWorkspace.vue','src/components/AnswerClaims.vue','src/components/agent/*.vue','src/api/agents.ts','src/composables/{useAgentRuns,useCodeContextSelection}.ts',
+        'src/pages/AgentWorkspace.vue','src/components/AnswerClaims.vue','src/components/agent/*.vue','src/api/{agents,assistant}.ts','src/composables/{useAgentRuns,useCodeContextSelection,useProjectAssistant}.ts',
         'src/components/{KnowledgeRetirement,KnowledgeManagement,ConversationsWorkspace,Workbench}.vue', 'src/api/workspace.ts',
         'src/composables/{useKnowledgeSearch,useCandidateReview,useProjectGraph,useSourceImport,useKnowledgeRetirement,useConversations,useKnowledgeManagement,useWorkspaceRoute,useEvidenceNavigation,useRepositorySnapshots,useKnowledgeEvolution}.ts'],
       reporter: ['text', 'json-summary', 'lcov'],

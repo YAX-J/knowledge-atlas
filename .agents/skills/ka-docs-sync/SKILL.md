@@ -5,6 +5,8 @@ description: Knowledge Atlas 的双语文档同步。修改 API、知识模型�
 
 # 文档同步
 
+ADR0076 introduces synchronous M1 assistant/tasks and source head20261031_0020, without automatically upgrading the installed database. Keep paired PROJECT_ASSISTANT_M1 guides, Agent plan/status, backend/setup/ADR indexes and changelogs synchronized. M1 passed user-selected Agent-run local substitute/native/desktop verification; M2–M5 are still planned. Do not conflate new typed raw/code/knowledge reports with QuestionRead, or task-envelope persistence with async runner/recovery. Preserve historical schema announcements as dated context and frozen quality/ledgers.
+
 仓库文档是交付物的一部分。规则是：**行为变了，对应文档同轮更新；有中文版的，两种语言一起改。**
 
 ## 何时使用

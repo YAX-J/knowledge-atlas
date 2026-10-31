@@ -1,5 +1,7 @@
 # Knowledge Atlas 仓库代理规范
 
+项目助手 M1（ADR0076）已实现并通过本地替身验证（后端1019通过/11跳过、覆盖率95.44%；原生257；前端140；桌面）。源码 schema head 现为 `20261031_0020`，未自动升级业务库。使用独立 assistant/tasks、assistant-task-v1 / assistant-report-v1 和 AssistantTask，保留旧 AgentRun/QuestionRead。空附件仅用正式知识；精确来源 UUID 不展开最新版本，历史排除原始附件。五项只读工具、后端引用池、零嵌入、协调角色 4 模型/8 工具/230 秒及调用前持久化预留生效。没有 runner/写入/自动继续；M2–M5 和真实质量仍未实现/未测量。下方验证执行方选择规则保持。冻结输入/结果/授权/账本和人工0%保持。
+
 2026-10-31最新：ADR0075 的新模型输出使用 evidence-claims-v3，顶层只含 confidence/claims/missing_information，总体 supported 由后端计算。模型生成总体/平铺字段、漏引或越界引用仍拒绝，保持预算、不重试/回退。v2 和平铺记录按保存值读取/重放，不重算或调用模型。使用独立虚构 evaluation/development/claim-support-v3 用例，不以冻结holdout/失败输出来调提示词。本轮仅离线验证；历史 v2 失败/分数、输入、授权/账本不变，人工0%，v3真实质量未测量。旧真实授权均已用尽。见 docs/adr/0075-server-derived-answer-support.zh-CN.md；下文旧说明为历史。
 
 当前离线评审支持 OpenRouter Jev、直连 TypeSafe Jev 和 CF 原生适配（ADR0073）。用户要求新增 OpenRouter 兼容，本开发轮零真实调用；保留人工评分覆盖率0%、正式人工审核、冻结输入/结果/holdout 和历史账本。独立凭据、显式供应商授权、调用前落盘预留，不重试/回退/续跑；校验 OpenRouter 发布/快照 ID 及实际模型，批内漂移即停止，保留环境代理。见 docs/OPENROUTER_EVALUATION.zh-CN.md。CF 第三方 Jev 统一路由仍不属于原生 CF 适配。

@@ -16,6 +16,7 @@ RUN_LEASE_SECONDS = 1200
 
 def save_progress(
     db: Session, *, context: RunContext, execution_id: uuid.UUID, result: dict | None = None,
+    record_model=AgentRun,
 ) -> None:
     # The coordinator calls this only before/after read-only tools/providers or
     # after the extraction service has committed validated candidates. A shared
@@ -30,11 +31,11 @@ def save_progress(
         values['result'] = dict(result)
     try:
         with db.no_autoflush:
-            changed = db.execute(update(AgentRun).where(
-                AgentRun.id == context.run_id, AgentRun.user_id == context.user_id,
-                AgentRun.project_id == context.project_id, AgentRun.status == 'running',
-                AgentRun.execution_id == execution_id, AgentRun.lease_until > now,
-                AgentRun.project_id.in_(select(Project.id).where(Project.user_id == context.user_id,
+            changed = db.execute(update(record_model).where(
+                record_model.id == context.run_id, record_model.user_id == context.user_id,
+                record_model.project_id == context.project_id, record_model.status == 'running',
+                record_model.execution_id == execution_id, record_model.lease_until > now,
+                record_model.project_id.in_(select(Project.id).where(Project.user_id == context.user_id,
                     Project.archived_at.is_(None))),
             ).values(**values).execution_options(synchronize_session=False))
         if changed.rowcount != 1:

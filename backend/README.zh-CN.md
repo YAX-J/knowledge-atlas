@@ -1,5 +1,7 @@
 # Knowledge Atlas 后端
 
+项目只读助手 M1 已实现并通过本地替身验证，见[使用/检查](../docs/PROJECT_ASSISTANT_M1.zh-CN.md)和 [ADR0076](../docs/adr/0076-read-only-project-assistant.zh-CN.md)。源码 schema head 现为 `20261031_0020`（仅新增 assistant_tasks），未自动迁移业务库。独立 assistant/tasks 接口和类型化报告不改变旧 agent-runs 或 QuestionRead。本轮零真实调用，M2–M5 仍规划中。下方旧版本公告描述各自原始变更。
+
 离线匿名评审支持 OpenRouter Jev、直连 TypeSafe Jev 和 CF 原生适配。配置 EVALUATION_PROVIDER=openrouter、本地 OPENROUTER_API_KEY、OPENROUTER_MODEL=typesafe/jev-1.14 与 OPENROUTER_TIMEOUT_SECONDS=60，旧凭据保留。本轮零真实调用，人工评分覆盖率0%。见 [OpenRouter命令](../docs/OPENROUTER_EVALUATION.zh-CN.md)、[CF](../docs/CLOUDFLARE_EVALUATION.zh-CN.md) 和 [Jev](../docs/JEV_EVALUATION.zh-CN.md)。
 
 [ADR 0075](../docs/adr/0075-server-derived-answer-support.zh-CN.md) 已实现 `evidence-claims-v3`：模型只返回 confidence、claims、missing_information，后端按所有条目状态计算 API 的 supported；逐条引用、缺失信息、预算与项目边界保持严格。v2 和平铺历史按原保存值读取/重放，不重算或调模型；v2 不作为新输出回退。使用独立虚构开发用例验证结构与兼容性，未测量 v3 真实质量。冻结 v2 实验/账本/评分和 schema head `20261029_0019` 不变，人工覆盖率0%。

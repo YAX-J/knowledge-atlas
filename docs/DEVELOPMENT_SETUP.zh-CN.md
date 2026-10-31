@@ -1,12 +1,14 @@
 # Knowledge Atlas 开发环境配置
 
+M1 源码 head 现为 `20261031_0020`（增量 assistant_tasks），取代下方旧 head 公告。见 [M1 检查](PROJECT_ASSISTANT_M1.zh-CN.md)。未自动升级已安装数据库，就绪检查要求新 head/表。复用 .venv/node_modules，无依赖变更。业务库正常升级前先备份/隔离恢复，再在 backend 运行 `alembic upgrade head`；临时验证使用 `python -m scripts.verify_native`，保留业务版本标记。M1 已通过本地替身/原生/桌面验证，真实质量仍未测量。
+
 离线评审新增 EVALUATION_PROVIDER=openrouter、本地 OPENROUTER_API_KEY、OPENROUTER_MODEL=typesafe/jev-1.14 和 OPENROUTER_TIMEOUT_SECONDS=60，见 [OpenRouter配置](OPENROUTER_EVALUATION.zh-CN.md)。原生 CF 与直连 TypeSafe 字段继续支持，不改业务供应商；无需新增 SDK，默认仍为零调用预演，凭据仅本地保存。
 
 单项目 Agent 协作已接通。更新依赖后使用迁移 `20261029_0019`；新增固定版本 LangGraph，继续使用现有虚拟环境，执行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"`（backend 目录）。已有数据先备份与隔离恢复核验，再 `alembic upgrade head`。三个角色、四个协作接口和同步/人工审核边界见[实现说明](MULTI_AGENT.zh-CN.md)。
 
 [English](DEVELOPMENT_SETUP.md)
 
-当前 head `20261029_0019`；已有库升级前先[备份/隔离恢复](BACKUP_RESTORE.zh-CN.md)。`/health/ready` 同时检查连接与关键结构，失败不会自动迁移。完整启动见[演示](DEMO.zh-CN.md)，能力/验证见[当前验收](OPTIMIZATION_20261029.zh-CN.md)。默认真实 workbench，模型操作显式执行。
+当前源码 head `20261031_0020`；已有库升级前先[备份/隔离恢复](BACKUP_RESTORE.zh-CN.md)。`/health/ready` 同时检查连接与关键结构，失败不会自动迁移。完整启动见[演示](DEMO.zh-CN.md)，能力/验证见[当前验收](OPTIMIZATION_20261029.zh-CN.md)。默认真实 workbench，模型操作显式执行。
 
 ## 环境要求
 

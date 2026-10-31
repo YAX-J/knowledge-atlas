@@ -1,5 +1,7 @@
 # Knowledge Atlas 前端开发说明
 
+项目只读助手 M1 已加入 Agent 页顶部（已通过本地替身/桌面验证）：ProjectAssistantPanel 展示目标、跨页精确资料版本/代码快照、历史/报告/补问；useProjectAssistant 管理项目隔离、未知提交 UUID、sessionStorage 只读恢复和轮询；api/assistant 使用独立协议。默认不选资料；已保存范围与新草稿分开，正文文本插值，引用跳精确分块或来源。旧两条工作流保留，事件标题使用独立 useId。前端140项、覆盖率门槛/构建和桌面浏览器已通过，见[验证步骤](PROJECT_ASSISTANT_M1.zh-CN.md)。
+
 协作列表请求 summary=true，使用 AgentRunSummary；选择记录后 GET 完整 AgentRun，不将摘要误当详情。AgentWorkflowForm 独立维护草稿及代码版本选择，AgentWorkspace 保留历史/详情/恢复编排；原有范围隔离和付费操作边界保持。见 [ADR0071](adr/0071-bounded-read-caches-and-summaries.zh-CN.md)。
 
 [ADR 0069](adr/0069-answer-claim-evidence.zh-CN.md)：新增 AnswerClaims 供单轮/持久化会话和协作回答复用。每条显示“附有引用”或“证据不足”，引用按 evidence 序号展示，并发出精确 EvidenceLocator 复用 useEvidenceNavigation；不插入 HTML，不猜测缺失引用。旧记录显示平铺正文及旧格式提示，不将旧回答补成有据条目。回归 answerClaims.test.ts、agentRuns.test.ts。

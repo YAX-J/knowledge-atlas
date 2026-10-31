@@ -36,7 +36,7 @@ def prepare(client,monkeypatch,settings):
 
 
 def test_registry_and_global_budget_count_failed_attempts_and_isolate_roles():
-    assert set(available_agents())=={'code_analysis','knowledge_extraction','evidence_qa'}
+    assert set(available_agents())=={'code_analysis','knowledge_extraction','evidence_qa','project_assistant'}
     context=RunContext(user_id=uuid.uuid4(),project_id=uuid.uuid4(),model_limit=2,tool_limit=1)
     with run_scope(context):
         with agent_scope('code_analysis'):

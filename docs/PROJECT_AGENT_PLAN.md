@@ -4,10 +4,12 @@
 
 - Document version: `project-agent-plan-v1`
 - Date: 2026-10-31
-- Status: **Proposed development plan; new capabilities below are not implemented.**
+- Status: **M1 implemented and locally verified with substitutes; M2–M5 remain planned.**
 - Development branch: `feat/project-agent`
 - Starting commit: `c0eaa06` (CI portability fixes included)
-- Current database head: `20261029_0019`; this document creates no migration.
+- Baseline database head: `20261029_0019`; M1 adds source migration `20261031_0020`, without automatically upgrading the business database.
+
+M1 implements the five-tool read-only subset, separate task/report contracts, synchronous durable replay and unified goal UI. See [ADR0076](adr/0076-read-only-project-assistant.md) and [verification results](PROJECT_ASSISTANT_M1.md). Later capabilities described below remain design targets; M1 does not implement the asynchronous API examples or write tools.
 
 ## 1. Product objective and scope
 
@@ -181,7 +183,7 @@ Show actionable empty/error/interrupted/waiting states, remaining call limits an
 | M4: whole-project actions | Scoped imports/parsing, extraction candidates, report drafts and governed knowledge-change proposals | Import → parse → propose → human review → inspect results works through one task; formal changes are human-approved, version-bound and idempotent |
 | M5: acceptance and release | Cross-domain regression pack, separately authorized live development evaluation, documentation, recorded demo and release preparation | Functional/permission/recovery tests and CI pass; live evidence/limits are reported honestly; historical frozen experiments remain unchanged |
 
-M1–M5 are not started by this document. Each phase should produce a focused reviewable change with tests and paired documentation. Changes to synchronous execution, write-tool policy or data semantics require new accepted ADRs before crossing the boundaries of ADR0064–0068. Implementing one phase does not authorize the next phase or a provider experiment.
+M1 is implemented and locally verified with substitutes under ADR0076; M2–M5 remain planned. Each phase produces a focused reviewable change with tests and paired documentation. Changes to synchronous execution, write-tool policy or data semantics require new accepted ADRs before crossing ADR0064–0068 boundaries. Implementing one phase does not authorize the next phase or a provider experiment.
 
 ## 13. Verification and measurement
 

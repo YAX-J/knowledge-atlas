@@ -1,5 +1,7 @@
 # Knowledge Atlas Development Setup
 
+M1 source head is now `20261031_0020` (additive assistant_tasks), superseding older head announcements below. Read [M1 checks](PROJECT_ASSISTANT_M1.md). The installed database is not automatically upgraded; readiness requires the new head/table. Reuse existing .venv/node_modules; no dependency changes. Back up/rehearse recovery before the normal backend `alembic upgrade head`; disposable verification uses `python -m scripts.verify_native` and preserves the business marker. M1 passed local substitute/native/desktop verification; live quality remains unmeasured.
+
 Offline judging adds EVALUATION_PROVIDER=openrouter with local OPENROUTER_API_KEY, OPENROUTER_MODEL=typesafe/jev-1.14 and OPENROUTER_TIMEOUT_SECONDS=60. See [OpenRouter setup](OPENROUTER_EVALUATION.md). Native CF and direct TypeSafe fields remain supported, without business provider changes. No SDK is added; default evaluation execution remains zero-call preflight. Existing credentials stay local.
 
 Scoped multi-agent workflows now share this application. Update the existing environment with `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"` from backend; this installs pinned LangGraph. Back up/rehearse recovery before `alembic upgrade head` to `20261029_0019`. See [roles, API and synchronous human-review boundaries](MULTI_AGENT.md).

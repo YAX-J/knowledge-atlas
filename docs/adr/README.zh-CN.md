@@ -1,5 +1,7 @@
 # 架构决策记录
 
+- [ADR 0076：有界项目只读助手（已接受；本地替身验收通过）](0076-read-only-project-assistant.zh-CN.md)
+
 [English](README.md)
 
 架构决策记录（Architecture Decision Record，ADR）用于保存长期有效的选择。这些选择会影响多个组件、数据语义、安全、部署或后续实施。

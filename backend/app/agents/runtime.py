@@ -109,7 +109,7 @@ def invoke_model(callback, *args, **kwargs):
 def invoke_tool(callback, *args, **kwargs):
     context=_current.get()
     if context:context.reserve('tool')
-    allowed={'read_source_range','get_imports','search_symbols','find_references','get_type_members','read_chunk','read_evidence','search_knowledge'}
+    allowed={'read_source_range','get_imports','search_symbols','find_references','get_type_members','read_chunk','read_evidence','search_knowledge','search_sources','read_source_chunk'}
     tool_name = args[0] if args and args[0] in allowed else 'not_allowed'
     try:
         result=callback(*args,**kwargs)

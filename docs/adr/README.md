@@ -1,5 +1,7 @@
 # Architecture Decision Records
 
+- [ADR 0076: Bounded read-only project assistant (accepted; locally verified with substitutes)](0076-read-only-project-assistant.md)
+
 [简体中文](README.zh-CN.md)
 
 Architecture Decision Records capture durable choices that affect multiple components, data semantics, security, deployment, or future implementation work.

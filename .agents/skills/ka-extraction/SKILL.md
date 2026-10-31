@@ -5,6 +5,8 @@ description: Knowledge Atlas 的 DeepSeek 候选知识抽取。修改抽取 Sche
 
 # 候选知识抽取
 
+Project assistant M1 uses separate assistant-task-v1/assistant-report-v1, not QuestionRead or candidate extraction. Raw/code/knowledge reference types stay distinct; only server-returned IDs may appear in reports. Never promote raw excerpts or referenced claims into formal knowledge. No provider retries/automatic continuation; frozen experiments and grants remain unchanged. See ADR0076 (locally verified with substitutes; live quality unmeasured).
+
 模型只生成候选或基于已选证据生成回答，不直接写权威表；每个候选和支持性回答都必须能回到原文。候选入口：`backend/app/services/knowledge.py::run_extraction`、`backend/app/services/deepseek.py`、`backend/app/schemas/knowledge.py`；回答入口：`backend/app/services/questions.py`、`backend/app/schemas/questions.py`。
 
 ## 何时使用
