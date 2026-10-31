@@ -8,6 +8,10 @@
 
 [English](PLANS.md)
 
+## 项目 Agent 开发提案
+
+开发分支 `feat/project-agent` 从 `c0eaa06` 起步。[中文方案](docs/PROJECT_AGENT_PLAN.zh-CN.md)及[英文方案](docs/PROJECT_AGENT_PLAN.md)规划全项目目标驱动助手、受限工具、持久化任务执行、笔记修订及经过审核的跨模块写入。M1–M5 尚未实现，先打通资料、已确认知识和代码的统一只读任务。当前 API、数据库 head、冻结实验和供应商授权保持不变；本轮仅编写方案，不启动实现或真实调用。
+
 ## 多 Agent 扩展
 
 已实现用户认可的单项目改造：三个注册 Agent、两条显式 LangGraph 流程、共享范围/预算、持久化任务、先读后重试及人工审核检查点。迁移 head/应用库为 `20261029_0019`。见[架构与契约](docs/MULTI_AGENT.zh-CN.md)；下文实验边界继续保留。

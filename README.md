@@ -65,3 +65,4 @@ cd ..
 - [API 契约](docs/API_CONTRACT.md) · [知识模型](docs/KNOWLEDGE_MODEL.md) · [ADR](docs/adr/README.zh-CN.md)
 - [实验说明](evaluation/README.md) · [本轮性能](evaluation/performance/2026-10-29-scale/README.zh-CN.md)
 - [当前计划](PLANS.zh-CN.md) · [开发路线](docs/ROADMAP.md) · [变更记录](CHANGELOG.zh-CN.md)
+- 全项目 Agent 改造（规划中）：[中文方案](docs/PROJECT_AGENT_PLAN.zh-CN.md) · [English plan](docs/PROJECT_AGENT_PLAN.md)

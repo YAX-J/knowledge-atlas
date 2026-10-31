@@ -8,6 +8,10 @@ Offline judging now supports OpenRouter Jev, direct TypeSafe Jev and native CF a
 
 [简体中文](PLANS.zh-CN.md)
 
+## Project Agent development proposal
+
+Development branch `feat/project-agent` starts at `c0eaa06`. The [English plan](docs/PROJECT_AGENT_PLAN.md) and [Chinese plan](docs/PROJECT_AGENT_PLAN.zh-CN.md) propose a whole-project goal-driven assistant, scoped tools, durable task execution, note revisions and reviewed cross-domain writes. M1–M5 are planned, not implemented. Start with a unified read-only task spanning sources, confirmed knowledge and code. Current APIs, database head, frozen experiments and provider grants remain unchanged; this documentation turn starts no implementation or live run.
+
 ## Multi-agent extension
 
 The approved single-project refactor is implemented: three registered agents, two explicit LangGraph pipelines, shared scope/budgets, persistent run history, read-before-retry and a human-review checkpoint. Migration head/application are `20261029_0019`. See [architecture and contracts](docs/MULTI_AGENT.md). Existing evaluation limits below remain.
