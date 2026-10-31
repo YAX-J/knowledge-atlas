@@ -1,0 +1,57 @@
+{
+  "protocol": "holdout-provider-authorization-v1",
+  "authorization": {
+    "id": "holdout-v3-20261031-r1",
+    "source": "User explicitly authorized this round: up to 96 DeepSeek answers and 73 current embedding-service calls; judge calls excluded.",
+    "authorized_at": "2026-10-31T03:17:35.703077+00:00"
+  },
+  "scope": {
+    "dataset_id": "knowledge-atlas-holdout-v3",
+    "dataset_fingerprint_sha256": "3215df76dd621e2fe8c9a7bc60fe640d6d7d171fe8be141b061f067fe12d1801",
+    "answer_model": "deepseek-flash",
+    "embedding_model": "qwen3.7-text-embedding-flash",
+    "embedding_dimensions": 1024,
+    "embedding_batch_size": 32
+  },
+  "limits": {
+    "model": 96,
+    "embedding": 73
+  },
+  "reserved": {
+    "model": 5,
+    "embedding": 1
+  },
+  "attempts": [
+    {
+      "kind": "embedding",
+      "bucket": "embedding",
+      "at": "2026-10-31T03:17:42.216340+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:17:44.131168+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:17:45.548402+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:17:46.870434+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:17:48.426515+00:00"
+    },
+    {
+      "kind": "answer",
+      "bucket": "model",
+      "at": "2026-10-31T03:17:49.574537+00:00"
+    }
+  ],
+  "run_output": "D:\\Graduation project\\knowledge-atlas\\output\\holdout-v3-live-20261031-r1\\live"
+}

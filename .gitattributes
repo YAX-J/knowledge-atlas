@@ -10,3 +10,7 @@
 
 # Keep pinned upstream corpus bytes, including their original final blank lines.
 evaluation/holdout-v3/corpus/notes/*.md whitespace=-blank-at-eof
+
+# Preserve the exact bytes hashed from the first live holdout attempt.
+evaluation/results/2026-10-31-holdout-v3-run1/*.json -text whitespace=cr-at-eol
+evaluation/results/2026-10-31-holdout-v3-run1/*.jsonl -text whitespace=cr-at-eol

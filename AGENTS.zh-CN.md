@@ -1,5 +1,7 @@
 # Knowledge Atlas 仓库代理规范
 
+2026-10-31真实holdout状态：用户明确授权一个独立96次模型/73次嵌入轮次，第5次回答出现QUESTION_OUTPUT_INVALID后停止，保存4条BM25答案，预留5/1。历史84/61不变，新裁判0、人工评分0%。轮次已认领封存，剩余91/72不授权自动重试/续跑或换目录重放。见 evaluation/results/2026-10-31-holdout-v3-run1/REPORT.zh-CN.md。冻结测试集、提示词及排序不变。下文零调用开发说明保留为历史。
+
 当前离线评审支持 OpenRouter Jev、直连 TypeSafe Jev 和 CF 原生适配（ADR0073）。用户要求新增 OpenRouter 兼容，本开发轮零真实调用；保留人工评分覆盖率0%、正式人工审核、冻结输入/结果/holdout 和历史账本。独立凭据、显式供应商授权、调用前落盘预留，不重试/回退/续跑；校验 OpenRouter 发布/快照 ID 及实际模型，批内漂移即停止，保留环境代理。见 docs/OPENROUTER_EVALUATION.zh-CN.md。CF 第三方 Jev 统一路由仍不属于原生 CF 适配。
 
 2026-10-29 当前状态：应用库与迁移 head 为 `20261029_0019`；受限 Agent 与持久化人工审核流程见 ADR 0064–0065 和[实现说明](docs/MULTI_AGENT.zh-CN.md)。保持单项目，规范模块为 agents/、workflows/、tools/、analysis/、llm/，迁移过的 services 保留导入别名。三个角色共享有界尝试预算，正式入图只由人工审核触发。同 UUID 重发、只读恢复和审核后继续不得自动重复付费请求。ADR0061 的不可变版本和原生编译器边界继续适用。公开付费累计仍为 84 模型 /61 嵌入，本次重构零新增；评估支持 OpenRouter Jev、直连 TypeSafe 或 CF 原生匿名评审、人工覆盖率0%，holdout-v3 不可调参。此前测量作为[历史验收](docs/OPTIMIZATION_20261029.zh-CN.md)保留。

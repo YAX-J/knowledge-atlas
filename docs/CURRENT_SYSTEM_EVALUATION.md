@@ -2,9 +2,11 @@
 
 [简体中文](CURRENT_SYSTEM_EVALUATION.zh-CN.md)
 
-2026-10-31: [Historical failure analysis](../evaluation/results/2026-10-31-public-v2-diagnostics/REPORT.md) and the current online acceptance entry are implemented. This is a prospective protocol: **no live holdout-v3 answer or judge experiment has run**. New real requests this turn: 0. Human grading coverage: 0%. The experiment protocol is recorded; live budgets need separate authorization.
+Latest 2026-10-31 status: the user authorized an independent96/73 round and live holdout-v3 started. The fifth BM25 answer failed with `QUESTION_OUTPUT_INVALID`;4 answers are saved and round usage is5/1. No retry, judge requests0, human coverage0%. See the [live run record](../evaluation/results/2026-10-31-holdout-v3-run1/REPORT.md). The original protocol and pre-authorization budget checkpoint below remain; partial output is not completed quality acceptance.
 
 The recorded local zero-call configuration, fingerprints and budget blocker are in [preflight.json](../evaluation/experiments/2026-10-31-current-system-v3/preflight.json). This record consumes no authorization and is not a budget approval.
+
+`--authorization-ledger` uses only an existing explicitly approved96/73 holdout grant, bound to dataset/model scope. It locks and atomically persists before requests, claims one output on execution, preserves the historical84/61 ledger and never creates authorization on use. Unused91/72 cannot automatically retry/resume/replay in a new output. Subsequent failure-observability changes record exception classes, validation-error type counts and the current case, without inputs, model text or error messages; they cannot retroactively recover this failure's missing details.
 
 ## Fixed protocol
 
@@ -60,7 +62,7 @@ Future command shape, **rejected under current authorization**; do not execute b
 
 Generate method/category tables, failure cases and figures only after the live run; no current-system scores are fabricated now. Separate retrieval metrics, automated model grades, human coverage 0%, public-document provenance, simulated history and curated review fixtures. Prepare four saved demonstration cases: direct fact, cross-document evidence, historical scope and no-evidence refusal. Avoid repeated paid calls during defense. Holdout discoveries require separate future development data.
 
-## Verification this turn
+## Preparation checks before live authorization
 
 The user selected Agent-run offline checks. Focused coverage includes fingerprints/mappings/exact citations, unchanged inputs, 96 current-QA exports through SQLite/local provider substitutes, historical time, before-call ledger reservations, fail-stop behavior, budgets and approved-plan gates. Substitute results are engineering checks, never holdout quality scores. Focused combination: **115 passed**; full backend: **931 passed / 11 skipped**; final preflight metadata checks: **19 passed**. `git diff --check`, bilingual links and historical input SHA-256 checks pass; the original ledger remains84/61.
 

@@ -1,6 +1,8 @@
 # Knowledge Atlas Evaluation Set
 
-2026-10-31: [80-answer historical failure analysis](results/2026-10-31-public-v2-diagnostics/REPORT.md) is available without new provider calls. Use the separate [current online experiment entry](../docs/CURRENT_SYSTEM_EVALUATION.md) for current claim-level QA, historical scope and input-pool exports. Its holdout preflight plans96 model/73 embedding requests, but historical answer authorization is insufficient. No new live holdout or human grades exist.
+Latest: the [first authorized live holdout-v3 attempt](results/2026-10-31-holdout-v3-run1/REPORT.md) stopped on answer5 with invalid output, saving4 BM25 answers. Separate grant usage5 model/1 embedding; no retry or judging, no complete comparison. Historical84/61 remains unchanged.
+
+Earlier preparation checkpoint, before live authorization: [80-answer historical failure analysis](results/2026-10-31-public-v2-diagnostics/REPORT.md) used no new provider calls. The [current online entry](../docs/CURRENT_SYSTEM_EVALUATION.md) planned96 model/73 embedding requests but the old authorization was insufficient. The later independently authorized partial live attempt is recorded above; human grades remain absent.
 
 Optional `--modes rrf` requires `--allow-embedding-calls`, records `bm25-vector-rrf-v1` plus rank diagnostics. Frozen results and `line-evidence-v2` remain unchanged. The runner retains historical evidence expansion/answer replay; it does not evaluate the new online deduplication pipeline end to end. No new provider experiment was run.
 

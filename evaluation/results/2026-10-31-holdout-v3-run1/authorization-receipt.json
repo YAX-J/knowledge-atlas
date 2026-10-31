@@ -1,0 +1,18 @@
+{
+  "authorization": {
+    "id": "holdout-v3-20261031-r1",
+    "source": "User explicitly authorized this round: up to 96 DeepSeek answers and 73 current embedding-service calls; judge calls excluded.",
+    "authorized_at": "2026-10-31T03:17:35.703077+00:00"
+  },
+  "limits": {
+    "model": 96,
+    "embedding": 73
+  },
+  "historical_ledger_sha256": "d5e582bf2e4112cc5067cca6643258967fb1543808d31b39afa7bb7c4014b74a",
+  "historical_reserved": {
+    "model": 84,
+    "embedding": 61
+  },
+  "grant_sha256": "64ca00558f1c26cc44a2b671ea79aead9c0db4894db4fe4ab4bb8d085f234350",
+  "judge_authorized": false
+}

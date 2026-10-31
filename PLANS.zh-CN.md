@@ -1,6 +1,6 @@
 # Knowledge Atlas 实施计划
 
-2026-10-31：[失败分析](evaluation/results/2026-10-31-public-v2-diagnostics/REPORT.zh-CN.md)覆盖 80 条旧答案及已完成的历史 Clef 214 次评审。[当前版本实验](docs/CURRENT_SYSTEM_EVALUATION.zh-CN.md)已补齐逐题历史时间、结论/输入池导出、兼容数值投影和零调用预演。holdout-v3 保持冻结；四组前瞻上限为96次回答/73次嵌入，历史余额36/99，真实运行因回答授权不足而拦截。本轮新增真实调用0，人工评分仍为0%。
+2026-10-31：[历史诊断](evaluation/results/2026-10-31-public-v2-diagnostics/REPORT.zh-CN.md)后，用户批准独立96/73真实轮次。[holdout-v3首次运行](evaluation/results/2026-10-31-holdout-v3-run1/REPORT.zh-CN.md)于第5次BM25回答出现 `QUESTION_OUTPUT_INVALID` 后停止，保存4条答案，实际预留5/1；剩余91/72不用于自动重试。旧84/61账本、测试集及排序/提示词不变；本轮裁判0、人工覆盖率0%。已补充独立账本及失败脱敏分类。
 
 当前离线评审支持 OpenRouter Jev、直连 TypeSafe Jev 和 CF 原生适配，人工评分覆盖率0%。OpenRouter Decisions API、发布/快照校验及零调用预演已实现，真实兼容/质量未验证。见 [OpenRouter配置](docs/OPENROUTER_EVALUATION.zh-CN.md) 和 [ADR0073](docs/adr/0073-openrouter-jev-evaluation.zh-CN.md)。此前读取优化保留 ADR0071 记录。
 
@@ -27,7 +27,7 @@
 
 ## 仍需外部参与
 
-历史 Clef 已完成80条旧 public-v2 答案评审，不代表当前系统或 holdout-v3 质量。当前不安排人工盲评；采用 OpenRouter Jev、直连 TypeSafe 或 CF 原生匿名评审，人工覆盖率0%。新版 holdout 预演被回答授权额度拦截；新一轮真实问答及后续裁判的精确次数需分别授权。holdout-v3 保持冻结，不用于调提示词、排序或阈值，历史人工字段保持不变。
+历史 Clef 已完成80条旧public-v2评审，不代表当前系统质量。新版holdout真实运行因输出校验失败中止，具体字段错误未保留；下一次诊断/重跑需明确新授权，不能复用已认领轮次自动续跑。完整导出前不准备裁判包，裁判仍需单独授权。人工覆盖率0%，holdout不用于调提示词、排序或阈值。
 
 私有仓库验收、有权限的新数据库完整恢复、Docker、远端 CI 仍需对应环境，不因功能实现而自动算完成。
 

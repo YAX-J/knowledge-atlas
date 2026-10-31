@@ -170,7 +170,8 @@ def test_holdout_requires_exact_approved_plan_before_services(tmp_path, monkeypa
 
 
 @pytest.mark.parametrize('provider_failure', [False, True])
-def test_complete_holdout_runner_with_local_provider_substitutes_keeps_history_and_ledgers(db_session, tmp_path, monkeypatch, provider_failure):
+@pytest.mark.parametrize('independent_round', [False, True])
+def test_complete_holdout_runner_with_local_provider_substitutes_keeps_history_and_ledgers(db_session, tmp_path, monkeypatch, provider_failure, independent_round):
     """Exercise 96 current QA exports; local SQLite/stubs, never quality evidence."""
     settings = Settings(_env_file=None, deepseek_api_key=SecretStr('local-test'),
                         embedding_api_key=SecretStr('local-test'), embedding_model='test-1024',
@@ -183,7 +184,18 @@ def test_complete_holdout_runner_with_local_provider_substitutes_keeps_history_a
     monkeypatch.setattr(online, 'get_settings', lambda: settings)
     monkeypatch.setattr(online, 'LEDGER_PATH', ledger)
     monkeypatch.setattr(online, 'plan', lambda path, **kwargs: original_plan(path, ledger_path=ledger, **kwargs))
-    approved = original_plan(dataset, settings=settings, ledger_path=ledger)
+    arguments = {}
+    if independent_round:
+        scope = original_plan(dataset,settings=settings,ledger_path=ledger)['authorization_scope']
+        grant_path = tmp_path/'round.json'
+        online.RoundLedger.create(grant_path,scope=scope,authorization=dict(
+            id='unit-grant',source='test only',authorized_at='2026-10-31T00:00:00Z'))
+        arguments = dict(authorization_ledger=grant_path,model_limit=96,embedding_limit=73)
+        active_path = grant_path
+    else:
+        active_path = ledger
+    historical_before = ledger.read_bytes()
+    approved = original_plan(dataset, settings=settings, ledger_path=ledger,**arguments)
     assert not approved['blockers']
     approved_path = tmp_path/'approved.json'; approved_path.write_text(json.dumps(approved))
     @contextmanager
@@ -192,13 +204,13 @@ def test_complete_holdout_runner_with_local_provider_substitutes_keeps_history_a
     monkeypatch.setattr(online, 'isolated_workspace', workspace)
     calls = []
     def embedding(_settings, texts):
-        assert json.loads(ledger.read_text())['reserved']['embedding'] > sum(c == 'embedding' for c in calls)
+        assert json.loads(active_path.read_text())['reserved']['embedding'] > sum(c == 'embedding' for c in calls)
         calls.append('embedding')
         return [[1.0] + [0.0]*1023 for _ in texts]
     def answer(_settings, _question, evidence):
         online.model_usage.begin_call('question')
         calls.append('model')
-        assert json.loads(ledger.read_text())['reserved']['model'] == sum(c == 'model' for c in calls)
+        assert json.loads(active_path.read_text())['reserved']['model'] == sum(c == 'model' for c in calls)
         if provider_failure:
             raise RuntimeError('local substitute failure')
         return ClaimAnswerDraft(supported=True, confidence=.8, claims=[dict(
@@ -208,16 +220,21 @@ def test_complete_holdout_runner_with_local_provider_substitutes_keeps_history_a
     target = tmp_path/'run'
     if provider_failure:
         with pytest.raises(RuntimeError, match='local substitute failure'):
-            online.run(dataset, target, approved_plan=approved_path)
+            online.run(dataset, target, approved_plan=approved_path,**arguments)
         failed = json.loads((target/'run.json').read_text())
         assert failed['status'] == 'failed' and failed['model_usage']['attempted'] == 1
-        assert calls.count('model') == 1 and json.loads(ledger.read_text())['reserved']['model'] == 1
+        assert calls.count('model') == 1 and json.loads(active_path.read_text())['reserved']['model'] == 1
+        if independent_round:
+            assert ledger.read_bytes() == historical_before
         return
-    result = online.run(dataset, target, approved_plan=approved_path)
+    result = online.run(dataset, target, approved_plan=approved_path,**arguments)
     assert result['status'] == 'succeeded' and result['human_coverage'] == 0
     assert result['embedding_calls'] == sum(c == 'embedding' for c in calls) <= 73
     assert result['model_usage']['attempted'] == sum(c == 'model' for c in calls) <= 96
     assert not (target/'extraction.json').exists()
+    if independent_round:
+        assert ledger.read_bytes() == historical_before
+        assert original_plan(dataset,settings=settings,ledger_path=ledger,**arguments)['blockers']
     for mode in online.HOLDOUT_MODES:
         rows = [json.loads(line) for line in (target/f'{mode}.jsonl').read_text(encoding='utf-8').splitlines()]
         assert len(rows) == 24 and sum(row['valid_at'] is not None for row in rows) == 4
@@ -226,3 +243,52 @@ def test_complete_holdout_runner_with_local_provider_substitutes_keeps_history_a
         projected = [json.loads(line) for line in (target/f'{mode}.metrics-input.jsonl').read_text(encoding='utf-8').splitlines()]
         assert [row['id'] for row in projected] == [row['id'] for row in rows]
         assert all('claims' not in row and 'answer_input_evidence' not in row for row in projected)
+
+
+@pytest.mark.parametrize('failure', ['missing','scope','limit','tampered_counts','changed_grant','lock','spent','reuse'])
+def test_round_ledger_rejects_missing_changed_exhausted_or_replayed_grants(tmp_path, failure):
+    path=tmp_path/'grant.json'
+    scope={'dataset':'unit'}
+    if failure=='missing':
+        with pytest.raises(FileNotFoundError): online.RoundLedger(path,scope=scope)
+        return
+    ledger=online.RoundLedger.create(path,scope=scope,authorization=dict(
+        id='unit',source='test only',authorized_at='2026-10-31'))
+    with pytest.raises(FileExistsError):
+        online.RoundLedger.create(path,scope=scope,authorization={})
+    if failure=='scope':
+        with pytest.raises(ValueError): online.RoundLedger(path,scope={})
+        return
+    ledger.claim_run(tmp_path/'run')
+    if failure=='reuse':
+        with pytest.raises(RuntimeError,match='already claimed'): ledger.claim_run(tmp_path/'other')
+        return
+    if failure=='lock':
+        ledger.lock.write_text('other writer')
+        with pytest.raises(FileExistsError): ledger.reserve('answer')
+        assert ledger.lock.exists()
+        return
+    data=json.loads(path.read_text())
+    if failure=='limit': data['limits']['model']=97
+    if failure=='tampered_counts': data['reserved']['model']=1
+    if failure=='changed_grant': data['authorization']['id']='other'
+    if failure=='spent':
+        data['reserved']['model']=96
+        data['attempts']=[dict(bucket='model',kind='answer',at='test') for _ in range(96)]
+    path.write_text(json.dumps(data))
+    with pytest.raises((ValueError,RuntimeError)):
+        ledger.reserve('answer')
+    assert not ledger.lock.exists()
+
+
+def test_failure_classification_retains_validation_types_without_private_input_or_messages():
+    try:
+        ClaimAnswerDraft.model_validate(dict(supported='private-generated-text',confidence=.8,
+            claims=[],missing_information=[]))
+    except Exception as invalid:
+        outer=RuntimeError('private-provider-message')
+        outer.__cause__=invalid
+        result=online.safe_failure_diagnostics(outer)
+    assert result['exception_types']==['RuntimeError','ValidationError']
+    assert result['validation_error_types']
+    assert 'private-' not in json.dumps(result)

@@ -1,6 +1,6 @@
 # Knowledge Atlas
 
-2026-10-31：完成 [80 条历史答案的失败分析](evaluation/results/2026-10-31-public-v2-diagnostics/REPORT.zh-CN.md)，补齐当前问答的历史时间、结论/输入证据导出及零调用预算预演。独立 holdout-v3 四组实验上限为 96 次回答/73 次嵌入，回答预算不足，真实运行待单独授权；本轮新增真实调用 0。见[当前版本实验方案](docs/CURRENT_SYSTEM_EVALUATION.zh-CN.md)。
+2026-10-31：完成历史失败分析后，用户授权独立96/73轮次启动holdout-v3。第5次BM25回答未通过输出校验，保存4条答案后停止；本轮预留5次回答/1次嵌入，未重试、未调用裁判，不能据此比较四种方法。旧账本84/61和冻结测试集不变。见[真实运行记录](evaluation/results/2026-10-31-holdout-v3-run1/REPORT.zh-CN.md)与[实验方案](docs/CURRENT_SYSTEM_EVALUATION.zh-CN.md)。
 
 当前离线评审支持 OpenRouter Jev、直连 TypeSafe Jev 和 CF 原生评审，人工评分覆盖率0%。本轮新增 OpenRouter Decisions API、版本/日期快照校验、代理支持及零调用预演；尚未运行真实 OpenRouter 评审。配置见 [OpenRouter](docs/OPENROUTER_EVALUATION.zh-CN.md)、[CF](docs/CLOUDFLARE_EVALUATION.zh-CN.md) 和 [ADR0073](docs/adr/0073-openrouter-jev-evaluation.zh-CN.md)。此前读取优化保留 ADR0071 记录。
 

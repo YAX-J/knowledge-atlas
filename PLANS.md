@@ -1,6 +1,6 @@
 # Knowledge Atlas implementation plan
 
-2026-10-31: [Historical diagnostics](evaluation/results/2026-10-31-public-v2-diagnostics/REPORT.md) cover 80 answers and the completed historical Clef 214-request run. The [current-system experiment](docs/CURRENT_SYSTEM_EVALUATION.md) adds per-case historical time, claim/input-pool exports, compatible numeric projections and zero-call preflight. Holdout-v3 remains frozen; its prospective four-method upper bounds are96 model/73 embedding calls against historical remaining36/99. Live use is blocked pending explicit additional authorization; this turn makes0 real calls. Human grading remains0%.
+2026-10-31: after [historical diagnostics](evaluation/results/2026-10-31-public-v2-diagnostics/REPORT.md), the user approved an independent96/73 round. The [first live holdout-v3 run](evaluation/results/2026-10-31-holdout-v3-run1/REPORT.md) stopped on its fifth BM25 answer with `QUESTION_OUTPUT_INVALID`, saving4 answers and reserving5/1. Unused91/72 does not authorize automatic retry. Historical84/61, test data, ranking and prompts are unchanged; new judge requests0, human coverage0%. Independent ledgers and sanitized failure classification are implemented.
 
 Offline judging now supports OpenRouter Jev, direct TypeSafe Jev and native CF adapters, with human grading coverage0%. OpenRouter Decisions API and release/snapshot validation are implemented with zero-call preflight; live compatibility/quality remain unverified. See [OpenRouter setup](docs/OPENROUTER_EVALUATION.md) and [ADR0073](docs/adr/0073-openrouter-jev-evaluation.md). Earlier read optimizations remain in ADR0071.
 
@@ -27,7 +27,7 @@ The user's ordered P0/P1/P2 optimization is implemented in code. Acceptance evid
 
 ## External work still pending
 
-The historical Clef model review is complete for80 old public-v2 answers; it is not current-system or holdout-v3 quality evidence. The user selects anonymous model grading with human coverage0%. OpenRouter Jev, direct TypeSafe and native CF adapters are available. Current holdout preflight is blocked by answer authorization; a new live round and its exact subsequent judge request count require separate approval. Keep v3 frozen and separate from development data; never tune judge prompts, ranking or thresholds against it. Historical human-score fields remain untouched.
+Historical Clef grading covers80 old public-v2 answers, not current quality. Live holdout stopped on invalid output; exact field errors were not retained. Any new diagnostic/repeat attempt needs explicit authorization; claimed rounds cannot automatically resume. No judge packet before complete exports; judging remains separately authorized. Human coverage0%; never tune prompts, ranking or thresholds against holdout.
 
 Private repository acceptance, privileged fresh-database recovery, Docker and remote CI need their actual environments. They remain explicit limits, not hidden assumptions about completion.
 

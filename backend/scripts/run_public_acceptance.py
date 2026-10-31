@@ -5,6 +5,7 @@ grades remaining empty are mandatory. No retry, private inputs or application wr
 """
 import argparse
 import csv
+from collections import Counter
 from datetime import datetime,timezone
 import hashlib
 import json
@@ -13,6 +14,7 @@ import random
 import time
 import uuid
 from unittest.mock import patch
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.config import get_settings
@@ -26,7 +28,7 @@ from scripts.evaluation_snapshot import project_snapshot
 from scripts.isolated_workspace import isolated_workspace
 from scripts.prepare_evaluation import load_fixture, prepare_project
 from scripts.run_evaluation import _evidence_record, ordered_evidence, parse_valid_at
-from scripts.provider_ledger import ProviderLedger
+from scripts.provider_ledger import ProviderLedger, RoundLedger
 
 
 def save(path,value):
@@ -37,7 +39,20 @@ LEDGER_PATH = Path(__file__).resolve().parents[2]/'output/completeness-20261026/
 HOLDOUT_MODES = ['bm25', 'vector', 'hybrid', 'rrf']
 
 
-def plan(dataset, *, settings=None, ledger_path=LEDGER_PATH, model_limit=120, embedding_limit=160):
+def safe_failure_diagnostics(error):
+    """Record error classes/counts only, never generated text, inputs or messages."""
+    chain, counts, seen = [], Counter(), set()
+    while error is not None and id(error) not in seen and len(chain) < 8:
+        seen.add(id(error))
+        chain.append(type(error).__name__)
+        if isinstance(error, ValidationError):
+            counts.update(item['type'] for item in error.errors(
+                include_input=False, include_context=False, include_url=False))
+        error = error.__cause__
+    return dict(exception_types=chain, validation_error_types=dict(counts))
+
+
+def plan(dataset, *, settings=None, ledger_path=LEDGER_PATH, model_limit=120, embedding_limit=160, authorization_ledger=None):
     """Provider/DB-free plan; the historical authorization is never reset here."""
     settings = settings or get_settings()
     _, cases, summary = validate_dataset(dataset)
@@ -63,8 +78,23 @@ def plan(dataset, *, settings=None, ledger_path=LEDGER_PATH, model_limit=120, em
         blockers.append('Historical ledger missing; authorization must be reconciled before any call')
     elif ledger['limits'] != {'model': 120, 'embedding': 160}:
         raise ValueError('Historical authorization limits changed')
+    scope = dict(dataset_id=summary['dataset_id'], dataset_fingerprint_sha256=summary['fingerprint_sha256'],
+                 answer_model=settings.deepseek_model, embedding_model=settings.embedding_model,
+                 embedding_dimensions=settings.embedding_dimensions, embedding_batch_size=settings.embedding_batch_size)
+    grant = None
+    available = remaining
+    if authorization_ledger is not None:
+        if summary['dataset_id'] != 'knowledge-atlas-holdout-v3':
+            raise ValueError('Independent round authorization is holdout-only')
+        round_ledger = RoundLedger(authorization_ledger, scope=scope)
+        grant = round_ledger.read()
+        if model_limit > grant['limits']['model'] or embedding_limit > grant['limits']['embedding']:
+            raise ValueError('Per-run caps exceed the new user authorization')
+        available = {kind: grant['limits'][kind] - grant['reserved'][kind] for kind in ('model', 'embedding')}
+        if grant['run_output'] is not None:
+            blockers.append('Round already claimed; do not retry/resume in a fresh output')
     for kind, count, limit in (('model', model_requests, model_limit), ('embedding', embedding_requests, embedding_limit)):
-        if count > limit or (remaining is not None and count > remaining[kind]):
+        if count > limit or (available is not None and count > available[kind]):
             blockers.append(f'{kind}: planned upper bound {count} exceeds per-run or remaining cumulative budget')
     backend = Path(__file__).resolve().parents[1]
     code_files = [*sorted((backend/'app').rglob('*.py')), *(backend/'scripts'/name for name in (
@@ -82,6 +112,9 @@ def plan(dataset, *, settings=None, ledger_path=LEDGER_PATH, model_limit=120, em
                 request_limits=dict(model=model_limit,embedding=embedding_limit),
                 planned_upper_bounds=dict(model=model_requests, embedding=embedding_requests),
                 historical_remaining=remaining, blockers=blockers, extraction_smoke=extraction,
+                authorization_scope=scope,
+                round_authorization=(dict(id=grant['authorization']['id'], sha256=RoundLedger.identity(grant),
+                    remaining=available, scope=scope) if grant is not None else None),
                 human_coverage=0, reserved_requests=0, completed_requests=0,
                 judge_protocol=dict(provider='cloudflare',model='@cf/cloudflare/clef',mode='decision',
                     citation_confidence_threshold=.8,model_revision_pinned=False),
@@ -129,11 +162,12 @@ def online_prediction(db, *, case, mode, project_id, settings, mapping):
     return prediction
 
 
-def run(dataset,output,*,model_limit=120,embedding_limit=160,approved_plan=None):
+def run(dataset,output,*,model_limit=120,embedding_limit=160,approved_plan=None,authorization_ledger=None):
     if output.exists():
         raise ValueError('Output directory must be new')
     settings=get_settings()
-    prepared_plan=plan(dataset,settings=settings,model_limit=model_limit,embedding_limit=embedding_limit)
+    prepared_plan=plan(dataset,settings=settings,model_limit=model_limit,embedding_limit=embedding_limit,
+                       authorization_ledger=authorization_ledger)
     if prepared_plan['blockers']:
         raise ValueError('Insufficient cumulative authorization; inspect --preflight before any provider call')
     if prepared_plan['dataset']['dataset_id'] == 'knowledge-atlas-holdout-v3' and approved_plan is None:
@@ -156,7 +190,8 @@ def run(dataset,output,*,model_limit=120,embedding_limit=160,approved_plan=None)
     save(report_path,report)
     original_embedding=embeddings.embed_texts
     original_begin=model_usage.begin_call
-    ledger=ProviderLedger(LEDGER_PATH)
+    ledger=(RoundLedger(authorization_ledger,scope=prepared_plan['round_authorization']['scope'])
+            if authorization_ledger is not None else ProviderLedger(LEDGER_PATH))
     blind=[]
     predictions={}
     def measured_embedding(configuration,texts):
@@ -172,6 +207,8 @@ def run(dataset,output,*,model_limit=120,embedding_limit=160,approved_plan=None)
         report['model_usage']=meter.summary()
         save(report_path,report)
     try:
+        if authorization_ledger is not None:
+            ledger.claim_run(output)
         with model_usage.usage_budget(model_limit) as meter, patch.object(model_usage,'begin_call',measured_begin), patch.object(embeddings,'embed_texts',measured_embedding), isolated_workspace(settings) as (engine,native,schema):
             report['model_usage']=meter.summary()
             project_id=uuid.uuid4()
@@ -188,6 +225,8 @@ def run(dataset,output,*,model_limit=120,embedding_limit=160,approved_plan=None)
                 records=[]
                 partial=output/f'{mode}.partial.jsonl'
                 for case in cases:
+                    report['current_case']=dict(mode=mode,case_id=case['id'])
+                    save(report_path,report)
                     with Session(engine) as db:
                         prediction=online_prediction(db,case=case,mode=mode,project_id=project_id,settings=native,mapping=mapping)
                     records.append(prediction)
@@ -250,6 +289,7 @@ def run(dataset,output,*,model_limit=120,embedding_limit=160,approved_plan=None)
     except Exception as exc:
         report['status']='failed'
         report['errors'].append(dict(type=type(exc).__name__,code=getattr(exc,'code',None)))
+        report['failure_diagnostics']=safe_failure_diagnostics(exc)
         raise
     finally:
         if 'meter' in locals():
@@ -287,11 +327,13 @@ if __name__=='__main__':
     parser.add_argument('--model-limit',type=int,default=120)
     parser.add_argument('--embedding-limit',type=int,default=160)
     parser.add_argument('--approved-plan',type=Path,help='Exact reviewed zero-call plan; required for holdout live runs')
+    parser.add_argument('--authorization-ledger',type=Path,help='Existing independent user-approved 96/73 holdout grant')
     args=parser.parse_args()
     if args.preflight:
         if args.allow_model_calls or args.allow_embedding_calls:
             parser.error('Preflight must not include provider authorization flags')
-        report=plan(args.dataset.resolve(),model_limit=args.model_limit,embedding_limit=args.embedding_limit)
+        report=plan(args.dataset.resolve(),model_limit=args.model_limit,embedding_limit=args.embedding_limit,
+                    authorization_ledger=args.authorization_ledger)
         args.output_dir.mkdir(parents=True,exist_ok=False)
         save(args.output_dir/'run.json',report)
         print(json.dumps(dict(status=report['status'],planned_upper_bounds=report['planned_upper_bounds'],blockers=report['blockers'])))
@@ -300,7 +342,8 @@ if __name__=='__main__':
         parser.error('Both explicit provider authorizations are required')
     try:
         report=run(args.dataset.resolve(),args.output_dir.resolve(),model_limit=args.model_limit,
-                   embedding_limit=args.embedding_limit,approved_plan=args.approved_plan)
+                   embedding_limit=args.embedding_limit,approved_plan=args.approved_plan,
+                   authorization_ledger=args.authorization_ledger)
         print(json.dumps(dict(status=report['status'],models=report['model_usage']['attempted'],embeddings=report['embedding_calls'])))
     except Exception as exc:
         print(f'Public acceptance failed ({type(exc).__name__}); see run.json, never print credentials.')

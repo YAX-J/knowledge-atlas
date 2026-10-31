@@ -1,0 +1,66 @@
+{
+  "status": "failed_partial_only",
+  "dataset": {
+    "dataset_id": "knowledge-atlas-holdout-v3",
+    "version": "3.0.0",
+    "source_count": 7,
+    "case_count": 24,
+    "answerable_count": 20,
+    "category_counts": {
+      "cross_document": 8,
+      "direct_fact": 8,
+      "temporal": 4,
+      "unanswerable": 4
+    },
+    "fingerprint_sha256": "3215df76dd621e2fe8c9a7bc60fe640d6d7d171fe8be141b061f067fe12d1801"
+  },
+  "human_grading_coverage": 0,
+  "answer_protocol": "evidence-claims-v2",
+  "completed_answers": {
+    "bm25": 4,
+    "vector": 0,
+    "hybrid": 0,
+    "rrf": 0
+  },
+  "failed_case_id": "holdout-v3-05",
+  "failure_code": "QUESTION_OUTPUT_INVALID",
+  "failure_case_inferred_from_frozen_order": true,
+  "failure_details": "Provider output failed the application output/completion/schema checks; exact validation details were not retained.",
+  "reserved_requests": {
+    "model": 5,
+    "embedding": 1
+  },
+  "remaining_this_grant": {
+    "model": 91,
+    "embedding": 72
+  },
+  "historical_reserved": {
+    "model": 84,
+    "embedding": 61
+  },
+  "combined_business_attempts": {
+    "model": 89,
+    "embedding": 62
+  },
+  "judge_requests_this_round": 0,
+  "model_reported_usage": {
+    "usage_reported": 5,
+    "prompt_tokens": 6334,
+    "completion_tokens": 857
+  },
+  "actual_billed_cost": null,
+  "no_retry_fallback_or_resume": true,
+  "cleanup_confirmed": true,
+  "comparison_metrics": null,
+  "limits": [
+    "Incomplete run; no method ranking or answer-quality score.",
+    "Failed provider response was not retained; no exact validation cause can be inferred.",
+    "Frozen holdout, prompts, ranking and thresholds were not tuned on this failure."
+  ],
+  "verification": {
+    "focused_grant_passed": 33,
+    "full_passed": 941,
+    "full_skipped": 11,
+    "final_observability_focused_passed": 34
+  }
+}

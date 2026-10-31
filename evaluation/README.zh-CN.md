@@ -1,6 +1,8 @@
 # Knowledge Atlas 测评集
 
-2026-10-31：新增 [80 条历史答案失败分析](results/2026-10-31-public-v2-diagnostics/REPORT.zh-CN.md)，本轮不增加供应商调用。新版结论问答、历史时间和输入池导出使用独立的[当前在线实验入口](../docs/CURRENT_SYSTEM_EVALUATION.zh-CN.md)；其 holdout 预演上限96次回答/73次嵌入，历史回答授权不足。尚无新的真实 holdout 分数或人工评分。
+最新：[首次获准的holdout-v3真实运行](results/2026-10-31-holdout-v3-run1/REPORT.zh-CN.md)在第5次回答输出校验失败时停止，保存4条BM25答案；独立账本用量5次模型/1次嵌入，未重试/裁判，不能比较完整方法。旧84/61账本不变。
+
+真实授权前的准备检查点：[80条历史答案失败分析](results/2026-10-31-public-v2-diagnostics/REPORT.zh-CN.md)不增加供应商调用；[当前在线入口](../docs/CURRENT_SYSTEM_EVALUATION.zh-CN.md)预演96次回答/73次嵌入，旧回答授权不足。后续独立授权的部分真实运行见上文；人工评分仍缺失。
 
 新增可选 `--modes rrf`，须显式 `--allow-embedding-calls`，协议标为 `bm25-vector-rrf-v1`，输出两路排名及融合得分。旧结果和 `line-evidence-v2` 评分保持不变；此运行器的证据展开/回答重放仍沿用历史协议，不能当作新版在线问答去重的端到端质量实验。本轮未运行真实供应商实验。
 
