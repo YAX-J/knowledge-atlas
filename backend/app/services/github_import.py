@@ -444,16 +444,22 @@ def sync_github_repository(
             f"Bearer {settings.github_token.get_secret_value()}"
         )
 
+    saved_manifest = (
+        resume_incomplete and continuation is not None and (continuation.scan_state or {}).get("complete")
+    )
+    use_saved_identity = (
+        saved_manifest and not request_guard and settings.github_token is None
+        and base_url == "https://api.github.com" and repository.provider_repository_id is not None
+    )
     with ExitStack() as resources:
         client = resources.enter_context(httpx.Client(
             headers=headers,
             timeout=httpx.Timeout(settings.github_timeout_seconds, connect=10),
             **({'event_hooks':{'request':[lambda _request:request_guard()]}} if request_guard else {}),
         ))
-        repository_payload = _get_json(
-            client, f"{base_url}/repos/{owner}/{name}"
-        )
-        _update_provider_identity(db, repository=repository, payload=repository_payload)
+        repository_payload = {} if use_saved_identity else _get_json(client, f"{base_url}/repos/{owner}/{name}")
+        if not use_saved_identity:
+            _update_provider_identity(db, repository=repository, payload=repository_payload)
         # Continue against GitHub's canonical coordinates after a transfer or rename.
         owner = quote(repository.remote_owner or "", safe="")
         name = quote(repository.remote_name or "", safe="")
@@ -464,7 +470,7 @@ def sync_github_repository(
                 code="GITHUB_PROVIDER_FAILED",
                 message="GitHub 仓库响应缺少默认分支",
             )
-        if resume_incomplete and continuation is not None and (continuation.scan_state or {}).get("complete"):
+        if saved_manifest and continuation is not None:
             # The complete manifest already binds these paths to this immutable commit.
             commit_payload = {
                 "sha": continuation.commit_sha,
@@ -495,7 +501,8 @@ def sync_github_repository(
         raw_base = f"https://raw.githubusercontent.com/{owner}/{name}/{quote(commit_sha, safe='')}"
         raw_client = None
         if (resume_incomplete and not request_guard and settings.github_token is None
-                and base_url == "https://api.github.com" and repository_payload.get("private") is False):
+                and base_url == "https://api.github.com"
+                and (use_saved_identity or repository_payload.get("private") is False)):
             raw_client = resources.enter_context(httpx.Client(
                 headers={"User-Agent": headers["User-Agent"]},
                 timeout=httpx.Timeout(settings.github_timeout_seconds, connect=10),

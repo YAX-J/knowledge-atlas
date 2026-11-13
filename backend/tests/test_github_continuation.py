@@ -122,7 +122,7 @@ def test_whole_repo_resumes_saved_same_commit_and_uses_verified_raw_content(clie
             assert path.startswith(f"/example/demo/{'a' * 40}/")
             return httpx.Response(200, content=files[path.split("/", 4)[-1]])
         if path == "/repos/example/demo":
-            return httpx.Response(200, json={"default_branch": "main", "private": False})
+            return httpx.Response(200, json={"default_branch": "main", "private": False, "id": 42})
         if "/commits/" in path:
             return httpx.Response(200, json={"sha": "a" * 40, "commit": {"tree": {"sha": "tree"}}})
         if "/trees/" in path:
@@ -147,6 +147,7 @@ def test_whole_repo_resumes_saved_same_commit_and_uses_verified_raw_content(clie
     assert (first["completed_files"], second["completed_files"], third["completed_files"]) == (1, 2, 3)
     assert third["remaining_files"] == 0 and not third["truncated"]
     assert sum("/git/trees/" in request.url.path for request in requests) == 1
+    assert sum(request.url.path == "/repos/example/demo" for request in requests) == 2
     assert sum("/commits/" in request.url.path for request in requests) == 2
     assert sum("/git/blobs/" in request.url.path for request in requests) == 1
     assert sum(request.url.host == "raw.githubusercontent.com" for request in requests) == 2
