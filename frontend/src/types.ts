@@ -120,6 +120,16 @@ export interface ProjectGraphData {
   truncated: boolean
 }
 
+export type GraphBackend = 'postgresql' | 'neo4j'
+
+export interface Neo4jSnapshot {
+  valid_at: string
+  node_count: number
+  edge_count: number
+}
+
+export interface Neo4jGraphData extends ProjectGraphData, Neo4jSnapshot {}
+
 export type KnowledgeChangeKind = 'SUPERSEDES' | 'SUPPLEMENTS' | 'CONFLICTS_WITH'
 export interface KnowledgeChangeInput {
   new_entity_id: string

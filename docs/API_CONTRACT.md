@@ -513,7 +513,7 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 | --- | --- |
 | `GET /api/v1/health/neo4j` | 检查配置库能否执行 Cypher，成功返回 `{"status":"up"}`。 |
 | `POST /api/v1/projects/{project_id}/graph/neo4j/sync` | 生成并替换当前用户项目的快照。查询参数 `valid_at` 为可选的带时区时间，默认取同步时间。返回 `valid_at`、`node_count`、`edge_count`。 |
-| `GET /api/v1/projects/{project_id}/graph/neo4j` | 从 Neo4j 读取已保存的快照，支持下文的 `center_id`、`depth`、`types`、`limit`。响应为下文图谱结构加 `valid_at`。读取历史时间需先用指定 `valid_at` 同步。 |
+| `GET /api/v1/projects/{project_id}/graph/neo4j` | 从 Neo4j 读取已保存的快照，支持下文的 `center_id`、`depth`、`types`、`limit`。响应为下文图谱结构加 `valid_at`、`node_count` 和 `edge_count`，两个计数是整个快照的总量。读取历史时间需先用指定 `valid_at` 同步。 |
 
 首次同步自动确保 `KnowledgeEntity.id` 唯一约束。每次同步替换该范围的旧快照。同步上限为 5,000 节点、20,000 关系，超限返回 409 `NEO4J_PROJECTION_TOO_LARGE`。项目不存在或不可访问返回 404。未同步时查询返回 409 `NEO4J_PROJECTION_MISSING`。缺少连接配置或 Neo4j 操作失败返回 503 `NEO4J_NOT_CONFIGURED` 或 `NEO4J_UNAVAILABLE`。快照生成时校验边端点，缺失返回 409 `NEO4J_PROJECTION_INVALID`。
 

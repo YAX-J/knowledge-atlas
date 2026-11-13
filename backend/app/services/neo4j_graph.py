@@ -83,8 +83,8 @@ def _replace_snapshot(
             raise AppError(status_code=409, code="NEO4J_PROJECTION_INVALID", message="图谱快照存在缺失端点")
     tx.run(f"""
         MERGE {PROJECT_PATTERN}
-        SET p.valid_at = $valid_at
-        """, scope, valid_at=at.isoformat()).consume()
+        SET p.valid_at = $valid_at, p.node_count = $node_count, p.edge_count = $edge_count
+        """, scope, valid_at=at.isoformat(), node_count=len(nodes), edge_count=len(edges)).consume()
 
 
 def sync_project(
@@ -109,7 +109,15 @@ def _read_snapshot(
     tx: ManagedTransaction, scope: dict[str, str], center_id: str | None,
     depth: int, types: list[str], limit: int,
 ) -> Neo4jGraphRead:
-    marker = tx.run(f"MATCH {PROJECT_PATTERN} RETURN p.valid_at AS valid_at", scope).single()
+    marker = tx.run(f"""
+        MATCH {PROJECT_PATTERN}
+        RETURN p.valid_at AS valid_at,
+            coalesce(p.node_count, COUNT {{ MATCH (:KAProjectionEntity {{{SCOPE_PROPERTIES}}}) }}) AS node_count,
+            coalesce(p.edge_count, COUNT {{
+                MATCH (:KAProjectionEntity {{{SCOPE_PROPERTIES}}})
+                    -[:KA_RELATIONSHIP {{{SCOPE_PROPERTIES}}}]->(:KAProjectionEntity {{{SCOPE_PROPERTIES}}})
+            }}) AS edge_count
+        """, scope).single()
     if marker is None:
         raise AppError(status_code=409, code="NEO4J_PROJECTION_MISSING", message="请先同步项目图谱快照")
 
@@ -162,7 +170,7 @@ def _read_snapshot(
         nodes=[{"valid_to": None, **node} for node in nodes],
         edges=[{"valid_to": None, **edge} for edge in edges[:graph.MAX_EDGES]],
         truncated=truncated or len(edges) > graph.MAX_EDGES,
-        valid_at=marker["valid_at"],
+        valid_at=marker["valid_at"], node_count=marker["node_count"], edge_count=marker["edge_count"],
     )
 
 

@@ -3,12 +3,16 @@ import { computed, ref, watch } from 'vue'
 import KnowledgeSearch from './KnowledgeSearch.vue'
 import type { GraphSection } from '../composables/useWorkspaceRoute'
 import type { ApiProject } from '../api/knowledgeAtlas'
-import type { EmbeddingJob, EmbeddingIndexStatus, EntityDetail, EvidenceLocator, FormalKnowledgeEdge, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, RelationshipDetail } from '../types'
+import type { EmbeddingJob, EmbeddingIndexStatus, EntityDetail, EvidenceLocator, FormalKnowledgeEdge, GraphBackend, KnowledgeSearchMode, KnowledgeSearchResult, Neo4jSnapshot, ProjectGraphData, RelationshipDetail } from '../types'
 
 const props = defineProps<{
   project: ApiProject | null
   section?: GraphSection
   graph: ProjectGraphData | null
+  backend?: GraphBackend
+  neo4jSnapshot?: Neo4jSnapshot | null
+  neo4jSyncing?: boolean
+  neo4jSyncError?: string
   entityDetail: EntityDetail | null
   relationshipDetail: RelationshipDetail | null
   loading: boolean
@@ -53,6 +57,8 @@ const emit = defineEmits<{
   time: [value: string]
   inspectIndex: []
   section: [value: GraphSection]
+  backend: [value: GraphBackend]
+  syncNeo4j: []
 }>()
 const localTime = ref('')
 watch(() => props.validAt, value => {
@@ -77,6 +83,7 @@ const positioned = computed(() => (props.graph?.nodes ?? []).map((item, index) =
 const positions = computed(() => new Map(positioned.value.map(item => [item.id, item])))
 const selected = computed(() => props.entityDetail?.entity ?? props.relationshipDetail?.relationship ?? null)
 const evidence = computed(() => props.entityDetail?.evidence ?? props.relationshipDetail?.evidence ?? [])
+const isNeo4j = computed(() => props.backend === 'neo4j')
 function edgePath(edge: FormalKnowledgeEdge) {
   const source = positions.value.get(edge.source_id)
   const target = positions.value.get(edge.target_id)
@@ -94,7 +101,7 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
   <main class="project-graph-page" aria-labelledby="project-graph-title">
     <header class="graph-page-heading">
       <div><span class="graph-kicker">项目知识 / 已确认</span><h1 id="project-graph-title">{{ project?.name ?? '项目图谱' }}</h1><p>沿着关系找回原文，让每条知识都有依据。</p></div>
-      <div class="graph-actions"><button type="button" :disabled="mutationBusy" @click="emit('back')">返回资料</button><button type="button" :disabled="mutationBusy" @click="emit('demo')">演示图谱</button><button type="button" :disabled="loading || mutationBusy" @click="emit('refresh')">刷新图谱</button></div>
+      <div class="graph-actions"><button type="button" :disabled="mutationBusy" @click="emit('back')">返回资料</button><button type="button" :disabled="mutationBusy" @click="emit('demo')">演示图谱</button><button type="button" :disabled="loading || mutationBusy || neo4jSyncing" @click="emit('refresh')">刷新图谱</button></div>
     </header>
     <nav class="graph-sections" aria-label="知识工作区"><button v-for="tab in ([['relations','关系图'],['search','知识检索'],['identity','身份整理'],['evolution','演化与治理'],['retirement','停用记录']] as const)" :key="tab[0]" type="button" :aria-current="(section ?? 'relations') === tab[0] ? 'page' : undefined" :disabled="mutationBusy" @click="emit('section',tab[0])">{{ tab[1] }}</button></nav>
     <div v-show="!section || section === 'search'">
@@ -105,17 +112,31 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
       @search="(query, types, mode) => emit('search', query, types, mode)" @rebuild="retry => emit('rebuildSearch', retry)"
       @clear="emit('clearSearch')" @retry="emit('retrySearch')" @select="id => emit('selectSearchEntity', id)" @open-evidence="emit('openEvidence', $event)" />
     </div>
-    <div class="graph-toolbar">
-      <span class="graph-real-label">真实项目图谱</span>
-      <form class="time-query" @submit.prevent="applyTime"><label>历史时间 <input v-model="localTime" type="datetime-local" step="0.001" :disabled="loading || mutationBusy" /></label><button type="submit" :disabled="loading || mutationBusy">查询该时刻</button><button v-if="validAt" type="button" :disabled="loading || mutationBusy" @click="emit('time', '')">返回当前知识</button></form>
-      <span v-if="validAt" class="graph-kicker">历史视图 · {{ new Date(validAt).toLocaleString('zh-CN') }}</span>
-      <label>知识类型 <select :value="typeFilter" :disabled="loading" @change="filter"><option value="">全部类型</option><option v-for="(label, type) in labels" :key="type" :value="type">{{ label }}</option></select></label>
-      <label>邻域深度 <select :value="depth" :disabled="loading || !center" @change="depthChange"><option value="1">一跳</option><option value="2">二跳</option></select></label>
-      <button v-if="center" type="button" :disabled="loading" @click="emit('reset')">返回项目总览</button>
-      <span v-if="graph" class="graph-count">{{ graph.nodes.length }} 个节点 · {{ graph.edges.length }} 条关系</span>
+    <div class="graph-controls">
+      <div v-if="project && (!section || section === 'relations')" class="graph-source-bar">
+        <label>图谱数据源 <select :value="backend ?? 'postgresql'" :disabled="mutationBusy || neo4jSyncing" @change="emit('backend', ($event.target as HTMLSelectElement).value as GraphBackend)">
+          <option value="postgresql">PostgreSQL</option><option value="neo4j">Neo4j</option>
+        </select></label>
+        <template v-if="isNeo4j">
+          <button class="graph-primary" type="button" :disabled="loading || mutationBusy || neo4jSyncing" @click="emit('syncNeo4j')">{{ neo4jSyncing ? '正在同步…' : '同步到 Neo4j' }}</button>
+          <p v-if="neo4jSnapshot" class="graph-snapshot" role="status">
+            快照时间 <time :datetime="neo4jSnapshot.valid_at">{{ new Date(neo4jSnapshot.valid_at).toLocaleString('zh-CN') }}</time>
+            <span>共 {{ neo4jSnapshot.node_count }} 个节点、{{ neo4jSnapshot.edge_count }} 条关系</span>
+          </p>
+        </template>
+      </div>
+      <div class="graph-toolbar">
+        <form v-if="!isNeo4j" class="time-query" @submit.prevent="applyTime"><label>历史时间 <input v-model="localTime" type="datetime-local" step="0.001" :disabled="loading || mutationBusy" /></label><button type="submit" :disabled="loading || mutationBusy">查询该时刻</button><button v-if="validAt" type="button" :disabled="loading || mutationBusy" @click="emit('time', '')">返回当前知识</button></form>
+        <span v-if="validAt && !isNeo4j" class="graph-kicker">历史视图 · {{ new Date(validAt).toLocaleString('zh-CN') }}</span>
+        <label>知识类型 <select :value="typeFilter" :disabled="loading || neo4jSyncing" @change="filter"><option value="">全部类型</option><option v-for="(label, type) in labels" :key="type" :value="type">{{ label }}</option></select></label>
+        <label>邻域深度 <select :value="depth" :disabled="loading || neo4jSyncing || !center" @change="depthChange"><option value="1">一跳</option><option value="2">二跳</option></select></label>
+        <button v-if="center" type="button" :disabled="loading || neo4jSyncing" @click="emit('reset')">返回项目总览</button>
+        <span v-if="graph" class="graph-count">显示 {{ graph.nodes.length }} 个节点、{{ graph.edges.length }} 条关系</span>
+      </div>
     </div>
+    <p v-if="isNeo4j && neo4jSyncError" class="graph-message graph-error" role="alert">{{ neo4jSyncError }}</p>
     <p v-if="loading" class="graph-message" role="status">正在读取已确认知识…</p>
-    <div v-else-if="error" class="graph-message graph-error" role="alert"><p>{{ error }}</p><button type="button" @click="emit('refresh')">重试加载图谱</button></div>
+    <div v-else-if="error" class="graph-message graph-error" role="alert"><p>{{ error }}</p><button type="button" :disabled="neo4jSyncing" @click="emit('refresh')">重试加载图谱</button></div>
     <div v-else-if="graph?.nodes.length === 0" class="graph-empty"><span aria-hidden="true">◇</span><h2>这里还没有符合条件的知识</h2><p>在资料中提取并确认实体，再确认它们之间的关系。已确认的旧候选可点击“补写入图谱”。</p><button type="button" @click="emit('back')">前往资料审核</button></div>
     <div v-else-if="graph" v-show="!section || section === 'relations'">
       <p v-if="graph.truncated" class="graph-message" role="status">当前只展示部分知识。可按类型筛选，或选择节点后查看它的一跳、二跳邻域。</p>
@@ -141,8 +162,8 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
           <template v-else-if="selected">
             <span class="graph-kicker">{{ entityDetail ? '知识节点' : '知识关系' }} · {{ labels[selected.type] ?? selected.type }}</span><h2>{{ selected.name }}</h2><p class="formal-summary">{{ selected.summary }}</p>
             <dl><div><dt>确认状态</dt><dd>已确认</dd></div><div><dt>知识状态</dt><dd>{{ selected.status === 'superseded' ? '已被替代（历史有效）' : selected.status === 'active' ? '有效' : selected.status }}</dd></div><div><dt>模型置信度</dt><dd>{{ Math.round(selected.confidence * 100) }}%</dd></div><div><dt>有效起点</dt><dd>{{ new Date(selected.valid_from).toLocaleString('zh-CN') }}</dd></div><div v-if="selected.valid_to"><dt>有效截止</dt><dd>{{ new Date(selected.valid_to).toLocaleString('zh-CN') }}</dd></div></dl>
-            <button v-if="entityDetail" class="graph-primary" type="button" @click="emit('neighborhood', selected.id)">以此知识为中心</button>
-            <div v-if="relationshipDetail" class="graph-actions"><button type="button" @click="emit('neighborhood', relationshipDetail.relationship.source_id)">查看来源节点</button><button type="button" @click="emit('neighborhood', relationshipDetail.relationship.target_id)">查看目标节点</button></div>
+            <button v-if="entityDetail" class="graph-primary" type="button" :disabled="neo4jSyncing" @click="emit('neighborhood', selected.id)">以此知识为中心</button>
+            <div v-if="relationshipDetail" class="graph-actions"><button type="button" :disabled="neo4jSyncing" @click="emit('neighborhood', relationshipDetail.relationship.source_id)">查看来源节点</button><button type="button" :disabled="neo4jSyncing" @click="emit('neighborhood', relationshipDetail.relationship.target_id)">查看目标节点</button></div>
             <h3>原文证据 <span>{{ evidence.length }}</span></h3>
             <p v-if="!evidence.length">暂无可访问的原文证据。</p>
             <article v-for="item in evidence" :key="item.id" class="formal-evidence"><strong>{{ item.title }}</strong><a v-if="item.git_url" :href="item.git_url" target="_blank" rel="noopener noreferrer">GitHub 原文 ↗</a><small>第 {{ item.start_line }}–{{ item.end_line }} 行 · {{ item.heading_path.join(' / ') || '文档开头' }}</small><blockquote>{{ item.quote }}</blockquote><button type="button" class="evidence-source-button" @click="emit('openEvidence', item)">查看原文分块</button></article>
@@ -166,10 +187,14 @@ h1 { margin: 9px 0; font: 500 32px "Noto Serif SC", SimSun, serif; overflow-wrap
 .graph-page-heading p, .graph-scroll-hint { color: #536b70; font-size: 12px; line-height: 1.8; }
 button, select { min-height: 40px; padding: 8px 12px; border: 1px solid #aabec0; border-radius: 5px; color: var(--ink); background: var(--paper); cursor: pointer; font-size: 12px; }
 button:disabled, select:disabled { opacity: .5; cursor: not-allowed; }
-.graph-actions, .graph-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.graph-toolbar { margin: 22px 0; padding: 14px; border: 1px solid var(--line); background: #f8fbfb; border-radius: 6px; font-size: 12px; }
-.graph-toolbar label { display: flex; align-items: center; gap: 8px; }
-.graph-real-label { padding: 6px 9px; color: #245c4e; background: #dceee7; border-radius: 4px; }
+.graph-actions, .graph-toolbar, .graph-source-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.graph-controls { margin: 22px 0; border: 1px solid var(--line); background: #f8fbfb; border-radius: 6px; font-size: 12px; }
+.graph-toolbar, .graph-source-bar { padding: 12px 14px; }
+.graph-source-bar { border-bottom: 1px solid var(--line); background: #eaf4f1; }
+.graph-toolbar label, .graph-source-bar label { display: flex; align-items: center; gap: 8px; }
+.graph-source-bar select:focus-visible, .graph-source-bar button:focus-visible { outline: 2px solid var(--rose); outline-offset: 3px; }
+.graph-snapshot { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 0 0 0 auto; color: #385b5d; font-variant-numeric: tabular-nums; }
+.graph-snapshot span { margin-inline-start: 4px; }
 .graph-count { margin-left: auto; color: #536b70; }
 .graph-message { padding: 15px; background: #f8fbfb; font-size: 13px; line-height: 1.8; }
 .graph-error { color: #91274d; overflow-wrap: anywhere; }

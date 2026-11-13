@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Add a PostgreSQL/Neo4j switch, explicit snapshot sync, and snapshot time and totals to the graph page. Neo4j graph details and evidence are read at the snapshot time.
+
 - Add optional Neo4j connectivity, explicit per-project formal graph snapshot sync, and scoped Cypher neighborhood queries. [ADR 0081](docs/adr/0081-neo4j-project-projection.md).
 
 - M5 offline preparation: frozen independent20-task packet, zero-call scoped preflight, exact reported-run/grade binding, explicit ungraded/all-attempt denominators, transport-blocked repeatable acceptance and CI packet checks. No live execution or release certification. [Runbook](docs/PROJECT_ASSISTANT_M5.md).

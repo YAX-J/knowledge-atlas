@@ -6,10 +6,10 @@ import { useSourceImport } from '../src/composables/useSourceImport'
 import * as api from '../src/api/knowledgeAtlas'
 import { project } from './fixtures'
 import type { CandidateList, ProcessingTask, SourceList, SourceRepositoryList, SourceUploadResult } from '../src/api/knowledgeAtlas'
-import type { EntityDetail, IngestionErrors, IngestionLoading, ProjectGraphData } from '../src/types'
+import type { EntityDetail, IngestionErrors, IngestionLoading, Neo4jSnapshot, ProjectGraphData } from '../src/types'
 
 vi.mock('../src/api/knowledgeAtlas', () => ({
-  getEntityDetail:vi.fn(), getRelationshipDetail:vi.fn(), getProjectGraph:vi.fn(),
+  getEntityDetail:vi.fn(), getRelationshipDetail:vi.fn(), getProjectGraph:vi.fn(), getNeo4jGraph:vi.fn(), syncNeo4jGraph:vi.fn(),
   extractKnowledge:vi.fn(), getExtraction:vi.fn(), listCandidates:vi.fn(), resolveCandidate:vi.fn(), resolveCandidatesBatch:vi.fn(),
   importGithubWorkItems:vi.fn(), resolveGithubRepository:vi.fn(), resolveLocalRepository:vi.fn(), syncGithubRepository:vi.fn(),
   uploadSource:vi.fn(), runTask:vi.fn(),
@@ -73,6 +73,62 @@ it('supports graph retry, relationship selection, type/depth and outside-canvas 
   state.filterGraph('Decision');state.setGraphDepth(2)
   await Promise.resolve();await Promise.resolve()
   expect(api.getProjectGraph).toHaveBeenLastCalledWith(project.id,expect.objectContaining({depth:2,types:'Decision'}))
+})
+
+it('uses the Neo4j snapshot time for detail reads and reloads the graph after an explicit sync', async () => {
+  const context = reactive({ projectId: project.id, active: true, relations: true })
+  const { state } = scoped(() => useProjectGraph(() => ({ ...context }), String, vi.fn(), vi.fn()))
+  const first = { valid_at: '2026-11-10T02:00:00.123456Z', node_count: 1, edge_count: 0 }
+  const refreshed = { ...first, valid_at: '2026-11-13T02:00:00.654321Z', node_count: 2 }
+  const edge = { ...node, id: 'edge', source_id: node.id, target_id: 'second' }
+  vi.mocked(api.getNeo4jGraph).mockResolvedValueOnce({ ...graph, ...first }).mockResolvedValue({ ...graph, ...refreshed })
+  vi.mocked(api.getRelationshipDetail).mockResolvedValue({ relationship: edge, evidence: [] })
+  vi.mocked(api.syncNeo4jGraph).mockResolvedValue(refreshed)
+
+  state.graphValidAt.value = project.created_at
+  state.selectGraphBackend('neo4j')
+  await vi.waitFor(() => expect(state.graphLoading.value).toBe(false))
+  expect(api.syncNeo4jGraph).not.toHaveBeenCalled()
+  expect(api.getProjectGraph).not.toHaveBeenCalled()
+  expect(api.getEntityDetail).toHaveBeenLastCalledWith(node.id, first.valid_at)
+  await state.selectGraphRelationship(edge.id)
+  expect(api.getRelationshipDetail).toHaveBeenCalledWith(edge.id, first.valid_at)
+
+  await state.syncGraphToNeo4j()
+  expect(api.syncNeo4jGraph).toHaveBeenCalledOnce()
+  expect(state.neo4jSnapshot.value).toEqual(refreshed)
+  expect(api.getEntityDetail).toHaveBeenLastCalledWith(node.id, refreshed.valid_at)
+  context.relations = false
+  await vi.waitFor(() => expect(state.graphLoading.value).toBe(false))
+  expect(state.graphBackend.value).toBe('postgresql')
+  expect(state.neo4jSnapshot.value).toBeNull()
+  expect(api.getProjectGraph).toHaveBeenCalledOnce()
+})
+
+it('discards a late Neo4j sync after switching projects and lets a failed sync be retried explicitly', async () => {
+  const context = reactive({ projectId: project.id, active: true })
+  const { state } = scoped(() => useProjectGraph(() => ({ ...context }), String, vi.fn(), vi.fn()))
+  const snapshot = { valid_at: project.created_at, node_count: 1, edge_count: 0 }
+  vi.mocked(api.getNeo4jGraph).mockResolvedValue({ ...graph, ...snapshot })
+  state.selectGraphBackend('neo4j')
+  await vi.waitFor(() => expect(state.graphLoading.value).toBe(false))
+  vi.mocked(api.syncNeo4jGraph).mockRejectedValueOnce(new Error('sync failed'))
+  await state.syncGraphToNeo4j()
+  expect(state.neo4jSyncError.value).toContain('sync failed')
+  expect(state.neo4jSnapshot.value).toEqual(snapshot)
+
+  const pending = deferred<Neo4jSnapshot>()
+  vi.mocked(api.syncNeo4jGraph).mockReturnValueOnce(pending.promise)
+  const syncing = state.syncGraphToNeo4j()
+  await state.syncGraphToNeo4j()
+  expect(api.syncNeo4jGraph).toHaveBeenCalledTimes(2)
+  context.projectId = 'other'
+  pending.resolve(snapshot)
+  await syncing
+  expect(state.graphBackend.value).toBe('postgresql')
+  expect(state.neo4jSnapshot.value).toBeNull()
+  expect(state.neo4jSyncing.value).toBe(false)
+  expect(api.getNeo4jGraph).toHaveBeenCalledOnce()
 })
 
 it('isolates review extraction and list replies after source round trips and unmount',async()=>{

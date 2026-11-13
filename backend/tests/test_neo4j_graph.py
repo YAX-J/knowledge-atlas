@@ -66,10 +66,11 @@ def test_sync_exports_visible_confirmed_graph_and_checks_scope(client, configure
     assert response.status_code == 200
     assert response.json() == {"valid_at": earliest, "node_count": 0, "edge_count": 0}
 
-    session.execute_read.return_value = {**expected, "valid_at": earliest}
+    snapshot = {**expected, "valid_at": earliest, "node_count": 2, "edge_count": 1}
+    session.execute_read.return_value = snapshot
     response = client.get(url.removesuffix("/sync"), params={"types": "Concept", "depth": 2, "limit": 3})
     assert response.status_code == 200
-    assert response.json() == {**expected, "valid_at": earliest}
+    assert response.json() == snapshot
     callback, read_scope, center_id, depth, types, limit = session.execute_read.call_args.args
     assert callback is neo4j_graph._read_snapshot and read_scope == scope
     assert (center_id, depth, types, limit) == (None, 2, ["Concept"], 3)
@@ -88,7 +89,7 @@ def test_snapshot_read_restores_omitted_validity_and_applies_neighborhood_limit(
     edge = {**node("edge"), "source_id": center["id"], "target_id": neighbor["id"]}
     tx = MagicMock()
     tx.run.side_effect = [
-        SimpleNamespace(single=lambda: {"valid_at": now}),
+        SimpleNamespace(single=lambda: {"valid_at": now, "node_count": 3, "edge_count": 2}),
         SimpleNamespace(single=lambda: {"node": center}),
         SimpleNamespace(value=lambda _: [neighbor, extra]),
         SimpleNamespace(value=lambda _: [edge]),
@@ -97,6 +98,7 @@ def test_snapshot_read_restores_omitted_validity_and_applies_neighborhood_limit(
     assert [node.name for node in result.nodes] == ["center", "neighbor"]
     assert result.nodes[0].valid_to is None and result.edges[0].valid_to is None
     assert result.truncated
+    assert (result.node_count, result.edge_count) == (3, 2)
     assert tx.run.call_args_list[2].kwargs["limit"] == 2
     assert tx.run.call_args_list[3].kwargs["ids"] == [center["id"], neighbor["id"]]
 

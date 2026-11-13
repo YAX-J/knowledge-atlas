@@ -174,8 +174,9 @@ const changeBusy = ref(false)
 const {
   realGraph, realEntityDetail, realRelationshipDetail, graphLoading, graphDetailLoading, graphError, graphDetailError,
   graphSelectedId, graphSelectionKind, graphCenter, graphType, graphDepth, graphValidAt,
+  graphBackend, neo4jSnapshot, neo4jSyncing, neo4jSyncError, selectGraphBackend, syncGraphToNeo4j,
   clearProjectGraph, loadRealGraph, selectGraphEntity, selectGraphRelationship, retryGraphDetail, filterGraph, setGraphDepth,
-} = useProjectGraph(() => ({ projectId:project.value?.id, active:activeNav.value === 'projectGraph' }), errorMessage,
+} = useProjectGraph(() => ({ projectId: project.value?.id, active: activeNav.value === 'projectGraph', relations: graphSection.value === 'relations' }), errorMessage,
   () => clearHistory(),
   () => { void loadHistory() })
 const {
@@ -720,6 +721,8 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
     </SourceWorkspace>
     <ProjectGraph v-else-if="activeNav === 'projectGraph'" :project="project" :graph="realGraph"
       :section="graphSection" @section="graphSection = $event"
+      :backend="graphBackend" :neo4j-snapshot="neo4jSnapshot" :neo4j-syncing="neo4jSyncing" :neo4j-sync-error="neo4jSyncError"
+      @backend="selectGraphBackend" @sync-neo4j="syncGraphToNeo4j"
       :valid-at="graphValidAt" :mutation-busy="changeBusy" @time="setGraphTime"
       :search-result="searchResult" :search-loading="searchLoading" :search-error="searchError"
       :search-rebuilding="searchRebuilding" :search-notice="searchNotice" :search-error-action="searchErrorAction"

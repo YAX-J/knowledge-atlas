@@ -45,7 +45,7 @@ Use the actual URI, username, password, and database from your instance. Keep th
 2. `POST /api/v1/projects/{project_id}/graph/neo4j/sync` should return `node_count`, `edge_count`, and `valid_at` for the written snapshot.
 3. `GET /api/v1/projects/{project_id}/graph/neo4j` should return that snapshot's nodes, edges, and effective time. Use `center_id` and `depth` to check traversal.
 
-Run these requests in FastAPI's `/docs` or with an HTTP client. Repeat the explicit sync after formal knowledge changes. See the [API contract](API_CONTRACT.md#neo4j-项目快照) and [ADR 0081](adr/0081-neo4j-project-projection.md).
+In the app, open the project's graph and select Neo4j in the data source control. Click **同步到 Neo4j** to sync and show the snapshot time and totals. Choose a center node, set the depth to two hops, and select a relationship to open its source evidence. Repeat the sync after formal knowledge changes. The requests above are also available in FastAPI's `/docs`. See the [API contract](API_CONTRACT.md#neo4j-项目快照) and [ADR 0081](adr/0081-neo4j-project-projection.md).
 
 ## Clone and inspect
 

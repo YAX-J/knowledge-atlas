@@ -12,6 +12,10 @@ M2 界面默认提交 assistant-task-v2，轮询 queued/running；展示有效�
 
 Vue 3 Composition API、TypeScript、Vite、Element Plus 和原生 SVG。默认 `VITE_DATA_SOURCE=workbench` 打开真实项目概览；`api` 直接开资料；`mock` 打开独立演示。真实请求失败时展示错误，不回退 Mock。
 
+关系图支持 PostgreSQL 与 Neo4j 数据源切换。进入 Neo4j 后只读取已保存快照，点击「同步到 Neo4j」才生成当前快照。工具栏分别显示快照总量和画布当前数量。Neo4j 的节点及关系详情使用快照 `valid_at` 读取正式记录和证据。切换项目或离开关系图会回到 PostgreSQL，URL 恢复只读取数据。
+
+桌面验收使用 `test` 项目的 7 节点、2 关系快照，数据库解析 Worker 的一跳和两跳分别显示 2 节点 / 1 关系与 3 节点 / 2 关系，关系证据可键盘打开并聚焦原文。另用隔离项目验证首次同步和停用知识后的快照刷新，手动同步后总量从 3 节点 / 2 关系更新为 2 节点 / 1 关系。
+
 ## 协作页面
 
 ADR 0068 为 `AgentWorkspace` 接通检索方式、浏览器本地知识时间、固定提交/本地相关版本与提交前范围预览；选中记录显示后端白名单 `scope`，不将历史记录自动填成新草稿。`useCodeContextSelection` 复用 `useLatestRequest` 读取既有代码上下文接口；项目/来源/开关变化同步失效，拒绝迟到响应和失效选择，失败只读重试。历史时间清除并禁用当前代码；当前文件版本固定，未覆盖的本地相关文件在执行时取最新已解析版本。提交上限为 99 个显式相关文件版本，清单截断另行提示。覆盖率包括新组合模块，回归见 `tests/agentScope.test.ts`。

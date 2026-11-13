@@ -45,7 +45,7 @@ NEO4J_DATABASE=neo4j
 2. 调用 `POST /api/v1/projects/{project_id}/graph/neo4j/sync`，应返回写入快照的 `node_count`、`edge_count` 和 `valid_at`。
 3. 调用 `GET /api/v1/projects/{project_id}/graph/neo4j`，应返回该快照的节点、边和有效时间。用 `center_id` 和 `depth` 检查邻域遍历。
 
-可在 FastAPI 的 `/docs` 或 HTTP 客户端发出请求。正式知识变化后可再次显式同步。见 [API 契约](API_CONTRACT.md#neo4j-项目快照)和 [ADR 0081](adr/0081-neo4j-project-projection.zh-CN.md)。
+在项目的「关系图」页，将「图谱数据源」切到 Neo4j，点击「同步到 Neo4j」，即可看到快照时间和总量。选择节点作为中心，将邻域深度切到二跳，再选中一条关系即可打开原文证据。正式知识变化后再次同步。也可以在 FastAPI 的 `/docs` 发出上述请求。见 [API 契约](API_CONTRACT.md#neo4j-项目快照)和 [ADR 0081](adr/0081-neo4j-project-projection.zh-CN.md)。
 
 ## 克隆与检查
 

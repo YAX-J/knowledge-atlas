@@ -1,6 +1,6 @@
 import { apiRequest } from './client'
 import type { GovernanceResult, KnowledgeChange, KnowledgeChangeInput, KnowledgeChangeList, KnowledgeHistory } from '../types'
-import type { EmbeddingRebuildResult, EntityDetail, KnowledgeCandidate, KnowledgeSearchMode, KnowledgeSearchResult, ProjectGraphData, QuestionAnswer, RelationshipDetail, ReviewDecision } from '../types'
+import type { EmbeddingRebuildResult, EntityDetail, KnowledgeCandidate, KnowledgeSearchMode, KnowledgeSearchResult, Neo4jGraphData, Neo4jSnapshot, ProjectGraphData, QuestionAnswer, RelationshipDetail, ReviewDecision } from '../types'
 
 export interface ApiProject {
   id: string
@@ -628,12 +628,29 @@ export function getEmbeddingStatus(projectId: string, validAt = '') {
   return apiRequest<import('../types').EmbeddingIndexStatus>(`/projects/${projectId}/embeddings/status${query}`)
 }
 
-export function getProjectGraph(projectId: string, options: { centerId?: string; depth?: number; types?: string; validAt?: string } = {}): Promise<ProjectGraphData> {
+interface GraphQuery { centerId?: string; depth?: number; types?: string }
+
+function graphQuery(options: GraphQuery) {
   const query = new URLSearchParams({ depth: String(options.depth ?? 1), limit: '100' })
   if (options.centerId) query.set('center_id', options.centerId)
   if (options.types) query.set('types', options.types)
+  return query
+}
+
+export function getProjectGraph(projectId: string, options: GraphQuery & { validAt?: string } = {}): Promise<ProjectGraphData> {
+  const query = graphQuery(options)
   if (options.validAt) query.set('valid_at', options.validAt)
   return apiRequest<ProjectGraphData>(`/projects/${projectId}/graph?${query}`)
+}
+
+export function getNeo4jGraph(projectId: string, options: GraphQuery = {}): Promise<Neo4jGraphData> {
+  return apiRequest(`/projects/${projectId}/graph/neo4j?${graphQuery(options)}`)
+}
+
+export function syncNeo4jGraph(projectId: string): Promise<Neo4jSnapshot> {
+  return apiRequest(`/projects/${projectId}/graph/neo4j/sync`, {
+    method: 'POST', signal: AbortSignal.timeout(75_000),
+  })
 }
 
 export function getEntityDetail(id: string, validAt = ''): Promise<EntityDetail> {
