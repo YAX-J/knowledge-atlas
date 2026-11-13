@@ -464,10 +464,22 @@ def sync_github_repository(
                 code="GITHUB_PROVIDER_FAILED",
                 message="GitHub 仓库响应缺少默认分支",
             )
-        commit_payload = _get_json(
-            client,
-            f"{base_url}/repos/{owner}/{name}/commits/{quote(continuation.commit_sha if continuation else selected_ref, safe='')}",
-        )
+        if resume_incomplete and continuation is not None and (continuation.scan_state or {}).get("complete"):
+            # The complete manifest already binds these paths to this immutable commit.
+            commit_payload = {
+                "sha": continuation.commit_sha,
+                "html_url": continuation.commit_url,
+                "commit": {
+                    "tree": {"sha": continuation.tree_sha},
+                    "message": continuation.commit_message,
+                    "committer": {"date": continuation.committed_at.isoformat() if continuation.committed_at else None},
+                },
+            }
+        else:
+            commit_payload = _get_json(
+                client,
+                f"{base_url}/repos/{owner}/{name}/commits/{quote(continuation.commit_sha if continuation else selected_ref, safe='')}",
+            )
         commit_sha = commit_payload.get("sha")
         if not isinstance(commit_sha, str) or not commit_sha:
             raise AppError(

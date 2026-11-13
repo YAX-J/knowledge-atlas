@@ -147,5 +147,6 @@ def test_whole_repo_resumes_saved_same_commit_and_uses_verified_raw_content(clie
     assert (first["completed_files"], second["completed_files"], third["completed_files"]) == (1, 2, 3)
     assert third["remaining_files"] == 0 and not third["truncated"]
     assert sum("/git/trees/" in request.url.path for request in requests) == 1
+    assert sum("/commits/" in request.url.path for request in requests) == 2
     assert sum("/git/blobs/" in request.url.path for request in requests) == 1
     assert sum(request.url.host == "raw.githubusercontent.com" for request in requests) == 2
