@@ -36,7 +36,7 @@ const emit = defineEmits<{
   projectsPage: [page: number]
   repositoriesPage: [page: number]
   resolveGithub: [input: { remoteUrl: string; localRepositoryId?: string }]
-  syncGithub: [input: { repositoryId: string; ref?: string; rescan?: boolean; continueFromSnapshot?: string }]
+  syncGithub: [input: { repositoryId: string; ref?: string; rescan?: boolean; continueFromSnapshot?: string; wholeRepository?: boolean }]
   importGithubActivity: [repositoryId: string]
   snapshots: [repository: SourceRepository]
   sourcesPage: [page: number]
@@ -338,8 +338,8 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                   <label :for="`github-ref-${repository.id}`">同步 ref <span>选填</span></label>
                   <input :id="`github-ref-${repository.id}`" v-model="githubRefs[repository.id]" type="text" maxlength="255" placeholder="默认分支" :disabled="locked" />
                   <label><input v-model="githubRescans[repository.id]" type="checkbox" :disabled="locked" />重新扫描（发现新增语言文件）</label>
-                  <button class="text-button" type="button" :disabled="locked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubRefs[repository.id]?.trim() || undefined, rescan: githubRescans[repository.id] ?? false })">{{ loading.sync ? '正在同步…' : '同步 GitHub 内容' }}</button>
-                  <button v-if="githubContinuations?.[repository.id]" class="text-button" type="button" :disabled="locked || githubContinuations[repository.id]!.blocked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubContinuations[repository.id]!.ref, continueFromSnapshot: githubContinuations[repository.id]!.snapshotId })">继续同一提交（剩余 {{ githubContinuations[repository.id]!.remaining }} 份，待遍历 {{ githubContinuations[repository.id]!.pendingDirectories }} 个目录）</button>
+                  <button class="text-button" type="button" :disabled="locked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubRefs[repository.id]?.trim() || undefined, rescan: githubRescans[repository.id] ?? false, wholeRepository: true })">{{ loading.sync ? '正在同步…' : '同步整个仓库' }}</button>
+                  <button v-if="githubContinuations?.[repository.id]" class="text-button" type="button" :disabled="locked || githubContinuations[repository.id]!.blocked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubContinuations[repository.id]!.ref, continueFromSnapshot: githubContinuations[repository.id]!.snapshotId, wholeRepository: true })">继续同一提交（剩余 {{ githubContinuations[repository.id]!.remaining }} 份，待遍历 {{ githubContinuations[repository.id]!.pendingDirectories }} 个目录）</button>
                   <button class="text-button" type="button" :disabled="locked" @click="emit('importGithubActivity', repository.id)">{{ loading.activity ? '正在导入…' : '导入 Issue / PR / Review thread' }}</button>
                   <button class="text-button" type="button" :disabled="locked" @click="emit('snapshots', repository)">查看同步快照</button>
                 </div>
@@ -361,7 +361,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
                   <option value="">不关联，登记为远程仓库</option>
                   <option v-for="repository in linkableLocalRepositories" :key="repository.id" :value="repository.id">{{ repository.name }}</option>
                 </select>
-            <p class="source-upload-hint">接受 GitHub HTTPS 或 SSH remote；每步最多下载 50 份支持文件，达到上限后可继续扫描同一固定提交。</p>
+            <p class="source-upload-hint">接受 GitHub HTTPS 或 SSH remote。整仓同步会按同一提交分批导入受支持文件，解析 Worker 会处理已导入的文件。</p>
                 <p v-if="errors.remote" class="inline-error" role="alert">{{ errors.remote }}</p>
                 <button class="primary-button" type="submit" :disabled="locked || !remoteUrl.trim()">{{ loading.remote ? '正在登记…' : '登记 remote' }}</button>
               </form>

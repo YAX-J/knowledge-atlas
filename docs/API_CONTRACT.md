@@ -240,7 +240,7 @@ result.protocol=assistant-report-v1，action 为 finish 或 ask_user。finish �
 }
 ```
 
-`ref` 可省略；省略时读取仓库默认分支，也可填写 branch、tag 或 commit SHA。仓库必须已登记或关联 `provider=github`。后端通过 GitHub REST 解析 commit 与递归 tree，按路径顺序选择最多 50 份注册表支持的 Markdown/多语言代码文件，单份仍受 `MAX_UPLOAD_BYTES` 限制，一次同步累计下载最多 20 MiB。公开仓库无需令牌；私有仓库可在后端配置只读 `GITHUB_TOKEN`。
+`ref` 可省略；省略时读取仓库默认分支，也可填写 branch、tag 或 commit SHA。仓库必须已登记或关联 `provider=github`。每批最多选择 50 份受支持文件，单份受 `MAX_UPLOAD_BYTES` 限制，每批累计下载最多 20 MiB。整仓客户端在首次请求使用 `resume_incomplete=true`，可复用同一 ref 和提交下最近的未完成快照；`rescan=true` 会重新读取文件树。随后将响应的 `continuation_snapshot_id` 传为 `continue_from_snapshot`，直到完成或遇到明确错误。续传始终固定原提交。匿名公开 GitHub 整仓同步优先按固定提交读取原文，并校验 Git blob 哈希；私有仓库通过后端只读 `GITHUB_TOKEN` 访问 REST。
 
 ```json
 {

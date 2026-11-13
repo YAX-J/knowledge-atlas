@@ -1,4 +1,5 @@
 import httpx
+import hashlib
 from app.models.domain import utc_now
 from tests.test_github_import import create_project, register_github, install_github_mock
 
@@ -99,3 +100,52 @@ def test_directory_limits_and_single_tree_truncation_never_claim_complete(monkey
             get_json=lambda *_a,**_k:payload,supported=lambda values:[item for item in values if item['type']=='blob'])
         assert state['blocked'] and not state['complete'] and len(state['entries'])<=2
         assert previous['frontier']==[dict(path='',sha='root')] and not previous['blocked']
+
+
+def test_whole_repo_resumes_saved_same_commit_and_uses_verified_raw_content(client, monkeypatch):
+    from app.api.routes import repositories
+    from app.core.config import Settings
+    from app.services import github_import
+
+    files = {f"docs/{index}.md": f"# File {index}".encode() for index in range(3)}
+    blobs = {hashlib.sha1(f"blob {len(content)}\0".encode() + content).hexdigest(): content
+             for content in files.values()}
+    manifest = [dict(path=path, type="blob", sha=sha, size=len(content))
+                for path, (sha, content) in zip(files, blobs.items(), strict=True)]
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        path = request.url.path
+        if request.url.host == "raw.githubusercontent.com":
+            assert "authorization" not in request.headers
+            assert path.startswith(f"/example/demo/{'a' * 40}/")
+            return httpx.Response(200, content=files[path.split("/", 4)[-1]])
+        if path == "/repos/example/demo":
+            return httpx.Response(200, json={"default_branch": "main", "private": False})
+        if "/commits/" in path:
+            return httpx.Response(200, json={"sha": "a" * 40, "commit": {"tree": {"sha": "tree"}}})
+        if "/trees/" in path:
+            return httpx.Response(200, json={"tree": manifest})
+        return httpx.Response(200, content=blobs[path.rsplit("/", 1)[-1]])
+
+    original_client = httpx.Client
+    monkeypatch.setattr(github_import.httpx, "Client", lambda **kwargs: original_client(transport=httpx.MockTransport(respond), **kwargs))
+    monkeypatch.setattr(repositories, "get_settings", lambda: Settings(_env_file=None, github_token=None, github_import_max_files=1))
+    project = create_project(client)
+    repo = register_github(client, project)
+    url = f"/api/v1/projects/{project}/repositories/{repo['id']}/sync-github"
+
+    def sync(payload):
+        result = client.post(url, json=payload)
+        assert result.status_code == 200, result.text
+        return result.json()
+
+    first = sync({})
+    second = sync({"resume_incomplete": True})
+    third = sync({"resume_incomplete": True, "continue_from_snapshot": second["snapshot_id"]})
+    assert (first["completed_files"], second["completed_files"], third["completed_files"]) == (1, 2, 3)
+    assert third["remaining_files"] == 0 and not third["truncated"]
+    assert sum("/git/trees/" in request.url.path for request in requests) == 1
+    assert sum("/git/blobs/" in request.url.path for request in requests) == 1
+    assert sum(request.url.host == "raw.githubusercontent.com" for request in requests) == 2

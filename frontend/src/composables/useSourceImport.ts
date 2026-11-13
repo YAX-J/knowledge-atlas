@@ -1,6 +1,6 @@
 import { onScopeDispose, reactive, watch, type Ref } from 'vue'
 import { importGithubWorkItems, resolveGithubRepository, resolveLocalRepository, syncGithubRepository, uploadSource, runTask } from '../api/knowledgeAtlas'
-import type { ApiProject, ProcessingTask, SourceList, SourceRepositoryList, SourceUploadResult } from '../api/knowledgeAtlas'
+import type { ApiProject, GithubRepositorySyncResult, ProcessingTask, SourceList, SourceRepositoryList, SourceUploadResult } from '../api/knowledgeAtlas'
 import type { IngestionErrors, IngestionLoading } from '../types'
 
 interface Dependencies {
@@ -49,6 +49,7 @@ export function useSourceImport(dependencies: Dependencies) {
     ref?: string
     rescan?: boolean
     continueFromSnapshot?: string
+    wholeRepository?: boolean
   }) {
     const projectId = project.value?.id
     const captured = generation
@@ -56,33 +57,74 @@ export function useSourceImport(dependencies: Dependencies) {
     loading.sync = true
     errors.sync = errors.activity = ''
     notice.value = '正在从 GitHub 读取仓库快照…'
+    let lastResult: GithubRepositorySyncResult | undefined
+    let selected: GithubRepositorySyncResult['items'][number] | undefined
+    let nextSnapshot = input.continueFromSnapshot
+    let ref = input.ref
     try {
-      const result = input.continueFromSnapshot
-        ? await syncGithubRepository(projectId, input.repositoryId, input.ref, input.rescan, input.continueFromSnapshot)
-        : await syncGithubRepository(projectId, input.repositoryId, input.ref, input.rescan)
+      do {
+        const result = nextSnapshot
+          ? await syncGithubRepository(projectId, input.repositoryId, ref, false, nextSnapshot, input.wholeRepository)
+          : input.wholeRepository
+            ? await syncGithubRepository(projectId, input.repositoryId, ref, input.rescan, undefined, true)
+            : await syncGithubRepository(projectId, input.repositoryId, ref, input.rescan)
+        if (!current(projectId, captured)) return
+        if (lastResult && (result.commit_sha !== lastResult.commit_sha || result.ref !== lastResult.ref)) {
+          errors.sync = '续传返回了不同的提交，已暂停整仓同步。'
+          break
+        }
+        const continuation = result.continuation_snapshot_id ?? undefined
+        if (continuation) githubContinuations[input.repositoryId] = {
+          snapshotId: continuation, ref: result.ref, remaining: result.remaining_files ?? 0,
+          pendingDirectories: result.pending_directories ?? 0, blocked: result.traversal_blocked ?? false,
+        }
+        else delete githubContinuations[input.repositoryId]
+        selected = [...result.items].reverse().find(item => item.status !== 'deleted' && item.source_id && item.task_id) ?? selected
+        const progressed = !continuation || (continuation !== nextSnapshot && (!lastResult || !result.tree_complete ||
+          (result.completed_files ?? 0) > (lastResult.completed_files ?? 0) ||
+          (result.total_supported_files ?? 0) > (lastResult.total_supported_files ?? 0)
+        ))
+        lastResult = result
+        ref = result.ref
+        nextSnapshot = continuation
+        if (!input.wholeRepository) break
+        const progress = `${result.ref}@${result.commit_sha.slice(0, 7)}：已处理 ${result.completed_files ?? result.items.length} / ${result.total_supported_files ?? result.items.length} 个已发现文件`
+        notice.value = `${progress}${result.pending_directories ? `，还有 ${result.pending_directories} 个待遍历目录` : ''}。`
+        if (result.traversal_blocked) {
+          errors.sync = 'GitHub 文件树达到遍历上限。可下载仓库后按目录上传，补齐其余文件。'
+          break
+        }
+        if (nextSnapshot && !progressed) {
+          errors.sync = '连续批次没有取得进展，已暂停。可从最近的快照继续。'
+          break
+        }
+      } while (nextSnapshot)
+    } catch (error) {
+      if (current(projectId, captured)) errors.sync = errorMessage(error)
+    }
+    try {
       if (!current(projectId, captured)) return
-      if (result.continuation_snapshot_id) githubContinuations[input.repositoryId] = {
-        snapshotId: result.continuation_snapshot_id, ref: result.ref, remaining: result.remaining_files ?? 0,
-        pendingDirectories: result.pending_directories ?? 0, blocked: result.traversal_blocked ?? false,
-      }
-      else delete githubContinuations[input.repositoryId]
-      const selected = [...result.items].reverse().find(
-        item => item.status !== 'deleted' && item.source_id && item.task_id,
-      )
+      const result = lastResult
+      if (!result) { notice.value = ''; return }
       if (selected?.source_id && selected.task_id) {
         prepareSource()
         selectedSourceId.value = selected.source_id
         selectedTaskId.value = selected.task_id
       }
-      notice.value = `GitHub ${result.ref}@${result.commit_sha.slice(0, 7)} 同步完成：新增 ${result.imported_count}、复用 ${result.reused_count}、未变 ${result.unchanged_count}、重命名 ${result.renamed_count}、删除 ${result.deleted_count}、跳过 ${result.skipped_count}${result.truncated ? '；结果达到导入上限' : ''}${result.deletion_detection_complete ? '' : '；本次无法完整判断删除'}。`
-      if (result.pending_directories) notice.value += ` 还有 ${result.pending_directories} 个目录待遍历，可继续同一固定提交。`
-      if (result.traversal_blocked) notice.value += ' 单个目录或文件清单达到安全上限，请改用本地文件夹导入；继续操作无法补全该范围。'
+      if (input.wholeRepository) {
+        notice.value += errors.sync || result.truncated
+          ? ' 已导入的文件和同步进度已保存。'
+          : ` 整仓导入完成，跳过 ${result.skipped_count} 个文件。解析进度可在资料列表查看。`
+      } else {
+        notice.value = `GitHub ${result.ref}@${result.commit_sha.slice(0, 7)} 同步完成：新增 ${result.imported_count}、复用 ${result.reused_count}、未变 ${result.unchanged_count}、重命名 ${result.renamed_count}、删除 ${result.deleted_count}、跳过 ${result.skipped_count}${result.truncated ? '；结果达到导入上限' : ''}${result.deletion_detection_complete ? '' : '；本次无法完整判断删除'}。`
+        if (result.pending_directories) notice.value += ` 还有 ${result.pending_directories} 个目录待遍历，可继续同一固定提交。`
+        if (result.traversal_blocked) notice.value += ' GitHub 文件树达到遍历上限，可下载仓库后按目录上传。'
+      }
       await Promise.all([loadSources(1), loadRepositories(repositories.value?.page ?? 1)])
       if (current(projectId, captured) && selectedSourceId.value) await refreshSource()
     } catch (error) {
       if (current(projectId, captured)) {
-        notice.value = ''
-        errors.sync = errorMessage(error)
+        errors.sync ||= errorMessage(error)
       }
     } finally {
       loading.sync = false

@@ -59,7 +59,7 @@ BM25/来源位置 BM25 使用 `mixed-bm25-v2` / `mixed-bm25-source-v2`：每批 
 
 在 `backend/` 运行 `.\.venv\Scripts\python.exe -m scripts.verify_native`，在临时 schema 验证迁移/API/竞争/Worker。要求配置的原生 PostgreSQL、已在 `public` 安装 pgvector，以及 `CREATE SCHEMA` 权限。脚本显式限定 Alembic 版本表 schema，测试前检查本地表，最后只删除自己生成的 schema。既有业务资料不是测试数据。`--github` 另允许真实只读公开 petclinic 导入/检索/重复/Commit 追溯验收，不调用模型或使用 GitHub 令牌。普通 `pytest` 跳过这些显式验收；不验证模型/嵌入质量或私有令牌。
 
-`GITHUB_IMPORT_MAX_FILES` 设置每次扫描文件预算（1–50，默认 50），可下调以减少匿名 REST 请求。公开验收使用 30 并明确报告截断，不表示完整仓库覆盖。扩大预算后显式同步可恢复同提交未完成快照并复用已下载 blob；兼容的完整缓存仍可直接返回既有元数据，不额外下载 blob。该配置不保证在共享/二级限流下始终可用。
+`GITHUB_IMPORT_MAX_FILES` 设置每批文件预算（1–50，默认 50）。整仓同步按固定提交沿保存的快照续传。匿名公开 GitHub 文件优先从固定提交的原文地址读取，并校验 Git blob 哈希。解析 Worker 可在导入期间处理队列；GitHub 限流可能暂停同步，已保存批次可继续。
 
 ```bash
 python -m venv .venv

@@ -1,5 +1,8 @@
+import hashlib
+import re
 import uuid
 from collections import defaultdict
+from contextlib import ExitStack
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -108,12 +111,12 @@ def _supported_tree_entries(tree: object) -> list[dict[str, Any]]:
     return sorted(entries, key=lambda item: item["path"])
 
 
-def _get_blob(client: httpx.Client, url: str, *, max_bytes: int) -> bytes:
+def _get_blob(client: httpx.Client, url: str, *, max_bytes: int, accept: str = "application/vnd.github.raw+json") -> bytes:
     try:
         with client.stream(
             "GET",
             url,
-            headers={"Accept": "application/vnd.github.raw+json"},
+            headers={"Accept": accept},
         ) as response:
             if not response.is_success:
                 raise _provider_error(response)
@@ -134,6 +137,32 @@ def _get_blob(client: httpx.Client, url: str, *, max_bytes: int) -> bytes:
             code="GITHUB_PROVIDER_FAILED",
             message="无法读取 GitHub 文件，请稍后重试",
         ) from exc
+
+
+def _blob_matches(content: bytes, sha: str) -> bool:
+    object_hash = hashlib.new("sha1" if len(sha) == 40 else "sha256", usedforsecurity=False)
+    object_hash.update(f"blob {len(content)}\0".encode("ascii"))
+    object_hash.update(content)
+    return object_hash.hexdigest() == sha.lower()
+
+
+def _read_sync_blob(client, raw_client, *, api_url, raw_base, path, sha, max_bytes):
+    if raw_client is None or not re.fullmatch(r"[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?", sha):
+        return _get_blob(client, api_url, max_bytes=max_bytes)
+
+    safe_path = ingestion.normalize_relative_path(path, original_name=Path(path).name)
+    try:
+        content = _get_blob(raw_client, f"{raw_base}/{quote(safe_path, safe='/')}", max_bytes=max_bytes, accept="*/*")
+        if _blob_matches(content, sha):
+            return content
+    except AppError as error:
+        if error.code == "GITHUB_RATE_LIMITED":
+            raise
+    # The raw host may return Git LFS content instead of the actual Git blob.
+    content = _get_blob(client, api_url, max_bytes=max_bytes)
+    if not _blob_matches(content, sha):
+        raise AppError(status_code=502, code="GITHUB_BLOB_MISMATCH", message="GitHub 文件内容与固定提交的 blob 哈希不一致")
+    return content
 
 
 def _parse_github_datetime(value: object) -> datetime | None:
@@ -234,9 +263,7 @@ def _snapshot(
     return db.scalar(query.limit(1))
 
 
-def _repeat_snapshot_result(
-    snapshot: RepositorySnapshot,
-) -> GithubRepositorySyncResult:
+def _repeat_snapshot_result(snapshot: RepositorySnapshot) -> GithubRepositorySyncResult:
     items = [
         GithubRepositorySyncItem(
             path=item.path,
@@ -263,6 +290,7 @@ def _repeat_snapshot_result(
         truncated=snapshot.truncated,
         deletion_detection_complete=snapshot.deletion_detection_complete,
         items=items,
+        total_supported_files=len(items), completed_files=len(items), remaining_files=0,
     )
 
 
@@ -372,6 +400,7 @@ def sync_github_repository(
     requested_ref: str | None,
     rescan: bool = False,
     continue_from_snapshot: uuid.UUID | None = None,
+    resume_incomplete: bool = False,
     expected_commit_sha: str | None = None,
     request_guard=None,
 ) -> GithubRepositorySyncResult:
@@ -415,11 +444,12 @@ def sync_github_repository(
             f"Bearer {settings.github_token.get_secret_value()}"
         )
 
-    with httpx.Client(
-        headers=headers,
-        timeout=httpx.Timeout(settings.github_timeout_seconds, connect=10),
-        **({'event_hooks':{'request':[lambda _request:request_guard()]}} if request_guard else {}),
-    ) as client:
+    with ExitStack() as resources:
+        client = resources.enter_context(httpx.Client(
+            headers=headers,
+            timeout=httpx.Timeout(settings.github_timeout_seconds, connect=10),
+            **({'event_hooks':{'request':[lambda _request:request_guard()]}} if request_guard else {}),
+        ))
         repository_payload = _get_json(
             client, f"{base_url}/repos/{owner}/{name}"
         )
@@ -450,9 +480,24 @@ def sync_github_repository(
         if expected_commit_sha is not None and commit_sha!=expected_commit_sha:
             raise AppError(status_code=409,code='GITHUB_COMMIT_CONFLICT',message='导入返回了未授权的提交，已拒绝导入文件')
 
+        raw_base = f"https://raw.githubusercontent.com/{owner}/{name}/{quote(commit_sha, safe='')}"
+        raw_client = None
+        if (resume_incomplete and not request_guard and settings.github_token is None
+                and base_url == "https://api.github.com" and repository_payload.get("private") is False):
+            raw_client = resources.enter_context(httpx.Client(
+                headers={"User-Agent": headers["User-Agent"]},
+                timeout=httpx.Timeout(settings.github_timeout_seconds, connect=10),
+            ))
+
         previous_snapshot = continuation or _snapshot(
             db, repository_id=repository.id, ref=selected_ref
         )
+        if (
+            resume_incomplete and not rescan and continuation is None
+            and previous_snapshot is not None and previous_snapshot.truncated
+            and previous_snapshot.commit_sha == commit_sha
+        ):
+            continuation = previous_snapshot
         if (
             previous_snapshot is not None
             and previous_snapshot.commit_sha == commit_sha
@@ -643,6 +688,11 @@ def sync_github_repository(
                 continue
 
             if downloaded_bytes + size > MAX_GITHUB_IMPORT_BYTES:
+                if size > MAX_GITHUB_IMPORT_BYTES:
+                    item = GithubRepositorySyncItem(path=path, status="skipped", error_code="SOURCE_TOO_LARGE")
+                    items.append(item)
+                    file_records.append((path, blob_sha, size, item))
+                    continue
                 truncated = True
                 deletion_detection_complete = False
                 item = GithubRepositorySyncItem(
@@ -654,14 +704,13 @@ def sync_github_repository(
                 file_records.append((path, blob_sha, size, item))
                 continue
             try:
-                raw_content = _get_blob(
-                    client,
-                    f"{base_url}/repos/{owner}/{name}/git/blobs/"
-                    f"{quote(blob_sha, safe='')}",
+                raw_content = _read_sync_blob(
+                    client, raw_client, raw_base=raw_base, path=path, sha=blob_sha,
+                    api_url=f"{base_url}/repos/{owner}/{name}/git/blobs/{quote(blob_sha, safe='')}",
                     max_bytes=settings.max_upload_bytes,
                 )
             except AppError as exc:
-                if exc.code == "SOURCE_TOO_LARGE":
+                if exc.code in {"SOURCE_TOO_LARGE", "SOURCE_PATH_INVALID"}:
                     item = GithubRepositorySyncItem(
                         path=path, status="skipped", error_code=exc.code
                     )
@@ -670,6 +719,11 @@ def sync_github_repository(
                     continue
                 raise
             if downloaded_bytes + len(raw_content) > MAX_GITHUB_IMPORT_BYTES:
+                if len(raw_content) > MAX_GITHUB_IMPORT_BYTES:
+                    item = GithubRepositorySyncItem(path=path, status="skipped", error_code="SOURCE_TOO_LARGE")
+                    items.append(item)
+                    file_records.append((path, blob_sha, size, item))
+                    continue
                 truncated = True
                 deletion_detection_complete = False
                 item = GithubRepositorySyncItem(

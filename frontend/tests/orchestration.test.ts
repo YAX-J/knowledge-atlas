@@ -254,3 +254,31 @@ it('discards remote results after context round trips and exposes remote failure
   expect(api.syncGithubRepository).toHaveBeenCalledOnce()
   expect(deps.loading.sync).toBe(false)
 })
+
+it('automatically follows pinned GitHub batches and keeps the checkpoint when a batch fails', async () => {
+  const { state, deps } = imports()
+  const batch: api.GithubRepositorySyncResult = {
+    repository_id: 'repo', snapshot_id: 'one', ref: 'main', commit_sha: 'abcdef1234567', commit_url: null,
+    imported_count: 50, reused_count: 0, unchanged_count: 0, renamed_count: 0, deleted_count: 0, skipped_count: 0,
+    truncated: true, deletion_detection_complete: false, items: [],
+    continuation_snapshot_id: 'one', completed_files: 50, total_supported_files: 130, remaining_files: 80, tree_complete: true,
+  }
+  vi.mocked(api.syncGithubRepository)
+    .mockResolvedValueOnce(batch)
+    .mockResolvedValueOnce({ ...batch, snapshot_id: 'two', continuation_snapshot_id: 'two', completed_files: 100, remaining_files: 30 })
+    .mockRejectedValueOnce(new Error('rate limited'))
+  await state.syncRegisteredGithubRepository({ repositoryId: 'repo', wholeRepository: true })
+  expect(api.syncGithubRepository).toHaveBeenNthCalledWith(1, project.id, 'repo', undefined, undefined, undefined, true)
+  expect(api.syncGithubRepository).toHaveBeenNthCalledWith(2, project.id, 'repo', 'main', false, 'one', true)
+  expect(api.syncGithubRepository).toHaveBeenNthCalledWith(3, project.id, 'repo', 'main', false, 'two', true)
+  expect(state.githubContinuations.repo?.snapshotId).toBe('two')
+  expect(deps.notice.value).toContain('100 / 130')
+  expect(deps.errors.sync).toContain('rate limited')
+
+  vi.mocked(api.syncGithubRepository).mockResolvedValueOnce({ ...batch, snapshot_id: 'three', continuation_snapshot_id: null,
+    completed_files: 130, remaining_files: 0, truncated: false, deletion_detection_complete: true })
+  await state.syncRegisteredGithubRepository({ repositoryId: 'repo', ref: 'main', continueFromSnapshot: 'two', wholeRepository: true })
+  expect(state.githubContinuations.repo).toBeUndefined()
+  expect(deps.notice.value).toContain('130 / 130')
+  expect(deps.notice.value).toContain('整仓导入完成')
+})

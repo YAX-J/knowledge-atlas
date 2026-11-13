@@ -109,6 +109,7 @@ def sync_github_repository(
         requested_ref=sync_in.ref,
         rescan=sync_in.rescan,
         continue_from_snapshot=sync_in.continue_from_snapshot,
+        resume_incomplete=sync_in.resume_incomplete,
     )
 
 

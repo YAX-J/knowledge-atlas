@@ -473,12 +473,16 @@ export function syncGithubRepository(
   ref?: string,
   rescan = false,
   continueFromSnapshot?: string,
+  resumeIncomplete = false,
 ): Promise<GithubRepositorySyncResult> {
   return apiRequest<GithubRepositorySyncResult>(
     `/projects/${projectId}/repositories/${repositoryId}/sync-github`,
     {
       method: 'POST',
-      body: JSON.stringify({ ref: ref?.trim() || null, rescan, ...(continueFromSnapshot ? { continue_from_snapshot: continueFromSnapshot } : {}) }),
+      body: JSON.stringify({ ref: ref?.trim() || null, rescan,
+        ...(continueFromSnapshot ? { continue_from_snapshot: continueFromSnapshot } : {}),
+        ...(resumeIncomplete ? { resume_incomplete: true } : {}),
+      }),
       signal: AbortSignal.timeout(120000),
     },
   )

@@ -59,7 +59,7 @@ Apply head `20261029_0019` before using the time/evolution/governance panels. Cr
 
 From `backend/`, run `.\.venv\Scripts\python.exe -m scripts.verify_native` for disposable-schema migration/API/contention/Worker checks. Requires configured native PostgreSQL, pgvector already in `public`, and `CREATE SCHEMA` permission. It explicitly qualifies the Alembic version schema, verifies local tables before tests and removes only its generated schema. Existing business data is not test data. `--github` additionally permits real read-only public petclinic import/search/repeat/commit-provenance acceptance; it never calls models or uses a GitHub token. Ordinary `pytest` skips these opt-in checks. Model/embedding quality and private-token acceptance are not covered.
 
-`GITHUB_IMPORT_MAX_FILES` sets the per-scan file budget (1–50, default 50); lower it to reduce anonymous REST calls. The public acceptance uses 30 and explicitly reports truncation, not complete-repository coverage. Increasing the budget lets a later explicit sync recover an incomplete same-commit snapshot and reuse downloaded blobs. A compatible complete cached snapshot can still return its existing metadata without additional blob downloads. This does not guarantee availability under shared/secondary GitHub rate limits.
+`GITHUB_IMPORT_MAX_FILES` sets the per-batch file budget (1–50, default 50). Whole-repository sync follows saved continuation snapshots at a fixed commit. Anonymous public GitHub file reads use commit-pinned raw content with Git blob hash validation. Use the parsing Worker to consume queued files during import. GitHub rate limits can pause sync, and saved batches can be resumed.
 
 ```bash
 python -m venv .venv

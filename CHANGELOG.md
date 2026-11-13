@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Sync whole GitHub repositories through commit-pinned batches, show progress, and retain the last successful checkpoint on interruption.
+
 - Add a PostgreSQL/Neo4j switch, explicit snapshot sync, and snapshot time and totals to the graph page. Neo4j graph details and evidence are read at the snapshot time.
 
 - Add optional Neo4j connectivity, explicit per-project formal graph snapshot sync, and scoped Cypher neighborhood queries. [ADR 0081](docs/adr/0081-neo4j-project-projection.md).

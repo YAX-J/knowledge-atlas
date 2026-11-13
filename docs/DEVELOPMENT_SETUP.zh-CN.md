@@ -131,9 +131,9 @@ uvicorn app.main:app --reload
 
 ## GitHub 快照导入
 
-可选 `GITHUB_IMPORT_MAX_FILES=50` 接受每次新扫描 1–50 文件。下调可减少匿名请求并明确生成未完成快照；之后扩大预算显式同步会复用已有 blob。完整缓存的元数据可能超过下调后的预算，但不会额外下载 blob。仍可能遇到限流；显式公开验收使用 30，不代表完整仓库覆盖。
+在资料页选择「同步整个仓库」，页面会自动续传同一固定提交，直到处理完受支持文件。`GITHUB_IMPORT_MAX_FILES` 控制每批 1–50 个文件，默认 50。中断后可继续同一提交，或填写原 ref 再次同步同一提交，已完成的批次会复用。打开 `python -m app.worker` 可在导入期间自动解析。页面关闭会暂停发起新批次。
 
-公开仓库 REST 读取无需凭据。私有仓库或 Review thread 状态只在 `backend/.env` 设置 `GITHUB_TOKEN`，并按所用导入能力授予最小的 Contents、Issues 与 Pull requests 读取权限。保留 `GITHUB_API_BASE_URL=https://api.github.com`、`GITHUB_GRAPHQL_URL=https://api.github.com/graphql`、`GITHUB_API_VERSION=2026-03-10`，仅在需要时调整 `GITHUB_TIMEOUT_SECONDS`。应用迁移 `20261022_0014`，在资料工作台登记 remote 后显式同步默认分支/指定 ref，或导入最近的 Issue/Pull Request 版本。文件请求最多导入 50 份支持文件和 20 MiB；工作项请求最多导入 20 项及每项 20 条普通评论，并为每个入选 PR 最多读取 20 条 Review、20 条行级 Review Comment、20 个 Review thread 与每个 thread 20 个评论标识。无令牌时 REST 部分仍会成功，并返回 `review_threads_status=token_required`。两条链路都不会 clone、轮询、接收 webhook 事件历史、自动失效历史证据或自动同步。
+公开仓库 REST 读取无需凭据。私有仓库或 Review thread 状态只在 `backend/.env` 设置 `GITHUB_TOKEN`，并按所用导入能力授予最小的 Contents、Issues 与 Pull requests 读取权限。保留 `GITHUB_API_BASE_URL=https://api.github.com`、`GITHUB_GRAPHQL_URL=https://api.github.com/graphql`、`GITHUB_API_VERSION=2026-03-10`，仅在需要时调整 `GITHUB_TIMEOUT_SECONDS`。应用迁移 `20261022_0014`，在资料工作台登记 remote 后显式同步默认分支/指定 ref，或导入最近的 Issue/Pull Request 版本。文件请求每批最多导入 50 份支持文件和 20 MiB。工作项请求最多导入 20 项及每项 20 条普通评论，并为每个入选 PR 最多读取 20 条 Review、20 条行级 Review Comment、20 个 Review thread 与每个 thread 20 个评论标识。无令牌时 REST 部分仍会成功，并返回 `review_threads_status=token_required`。同步由用户发起，历史证据继续绑定原提交。
 
 ## 前端验证
 

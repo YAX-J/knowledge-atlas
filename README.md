@@ -16,6 +16,8 @@ Current 2026-10-31: M3–M4 implement immutable editable notes and capability-sc
 
 项目关系图支持切换到 Neo4j、手动同步正式知识快照、查看一跳或两跳邻域及定位原文证据。见 [Neo4j 本机配置](docs/DEVELOPMENT_SETUP.zh-CN.md#可选的-neo4j-图谱快照)。
 
+资料页支持按固定 GitHub 提交分批同步整个仓库，解析 Worker 自动消费导入的受支持文件。见 [GitHub 快照导入](docs/DEVELOPMENT_SETUP.zh-CN.md#github-快照导入)。
+
 当前能力、验收边界和后续工作以本页、[当前计划](PLANS.zh-CN.md)、[路线图](docs/ROADMAP.md)及[多 Agent 改造](docs/MULTI_AGENT.zh-CN.md)及[此前优化验收](docs/OPTIMIZATION_20261029.zh-CN.md)为准。此前逐轮检查点已移入[历史文档](docs/archive/pre-optimization-20261029/README.md)，旧实验数字保持不变。
 
 ## 当前可用能力

@@ -55,6 +55,7 @@ class GithubRepositorySync(BaseModel):
     ref: str | None = Field(default=None, max_length=255)
     rescan: bool = False
     continue_from_snapshot: uuid.UUID | None = None
+    resume_incomplete: bool = False
 
     @field_validator("ref", mode="before")
     @classmethod
