@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref, watch } from 'vue'
-import { listSources, getCodeAnalysisContexts, type SourceListItem, type CodeAnalysisContexts } from '../../api/knowledgeAtlas'
+import { listRepositories, listSources, getCodeAnalysisContexts, type SourceListItem, type CodeAnalysisContexts, type SourceRepository } from '../../api/knowledgeAtlas'
 import type { EvidenceLocator } from '../../types'
 import { useProjectAssistant } from '../../composables/useProjectAssistant'
 import AgentRunTrace from './AgentRunTrace.vue'
@@ -10,10 +10,26 @@ const props = defineProps<{projectId?: string; disabled?: boolean;noteRevisionId
 const emit = defineEmits<{openSource: [id: string]; openEvidence: [locator: EvidenceLocator]; sending: [value: boolean];openNote:[id:string];clearNotes:[];notesChanged:[]}>()
 const {history, selected, loading, sending, unknown, error, busy, refresh, select, submit, retry, cancel, resume,approve,approvalUnknown,retryApproval} = useProjectAssistant(() => props.projectId)
 const actions=ref<string[]>([]),repositoryId=ref(''),repositoryCommit=ref(''),artifactSaving=ref(false)
+const wholeRepository = ref(false), repositoryRef = ref(''), repositories = ref<SourceRepository[]>([])
+const repositoryPage = ref(1), repositoryTotal = ref(0), repositoryLoading = ref(false), repositoryError = ref('')
+let repositoryReads = 0
+const preparation = computed(() => selected.value?.scope.repository_progress)
+const preparationLabel = { importing: '正在分批导入', parsing: '正在解析文件', reporting: '报告阶段' }
 const actionLabels:Record<string,string>={create_note_draft:'创建新笔记草稿',propose_note_revision:'提出已有笔记修订（需审批）',request_source_parse:'创建笔记快照与解析资料',propose_knowledge:'抽取待审核知识候选',propose_knowledge_change:'提出正式知识变更（需审批）',import_repository_snapshot:'导入指定仓库提交',create_report_draft:'创建独立引用报告草稿'}
 const unknownCount=computed(()=>(selected.value?.unknown_model_attempts??0)+(selected.value?.unknown_operations??0))
-function start(){void submit({protocol:'assistant-task-v3',goal:goal.value.trim(),source_ids:chosen.value.map(s=>s.id),note_revision_ids:props.noteRevisionIds??[],allowed_actions:actions.value,
-  ...(snapshot.value?{snapshot_id:snapshot.value}:{}),...(actions.value.includes('import_repository_snapshot')?{repository_id:repositoryId.value,repository_commit:repositoryCommit.value}:{})})}
+function start() {
+  const base = { protocol: 'assistant-task-v3' as const, goal: goal.value.trim(), note_revision_ids: props.noteRevisionIds ?? [] }
+  if (wholeRepository.value) {
+    if (!repositoryId.value) return
+    const ref = repositoryRef.value.trim()
+    void submit({ ...base, source_ids: [], allowed_actions: ['import_repository_snapshot'], whole_repository: true,
+      repository_id: repositoryId.value, ...(ref ? { repository_ref: ref } : {}) })
+    return
+  }
+  void submit({ ...base, source_ids: chosen.value.map(s => s.id), allowed_actions: actions.value,
+    ...(snapshot.value ? { snapshot_id: snapshot.value } : {}),
+    ...(actions.value.includes('import_repository_snapshot') ? { repository_id: repositoryId.value, repository_commit: repositoryCommit.value } : {}) })
+}
 async function applyProposal(operation:import('../../api/assistant').AssistantOperation){await approve(operation,'approve');emit('notesChanged')}
 async function saveArtifact(artifactId?:string){const project=props.projectId,task=selected.value,artifact=artifactId??task?.final_artifact_id??task?.artifact_ids?.at(-1);if(!project||!task||!artifact||artifactSaving.value)return
   artifactSaving.value=true
@@ -37,6 +53,28 @@ function openReference(id: string) {
   else if(reference.source_id) emit('openSource', reference.source_id)
 }
 watch(sending, value => emit('sending', value))
+async function loadRepositories(page = 1) {
+  const project = props.projectId, request = ++repositoryReads
+  if (!project) return
+  repositoryLoading.value = true; repositoryError.value = ''
+  try {
+    const result = await listRepositories(project, page, 20)
+    if (disposed || request !== repositoryReads || project !== props.projectId) return
+    repositories.value = result.items.filter(item => item.provider === 'github')
+    repositoryPage.value = result.page
+    repositoryTotal.value = result.total
+    if (!repositories.value.some(item => item.id === repositoryId.value)) repositoryId.value = repositories.value[0]?.id ?? ''
+  } catch (cause) {
+    if (!disposed && request === repositoryReads) repositoryError.value = cause instanceof Error ? cause.message : '仓库列表读取失败。'
+  } finally {
+    if (!disposed && request === repositoryReads) repositoryLoading.value = false
+  }
+}
+watch(wholeRepository, enabled => {
+  repositoryId.value = ''
+  if (enabled) void loadRepositories()
+  else { repositoryReads++; repositoryLoading.value = false }
+})
 async function loadSources(page = 1) {
   const id = props.projectId, read = ++reads
   if (!id) return
@@ -55,6 +93,8 @@ function toggle(source: SourceListItem, checked: boolean) {
 watch(() => props.projectId, () => {
   reads++; contextReads++; goal.value = ''; sources.value = []; chosen.value = []; snapshot.value = ''; contexts.value = null
   actions.value=[];repositoryId.value='';repositoryCommit.value='';artifactSaving.value=false
+  repositoryReads++; wholeRepository.value = false; repositoryRef.value = ''; repositories.value = []
+  repositoryPage.value = 1; repositoryTotal.value = 0; repositoryLoading.value = false; repositoryError.value = ''
   contextError.value = ''; contextLoading.value = false
   sourcePage.value = 1; sourceTotal.value = 0; sourceLoading.value = false; sourceError.value = ''
   void loadSources()
@@ -73,7 +113,7 @@ async function loadContexts() {
   } finally { if (!disposed && read === contextReads) contextLoading.value = false }
 }
 watch(() => code.value?.id, () => {void loadContexts()})
-onScopeDispose(() => {disposed = true; reads++; contextReads++})
+onScopeDispose(() => {disposed = true; reads++; contextReads++; repositoryReads++})
 </script>
 
 <template>
@@ -86,6 +126,23 @@ onScopeDispose(() => {disposed = true; reads++; contextReads++})
         <form aria-label="项目助手目标" @submit.prevent="start">
           <fieldset :disabled="!projectId || locked"><label for="assistant-goal">希望了解或整理什么</label>
             <textarea id="assistant-goal" v-model="goal" rows="4" maxlength="2000" required placeholder="结合文档、已确认知识和所选源码，解释主要模块，并列出有记录依据的未决问题。" />
+            <label class="assistant-source"><input v-model="wholeRepository" type="checkbox" />同步并解析整个 GitHub 仓库</label>
+            <template v-if="wholeRepository">
+              <label>GitHub 仓库<select v-model="repositoryId" required :disabled="repositoryLoading">
+                <option value="" disabled>选择已登记的仓库</option>
+                <option v-for="repository in repositories" :key="repository.id" :value="repository.id">{{ repository.name }}</option>
+              </select></label>
+              <nav v-if="repositoryTotal > 20" aria-label="助手仓库分页">
+                <button type="button" :disabled="repositoryLoading || repositoryPage <= 1" @click="loadRepositories(repositoryPage - 1)">上一页</button>
+                <span>{{ repositoryPage }}</span>
+                <button type="button" :disabled="repositoryLoading || repositoryPage * 20 >= repositoryTotal" @click="loadRepositories(repositoryPage + 1)">下一页</button>
+              </nav>
+              <p v-if="repositoryError" role="alert">{{ repositoryError }} <button type="button" @click="loadRepositories(repositoryPage)">重试</button></p>
+              <p v-else-if="!repositories.length && !repositoryLoading">本页没有 GitHub 仓库。可在资料页登记仓库。</p>
+              <label>分支、标签或提交<input v-model="repositoryRef" maxlength="255" placeholder="留空使用默认分支" /></label>
+              <p>后台固定提交、导入并解析受支持文件，再选取最多 20 份资料生成带原文引用的报告。</p>
+            </template>
+            <template v-else>
             <p>本次范围：当前项目已确认知识 + 所选 {{chosen.length}} 份不可变资料版本（最多 20 份 / 200 KB）。未选择资料时仅检索已确认知识。</p>
             <div class="assistant-sources" aria-label="助手资料范围" :aria-busy="sourceLoading">
               <p v-if="sourceLoading">正在读取资料…</p><p v-else-if="!sources.length">暂无资料，请先在资料工作台上传并解析。</p>
@@ -107,7 +164,8 @@ onScopeDispose(() => {disposed = true; reads++; contextReads++})
               <label v-for="(label,action) in actionLabels" :key="action" class="assistant-source"><input v-model="actions" type="checkbox" :value="action" />{{label}}</label>
               <template v-if="actions.includes('import_repository_snapshot')"><label>仓库 UUID<input v-model="repositoryId" required pattern="[0-9a-fA-F-]{36}" /></label><label>固定提交 SHA<input v-model="repositoryCommit" required pattern="[0-9a-f]{40}" maxlength="40" /></label></template>
             </details>
-            <button type="submit" :disabled="!goal.trim()">{{sending ? '正在保存目标…' : actions.length?'开始已授权任务':'开始只读任务'}}</button>
+            </template>
+            <button type="submit" :disabled="!goal.trim() || wholeRepository && (!repositoryId || repositoryLoading)">{{sending ? '正在保存目标…' : wholeRepository ? '开始整仓任务' : actions.length?'开始已授权任务':'开始只读任务'}}</button>
           </fieldset>
         </form>
         <p v-if="sourceError" role="alert">{{sourceError}} <button type="button" :disabled="sourceLoading || !projectId" @click="loadSources(sourcePage)">重新读取资料</button></p>
@@ -124,6 +182,12 @@ onScopeDispose(() => {disposed = true; reads++; contextReads++})
         <p v-if="loading" role="status">正在读取任务…</p>
         <article v-if="selected" :aria-busy="selected.status === 'running'"><h3>{{selected.goal}}</h3><p>{{labels[selected.status]}} · 模型 {{selected.usage.model ?? 0}} / {{selected.usage.limits?.model ?? 8}} · 工具 {{selected.usage.tool ?? 0}} / {{selected.usage.limits?.tool ?? 16}} · 嵌入 {{selected.usage.embedding ?? 0}}</p>
           <p>已保存范围：{{selected.scope.source_ids.length}} 份资料 · {{selected.scope.note_versions?.length??0}} 个笔记修订 · {{selected.scope.commit_sha ? `提交 ${selected.scope.commit_sha}` : '精确来源 UUID'}} · {{selected.scope.valid_at || '当前已确认知识'}}</p>
+          <p v-if="preparation" role="status">
+            {{ preparationLabel[preparation.phase] }} · 已导入处理 {{ preparation.completed_files }} / {{ preparation.total_files }} 个文件
+            <span v-if="preparation.pending_directories"> · 待遍历 {{ preparation.pending_directories }} 个目录</span>
+            <span v-if="preparation.parsed_files !== undefined"> · 已解析 {{ preparation.parsed_files }} · 失败 {{ preparation.failed_files }} · 跳过 {{ preparation.skipped_files }}</span>
+            <span v-if="preparation.commit_sha"> · {{ preparation.ref }} @ {{ preparation.commit_sha.slice(0, 12) }}</span>
+          </p>
           <details v-if="selected.scope.note_versions?.length||selected.scope.allowed_actions?.length"><summary>保存的笔记版本与操作授权</summary><p v-for="revision in selected.scope.note_versions??[]" :key="revision.id">修订 {{revision.id}} · {{revision.sha256.slice(0,12)}}</p><p>允许：{{selected.scope.allowed_actions?.map(a=>actionLabels[a]??a).join('、')||'只读'}}</p></details>
           <p v-if="selected.execution_mode!=='sync_v1'">剩余协调请求 {{selected.remaining?.model??Math.max(0,4-(selected.usage.model??0))}} 次 · 工具 {{selected.remaining?.tool??Math.max(0,8-(selected.usage.tool??0))}} 次</p>
           <p v-if="selected.error_code" role="alert">任务未完成（{{selected.error_code}}）。{{selected.can_continue?'请核对记录后选择继续或新建目标。':'请核对记录后显式新建目标。'}}</p>

@@ -507,6 +507,12 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 
 不支持区域仍保守处理；完整 AST、外部依赖、动态分派、泛型替换、通用工厂/链式推断、重新赋值数据流和完整控制流不在 V1 范围。静态工厂切片不支持链式、强制转换、条件表达式、实例、`this`/`super` 限定或重新赋值形式，也不支持复杂/带注解/传统 for 多变量声明等既有排除头部。能力矩阵、精确限制及综合验收步骤见 [Java 分析 V1](JAVA_ANALYSIS_V1.zh-CN.md)、[ADR 0029](adr/0029-java-analysis-v1.zh-CN.md)、[ADR 0036](adr/0036-bounded-java-static-factory-var-receivers.zh-CN.md)、[ADR 0037](adr/0037-unqualified-java-factory-receivers.zh-CN.md) 与 [ADR 0038](adr/0038-java-header-factory-receivers.zh-CN.md)。
 
+## 整仓助手任务
+
+`POST /api/v1/projects/{project_id}/assistant/tasks` 的 `assistant-task-v3` 请求可设置 `whole_repository=true`，传入 `repository_id` 并授权 `import_repository_snapshot`。`repository_ref` 和 `repository_commit` 互斥，均省略时使用默认分支。任务由独立 runner 执行。首次成功批次固定提交，后续批次以已保存快照为检查点。
+
+任务详情 `scope.repository_progress` 提供 `phase`、`snapshot_id`、`commit_sha`、`completed_files`、`total_files`、`pending_directories`，解析阶段还提供 `parsed_files`、`waiting_files`、`failed_files`、`skipped_files`。`GET` 读取进度，现有 `cancel` 与 `continue` 控制后台任务。报告沿用 `assistant-report-v2`。
+
 ## 知识图谱
 
 ### Neo4j 项目快照

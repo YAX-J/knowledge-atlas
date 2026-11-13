@@ -39,9 +39,15 @@ class ProjectAssistantAgent:
     def run(self, task, context):
         tools = context['tools']
         workflow=task.protocol=='assistant-task-v3'
+        scope = context['scope']
+        repository_instruction = ''
+        if task.whole_repository:
+            repository_instruction = ('\nThe server has prepared the fixed repository snapshot. Use the selected paths and exact excerpts '
+                                      'to report on relevant modules. State when the selected sample, skipped files, or failed parses '
+                                      'limit coverage. Do not claim to have read every file.\n')
         with agent_scope(self.name):
-            decision, _, _ = structured_loop(context['settings'], system=WORKFLOW_SYSTEM if workflow else SYSTEM,
-                payload={'protocol': 'project-assistant-v3' if workflow else PROMPT_VERSION, 'goal': task.goal, 'scope': context['scope'],
+            decision, _, _ = structured_loop(context['settings'], system=(WORKFLOW_SYSTEM + repository_instruction) if workflow else SYSTEM,
+                payload={'protocol': 'project-assistant-v3' if workflow else PROMPT_VERSION, 'goal': task.goal, 'scope': scope,
                          'sources': [{'id': str(item.id), 'path': tools.snapshot_paths.get(item.id, item.relative_path),
                              'source_type': item.source_type, 'sha256': item.content_sha256,
                              'chunks': [str(chunk[0]) for chunk in item.chunks]} for item in tools.sources.values()]},

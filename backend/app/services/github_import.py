@@ -403,6 +403,7 @@ def sync_github_repository(
     resume_incomplete: bool = False,
     expected_commit_sha: str | None = None,
     request_guard=None,
+    save_progress=None,
 ) -> GithubRepositorySyncResult:
     repository = get_repository(
         db,
@@ -448,8 +449,9 @@ def sync_github_repository(
         resume_incomplete and continuation is not None and (continuation.scan_state or {}).get("complete")
     )
     use_saved_identity = (
-        saved_manifest and not request_guard and settings.github_token is None
+        saved_manifest and settings.github_token is None
         and base_url == "https://api.github.com" and repository.provider_repository_id is not None
+        and (not request_guard or save_progress is not None)
     )
     with ExitStack() as resources:
         client = resources.enter_context(httpx.Client(
@@ -500,12 +502,13 @@ def sync_github_repository(
 
         raw_base = f"https://raw.githubusercontent.com/{owner}/{name}/{quote(commit_sha, safe='')}"
         raw_client = None
-        if (resume_incomplete and not request_guard and settings.github_token is None
+        if (resume_incomplete and (not request_guard or save_progress is not None) and settings.github_token is None
                 and base_url == "https://api.github.com"
                 and (use_saved_identity or repository_payload.get("private") is False)):
             raw_client = resources.enter_context(httpx.Client(
                 headers={"User-Agent": headers["User-Agent"]},
                 timeout=httpx.Timeout(settings.github_timeout_seconds, connect=10),
+                **({'event_hooks': {'request': [lambda _request: request_guard()]}} if request_guard else {}),
             ))
 
         previous_snapshot = continuation or _snapshot(
@@ -532,9 +535,12 @@ def sync_github_repository(
                 )
             }
             if _snapshot_is_reusable(previous_snapshot, reusable_types):
+                result = _repeat_snapshot_result(previous_snapshot)
+                if save_progress is not None:
+                    save_progress(result)
                 db.add(repository)
                 db.commit()
-                return _repeat_snapshot_result(previous_snapshot)
+                return result
 
         commit_details = commit_payload.get("commit")
         tree_details = (
@@ -858,9 +864,8 @@ def sync_github_repository(
             source.relative_path = path
             source.original_name = Path(path).name
         db.add(repository)
-        db.commit()
 
-    return GithubRepositorySyncResult(
+    result = GithubRepositorySyncResult(
         repository_id=repository.id,
         snapshot_id=snapshot.id,
         ref=selected_ref,
@@ -884,3 +889,7 @@ def sync_github_repository(
         tree_complete=scan['complete'],
         traversal_blocked=scan.get('blocked',False),
     )
+    if save_progress is not None:
+        save_progress(result)
+    db.commit()
+    return result

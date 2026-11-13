@@ -25,11 +25,15 @@ class AssistantRequest(StrictModel):
         'request_source_parse','propose_knowledge','propose_knowledge_change','create_report_draft']] = Field(default_factory=list,max_length=7)
     repository_id: uuid.UUID | None = None
     repository_commit: Annotated[str,StringConstraints(pattern=r'^[0-9a-f]{40}$')] | None = None
+    whole_repository: bool = False
+    repository_ref: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255, pattern=r'^[^\x00\r\n]+$')] | None = None
 
     def request_data(self):
         exclude={'request_id'}
         if self.protocol!='assistant-task-v3':
             exclude|={'note_revision_ids','allowed_actions','repository_id','repository_commit'}
+        if not self.whole_repository:
+            exclude |= {'whole_repository', 'repository_ref'}
         return self.model_dump(mode='json',exclude=exclude)
 
     @model_validator(mode='after')
@@ -46,6 +50,14 @@ class AssistantRequest(StrictModel):
             raise ValueError('Workflow capabilities require v3')
         if self.valid_at and (self.note_revision_ids or self.allowed_actions):
             raise ValueError('Historical knowledge cannot mix notes or writes')
+        if self.whole_repository:
+            if (self.protocol != 'assistant-task-v3' or self.repository_id is None or
+                    'import_repository_snapshot' not in self.allowed_actions or self.source_ids or self.snapshot_id or
+                    (self.repository_ref and self.repository_commit)):
+                raise ValueError('Whole repository requires an authorized repository, one ref or commit, and no selected sources')
+            return self
+        if self.repository_ref is not None:
+            raise ValueError('A repository ref requires whole repository mode')
         if ('import_repository_snapshot' in self.allowed_actions)!=(self.repository_id is not None and self.repository_commit is not None):
             raise ValueError('Import authorization requires an exact repository and commit')
         if (self.repository_id is None)!=(self.repository_commit is None):raise ValueError('Incomplete repository selection')

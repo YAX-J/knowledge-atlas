@@ -3,13 +3,13 @@ import { effectScope, ref } from 'vue'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import * as api from '../src/api/assistant'
 import { ApiError } from '../src/api/client'
-import { getCodeAnalysisContexts, listSources } from '../src/api/knowledgeAtlas'
+import { getCodeAnalysisContexts, listRepositories, listSources } from '../src/api/knowledgeAtlas'
 import { useProjectAssistant } from '../src/composables/useProjectAssistant'
 import ProjectAssistantPanel from '../src/components/agent/ProjectAssistantPanel.vue'
 import { project, source } from './fixtures'
 
 vi.mock('../src/api/assistant')
-vi.mock('../src/api/knowledgeAtlas', () => ({listSources: vi.fn(), getCodeAnalysisContexts: vi.fn()}))
+vi.mock('../src/api/knowledgeAtlas', () => ({listSources: vi.fn(), listRepositories: vi.fn(), getCodeAnalysisContexts: vi.fn()}))
 enableAutoUnmount(afterEach)
 const task: api.AssistantTask = {
   id: 'assistant-1', project_id: project.id, goal: 'Explain project modules', status: 'succeeded',
@@ -35,7 +35,7 @@ it('submits a goal with explicit source versions and displays typed citations as
   const wrapper = mount(ProjectAssistantPanel, {props: {projectId: project.id}})
   await flushPromises()
   await wrapper.get('textarea').setValue('Explain project modules')
-  await wrapper.get('input[type=checkbox]').setValue(true); await flushPromises()
+  await wrapper.get('.assistant-sources input[type=checkbox]').setValue(true); await flushPromises()
   await wrapper.get('form').trigger('submit'); await flushPromises()
   expect(api.startAssistantTask).toHaveBeenCalledOnce()
   expect(vi.mocked(api.startAssistantTask).mock.calls[0]![1]).toMatchObject({goal: task.goal, source_ids: [source.id]})
@@ -46,6 +46,35 @@ it('submits a goal with explicit source versions and displays typed citations as
   await wrapper.findAll('button').find(item => item.text() === '查看引用 1')!.trigger('click')
   expect(wrapper.emitted('openEvidence')).toEqual([[{source_id: source.id, chunk_id: 'chunk-1'}]])
   expect(wrapper.text()).toContain('No performance results.')
+})
+
+it('starts a repository job and renders checkpointed counts after remount without submitting again', async () => {
+  vi.mocked(listRepositories).mockResolvedValue({ items: [{ id: 'repo', project_id: project.id, name: 'example/demo',
+    kind: 'git_remote', provider: 'github', remote_owner: 'example', remote_name: 'demo', remote_url: null,
+    provider_repository_id: null, created_at: project.created_at, updated_at: project.updated_at }], total: 1, page: 1, page_size: 20 })
+  const prepared: api.AssistantTask = { ...task, scope: { ...task.scope, source_ids: [], repository_progress: {
+    phase: 'reporting', snapshot_id: 'snapshot', commit_sha: 'a'.repeat(40), ref: 'test',
+    completed_files: 75, total_files: 75, pending_directories: 0, parsed_files: 74, failed_files: 0, skipped_files: 1,
+  } } }
+  vi.mocked(api.startAssistantTask).mockResolvedValue(prepared)
+  vi.mocked(api.getAssistantTask).mockResolvedValue(prepared)
+  const wrapper = mount(ProjectAssistantPanel, { props: { projectId: project.id } })
+  await flushPromises()
+  await wrapper.get('textarea').setValue('生成仓库说明')
+  await wrapper.get('fieldset > label input[type=checkbox]').setValue(true)
+  await flushPromises()
+  await wrapper.get('input[placeholder="留空使用默认分支"]').setValue('test')
+  await wrapper.get('form').trigger('submit')
+  await flushPromises()
+  expect(api.startAssistantTask).toHaveBeenCalledWith(project.id, expect.objectContaining({ whole_repository: true,
+    repository_id: 'repo', repository_ref: 'test', allowed_actions: ['import_repository_snapshot'], source_ids: [] }))
+  expect(wrapper.text()).toContain('75 / 75')
+  expect(wrapper.text()).toContain('已解析 74')
+  wrapper.unmount()
+  const restored = mount(ProjectAssistantPanel, { props: { projectId: project.id } })
+  await flushPromises()
+  expect(restored.text()).toContain('test @ aaaaaaaaaaaa')
+  expect(api.startAssistantTask).toHaveBeenCalledOnce()
 })
 
 it('restores saved task IDs and history through GET without replaying submissions', async () => {
@@ -105,7 +134,7 @@ it('clears source choices on project changes and provides source/context retry',
   expect(wrapper.text()).toContain('Source unavailable')
   await wrapper.findAll('button').find(item => item.text() === '重新读取资料')!.trigger('click'); await flushPromises()
   vi.mocked(getCodeAnalysisContexts).mockRejectedValueOnce(new Error('Context unavailable'))
-  await wrapper.get('input[type=checkbox]').setValue(true); await flushPromises()
+  await wrapper.get('.assistant-sources input[type=checkbox]').setValue(true); await flushPromises()
   expect(wrapper.text()).toContain('Context unavailable')
   await wrapper.findAll('button').find(item => item.text() === '重新读取快照')!.trigger('click'); await flushPromises()
   expect(wrapper.text()).not.toContain('Context unavailable')

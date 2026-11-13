@@ -15,6 +15,22 @@ export interface AssistantInput {
   allowed_actions?: string[]
   repository_id?: string
   repository_commit?: string
+  whole_repository?: boolean
+  repository_ref?: string
+}
+export interface RepositoryProgress {
+  phase: 'importing' | 'parsing' | 'reporting'
+  snapshot_id: string | null
+  commit_sha: string | null
+  ref?: string
+  total_files: number
+  completed_files: number
+  pending_directories: number
+  parsed_files?: number
+  waiting_files?: number
+  failed_files?: number
+  skipped_files?: number
+  report_sources?: [string, string][]
 }
 export interface AssistantReference {
   id: string; kind: 'source' | 'code' | 'knowledge' | 'note'; source_id: string | null; chunk_id: string | null
@@ -39,7 +55,7 @@ export interface AssistantTask extends AssistantSummary {
   artifact_ids?: string[]
   final_artifact_id?:string|null
   scope: {source_ids: string[]; snapshot_id: string | null; commit_sha: string | null; valid_at: string | null;
-    note_versions?:{id:string;note_id:string;sha256:string}[];allowed_actions?:string[]}
+    note_versions?:{id:string;note_id:string;sha256:string}[];allowed_actions?:string[];repository_progress?:RepositoryProgress}
   result: {
     protocol: 'assistant-report-v1' | 'assistant-report-v2'; action: 'finish' | 'ask_user'; question: string | null
     report: {title: string; claims: {text: string; status: 'referenced' | 'uncertain'; reference_ids: string[]}[]; missing_information: string[]} | null

@@ -18,6 +18,8 @@ Current 2026-10-31: M3–M4 implement immutable editable notes and capability-sc
 
 资料页支持按固定 GitHub 提交分批同步整个仓库，解析 Worker 自动消费导入的受支持文件。见 [GitHub 快照导入](docs/DEVELOPMENT_SETUP.zh-CN.md#github-快照导入)。
 
+项目助手支持整仓后台任务，按固定提交分批导入和解析，再用选取的资料生成带原文引用的报告。见 [整仓助手任务](docs/PROJECT_ASSISTANT_M34.zh-CN.md#整仓助手任务)。
+
 当前能力、验收边界和后续工作以本页、[当前计划](PLANS.zh-CN.md)、[路线图](docs/ROADMAP.md)及[多 Agent 改造](docs/MULTI_AGENT.zh-CN.md)及[此前优化验收](docs/OPTIMIZATION_20261029.zh-CN.md)为准。此前逐轮检查点已移入[历史文档](docs/archive/pre-optimization-20261029/README.md)，旧实验数字保持不变。
 
 ## 当前可用能力

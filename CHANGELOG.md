@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Add a durable whole-repository assistant task for commit-pinned import, parsing, progress, and a report with exact source citations.
+
 - Sync whole GitHub repositories through commit-pinned batches, show progress, and retain the last successful checkpoint on interruption.
 
 - Add a PostgreSQL/Neo4j switch, explicit snapshot sync, and snapshot time and totals to the graph page. Neo4j graph details and evidence are read at the snapshot time.

@@ -39,6 +39,9 @@ def _attempts(db,item):
 
 
 def _remaining(item,last,attempts=()):
+    preparation = item.request['scope'].get('repository_progress')
+    if preparation and preparation['phase'] != 'reporting':
+        return not preparation.get('blocked')
     if last and last.state['loop'].get('next_node')=='done':return True
     coordinator={kind:sum(a.agent=='project_assistant' and a.kind==kind for a in attempts) for kind in ('model','tool')}
     role_limits=(8,16) if item.execution_mode=='async_v3' else (4,8)
@@ -103,6 +106,12 @@ def enqueue(db,*,user_id,project_id,request,settings):
             from app.services.repositories import get_repository
             repo=get_repository(db,user_id=user_id,project_id=project_id,repository_id=request.repository_id)
             scope['repository_identity']=[repo.provider,repo.remote_owner,repo.remote_name]
+            if request.whole_repository:
+                if repo.provider != 'github':
+                    _fail('GITHUB_REPOSITORY_REQUIRED','请选择已登记的 GitHub 仓库')
+                scope['repository_progress'] = dict(phase='importing', snapshot_id=None, commit_sha=None,
+                                                    completed_files=0, total_files=0, pending_directories=0)
+                scope['repository_provider_id'] = repo.provider_repository_id
     runtime=RunContext(user_id=user_id,project_id=project_id,model_limit=request.model_limit,
         tool_limit=request.tool_limit,embedding_limit=0)
     db.add(AssistantTask(id=request.request_id,user_id=user_id,project_id=project_id,status='queued',
@@ -187,13 +196,15 @@ def claim_next(db,*,user_id):
     recover_expired(db,user_id=user_id)
     item=db.scalar(select(AssistantTask).join(Project,Project.id==AssistantTask.project_id).where(
         AssistantTask.user_id==user_id,Project.user_id==user_id,Project.archived_at.is_(None),
-        AssistantTask.execution_mode.in_(['async_v2','async_v3']),AssistantTask.status=='queued')
+        AssistantTask.execution_mode.in_(['async_v2','async_v3']),AssistantTask.status=='queued',
+        or_(AssistantTask.lease_until.is_(None), AssistantTask.lease_until<=utc_now()))
         .order_by(AssistantTask.created_at,AssistantTask.id).limit(1).with_for_update(skip_locked=True,of=AssistantTask)
         .execution_options(populate_existing=True))
     if item is None:db.rollback();return None
     item.execution_id=uuid.uuid4();item.lease_until=utc_now()+timedelta(seconds=LEASE_SECONDS)
     item.status='running';item.revision+=1
-    _event(item,'claim','started')
+    if not item.request['scope'].get('repository_progress') or not any(event['kind']=='claim' for event in item.events):
+        _event(item,'claim','started')
     db.commit()
     return item.id,item.execution_id
 
@@ -238,9 +249,26 @@ def execute_claim(db,*,task_id,execution,settings,user_id):
     result=None;error_code=None;waiting=False
     try:
         with run_scope(runtime):
-            runtime.event('assistant','started')
             if item.request['scope']['runtime_contract']!=_contract(settings,workflow):
                 _fail('ASSISTANT_RUNTIME_CHANGED','运行契约或模型配置已变化，请核对后新建任务')
+            repository_context = None
+            if request.whole_repository:
+                from app.services import assistant_repository
+                from app.services.assistant_operations import guard
+                try:
+                    repository_context = assistant_repository.prepare(db,item,execution,request,settings,LEASE_SECONDS)
+                finally:
+                    # Deterministic import/parse time is separate from the model budget.
+                    runtime.started = time.monotonic() - item.elapsed_ms / 1000
+                if repository_context is None:
+                    guard(db,item,execution,lock=True)
+                    item.status = 'queued'
+                    item.execution_id = None
+                    phase = item.request['scope']['repository_progress']['phase']
+                    item.lease_until = utc_now() + timedelta(seconds=2) if phase == 'parsing' else None
+                    db.commit()
+                    return tasks.read_task(db,user_id=item.user_id,project_id=item.project_id,task_id=item.id)
+            runtime.event('assistant','started')
             sources,paths,commit=tasks._freeze_sources(db,user_id=item.user_id,project_id=item.project_id,request=request)
             if [dict(id=str(s.id),sha256=s.content_sha256) for s in sources]!=item.request['scope']['source_versions']:
                 _fail('ASSISTANT_SOURCE_CHANGED','所选来源版本已变化')
@@ -248,7 +276,8 @@ def execute_claim(db,*,task_id,execution,settings,user_id):
                 sources=sources,paths=paths,commit=commit,knowledge_at=datetime.fromisoformat(item.request['scope']['knowledge_at']))
             if workflow:
                 from app.tools.workspace import WorkspaceTools
-                gateway=WorkspaceTools(gateway,db=db,item=item,execution=execution,settings=settings,request=request)
+                gateway=WorkspaceTools(gateway,db=db,item=item,execution=execution,settings=settings,request=request,
+                                       repository_context=repository_context)
                 versions=[dict(id=str(r.id),note_id=str(r.note_id),sha256=r.content_sha256) for r in gateway.notes.values()]
                 if versions!=item.request['scope']['note_versions']:_fail('ASSISTANT_NOTE_CHANGED','笔记修订版本已变化')
             last=_last(db,item)
@@ -280,7 +309,11 @@ def execute_claim(db,*,task_id,execution,settings,user_id):
                     checkpoint('input',resume)
             has_knowledge=db.scalar(select(KnowledgeEvidence.id).where(KnowledgeEvidence.user_id==item.user_id,
                 KnowledgeEvidence.project_id==item.project_id).limit(1))
-            if not sources and not has_knowledge and not (workflow and (request.note_revision_ids or request.allowed_actions)):
+            if request.whole_repository and not gateway.sources and not request.note_revision_ids:
+                result = AssistantResult(protocol='assistant-report-v2',action='finish',report=ReportDraft(title='仓库材料不足',
+                    claims=[ReportClaim(text='固定快照中没有符合报告读取范围的已解析文件。',status='uncertain',reference_ids=[])],
+                    missing_information=['请核对快照中的跳过和解析失败记录。']))
+            elif not sources and not has_knowledge and not (workflow and (request.note_revision_ids or request.allowed_actions)):
                 result=AssistantResult(action='finish',report=ReportDraft(title='缺少项目材料',claims=[ReportClaim(
                     text='当前范围没有可读取的资料或已确认知识证据。',status='uncertain',reference_ids=[])],missing_information=['请选择已解析资料或审核项目知识。']))
             else:

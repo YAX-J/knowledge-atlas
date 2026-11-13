@@ -38,14 +38,19 @@ class WorkspaceTools(ProjectTools):
     contracts={**ProjectTools.contracts,**{n:dict(input_schema=m.model_json_schema(),effect='read_only' if c=='read_only' else 'proposal' if n.startswith('propose_') and n!='propose_knowledge' else 'authorized_write',
         capability=c,scope='server_bound_task',idempotent=True) for n,(m,c,_) in CONTRACTS.items()}}
 
-    def __init__(self,base,*,db,item,execution,settings,request):
+    def __init__(self,base,*,db,item,execution,settings,request,repository_context=None):
         self.__dict__.update(base.__dict__)
         self.db=db;self.item=item;self.execution=execution;self.settings=settings;self.request=request
+        self.repository_sources = {}
+        if repository_context:
+            self.snapshot_id, self.commit_sha, self.repository_sources = repository_context
+            self.snapshot_paths = self.repository_sources
+            self.definitions = [tool for tool in self.definitions if tool['function']['name'] != 'import_repository_snapshot']
         self.notes={r.id:r for r in [notes.revision(db,user_id=item.user_id,project_id=item.project_id,revision_id=i) for i in request.note_revision_ids]}
         self.refresh_sources()
 
     def refresh_sources(self):
-        ids={uuid.UUID(i) for i in self.item.request['scope']['source_ids']}
+        ids={uuid.UUID(i) for i in self.item.request['scope']['source_ids']} | self.repository_sources.keys()
         for op in ops.operations(self.db,self.item):
             if op.status=='succeeded' and op.result:
                 if op.kind=='snapshot_note_revision':ids.add(uuid.UUID(op.result['source_id']))
@@ -55,6 +60,9 @@ class WorkspaceTools(ProjectTools):
         self.allowed_sources=ids
         rows=list(self.db.scalars(select(SourceDocument).where(SourceDocument.id.in_(ids),
             SourceDocument.user_id==self.item.user_id,SourceDocument.project_id==self.item.project_id).order_by(SourceDocument.id)))
+        if self.repository_sources:
+            ranks = {identifier: rank for rank, identifier in enumerate(self.repository_sources)}
+            rows.sort(key=lambda source: ranks.get(source.id, len(ranks)))
         self.source_metadata=[dict(id=str(s.id),path=s.relative_path or s.original_name,type=s.source_type,status=s.status.value,
             sha256=s.content_sha256) for s in rows]
         # Reuse exact read contracts and limits after deterministic parsing/import.
@@ -63,14 +71,17 @@ class WorkspaceTools(ProjectTools):
             if row.status.value!='ready':continue
             chunks=list(self.db.scalars(select(SourceChunk).where(SourceChunk.source_id==row.id,
                 SourceChunk.user_id==self.item.user_id,SourceChunk.project_id==self.item.project_id).order_by(SourceChunk.position).limit(501)))
-            size+=len(row.content.encode());count+=len(chunks)
-            if size>200000 or count>500 or len(self.sources)>=20:self.sources_truncated=True;continue
+            source_size = len(row.content.encode())
+            if size+source_size>200000 or count+len(chunks)>500 or len(self.sources)>=20:self.sources_truncated=True;continue
+            size += source_size; count += len(chunks)
             frozen=ProjectSource(row.id,row.user_id,row.project_id,row.relative_path or row.original_name,row.source_type,
                 row.content,row.content_sha256,tuple((c.id,c.start_line,c.end_line,c.content) for c in chunks))
             self.sources[row.id]=frozen
             self.chunks.update({c[0]:(frozen,c) for c in frozen.chunks})
 
     def execute_with_id(self,name,arguments,call_id):
+        if name == 'import_repository_snapshot' and self.request.whole_repository:
+            return dict(error='REPOSITORY_ALREADY_PREPARED')
         if name in ARGUMENTS:return super().execute(name,arguments)
         if name not in CONTRACTS:return dict(error='TOOL_NOT_ALLOWED')
         model,capability,_=CONTRACTS[name]

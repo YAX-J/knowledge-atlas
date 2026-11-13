@@ -2,6 +2,14 @@
 
 [简体中文](PROJECT_ASSISTANT_M34.zh-CN.md)
 
+## Whole-repository assistant tasks
+
+In the Project Assistant, enter a goal and enable whole-repository sync. Choose a registered GitHub repository and an optional branch, tag, or commit. The assistant runner keeps working after the browser closes. It resolves the ref on the first import and commits each completed batch together with its pinned snapshot checkpoint. Reopening the page reads saved progress.
+
+Use `assistant-task-v3`, `whole_repository=true`, `repository_id`, and `import_repository_snapshot` in `allowed_actions`. Supply at most one of `repository_ref` and `repository_commit`. Batched import and parsing do not consume model or tool attempts. Explicit continuation resumes the last saved batch after failure. A blocked file tree is reported as a failure.
+
+`scope.repository_progress` includes the phase, snapshot, commit, and import and parsing counts. Reporting selects material by goal terms in paths and prioritizes README files, up to 20 sources, 200 KB, and 500 chunks. Citations point to exact excerpts from the pinned commit, with report coverage bounded by the selected material.
+
 Implemented on `feat/project-agent`, 2026-10-31. [ADR0078](adr/0078-immutable-note-revisions.md) defines notes; [ADR0079](adr/0079-governed-assistant-actions.md) defines capabilities and approval. M5 and live model quality remain separate.
 
 Use the existing native PostgreSQL, `backend/.venv`, `frontend/node_modules`, API, parsing worker and independent `python -m app.assistant_runner`. No new service or dependency is required. Source/business schema is `20261031_0023`; readiness rejects older databases. Existing v1 synchronous200 and v2 queued202 tasks retain their contracts and historical replay behavior.

@@ -1,5 +1,7 @@
 # Knowledge Atlas Backend
 
+Whole-repository assistant tasks run through `python -m app.assistant_runner`. See the [task and progress contract](../docs/PROJECT_ASSISTANT_M34.md#whole-repository-assistant-tasks).
+
 Optional Neo4j endpoints check connectivity, sync one project's formal graph snapshot, and read its bounded neighborhood through Cypher. Graph reads include the snapshot time and whole-project totals. See the [setup guide](../docs/DEVELOPMENT_SETUP.md#optional-neo4j-graph-snapshots) and [API contract](../docs/API_CONTRACT.md#neo4j-项目快照).
 
 M5 offline preparation (2026-10-31): a sealed independent20-task development packet,18-check acceptance matrix, zero-call preflight, reported-run/grade adapter and repeatable local engineering command are implemented. M5 overall remains pending the authorized live executor/fixture replay, real quality, hosted CI, demonstration and release. No real provider calls or business migration; schema stays0023 and historical evaluations/grants/ledgers stay unchanged. See [M5 status and runbook](../docs/PROJECT_ASSISTANT_M5.md).
