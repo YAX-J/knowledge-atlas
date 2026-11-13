@@ -28,7 +28,24 @@ M1 源码 head 现为 `20261031_0020`（增量 assistant_tasks），取代下方
 
 本地开发和真实服务验收默认使用用户已有的本机原生安装，Docker/Compose 是可选替代方案。隔离后端测试使用 SQLite，不需要数据库服务。
 
-当前依赖已移除 Neo4j，图谱存储使用 PostgreSQL，见 [ADR 0005](adr/0005-postgresql-only-storage.zh-CN.md)。已有本地环境文件中的 `NEO4J_*` 配置可以删除；配置加载器会忽略这些旧字段。
+## 可选的 Neo4j 图谱快照
+
+启动 Neo4j Desktop 实例并复制连接 URI。在后端本地 `.env` 填写以下配置，从 `backend/` 启动或重启 API。如果后端环境缺少 `neo4j` 驱动，在该环境中执行 `python -m pip install -e .`。
+
+```dotenv
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=
+NEO4J_DATABASE=neo4j
+```
+
+按实际实例填写 URI、用户名、密码和数据库名。本地 `.env` 不提交 Git。`DATABASE_URL` 继续使用现有的 PostgreSQL 连接。
+
+1. 调用 `GET /api/v1/health/neo4j`，应返回 `{"status":"up"}`。
+2. 调用 `POST /api/v1/projects/{project_id}/graph/neo4j/sync`，应返回写入快照的 `node_count`、`edge_count` 和 `valid_at`。
+3. 调用 `GET /api/v1/projects/{project_id}/graph/neo4j`，应返回该快照的节点、边和有效时间。用 `center_id` 和 `depth` 检查邻域遍历。
+
+可在 FastAPI 的 `/docs` 或 HTTP 客户端发出请求。正式知识变化后可再次显式同步。见 [API 契约](API_CONTRACT.md#neo4j-项目快照)和 [ADR 0081](adr/0081-neo4j-project-projection.zh-CN.md)。
 
 ## 克隆与检查
 

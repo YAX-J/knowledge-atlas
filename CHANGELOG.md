@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Add optional Neo4j connectivity, explicit per-project formal graph snapshot sync, and scoped Cypher neighborhood queries. [ADR 0081](docs/adr/0081-neo4j-project-projection.md).
+
 - M5 offline preparation: frozen independent20-task packet, zero-call scoped preflight, exact reported-run/grade binding, explicit ungraded/all-attempt denominators, transport-blocked repeatable acceptance and CI packet checks. No live execution or release certification. [Runbook](docs/PROJECT_ASSISTANT_M5.md).
 
 - M3/M4: immutable notes/autosave/history/citations, editable report drafts, explicit capability-scoped import/parse/extract operations and version-bound human approvals for note edits and formal confirmation/merge/replacement/retirement. Migration0023 followed verified31-table backup/recovery and preserved30 old business-table fingerprints. No live calls; M5 remains planned. [Implementation](docs/PROJECT_ASSISTANT_M34.md).

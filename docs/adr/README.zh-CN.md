@@ -174,3 +174,4 @@ ADR 改变相关假设时，同步更新架构、API、知识模型和环境配�
 - [0079 — Governed assistant actions](0079-governed-assistant-actions.zh-CN.md)
 
 - [0080 — M5 工程验收与独立开发质量准备](0080-project-agent-development-acceptance.zh-CN.md)
+- [0081 — 可选的 Neo4j 项目图谱快照](0081-neo4j-project-projection.zh-CN.md)

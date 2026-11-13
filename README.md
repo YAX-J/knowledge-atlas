@@ -14,6 +14,8 @@ Current 2026-10-31: M3–M4 implement immutable editable notes and capability-sc
 
 面向毕业设计的个人技术知识系统：把技术文档、代码和 GitHub 活动整理成可回溯原文的时序知识图谱，并提供带引用的检索与问答。前端 Vue 3，后端 FastAPI，业务数据保存在 PostgreSQL + pgvector。
 
+可选的 Neo4j 接入支持显式同步项目的正式知识快照，并通过独立 API 执行一跳或两跳图查询。见 [Neo4j 本机配置](docs/DEVELOPMENT_SETUP.zh-CN.md#可选的-neo4j-图谱快照)。
+
 当前能力、验收边界和后续工作以本页、[当前计划](PLANS.zh-CN.md)、[路线图](docs/ROADMAP.md)及[多 Agent 改造](docs/MULTI_AGENT.zh-CN.md)及[此前优化验收](docs/OPTIMIZATION_20261029.zh-CN.md)为准。此前逐轮检查点已移入[历史文档](docs/archive/pre-optimization-20261029/README.md)，旧实验数字保持不变。
 
 ## 当前可用能力

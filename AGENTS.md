@@ -69,7 +69,7 @@ Index: `.agents/skills/README.md`. Skills describe procedures; the rules in this
 
 - Every generated knowledge item and answer must be traceable to source evidence.
 - An LLM may propose candidates but must not write directly to authoritative business tables.
-- PostgreSQL is the only current database and the source of truth for business data and graph storage. Neo4j is deferred; reintroduce a graph database only when measured needs justify it and record the decision in an ADR.
+- PostgreSQL is the source of truth for business data and graph storage. The optional Neo4j integration exposes rebuildable, explicitly synchronized project snapshots under ADR 0081.
 - Use stable business UUIDs for entities, relationships, and evidence. Never expose database-internal IDs through the API.
 - `valid_from` and `valid_to` are properties, not graph relationship types.
 - Temporal replacement direction is `new knowledge -[:SUPERSEDES]-> old knowledge`.

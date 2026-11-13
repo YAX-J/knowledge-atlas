@@ -37,6 +37,16 @@ class GraphRead(BaseModel):
     truncated: bool
 
 
+class Neo4jGraphRead(GraphRead):
+    valid_at: datetime
+
+
+class Neo4jGraphSync(BaseModel):
+    valid_at: datetime
+    node_count: int
+    edge_count: int
+
+
 class FormalEvidenceRead(BaseModel):
     id: uuid.UUID
     source_id: uuid.UUID

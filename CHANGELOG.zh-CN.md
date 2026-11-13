@@ -8,6 +8,8 @@ Knowledge Atlas 的重要变化记录在此。
 
 ## 未发布（Unreleased）
 
+- 增加可选 Neo4j 连接、按项目显式同步正式图谱快照及带作用域的 Cypher 邻域查询。[ADR 0081](docs/adr/0081-neo4j-project-projection.zh-CN.md)。
+
 - M5 离线准备：冻结独立20项任务包、零调用预演、精确运行/评分绑定、未评分与全部尝试分母、阻断真实 HTTP 的统一验收及 CI 校验。没有真实执行或发布合格结论。[操作说明](docs/PROJECT_ASSISTANT_M5.zh-CN.md)。
 
 - M3/M4：不可变笔记、自动保存、历史与引用，可编辑报告草稿；显式授权的导入/解析/抽取，笔记修改与正式确认/合并/替代/退役均绑定版本并人工审批。迁移0023前31表备份恢复通过，30张旧业务表内容指纹一致。真实调用为零，M5仍为规划。[实现说明](docs/PROJECT_ASSISTANT_M34.zh-CN.md)。

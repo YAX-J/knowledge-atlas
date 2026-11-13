@@ -39,14 +39,15 @@ def list_projects(
     return projects, total
 
 
-def get_project(db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID) -> Project:
-    project = db.scalar(
-        select(Project).where(
-            Project.id == project_id,
-            Project.user_id == user_id,
-            Project.archived_at.is_(None),
-        )
+def get_project(
+    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, lock: bool = False,
+) -> Project:
+    query = select(Project).where(
+        Project.id == project_id,
+        Project.user_id == user_id,
+        Project.archived_at.is_(None),
     )
+    project = db.scalar(query.with_for_update() if lock else query)
     if project is None:
         raise AppError(
             status_code=404,

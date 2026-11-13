@@ -28,6 +28,8 @@ from app.services.source_links import github_file_urls, github_line_url
 
 
 MAX_EDGES = 500
+NEO4J_MAX_NODES = 5000
+NEO4J_MAX_EDGES = 20000
 
 
 def apply_retirement(record, event):
@@ -293,6 +295,21 @@ def get_graph(
     ).order_by(KnowledgeRelationship.created_at, KnowledgeRelationship.id).limit(MAX_EDGES + 1))) if ids else []
     truncated = truncated or len(edges) > MAX_EDGES
     return GraphRead(nodes=_reads(db, nodes, at=at), edges=_reads(db, edges[:MAX_EDGES], edges=True, at=at), truncated=truncated)
+
+
+def read_projection(
+    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, at: datetime,
+) -> GraphRead:
+    """Read the full visible graph under the project lock held by the caller."""
+    nodes = list(db.scalars(select(KnowledgeEntity).where(
+        *visible(KnowledgeEntity, user_id, project_id, at),
+    ).order_by(KnowledgeEntity.created_at, KnowledgeEntity.id).limit(NEO4J_MAX_NODES + 1)))
+    edges = list(db.scalars(_edge_query(user_id, project_id, at).order_by(
+        KnowledgeRelationship.created_at, KnowledgeRelationship.id,
+    ).limit(NEO4J_MAX_EDGES + 1)))
+    if len(nodes) > NEO4J_MAX_NODES or len(edges) > NEO4J_MAX_EDGES:
+        raise AppError(status_code=409, code="NEO4J_PROJECTION_TOO_LARGE", message="项目图谱超过 Neo4j 快照上限")
+    return GraphRead(nodes=_reads(db, nodes, at=at), edges=_reads(db, edges, edges=True, at=at), truncated=False)
 
 
 def _evidence_read(db: Session, record):

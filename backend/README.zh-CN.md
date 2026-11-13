@@ -1,5 +1,7 @@
 # Knowledge Atlas 后端
 
+可选的 Neo4j 接口用于检查连接、同步单个项目的正式图谱快照，以及通过 Cypher 读取有界邻域。见[本机配置](../docs/DEVELOPMENT_SETUP.zh-CN.md#可选的-neo4j-图谱快照)和 [API 契约](../docs/API_CONTRACT.md#neo4j-项目快照)。
+
 M5 离线准备（2026-10-31）：已实现冻结的独立20项开发任务、18项验收矩阵、零调用预演、任务/评分导入及统一工程验收命令。M5 整体仍待授权后的真实执行器/夹具重放、真实质量、托管 CI、演示和发布。真实调用为零，无业务迁移，库版本保持0023；历史评估/授权/账本不变。见 [M5 状态与操作说明](../docs/PROJECT_ASSISTANT_M5.zh-CN.md)。
 
 M2 已通过本地验证，业务库迁至源码 head20261031_0021。`python -m app.assistant_runner` 与解析 Worker 分开启动，--once 最多处理一项 async_v2 排队任务。界面使用异步202的 assistant-task-v2，v1 保留同步200。检查点/尝试/产物、取消及版本绑定显式继续见 [ADR0077](../docs/adr/0077-durable-assistant-execution.zh-CN.md)和[命令/结果](../docs/PROJECT_ASSISTANT_M2.zh-CN.md)。零真实调用，不声称真实质量，未启动 M3–M5。下方 M1/head 公告为各轮历史说明。

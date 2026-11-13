@@ -26,7 +26,26 @@ Current requirements:
 - Python 3.12 or later
 - Natively installed PostgreSQL with pgvector
 
-Local development and real-service acceptance use the user's existing native installations by default. Docker/Compose is an optional alternative. Isolated backend tests use SQLite and do not require database services. Neo4j has been removed from current requirements; graph storage uses PostgreSQL (see [ADR 0005](adr/0005-postgresql-only-storage.md)). Existing `NEO4J_*` entries can be removed from local environment files; they are ignored by the settings loader.
+Local development and real-service acceptance use the user's existing native installations by default. Docker/Compose is an optional alternative. Isolated backend tests use SQLite and do not require database services.
+
+## Optional Neo4j graph snapshots
+
+Start the Neo4j Desktop instance and copy its connection URI. Set these values in the backend's local `.env` file and start or restart the API from `backend/`. Install the updated package with `python -m pip install -e .` in the backend environment if the `neo4j` driver is missing.
+
+```dotenv
+NEO4J_URI=bolt://localhost:7687
+NEO4J_USERNAME=neo4j
+NEO4J_PASSWORD=
+NEO4J_DATABASE=neo4j
+```
+
+Use the actual URI, username, password, and database from your instance. Keep the local `.env` out of Git. Use the existing PostgreSQL connection for `DATABASE_URL`.
+
+1. `GET /api/v1/health/neo4j` should return `{"status":"up"}`.
+2. `POST /api/v1/projects/{project_id}/graph/neo4j/sync` should return `node_count`, `edge_count`, and `valid_at` for the written snapshot.
+3. `GET /api/v1/projects/{project_id}/graph/neo4j` should return that snapshot's nodes, edges, and effective time. Use `center_id` and `depth` to check traversal.
+
+Run these requests in FastAPI's `/docs` or with an HTTP client. Repeat the explicit sync after formal knowledge changes. See the [API contract](API_CONTRACT.md#neo4j-项目快照) and [ADR 0081](adr/0081-neo4j-project-projection.md).
 
 ## Clone and inspect
 

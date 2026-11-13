@@ -174,3 +174,4 @@ Update related architecture, API, knowledge-model, and setup documents when an A
 - [0079 — Governed assistant actions](0079-governed-assistant-actions.md)
 
 - [0080 — M5 engineering and independent development quality preparation](0080-project-agent-development-acceptance.md)
+- [0081 — Optional Neo4j project graph snapshots](0081-neo4j-project-projection.md)
