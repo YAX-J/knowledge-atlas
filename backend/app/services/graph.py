@@ -22,7 +22,7 @@ from app.models.graph import KnowledgeEntity, KnowledgeEvidence, KnowledgeRelati
 from app.models.workspace import EntityMerge, KnowledgePeriod
 from app.services import identities
 from app.schemas.graph import EntityDetail, FormalEvidenceRead, GraphRead, KnowledgeEdgeRead, KnowledgeNodeRead, RelationshipDetail
-from app.schemas.knowledge import EntityType, EvidenceDraft, RelationType
+from app.schemas.knowledge import EntityType, EvidenceDraft, FactValidity, RelationType
 from app.services.projects import get_project
 from app.services.source_links import github_file_urls, github_line_url
 
@@ -127,6 +127,10 @@ def promote_candidate(
     if candidate.candidate_type not in allowed or not candidate.name.strip() or not candidate.summary.strip():
         raise _promotion_error()
     evidence = _evidence_for_promotion(db, candidate)
+    try:
+        validity = FactValidity.model_validate(candidate.payload["validity"]) if candidate.payload.get("validity") else None
+    except ValidationError as exc:
+        raise _promotion_error() from exc
     endpoint_ids = {}
     if relation:
         try:
@@ -140,12 +144,25 @@ def promote_candidate(
                 endpoint.user_id, endpoint.project_id, endpoint.source_id, endpoint.task_id
             ) != (candidate.user_id, candidate.project_id, candidate.source_id, candidate.task_id):
                 raise _promotion_error()
-            endpoint_ids["source_id" if key == "source_candidate_id" else "target_id"] = promote_candidate(db, endpoint)
+            formal_endpoint_id = promote_candidate(db, endpoint)
+            if validity is not None:
+                # An explicit relation interval must fit the approved intervals of both endpoints.
+                formal_endpoint = db.get(KnowledgeEntity, formal_endpoint_id)
+                start = formal_endpoint.valid_from
+                end = formal_endpoint.valid_to
+                if (validity.valid_from < (start if start.tzinfo else start.replace(tzinfo=timezone.utc))
+                        or (end is not None and (validity.valid_to is None
+                            or validity.valid_to > (end if end.tzinfo else end.replace(tzinfo=timezone.utc))))):
+                    raise AppError(status_code=409, code="REVIEW_VALIDITY_OUTSIDE_ENDPOINTS",
+                                   message="关系的有效期须落在两端实体的有效期内，请核对并修正时间")
+            endpoint_ids["source_id" if key == "source_candidate_id" else "target_id"] = formal_endpoint_id
     formal_id = uuid.uuid5(candidate.id, "formal-relationship-v1" if relation else "formal-entity-v1")
     record = model(
         id=formal_id, candidate_id=candidate.id, user_id=candidate.user_id, project_id=candidate.project_id,
         type=candidate.candidate_type, name=candidate.name, summary=candidate.summary,
-        confidence=candidate.confidence, status="active", valid_from=utc_now(), valid_to=None, **endpoint_ids,
+        confidence=candidate.confidence, status="active",
+        valid_from=validity.valid_from if validity else utc_now(), valid_to=validity.valid_to if validity else None,
+        **endpoint_ids,
     )
     db.add(record)
     db.flush()

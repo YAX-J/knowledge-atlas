@@ -47,7 +47,7 @@ Project assistant M1 uses separate assistant-task-v1/assistant-report-v1, not Qu
 | 项 | 值 / 位置 |
 | --- | --- |
 | 抽取任务 ID | `uuid5(source_id, PROMPT_VERSION)` |
-| 提示词版本 | `deepseek.PROMPT_VERSION`，当前 `knowledge-candidates-v1` |
+| 提示词版本 | `deepseek.PROMPT_VERSION`，当前 `knowledge-candidates-v2` |
 | 任务类型 | `knowledge_candidates`（解析 Worker 不消费） |
 | 单次分块 | ≤100 块 |
 | 输入字符 | `EXTRACTION_MAX_INPUT_CHARS`，默认 60000 |
@@ -59,6 +59,8 @@ Project assistant M1 uses separate assistant-task-v1/assistant-report-v1, not Qu
 ## 修改流程
 
 ### 加字段或类型
+
+候选可摘录时间表述。起止表述必须逐字出现在候选证据中。笔记抽取任务将修订 UUID 纳入任务标识，并以同一修订的 UTC 创建时间换算相对日期。旧版本任务仍可读取及审核。
 
 1. 改 `backend/app/schemas/knowledge.py`，同步 `EntityType`/`RelationType`。
 2. 升 `PROMPT_VERSION`。**不升版本会复用旧成功任务，新提示词永远不生效。**

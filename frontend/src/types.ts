@@ -76,6 +76,9 @@ export interface KnowledgeCandidate {
   review_status: 'pending' | 'confirmed' | 'rejected'
   knowledge_id: string | null
   evidence: CandidateEvidence[]
+  temporal?: { start: string; end: string | null } | null
+  temporal_reference?: string | null
+  validity?: FactValidity | null
   source_candidate_id: string | null
   target_candidate_id: string | null
   endpoints?: { id: string; name: string; review_status: 'pending' | 'confirmed' | 'rejected' }[]
@@ -86,7 +89,12 @@ export interface KnowledgeCandidate {
 export interface ReviewDecision {
   id: string
   action: 'confirm' | 'reject'
-  changes?: { name?: string; summary?: string }
+  changes?: { name?: string; summary?: string; validity?: FactValidity | null }
+}
+
+export interface FactValidity {
+  valid_from: string
+  valid_to: string | null
 }
 
 export interface ReviewFilters {

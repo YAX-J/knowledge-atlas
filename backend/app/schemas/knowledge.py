@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from app.models.domain import ReviewStatus
 from app.schemas.tasks import TaskRead
@@ -31,11 +31,31 @@ class EvidenceDraft(StrictModel):
     quote: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
 
 
+TemporalExpression = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+
+
+class TemporalDraft(StrictModel):
+    start: TemporalExpression
+    end: TemporalExpression | None = None
+
+
+class FactValidity(StrictModel):
+    valid_from: AwareDatetime
+    valid_to: AwareDatetime | None = None
+
+    @model_validator(mode="after")
+    def ordered(self):
+        if self.valid_to is not None and self.valid_to <= self.valid_from:
+            raise ValueError("The validity end must be later than the start")
+        return self
+
+
 class CandidateDraft(StrictModel):
     local_id: LocalId
     summary: Summary
     confidence: float = Field(ge=0, le=1, strict=True)
     evidence: list[EvidenceDraft] = Field(min_length=1, max_length=5)
+    temporal: TemporalDraft | None = None
 
 
 class EntityDraft(CandidateDraft):
@@ -91,6 +111,9 @@ class ReviewRead(BaseModel):
     review_status: ReviewStatus
     knowledge_id: uuid.UUID | None = None
     evidence: list[EvidenceRead]
+    temporal: TemporalDraft | None = None
+    temporal_reference: AwareDatetime | None = None
+    validity: FactValidity | None = None
     source_candidate_id: uuid.UUID | None = None
     target_candidate_id: uuid.UUID | None = None
     endpoints: list[ReviewEndpointRead] = Field(default_factory=list)
@@ -108,6 +131,7 @@ class ReviewList(BaseModel):
 class ReviewChanges(StrictModel):
     name: Name | None = None
     summary: Summary | None = None
+    validity: FactValidity | None = None
 
 
 class ReviewResolve(StrictModel):
@@ -116,7 +140,7 @@ class ReviewResolve(StrictModel):
 
     @model_validator(mode="after")
     def reject_has_no_changes(self):
-        if self.action == "reject" and self.changes.model_dump(exclude_none=True):
+        if self.action == "reject" and (self.changes.model_dump(exclude_none=True) or "validity" in self.changes.model_fields_set):
             raise ValueError("Rejection cannot modify the candidate")
         return self
 

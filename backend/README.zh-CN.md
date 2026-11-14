@@ -158,6 +158,8 @@ Docker Compose 是可选替代方案：从仓库根目录运行 `docker compose 
 
 ## DeepSeek 候选提取与审核
 
+抽取协议 `knowledge-candidates-v2` 支持摘录候选证据里的日期。服务端以所选笔记修订的 UTC 时间为基准解读受支持的相对时间。审核人可保留、修正或清除建议有效期再确认。图谱沿用现有有效期字段，包含开始时刻，排除结束时刻。
+
 审核或语义索引前先执行 `alembic upgrade head`，当前预期版本为 `20261029_0019`。只在后端 `.env` 中配置：
 
 ```dotenv

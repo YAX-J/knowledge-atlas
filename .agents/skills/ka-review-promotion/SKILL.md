@@ -29,7 +29,7 @@ M4 operations bind task/user/project, normalized input hash, complete target/evi
 | `confirmed` | `reject` 或带不同修改 | HTTP 409 `REVIEW_ALREADY_RESOLVED` | 拒绝 |
 | `rejected` | `confirm` | HTTP 409 `REVIEW_ALREADY_RESOLVED` | 拒绝 |
 
-不支持改判、撤销、合并。`changes` 只允许 `name`、`summary`，拒绝时不能带修改。
+确认可修改 `name`、`summary` 和 `validity`。省略 `validity` 使用候选建议，传空值从确认时起生效，显式区间保存到审核前后快照。拒绝仅记录决定，已处理候选继续遵守重复请求规则。
 
 ## 审核流程（锁顺序不能变）
 
@@ -52,7 +52,7 @@ M4 operations bind task/user/project, normalized input hash, complete target/evi
 - 关系两端必须同任务、同来源、同用户/项目，且 `payload.kind == "entity"`；必要时递归提升已确认端点。
 - 正式 ID：实体 `uuid5(candidate_id, "formal-entity-v1")`；关系 `uuid5(candidate_id, "formal-relationship-v1")`；`candidate_id` 唯一约束兜底幂等。
 - 证据 ID：`uuid5(formal_id, f"{chunk_id}:{sha256(quote)}")`，同批重复引用去重。
-- `valid_from` 取提升时刻，`valid_to = NULL`；历史语义时间和自动 `SUPERSEDES` 状态迁移尚未实现。
+- 使用审核确认的半开有效区间。无确认区间时，`valid_from` 取提升时刻，`valid_to = NULL`。显式关系区间须落在两端正式实体的有效区间内。
 - 写入 `knowledge_entities` / `knowledge_relationships` / `knowledge_evidence`，使用 `(id, user_id, project_id)` 组合外键做作用域隔离。
 
 ## 图谱读取

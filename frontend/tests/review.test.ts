@@ -34,6 +34,28 @@ it('edits before confirmation and trims explicit changes', async () => {
     changes: { name: 'Revised', summary: 'Revised evidence summary.' } }]])
 })
 
+it('shows the quoted time and validates corrections before confirming', async () => {
+  const dated = { ...candidate, temporal: { start: '上周', end: null },
+    validity: { valid_from: '2026-07-06T00:00:00Z', valid_to: null } }
+  const wrapper = mount(CandidateReview, { props: { ...props, candidates: { ...props.candidates, items: [dated] } } })
+  expect(wrapper.text()).toContain('原文时间表述「上周」')
+  await wrapper.findAll('button').find(button => button.text() === '修改后确认')!.trigger('click')
+  const from = wrapper.get('#candidate-from-candidate-1')
+  const to = wrapper.get('#candidate-to-candidate-1')
+  await from.setValue('2026-07-07T12:00')
+  await to.setValue('2026-07-07T08:00')
+  await wrapper.get('.candidate-card form').trigger('submit')
+  expect(wrapper.emitted('resolve')).toBeUndefined()
+  await to.setValue('2026-07-08T08:00')
+  await wrapper.get('.candidate-card form').trigger('submit')
+  expect(wrapper.emitted('resolve')?.[0]).toEqual([expect.objectContaining({
+    changes: expect.objectContaining({ validity: {
+      valid_from: new Date('2026-07-07T12:00').toISOString(),
+      valid_to: new Date('2026-07-08T08:00').toISOString(),
+    } }),
+  })])
+})
+
 it('disables review and extraction controls during persistence', () => {
   const wrapper = mount(CandidateReview, { props: { ...props, resolving: candidate.id } })
   expect(wrapper.findAll('button').every(button => button.attributes('disabled') !== undefined)).toBe(true)

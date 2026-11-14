@@ -16,7 +16,7 @@ from app.models.domain import (
 )
 from app.schemas.knowledge import ExtractionRead, RelationDraft, ReviewBatchRead, ReviewBatchResolve, ReviewEndpointRead, ReviewRead, ReviewResolve
 from app.schemas.tasks import TaskRead
-from app.services import deepseek, graph
+from app.services import deepseek, fact_time, graph
 from app.services.ingestion import get_source
 from app.services.projects import get_project
 
@@ -24,8 +24,11 @@ from app.services.projects import get_project
 EXTRACTION_TASK_TYPE = "knowledge_candidates"
 
 
-def extraction_task_id(source_id: uuid.UUID, strategy='single_step') -> uuid.UUID:
-    return uuid.uuid5(source_id, deepseek.PROMPT_VERSION+(':tools-v1' if strategy=='tools' else ''))
+def extraction_task_id(source_id: uuid.UUID, strategy='single_step', note_revision_id: uuid.UUID | None = None) -> uuid.UUID:
+    version = deepseek.PROMPT_VERSION + (':tools-v1' if strategy == 'tools' else '')
+    if note_revision_id is not None:
+        version += f':note:{note_revision_id}'
+    return uuid.uuid5(source_id, version)
 
 
 def lease_is_active(expires_at: datetime | None, now: datetime) -> bool:
@@ -42,15 +45,18 @@ def _source(db: Session, user_id: uuid.UUID, source_id: uuid.UUID) -> SourceDocu
     return source
 
 
-def get_extraction(db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID, strategy=None) -> ExtractionRead:
+def get_extraction(db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID, task_id: uuid.UUID | None = None) -> ExtractionRead:
     source = _source(db, user_id, source_id)
-    task = db.scalar(select(ProcessingTask).where(
-        ProcessingTask.id.in_([extraction_task_id(source.id,mode) for mode in ([strategy] if strategy else ['single_step','tools'])]),
+    query = select(ProcessingTask).where(
         ProcessingTask.user_id == user_id,
         ProcessingTask.project_id == source.project_id,
         ProcessingTask.source_id == source.id,
         ProcessingTask.type == EXTRACTION_TASK_TYPE,
-    ).order_by(ProcessingTask.created_at.desc(),ProcessingTask.id).limit(1).execution_options(populate_existing=True))
+    )
+    if task_id is not None:
+        query = query.where(ProcessingTask.id == task_id)
+    task = db.scalar(query.order_by(ProcessingTask.created_at.desc(), ProcessingTask.id)
+                     .limit(1).execution_options(populate_existing=True))
     counts = {'pending': 0, 'confirmed': 0, 'rejected': 0}
     rows = db.execute(select(CandidateKnowledge.review_status, func.count()).where(
         CandidateKnowledge.task_id == task.id,
@@ -66,6 +72,7 @@ def get_extraction(db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID, str
 
 def run_extraction(
     db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID, settings: Settings, strategy='single_step', code_findings=None,
+    note_revision_id: uuid.UUID | None = None, temporal_reference: datetime | None = None,
 ) -> ExtractionRead:
     source = _source(db, user_id, source_id)
     # Serialize short claims only. The model call runs after this transaction commits.
@@ -75,12 +82,13 @@ def run_extraction(
     ).with_for_update())
     if strategy not in {'single_step','tools'}:
         raise AppError(status_code=422,code='EXTRACTION_STRATEGY_INVALID',message='不支持的抽取策略')
-    current = get_extraction(db, user_id=user_id, source_id=source.id,strategy=strategy)
+    task_id = extraction_task_id(source.id, strategy, note_revision_id)
+    current = get_extraction(db, user_id=user_id, source_id=source.id, task_id=task_id)
     if current.task and current.task.status == TaskStatus.SUCCEEDED:
         db.commit()
         return current
     now = utc_now()
-    task = db.get(ProcessingTask, extraction_task_id(source.id,strategy))
+    task = db.get(ProcessingTask, task_id)
     if task and task.status == TaskStatus.RUNNING and lease_is_active(task.lease_expires_at, now):
         raise AppError(status_code=409, code="EXTRACTION_RUNNING", message="知识提取正在执行，请稍后刷新候选状态")
     if source.status != SourceStatus.READY:
@@ -103,7 +111,7 @@ def run_extraction(
     execution_id = uuid.uuid4()
     if task is None:
         task = ProcessingTask(
-            id=extraction_task_id(source.id,strategy), user_id=user_id,
+            id=task_id, user_id=user_id,
             project_id=source.project_id, source_id=source.id, type=EXTRACTION_TASK_TYPE,
             attempt_count=0,
         )
@@ -151,6 +159,17 @@ def run_extraction(
                 "local_id": draft.local_id, "evidence": evidence,
                 "model": settings.deepseek_model, "prompt_version": deepseek.PROMPT_VERSION+(':tools-v1' if strategy=='tools' else ''),
             }
+            if draft.temporal is not None:
+                expressions = [draft.temporal.start, draft.temporal.end]
+                if any(expression and not any(expression in entry["quote"] for entry in evidence)
+                       for expression in expressions):
+                    raise deepseek.ExtractionError("EXTRACTION_TIME_EVIDENCE_INVALID", "候选的时间表述未出现在引用原文中")
+                validity = fact_time.proposed_validity(draft.temporal, temporal_reference)
+                payload.update(
+                    temporal=draft.temporal.model_dump(mode="json"),
+                    temporal_reference=temporal_reference.isoformat() if temporal_reference else None,
+                    validity=validity.model_dump(mode="json") if validity else None,
+                )
             if relation:
                 payload.update(source_candidate_id=str(ids[draft.source]), target_candidate_id=str(ids[draft.target]))
                 name = f"{entities[draft.source].name} → {entities[draft.target].name}"[:255]
@@ -187,7 +206,7 @@ def run_extraction(
     except Exception:
         db.rollback()
         raise
-    return get_extraction(db, user_id=user_id, source_id=source.id,strategy=strategy)
+    return get_extraction(db, user_id=user_id, source_id=source.id, task_id=task_id)
 
 
 def _review_query(user_id: uuid.UUID):
@@ -213,6 +232,9 @@ def read_review(candidate: CandidateKnowledge, knowledge_id: uuid.UUID | None = 
         task_id=candidate.task_id, kind=candidate.payload["kind"], type=candidate.candidate_type,
         name=candidate.name, summary=candidate.summary, confidence=candidate.confidence,
         review_status=candidate.review_status, evidence=candidate.payload["evidence"],
+        temporal=candidate.payload.get("temporal"),
+        temporal_reference=candidate.payload.get("temporal_reference"),
+        validity=candidate.payload.get("validity"),
         knowledge_id=knowledge_id,
         source_candidate_id=candidate.payload.get("source_candidate_id"),
         target_candidate_id=candidate.payload.get("target_candidate_id"),
@@ -293,9 +315,14 @@ def _resolve_review(
     ).with_for_update())
     db.refresh(candidate)
     target_status = ReviewStatus.CONFIRMED if decision.action == "confirm" else ReviewStatus.REJECTED
-    changes = decision.changes.model_dump(exclude_none=True)
+    changes = decision.changes.model_dump(exclude={"validity"}, exclude_none=True)
+    validity_changed = "validity" in decision.changes.model_fields_set
+    validity = decision.changes.validity
+    saved_validity = read_review(candidate).validity if validity_changed else None
     if candidate.review_status != ReviewStatus.PENDING:
-        if candidate.review_status != target_status or any(getattr(candidate, key) != value for key, value in changes.items()):
+        if (candidate.review_status != target_status
+                or any(getattr(candidate, key) != value for key, value in changes.items())
+                or (validity_changed and saved_validity != validity)):
             raise AppError(status_code=409, code="REVIEW_ALREADY_RESOLVED", message="候选已处理，请刷新状态；当前不支持撤回或改判")
     endpoint_candidates = []
     if target_status == ReviewStatus.CONFIRMED and candidate.payload["kind"] == "relation":
@@ -316,6 +343,9 @@ def _resolve_review(
         return read_review(candidate, formal_id)
     before = {"name": candidate.name, "summary": candidate.summary, "review_status": candidate.review_status.value}
     values = {**changes, "review_status": target_status, "updated_at": utc_now()}
+    prior_validity = candidate.payload.get("validity")
+    if validity_changed:
+        values["payload"] = {**candidate.payload, "validity": validity.model_dump(mode="json") if validity else None}
     updated = db.execute(update(CandidateKnowledge).where(
         CandidateKnowledge.id == review_id, CandidateKnowledge.user_id == user_id,
         CandidateKnowledge.project_id == candidate.project_id,
@@ -325,10 +355,14 @@ def _resolve_review(
         db.rollback()
         raise AppError(status_code=409, code="REVIEW_ALREADY_RESOLVED", message="候选已被其他操作处理，请刷新状态")
     db.refresh(candidate)
+    after = {"name": candidate.name, "summary": candidate.summary, "review_status": candidate.review_status.value}
+    if validity_changed or prior_validity is not None:
+        before["validity"] = prior_validity
+        after["validity"] = candidate.payload.get("validity")
     db.add(ReviewEvent(
         candidate_id=candidate.id, user_id=user_id, project_id=candidate.project_id,
         action=decision.action, before=before,
-        after={"name": candidate.name, "summary": candidate.summary, "review_status": candidate.review_status.value},
+        after=after,
     ))
     formal_id = graph.promote_candidate(db, candidate, endpoint_candidates) if target_status == ReviewStatus.CONFIRMED else None
     if commit:

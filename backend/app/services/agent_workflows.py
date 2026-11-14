@@ -136,11 +136,13 @@ def start_run(db,*,user_id,project_id,request,settings):
             raise AppError(status_code=422,code='CALL_AGENT_UNAVAILABLE',message='代码分析需要支持的代码资料')
     excluded = {'request_id'} if request.note_revision_id else {'request_id', 'note_revision_id'}
     data=request.model_dump(mode='json',exclude=excluded)
+    temporal_reference = None
     if request.note_revision_id:
         revision = notes.revision(db, user_id=user_id, project_id=project_id, revision_id=request.note_revision_id)
         if not revision.markdown.strip():
             raise AppError(status_code=422, code='NOTE_EMPTY', message='请先保存有正文的技术笔记')
         data['note_sha256'] = revision.content_sha256
+        temporal_reference = aware(revision.created_at).astimezone(timezone.utc)
     data['source_sha256']=source.content_sha256 if source else None
     digest=hashlib.sha256(json.dumps(data,sort_keys=True).encode()).hexdigest()
     db.execute(select(Project.id).where(Project.id==project_id,Project.user_id==user_id).with_for_update())
@@ -192,7 +194,8 @@ def start_run(db,*,user_id,project_id,request,settings):
         hint={'context':code_result['context'],'uncovered_calls':code_result['uncovered_call_count'],
             'calls':[dict(line=item['line'],expression=item['call_quote'],callee=item['callee_name'],resolution=item['resolution'])
                 for item in code_result['calls'][:50]]} if code_result else {}
-        result=knowledge.run_extraction(db,user_id=user_id,source_id=source_id,settings=settings,strategy='tools',code_findings=hint)
+        result=knowledge.run_extraction(db,user_id=user_id,source_id=source_id,settings=settings,strategy='tools',
+            code_findings=hint,note_revision_id=request.note_revision_id,temporal_reference=temporal_reference)
         if not result.task or result.task.status!='succeeded':
             error=result.task.error if result.task else {}
             raise AppError(status_code=502,code=(error or {}).get('code','EXTRACTION_FAILED'),message='候选整理未完成，请查看任务状态')

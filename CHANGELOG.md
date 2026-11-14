@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Extract quoted temporal expressions from technical notes, normalize supported calendar dates and let reviewers correct the validity interval before publishing to the historical graph.
+
 - Start the workbench from personal technical notes. Analyze a saved revision with the knowledge Agent, review the proposed entities and relationships, and trace confirmed graph evidence to that revision.
 
 - Add a durable whole-repository assistant task for commit-pinned import, parsing, progress, and a report with exact source citations.

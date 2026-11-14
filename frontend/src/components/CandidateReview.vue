@@ -24,6 +24,14 @@ const emit = defineEmits<{
 const editing = ref('')
 const name = ref('')
 const summary = ref('')
+const validFrom = ref('')
+const validTo = ref('')
+const invalidValidity = computed(() => {
+  if (!validFrom.value) return !!validTo.value
+  const start = new Date(validFrom.value).getTime()
+  const end = validTo.value ? new Date(validTo.value).getTime() : Infinity
+  return !(start < end)
+})
 const pages = computed(() => Math.max(1, Math.ceil((props.candidates?.total ?? 0) / (props.candidates?.page_size ?? 20))))
 const busy = computed(() => props.extracting || !!props.resolving)
 const selected = ref<string[]>([])
@@ -96,11 +104,25 @@ const labels: Record<string, string> = {
   CHOSEN_OVER: '方案比较', CONSTRAINED_BY: '受约束', IMPLEMENTED_BY: '实现',
   EVIDENCED_BY: '证据', EXTRACTED_FROM: '来源', LEARNED_FROM: '经验', SUPERSEDES: '替代',
 }
+function localInput(value?: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 23)
+}
+function formatValidity(item: KnowledgeCandidate) {
+  if (!item.validity) {
+    return item.temporal ? '时间尚未确定，请按原文填写，留空时从确认起生效。' : '从确认时起生效'
+  }
+  const { valid_from, valid_to } = item.validity
+  return `${new Date(valid_from).toLocaleString()} 至 ${valid_to ? new Date(valid_to).toLocaleString() : '未指定结束'}`
+}
 async function edit(item: KnowledgeCandidate) {
   if (busy.value || props.loading || dependencyProblem(item)) return
   editing.value = item.id
   name.value = item.name
   summary.value = item.summary
+  validFrom.value = localInput(item.validity?.valid_from)
+  validTo.value = localInput(item.validity?.valid_to)
   await nextTick()
   document.getElementById(`candidate-name-${item.id}`)?.focus()
 }
@@ -111,10 +133,17 @@ watch(() => props.resolving, async (current, previous) => {
   }
 })
 function confirm(id: string) {
-  if (busy.value || props.loading) return
+  if (busy.value || props.loading || invalidValidity.value) return
   const item = props.candidates?.items.find(value => value.id === id)
   if (!item || dependencyProblem(item)) return
-  emit('resolve', { id, action: 'confirm', changes: { name: name.value.trim(), summary: summary.value.trim() } })
+  const changes: NonNullable<ReviewDecision['changes']> = { name: name.value.trim(), summary: summary.value.trim() }
+  if (validFrom.value !== localInput(item.validity?.valid_from) || validTo.value !== localInput(item.validity?.valid_to)) {
+    changes.validity = validFrom.value ? {
+      valid_from: new Date(validFrom.value).toISOString(),
+      valid_to: validTo.value ? new Date(validTo.value).toISOString() : null,
+    } : null
+  }
+  emit('resolve', { id, action: 'confirm', changes })
 }
 </script>
 
@@ -156,7 +185,7 @@ function confirm(id: string) {
       </div>
       <form v-if="batchAction" class="batch-preview" @submit.prevent="submitBatch">
         <p>将{{ batchAction === 'confirm' ? '确认并写入图谱' : '拒绝' }}以下 {{ selected.length }} 条候选：</p>
-        <ul><li v-for="item in pending.filter(item => selected.includes(item.id))" :key="item.id">{{ item.kind === 'entity' ? '实体' : '关系' }}：{{ item.name }}</li></ul>
+        <ul><li v-for="item in pending.filter(item => selected.includes(item.id))" :key="item.id">{{ item.kind === 'entity' ? '实体' : '关系' }}：{{ item.name }}<template v-if="batchAction === 'confirm' && (item.validity || item.temporal)"> · {{ formatValidity(item) }}</template></li></ul>
         <div v-if="batchAction === 'confirm' && batchProblems.length" class="dependency-warning" role="status">
           <p>以下关系尚不能确认，请先审核依赖实体，或明确选中本页对应的待审核实体：</p>
           <ul><li v-for="item in batchProblems" :key="item.id">{{ item.name }}：{{ item.problem }}</li></ul>
@@ -175,6 +204,13 @@ function confirm(id: string) {
       </header>
       <h4 :id="`candidate-${item.id}`" tabindex="-1">{{ item.name }}</h4>
       <p class="candidate-summary">{{ item.summary }}</p>
+      <p v-if="item.validity || item.temporal" class="candidate-summary">
+        {{ item.review_status === 'pending' ? '建议有效期' : '审核时有效期' }} · {{ formatValidity(item) }}
+      </p>
+      <p v-if="item.temporal" class="muted-copy">
+        原文时间表述「{{ item.temporal.start }}」<template v-if="item.temporal.end">至「{{ item.temporal.end }}」</template>
+        <template v-if="item.temporal_reference"> · 修订时间 {{ new Date(item.temporal_reference).toLocaleString() }}</template>
+      </p>
       <section v-if="item.kind === 'relation'" class="relation-dependencies" :aria-label="`${item.name} 的关系端点`">
         <p v-for="endpoint in relationEndpoints(item)" :key="endpoint.role">{{ endpoint.role }}：{{ endpoint.candidate?.name ?? '不可访问的实体候选' }} · {{ endpoint.candidate ? labels[endpoint.candidate.review_status] : '状态不可用' }}</p>
         <p v-if="item.review_status === 'pending' && dependencyProblem(item)" class="dependency-warning">确认前需处理：{{ dependencyProblem(item) }}</p>
@@ -191,8 +227,14 @@ function confirm(id: string) {
           <input :id="`candidate-name-${item.id}`" v-model="name" required maxlength="255" :disabled="busy" />
           <label :for="`candidate-summary-${item.id}`">摘要</label>
           <textarea :id="`candidate-summary-${item.id}`" v-model="summary" required maxlength="2000" rows="3" :disabled="busy" />
+          <label :for="`candidate-from-${item.id}`">生效时间（本地时间）</label>
+          <input :id="`candidate-from-${item.id}`" v-model="validFrom" type="datetime-local" step="0.001" :disabled="busy" />
+          <label :for="`candidate-to-${item.id}`">失效时间（可留空）</label>
+          <input :id="`candidate-to-${item.id}`" v-model="validTo" type="datetime-local" step="0.001" :disabled="busy" />
+          <p class="muted-copy">两项留空时从确认起生效。关系有效期须落在两端实体的有效期内。</p>
+          <p v-if="invalidValidity" class="inline-error" role="alert">请填写生效时间，失效时间须晚于生效时间。</p>
           <div class="candidate-actions">
-            <button class="primary-button" type="submit" :disabled="busy || !name.trim() || !summary.trim()">保存并确认</button>
+            <button class="primary-button" type="submit" :disabled="busy || invalidValidity || !name.trim() || !summary.trim()">保存并确认</button>
             <button class="text-button" type="button" :disabled="busy" @click="editing = ''">取消修改</button>
           </div>
         </form>

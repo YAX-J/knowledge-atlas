@@ -706,6 +706,8 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 
 ## 人工确认
 
+抽取候选可返回 `temporal`（证据中的 `start` 和可选 `end` 表述）、`temporal_reference`（有笔记修订基准时）及 `validity`。时间表述必须出现在候选引用中，否则抽取任务以 `EXTRACTION_TIME_EVIDENCE_INVALID` 结束。确认时可传 `changes.validity`，格式为带时区的 `valid_from` 及可空的 `valid_to`。省略该字段使用候选建议，显式传 `null` 从确认时生效。结束时间须晚于起点。显式关系区间超出任一端点有效期时返回 409 `REVIEW_VALIDITY_OUTSIDE_ENDPOINTS`。
+
 ### 显式候选提取
 
 `POST /api/v1/sources/{source_id}/extract` 无请求体，同步返回：
@@ -751,7 +753,7 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 }
 ```
 
-`action` 当前只允许 `confirm` 和 `reject`。`changes` 可省略，只允许非空 `name`（最多 255 字符）和 `summary`（最多 2000 字符）；拒绝不能同时修改内容。返回更新后的候选对象，已确认时包含 `knowledge_id`；正式图谱对象通过图谱接口读取。确认时在同一事务内重新校验引用、写入正式实体/关系/证据，使用稳定 UUID 并按候选幂等。未处理候选只能处理一次，重复相同动作/相同修改返回原结果且不新增审核事件；改判或不同修改返回 HTTP 409 `REVIEW_ALREADY_RESOLVED`。关系确认前，两端同批实体必须已确认，否则 HTTP 409 `REVIEW_ENDPOINTS_UNCONFIRMED`。不可访问候选返回 HTTP 404。审核状态、`review_events` 前后记录和正式图谱写入同一事务提交。
+`action` 接受 `confirm` 和 `reject`。确认时可修改非空 `name`（最多 255 字符）、`summary`（最多 2000 字符）和有效期。拒绝仅记录决定。返回更新后的候选对象，已确认时包含 `knowledge_id`。审核状态、审核前后快照、正式实体或关系和证据在同一事务提交。重复相同动作及修改返回已有结果。改判或不同修改返回 409 `REVIEW_ALREADY_RESOLVED`，端点未确认返回 409 `REVIEW_ENDPOINTS_UNCONFIRMED`，不可访问的候选返回 404。
 
 已确认但尚未生成正式记录的旧候选，可再次提交相同确认进行补写；该重放不重复模型调用，也不新增审核事件。候选 resolve 不支持 merge 或修改类型/证据/端点。已确认知识的身份整理、撤回/启用及独立替代撤销走 knowledge-operations，保留原确认审计；持久化问答走 conversations。
 
