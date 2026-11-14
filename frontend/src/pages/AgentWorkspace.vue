@@ -65,7 +65,8 @@ onScopeDispose(()=>clearInterval(timer))
         <article v-if="selected"><h3>{{status[selected.status]}}</h3><p>模型请求 {{selected.usage.model??0}} · 工具执行 {{selected.usage.tool??0}} · 嵌入请求 {{selected.usage.embedding??0}}</p>
           <section v-if="selected.scope&&(selected.scope.note_revision_id||selected.scope.retrieval_mode||selected.scope.include_code_analysis)" class="agent-scope" aria-label="所选任务范围">
             <button v-if="selected.scope.note_revision_id" @click="openNote(selected.scope.note_revision_id)">查看分析使用的笔记修订</button>
-            <p v-if="selected.scope.retrieval_mode">检索：{{retrievalLabels[selected.scope.retrieval_mode]}} · {{
+            <p v-if="selected.result?.answer?.time_scope?.source==='comparison'">对比范围 · 已审核的关系替代记录</p>
+            <p v-else-if="selected.scope.retrieval_mode">检索：{{retrievalLabels[selected.scope.retrieval_mode]}} · {{
               selected.result?.answer?.time_scope?.source==='clarification'?'等待选择查询时点':
                 selected.scope.valid_at?new Date(selected.scope.valid_at).toLocaleString()+`（${timeZone}）`:'当前有效知识'
             }}</p>

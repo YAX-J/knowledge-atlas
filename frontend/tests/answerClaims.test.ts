@@ -76,6 +76,32 @@ it('shows the inferred instant and lets a reader override it before asking again
   expect(wrapper.emitted('ask')).toEqual([[answer.question, 'rrf', new Date(chosen).toISOString()]])
 })
 
+it('shows the two comparison times and opens the cited note for each side', async () => {
+  const answer = answerFixture()
+  const [before, after] = [answer.evidence[0]!, answer.evidence[1]!]
+  const subject = { id: 'orders', name: '订单服务' }
+  const earlier = '2026-04-01T00:00:00Z'
+  const later = '2026-06-01T00:00:00Z'
+  before.relationship = { id: 'old', type: 'USES', source: subject, target: { id: 'mysql', name: 'MySQL' },
+    valid_at: earlier, valid_from: '2026-03-01T00:00:00Z', valid_to: later }
+  after.relationship = { id: 'new', type: 'USES', source: subject, target: { id: 'pg', name: 'PostgreSQL' },
+    valid_at: later, valid_from: later, valid_to: null }
+  answer.time_scope = { source: 'comparison', valid_at: null }
+  answer.comparison = { source: 'dates', before_at: earlier, after_at: later, cutover_at: later,
+    before_citation_id: before.id, after_citation_id: after.id }
+  answer.claims = [
+    { text: '切换前的主数据库是 MySQL。', status: 'supported', citation_ids: [before.id] },
+    { text: '切换后的主数据库是 PostgreSQL。', status: 'supported', citation_ids: [after.id] },
+  ]
+  const wrapper = mount(AnswerClaims, { props: { answer } })
+  expect(wrapper.get('[aria-label="实际对比时点"]').findAll('time').map(time => time.attributes('datetime')))
+    .toEqual([earlier, later, later])
+  expect(wrapper.findAll('summary').map(summary => summary.text()))
+    .toEqual(['[1] 查看切换前关系', '[2] 查看切换后关系'])
+  for (const button of wrapper.findAll('.claim-citations button')) await button.trigger('click')
+  expect(wrapper.emitted('openEvidence')).toEqual([[before], [after]])
+})
+
 it('offers a manual date when the question needs clarification', async () => {
   const answer = { ...answerFixture(), supported: false, time_scope: { source: 'clarification' as const, valid_at: null }, claims: [] }
   const wrapper = mount(QuestionWorkspace, { attachTo: document.body, props: {

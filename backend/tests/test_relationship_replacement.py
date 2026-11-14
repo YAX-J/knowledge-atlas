@@ -144,3 +144,49 @@ def test_reviewed_primary_database_replacement_preserves_history(client, db_sess
     assert corrected["time_scope"] == dict(source="manual", valid_at="2026-06-01T00:00:00Z", expression=None)
     assert corrected["evidence"][0]["relationship"]["id"] == new_edge["id"]
     assert [item["quote"] for item in calls] == [old_quote, new_quote, old_quote, new_quote, new_quote]
+
+    dated_question = "对比 2026 年 4 月 1 日和 2026-06-01，订单服务的主数据库有什么变化？"
+    compared = client.post(f"{base}/questions", json={"question": dated_question}).json()
+    assert compared["supported"] and compared["time_scope"]["source"] == "comparison"
+    before, after = compared["evidence"]
+    assert [item["quote"] for item in [before, after]] == [old_quote, new_quote]
+    assert [item["source_id"] for item in [before, after]] == [old_source, new_source]
+    for item, historical in [(before, cited), (after, saved)]:
+        for field in ("id", "chunk_id", "start_line", "end_line", "relationship"):
+            assert item[field] == historical[field]
+    assert compared["comparison"] == dict(source="dates", before_at="2026-04-01T00:00:00Z",
+        after_at="2026-06-01T00:00:00Z", cutover_at="2026-06-01T00:00:00Z",
+        before_citation_id=before["id"], after_citation_id=after["id"])
+    assert [claim["citation_ids"] for claim in compared["claims"]] == [[before["id"]], [after["id"]]]
+
+    cutover = {"question": "切换前后有什么变化？", "request_id": str(uuid.uuid4())}
+    persisted = client.post(turns, json=cutover).json()["answer"]
+    assert persisted["comparison"] == {**compared["comparison"], "source": "replacement",
+                                      "before_at": "2026-05-31T23:59:59.999999Z"}
+    assert persisted["evidence"][0]["relationship"]["valid_at"] == persisted["comparison"]["before_at"]
+    assert client.post(turns, json=cutover).json()["answer"] == persisted
+    assert any(item["answer"] == persisted for item in client.get(turns).json()["items"])
+
+    run = client.post(f"{base}/agent-runs", json=dict(
+        request_id=str(uuid.uuid4()), kind="question_pipeline", question=dated_question,
+    )).json()
+    assert run["status"] == "succeeded", run
+    assert run["result"]["answer"]["comparison"] == compared["comparison"]
+    assert all(run["usage"][kind] == 0 for kind in ("model", "tool", "embedding"))
+
+    empty = create_project(client)
+    invalid_questions = [
+        (base, "对比 4 月 1 日和 6 月 1 日，订单服务的主数据库有什么变化？"),
+        (base, "对比 2026-04-01 和 2026-05-01，订单服务的主数据库有什么变化？"),
+        (base, "对比 2026-02-01 和 2026-06-01，订单服务的主数据库有什么变化？"),
+        (base, "库存服务的主数据库切换前后有什么变化？"),
+        (base, "订单服务的缓存切换前后有什么变化？"),
+        (f"/api/v1/projects/{empty}", cutover["question"]),
+    ]
+    for path, question in invalid_questions:
+        response = client.post(f"{path}/questions", json={"question": question})
+        assert response.status_code == 200, response.text
+        insufficient = response.json()
+        assert not insufficient["supported"] and insufficient["evidence"] == []
+        assert insufficient["comparison"] is None and insufficient["missing_information"]
+    assert len(calls) == 5

@@ -217,6 +217,8 @@ A supplied `valid_at` takes precedence. Otherwise, the service recognizes a sing
 
 A cited relationship includes its endpoints, validity interval and the exact graph instant used for retrieval. The evidence retains the original chunk and line anchors. Conversation turns and agent runs retain the relationship snapshot in their saved answer.
 
+For an audited primary database replacement, ask for a comparison naming the subject and two complete dates, or ask about the before and after of a uniquely identified switch. Omit `valid_at` for a comparison. The answer contains both graph instants, the reviewed cutover, and both exact note citations. The comparison reads PostgreSQL evidence directly and requires no model or embedding call.
+
 `POST /api/v1/projects/{project_id}/questions` accepts a 1–200 character question and optional timezone-aware `valid_at`. It synchronously runs bounded hybrid retrieval, gives DeepSeek only the selected formal evidence, validates strict JSON and citation membership, and returns only cited evidence with entity and retrieval summaries. With no evidence it returns a deterministic unsupported answer without calling the answer model. Responses are not persisted; history, streaming, and multi-turn orchestration are deferred. See [ADR 0011](../docs/adr/0011-synchronous-evidence-grounded-questions.md).
 
 ## Test

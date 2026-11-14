@@ -1,4 +1,4 @@
-"""Resolve a single supported calendar date for a graph query."""
+"""Resolve supported calendar dates for graph questions."""
 import re
 from datetime import date, datetime, time, timedelta, timezone
 
@@ -23,12 +23,47 @@ PRECISION = re.compile(
     r'^\s*(?:T[0-9]|[0-9]{1,2}\s*[:：时点]|凌晨|上午|中午|下午|晚上|[至到~～—–-]\s*[0-9])',
     re.IGNORECASE,
 )
+COMPARISON = re.compile(r'对比|比较|相比|什么变化|有何变化|有哪些变化|有什么不同|有什么区别|\bcompare\b', re.I)
+CUTOVER = re.compile(r'(?:切换|迁移)前后|\bbefore and after (?:the )?(?:switch|migration)\b', re.I)
+GENERIC_CUTOVER = re.compile(
+    r'(?:项目的?)?(?:主数据库|数据库|主库)?(?:切换|迁移)前后(?:有(?:什么|何|哪些)变化|有什么不同|有什么区别|分别用什么)?[？?。 ]*',
+)
+
+
+def _calendar_day(match: re.Match) -> date:
+    kind = 'iso' if match['iso_year'] else 'cn'
+    return date(*(int(match[f'{kind}_{part}']) for part in ('year', 'month', 'day')))
+
+
+def comparison_dates(question: str) -> tuple[datetime, datetime] | None:
+    matches = list(DATE_OR_DAY.finditer(question))
+    if len(matches) != 2 or any(match['relative'] for match in matches):
+        return None
+    # Allow a connector such as "到" between dates, but no appended time precision.
+    remainders = [question[:matches[0].start()], question[matches[0].end():matches[1].start()],
+                  question[matches[1].end():]]
+    if any(PRECISION.match(part) for part in remainders[1:]):
+        return None
+    if AMBIGUOUS.search(CUTOVER.sub('', ' '.join(remainders))):
+        return None
+    try:
+        first, second = (datetime.combine(_calendar_day(match), time.min, timezone.utc) for match in matches)
+    except ValueError:
+        return None
+    return (min(first, second), max(first, second)) if first != second else None
+
+
+def uses_reviewed_cutover(question: str) -> bool:
+    return bool(CUTOVER.search(question) and not DATE_OR_DAY.search(question)
+                and not AMBIGUOUS.search(CUTOVER.sub('', question)))
 
 
 def resolve_question_time(question: str, explicit: datetime | None, reference: datetime) -> QuestionTimeScope:
     if explicit is not None:
         return QuestionTimeScope(source='manual', valid_at=explicit.astimezone(timezone.utc))
     matches = list(DATE_OR_DAY.finditer(question))
+    if CUTOVER.search(question) or (COMPARISON.search(question) and (len(matches) >= 2 or AMBIGUOUS.search(question))):
+        return QuestionTimeScope(source='comparison', valid_at=None)
     if not matches and not AMBIGUOUS.search(question):
         return QuestionTimeScope(source='current', valid_at=reference)
     if len(matches) == 1:
@@ -42,8 +77,7 @@ def resolve_question_time(question: str, explicit: datetime | None, reference: d
                         return QuestionTimeScope(source='question', valid_at=reference, expression=match[0])
                     day = reference.astimezone(CALENDAR_ZONE).date() - timedelta(days=1)
                 else:
-                    kind = 'iso' if values['iso_year'] else 'cn'
-                    day = date(*(int(match[f'{kind}_{part}']) for part in ('year', 'month', 'day')))
+                    day = _calendar_day(match)
                 return QuestionTimeScope(source='question', valid_at=datetime.combine(day, time.min, timezone.utc),
                                          expression=match[0])
             except (ValueError, OverflowError):

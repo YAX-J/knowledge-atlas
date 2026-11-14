@@ -132,9 +132,18 @@ class RetrievalSummary(BaseModel):
 
 
 class QuestionTimeScope(BaseModel):
-    source: Literal['manual', 'question', 'current', 'clarification']
+    source: Literal['manual', 'question', 'current', 'clarification', 'comparison']
     valid_at: AwareDatetime | None
     expression: str | None = None
+
+
+class QuestionComparisonRead(BaseModel):
+    source: Literal['dates', 'replacement']
+    before_at: AwareDatetime
+    after_at: AwareDatetime
+    cutover_at: AwareDatetime
+    before_citation_id: uuid.UUID
+    after_citation_id: uuid.UUID
 
 
 class QuestionRead(BaseModel):
@@ -150,3 +159,4 @@ class QuestionRead(BaseModel):
     answer_protocol: Literal['evidence-claims-v2', 'evidence-claims-v3'] | None = None
     claims: list[AnswerClaim] | None = None
     time_scope: QuestionTimeScope | None = None
+    comparison: QuestionComparisonRead | None = None

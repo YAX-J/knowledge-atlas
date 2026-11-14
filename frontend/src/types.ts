@@ -363,9 +363,17 @@ export interface QuestionAnswer {
   answer: string
   confidence: number
   time_scope?: {
-    source: 'manual' | 'question' | 'current' | 'clarification'
+    source: 'manual' | 'question' | 'current' | 'clarification' | 'comparison'
     valid_at: string | null
     expression?: string | null
+  } | null
+  comparison?: {
+    source: 'dates' | 'replacement'
+    before_at: string
+    after_at: string
+    cutover_at: string
+    before_citation_id: string
+    after_citation_id: string
   } | null
   answer_protocol?: 'evidence-claims-v2' | 'evidence-claims-v3' | null
   claims?: { text: string; status: 'supported' | 'insufficient'; citation_ids: string[] }[] | null

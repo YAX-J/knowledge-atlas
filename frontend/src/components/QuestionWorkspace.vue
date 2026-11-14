@@ -95,7 +95,8 @@ function adjustTime() {
         <label for="question-valid-at">知识时点（留空时从问题识别）</label>
         <input id="question-valid-at" ref="timeInput" v-model="historyTime" type="datetime-local" step="1" :disabled="loading || !project" />
         <p v-if="validAt === null" class="retrieval-hint" role="alert">请输入有效的查询日期和时间。</p>
-        <p class="retrieval-hint">BM25 可直接检索已确认知识；向量相关方式需要配置嵌入服务并更新索引。生成回答仍需调用模型。</p>
+        <p class="retrieval-hint">对比两天请留空知识时点，例如「对比 2026-04-01 和 2026-06-01，订单服务的主数据库有什么变化？」</p>
+        <p class="retrieval-hint">普通问答使用模型生成回答。BM25 可直接检索已确认知识，向量相关方式需要配置嵌入服务并更新索引。</p>
         <div class="ask-footer">
           <small>{{ remaining }} 字可用 · {{ persistent ? '回答和证据将保存在当前项目会话' : '当前回答不会保存为历史记录' }}</small>
           <div>
@@ -118,7 +119,7 @@ function adjustTime() {
       <span aria-hidden="true">◇</span><h2>先选择一个项目</h2><p>问答范围严格限定在当前项目的已确认知识中。</p>
     </section>
     <section v-else-if="loading" class="question-state" role="status" aria-live="polite">
-      <span class="pulse" aria-hidden="true">◎</span><h2>正在检索项目证据</h2><p>随后会让模型只依据去重后的原文证据作答。停止等待不会撤销服务端已发出的模型请求。</p>
+      <span class="pulse" aria-hidden="true">◎</span><h2>正在检索项目证据</h2><p>正在核对已确认知识及原文。停止等待不会撤销服务端已发出的模型请求。</p>
     </section>
     <section v-else-if="error" class="question-state error-state" role="alert">
       <span aria-hidden="true">!</span><h2>这次没有得到可确认的结果</h2><p>{{ error }}</p><button type="button" @click="emit('retry')">重试本次问题</button>
@@ -127,23 +128,23 @@ function adjustTime() {
       <article class="answer-card">
         <div class="answer-status" :class="{ unsupported: !result.supported }">
           <span>{{ result.supported ? '附有引用' : result.claims?.some(claim => claim.status === 'supported') ? '部分结论有引用' : '证据不足' }}</span>
-          <strong>{{ Math.round(result.confidence * 100) }}% 置信度</strong>
+          <strong v-if="result.time_scope?.source !== 'comparison'">{{ Math.round(result.confidence * 100) }}% 置信度</strong>
         </div>
         <p class="asked">{{ result.question }}</p>
-        <h2>{{ result.time_scope?.source === 'clarification' ? '请选择查询时点' : result.supported ? '回答' : result.claims?.some(claim => claim.status === 'supported') ? '回答与待确认事项' : '暂不能确认' }}</h2>
+        <h2>{{ result.time_scope?.source === 'comparison' ? '切换前后对比' : result.time_scope?.source === 'clarification' ? '请选择查询时点' : result.supported ? '回答' : result.claims?.some(claim => claim.status === 'supported') ? '回答与待确认事项' : '暂不能确认' }}</h2>
         <AnswerClaims :answer="result" @open-evidence="emit('openEvidence', $event)" />
-        <button v-if="result.time_scope" type="button" @click="adjustTime">{{ result.time_scope.source === 'clarification' ? '手动选择时点' : '修改查询时点' }}</button>
+        <button v-if="result.time_scope && result.time_scope.source !== 'comparison'" type="button" @click="adjustTime">{{ result.time_scope.source === 'clarification' ? '手动选择时点' : '修改查询时点' }}</button>
         <template v-if="result.missing_information.length">
           <h3>仍需补充</h3>
           <ul><li v-for="item in result.missing_information" :key="item">{{ item }}</li></ul>
         </template>
-        <dl class="retrieval-stats">
+        <dl v-if="result.time_scope?.source !== 'comparison'" class="retrieval-stats">
           <div><dt>词法命中</dt><dd>{{ (result.retrieval.bm25_hits ?? 0) + result.retrieval.keyword_hits }}</dd></div>
           <div><dt>语义命中</dt><dd>{{ result.retrieval.vector_hits }}</dd></div>
           <div><dt>图关系命中</dt><dd>{{ result.retrieval.graph_hits }}</dd></div>
           <div><dt>语义索引覆盖</dt><dd>{{ coverage }}</dd></div>
         </dl>
-        <p class="retrieval-hint">本次选取 {{ result.retrieval.unique_evidence_count ?? result.evidence.length }} 段去重原文，去除 {{ result.retrieval.duplicate_evidence_count ?? 0 }} 次重复引用。<span v-if="result.retrieval.truncated">本次使用有界检索结果，未覆盖项目全部知识。</span></p>
+        <p v-if="result.time_scope?.source !== 'comparison'" class="retrieval-hint">本次选取 {{ result.retrieval.unique_evidence_count ?? result.evidence.length }} 段去重原文，去除 {{ result.retrieval.duplicate_evidence_count ?? 0 }} 次重复引用。<span v-if="result.retrieval.truncated">本次使用有界检索结果，未覆盖项目全部知识。</span></p>
       </article>
 
       <aside class="evidence-panel" aria-label="回答引用的原文证据">

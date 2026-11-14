@@ -10,6 +10,7 @@ from app.models.domain import utc_now
 from app.schemas.questions import AnswerClaim, ClaimAnswerDraft, ClaimAnswerDraftV2, EvidenceEntityRead, QuestionEvidenceRead, QuestionRead, QuestionTimeScope, RetrievalSummary
 from app.llm.prompts import ANSWER_PROMPT_VERSION
 from app.services import deepseek
+from app.services.question_comparison import compare_replacement
 from app.services.question_relationships import passage, relationship_passages, scoped_evidence
 from app.services.projects import get_project
 from app.services.question_time import resolve_question_time
@@ -40,6 +41,27 @@ def answer_question(
     time_scope: QuestionTimeScope | None = None,
 ) -> QuestionRead:
     scope = time_scope or resolve_question_time(question, valid_at, utc_now())
+    if scope.source == 'comparison':
+        get_project(db, user_id=user_id, project_id=project_id)
+        comparison, evidence, guidance, truncated = compare_replacement(db, user_id, project_id, question)
+        retrieval = RetrievalSummary(keyword_hits=0, vector_hits=0, graph_hits=len(evidence),
+            indexed_count=0, eligible_count=0, mode=retrieval_mode, unique_evidence_count=len(evidence),
+            truncated=truncated)
+        if comparison is None:
+            return _insufficient(question, scope, retrieval, '暂不能确认这次切换前后的变化。', guidance)
+        before, after = (item.relationship for item in evidence)
+        claims = [
+            AnswerClaim(text=f'切换前的主数据库是 {before.target.name}。',
+                status='supported', citation_ids=[comparison.before_citation_id]),
+            AnswerClaim(text=f'切换后的主数据库是 {after.target.name}。',
+                status='supported', citation_ids=[comparison.after_citation_id]),
+        ]
+        return QuestionRead(
+            id=uuid.uuid4(), question=question, supported=True, answer='\n\n'.join(claim.text for claim in claims), confidence=1,
+            entity_ids=list(dict.fromkeys(ref.id for edge in (before, after) for ref in (edge.source, edge.target))),
+            evidence=evidence, retrieval=retrieval, missing_information=[], claims=claims,
+            answer_protocol=ANSWER_PROMPT_VERSION, time_scope=scope, comparison=comparison,
+        )
     if scope.valid_at is None:
         get_project(db, user_id=user_id, project_id=project_id)
         return _insufficient(

@@ -4,7 +4,7 @@ import type { EvidenceLocator, QuestionAnswer } from '../types'
 
 const props = defineProps<{ answer: QuestionAnswer }>()
 const emit = defineEmits<{ openEvidence: [locator: EvidenceLocator] }>()
-const timeLabels = { manual: '手动选择', question: '从问题识别', current: '当前', clarification: '待补充' }
+const timeLabels = { manual: '手动选择', question: '从问题识别', current: '当前', clarification: '待补充', comparison: '切换前后' }
 const claims = computed(() => {
   const citations = new Map(props.answer.evidence.map((item, index) => [item.id, { item, position: index + 1 }]))
   return props.answer.claims?.map(claim => ({
@@ -14,7 +14,12 @@ const claims = computed(() => {
 </script>
 
 <template>
-  <p v-if="answer.time_scope?.valid_at" class="answer-time" aria-label="实际查询时点">
+  <dl v-if="answer.comparison" class="comparison-times" aria-label="实际对比时点">
+    <div><dt>对比前</dt><dd><time :datetime="answer.comparison.before_at">{{ new Date(answer.comparison.before_at).toLocaleString('zh-CN') }}</time></dd></div>
+    <div><dt>对比后</dt><dd><time :datetime="answer.comparison.after_at">{{ new Date(answer.comparison.after_at).toLocaleString('zh-CN') }}</time></dd></div>
+    <div><dt>审核确认的切换时间</dt><dd><time :datetime="answer.comparison.cutover_at">{{ new Date(answer.comparison.cutover_at).toLocaleString('zh-CN') }}</time></dd></div>
+  </dl>
+  <p v-else-if="answer.time_scope?.valid_at" class="answer-time" aria-label="实际查询时点">
     查询时点 · {{ timeLabels[answer.time_scope.source] }}
     <span v-if="answer.time_scope.expression">「{{ answer.time_scope.expression }}」</span>
     <time :datetime="answer.time_scope.valid_at">{{ new Date(answer.time_scope.valid_at).toLocaleString('zh-CN') }}</time>
@@ -29,7 +34,7 @@ const claims = computed(() => {
           <template v-for="{ id, item, position } in claim.citations" :key="id">
             <template v-if="item">
                   <details v-if="item.relationship" class="citation-relationship">
-                    <summary>[{{ position }}] 查看支撑关系</summary>
+                    <summary>[{{ position }}] {{ id === answer.comparison?.before_citation_id ? '查看切换前关系' : id === answer.comparison?.after_citation_id ? '查看切换后关系' : '查看支撑关系' }}</summary>
                     <p><strong>{{ item.relationship.source.name }} → {{ item.relationship.target.name }}</strong> · {{ item.relationship.type }}</p>
                     <dl>
                       <div><dt>查询时点</dt><dd><time :datetime="item.relationship.valid_at">{{ new Date(item.relationship.valid_at).toLocaleString('zh-CN') }}</time></dd></div>
@@ -58,6 +63,9 @@ const claims = computed(() => {
 .claim-notice { color: #536b70; font-size: 12px; line-height: 1.8; }
 .answer-time { color: #375960; font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
 .answer-time time { margin-left: 6px; }
+.comparison-times { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 13px; color: #375960; }
+.comparison-times div { min-width: 0; overflow-wrap: anywhere; }
+.comparison-times dd { margin: 4px 0 0; }
 ol { padding-left: 24px; margin: 18px 0; }
 .answer-claim { padding: 14px 0; border-bottom: 1px solid var(--line); }
 .answer-claim p, .answer-text { white-space: pre-wrap; font-size: 14px; line-height: 1.9; }

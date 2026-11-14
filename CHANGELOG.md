@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Compare a reviewed primary database switch using two dates or a uniquely identified cutover, with a saved graph instant and exact note citation for each side.
+
 - Resolve a query instant from a question's full date, today or yesterday, and show the chosen time with a manual override and clarification for ambiguous requests.
 
 - Let users select a graph instant for a question and follow a cited claim through the saved relationship and its validity interval to the original source.

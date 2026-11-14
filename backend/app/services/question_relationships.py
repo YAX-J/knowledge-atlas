@@ -39,8 +39,12 @@ def scoped_evidence(db, *, user_id, project_id, at, hits):
     ).order_by(edge.confidence.desc(), edge.id).limit(MAX_RELATIONSHIP_EDGES + 1)))
     truncated = len(edges) > MAX_RELATIONSHIP_EDGES
     edges = edges[:MAX_RELATIONSHIP_EDGES]
+    return edge_evidence(db, edges, user_id, project_id, at, entity_ids), truncated
+
+
+def edge_evidence(db, edges, user_id, project_id, at, entity_ids=()):
     if not edges:
-        return [], truncated
+        return []
 
     reads = graph._reads(db, edges, edges=True, at=at)
     endpoint_ids = {identifier for item in reads for identifier in (item.source_id, item.target_id)}
@@ -59,10 +63,10 @@ def scoped_evidence(db, *, user_id, project_id, at, hits):
             id=item.id, type=item.type, source=source_ref, target=target_ref,
             valid_at=at, valid_from=item.valid_from, valid_to=item.valid_to,
         )
-        related = list({ref.id: ref for ref in [source_ref, target_ref] if ref.id in rank}.values())
-        related.sort(key=lambda ref: rank[ref.id])
+        related = list({ref.id: ref for ref in [source_ref, target_ref] if not rank or ref.id in rank}.values())
+        related.sort(key=lambda ref: rank.get(ref.id, len(rank)))
         results.extend(QuestionEvidenceRead(
             **quote.model_dump(), entity_id=related[0].id, entity_name=related[0].name,
             related_entities=related, relationship=relationship,
         ) for quote in evidence[item.id])
-    return results, truncated
+    return results
