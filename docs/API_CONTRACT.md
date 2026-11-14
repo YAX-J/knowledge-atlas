@@ -706,6 +706,8 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 
 ## 人工确认
 
+待确认主库候选在可以替代时返回 `replacement`，包含旧关系、旧原文证据、生效时间及 `approval`。若只能发现重叠记录则返回 `replacement_issue`（`same_value`、`needs_start` 或 `ambiguous`）。单独确认时将 `replacement.approval` 原样作为请求的顶层 `replacement`，并保留候选预览中的名称和有效期。确认返回 `supersedes_relationship_id`。普通或批量确认这类候选返回 409 `REVIEW_REPLACEMENT_REQUIRED`；预览过期返回 409 `REVIEW_REPLACEMENT_STALE`；同值或不能唯一匹配的冲突返回 409 `REVIEW_PRIMARY_DATABASE_CONFLICT`。
+
 抽取候选可返回 `temporal`（证据中的 `start` 和可选 `end` 表述）、`temporal_reference`（有笔记修订基准时）及 `validity`。时间表述必须出现在候选引用中，否则抽取任务以 `EXTRACTION_TIME_EVIDENCE_INVALID` 结束。确认时可传 `changes.validity`，格式为带时区的 `valid_from` 及可空的 `valid_to`。省略该字段使用候选建议，显式传 `null` 从确认时生效。结束时间须晚于起点。显式关系区间超出任一端点有效期时返回 409 `REVIEW_VALIDITY_OUTSIDE_ENDPOINTS`。
 
 ### 显式候选提取

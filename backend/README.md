@@ -158,6 +158,8 @@ Docker Compose is an optional alternative: from the repository root, `docker com
 
 ## DeepSeek candidate extraction and review
 
+Protocol `knowledge-candidates-v3` adds primary database replacement proposals. Review approval pins both source excerpts and updates the old and new relationship intervals in a single transaction. See [ADR 0082](../docs/adr/0082-reviewed-primary-database-replacement.md).
+
 Extraction protocol `knowledge-candidates-v2` allows date phrases quoted in a candidate's evidence. The server resolves supported relative expressions against the selected note revision in UTC. Reviewers can keep, change or clear the proposed validity interval before confirming. The existing graph columns store the reviewed interval, with an inclusive start and an exclusive end.
 
 Apply `alembic upgrade head` (expected `20261029_0019`) before review or semantic-index operations. Configure only the backend `.env`:

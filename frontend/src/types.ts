@@ -79,6 +79,9 @@ export interface KnowledgeCandidate {
   temporal?: { start: string; end: string | null } | null
   temporal_reference?: string | null
   validity?: FactValidity | null
+  replacement?: RelationshipReplacement | null
+  replacement_issue?: string | null
+  supersedes_relationship_id?: string | null
   source_candidate_id: string | null
   target_candidate_id: string | null
   endpoints?: { id: string; name: string; review_status: 'pending' | 'confirmed' | 'rejected' }[]
@@ -90,8 +93,20 @@ export interface ReviewDecision {
   id: string
   action: 'confirm' | 'reject'
   changes?: { name?: string; summary?: string; validity?: FactValidity | null }
+  replacement?: RelationshipReplacementApproval
 }
 
+export interface RelationshipReplacementApproval {
+  old_relationship_id: string
+  token: string
+}
+
+export interface RelationshipReplacement {
+  approval: RelationshipReplacementApproval
+  old_relationship: FormalKnowledgeEdge
+  evidence: FormalEvidence[]
+  effective_at: string
+}
 export interface FactValidity {
   valid_from: string
   valid_to: string | null

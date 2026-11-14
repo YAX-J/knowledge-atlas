@@ -112,6 +112,7 @@ def _evidence_for_promotion(db: Session, candidate: CandidateKnowledge):
 
 def promote_candidate(
     db: Session, candidate: CandidateKnowledge, endpoints: list[CandidateKnowledge] | None = None,
+    *, canonical_source_id: uuid.UUID | None = None,
 ) -> uuid.UUID:
     """Called under the review project's lock; caller owns commit/rollback."""
     relation = candidate.payload.get("kind") == "relation"
@@ -144,7 +145,8 @@ def promote_candidate(
                 endpoint.user_id, endpoint.project_id, endpoint.source_id, endpoint.task_id
             ) != (candidate.user_id, candidate.project_id, candidate.source_id, candidate.task_id):
                 raise _promotion_error()
-            formal_endpoint_id = promote_candidate(db, endpoint)
+            formal_endpoint_id = (canonical_source_id if key == "source_candidate_id" and canonical_source_id
+                                  else promote_candidate(db, endpoint))
             if validity is not None:
                 # An explicit relation interval must fit the approved intervals of both endpoints.
                 formal_endpoint = db.get(KnowledgeEntity, formal_endpoint_id)
@@ -180,6 +182,20 @@ def promote_candidate(
         ))
     db.flush()
     return formal_id
+
+
+def apply_relationship_replacement(db: Session, old_id: uuid.UUID, new_id: uuid.UUID, effective_at: datetime):
+    """Close the approved predecessor under the review project lock and return audit snapshots."""
+    old = db.get(KnowledgeRelationship, old_id)
+    new = db.get(KnowledgeRelationship, new_id)
+    before = KnowledgeEdgeRead.model_validate(old).model_dump(mode="json")
+    old.valid_to = effective_at
+    old.status = "superseded"
+    return before, {
+        "kind": "SUPERSEDES",
+        "old": KnowledgeEdgeRead.model_validate(old).model_dump(mode="json"),
+        "new": KnowledgeEdgeRead.model_validate(new).model_dump(mode="json"),
+    }
 
 
 def apply_lifecycle(db, record, request, now, *, current):

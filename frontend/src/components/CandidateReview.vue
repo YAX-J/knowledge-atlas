@@ -22,6 +22,7 @@ const emit = defineEmits<{
   filter: [filters: ReviewFilters]
 }>()
 const editing = ref('')
+const reviewingReplacement = ref('')
 const name = ref('')
 const summary = ref('')
 const validFrom = ref('')
@@ -38,6 +39,20 @@ const selected = ref<string[]>([])
 const batchAction = ref<'confirm' | 'reject' | ''>('')
 const pending = computed(() => props.candidates?.items.filter(item => item.review_status === 'pending') ?? [])
 const batchDisabled = computed(() => busy.value || props.loading || !!editing.value)
+const replacementIssueLabels: Record<string, string> = {
+  same_value: '该服务已有相同主数据库，请核对是否为重复记录。',
+  needs_start: '已有主数据库记录。替代需要从新笔记中确定生效时间。',
+  ambiguous: '存在多条或时间重叠的主数据库记录，请先在图谱中核对。',
+}
+function confirmationProblem(item: KnowledgeCandidate) {
+  return item.replacement ? '请单独核对并确认替代' : item.replacement_issue
+    ? replacementIssueLabels[item.replacement_issue] ?? '请先核对冲突' : ''
+}
+async function showReplacement(item: KnowledgeCandidate) {
+  reviewingReplacement.value = item.replacement?.approval.token ?? ''
+  await nextTick()
+  document.getElementById(`replacement-${item.id}`)?.focus()
+}
 function relationEndpoints(item: KnowledgeCandidate) {
   return [{ role: '起点', id: item.source_candidate_id }, { role: '终点', id: item.target_candidate_id }]
     .map(endpoint => ({ ...endpoint, candidate: item.endpoints?.find(value => value.id === endpoint.id) }))
@@ -52,7 +67,7 @@ function dependencyProblem(item: KnowledgeCandidate, withSelection = false) {
   return blocked.map(endpoint => `${endpoint.candidate?.name ?? endpoint.role}（${endpoint.candidate?.review_status === 'rejected' ? '已拒绝，无法确认关系' : endpoint.candidate ? '待确认' : '状态不可用，请刷新候选'}）`).join('、')
 }
 const batchProblems = computed(() => pending.value.filter(item => selected.value.includes(item.id))
-  .map(item => ({ id: item.id, name: item.name, problem: dependencyProblem(item, true) })).filter(item => item.problem))
+  .map(item => ({ id: item.id, name: item.name, problem: confirmationProblem(item) || dependencyProblem(item, true) })).filter(item => item.problem))
 const filterStatus = ref<ReviewFilters['status']>('')
 const filterKind = ref<ReviewFilters['kind']>('')
 const filterQuery = ref('')
@@ -117,7 +132,7 @@ function formatValidity(item: KnowledgeCandidate) {
   return `${new Date(valid_from).toLocaleString()} 至 ${valid_to ? new Date(valid_to).toLocaleString() : '未指定结束'}`
 }
 async function edit(item: KnowledgeCandidate) {
-  if (busy.value || props.loading || dependencyProblem(item)) return
+  if (busy.value || props.loading || dependencyProblem(item) || confirmationProblem(item)) return
   editing.value = item.id
   name.value = item.name
   summary.value = item.summary
@@ -128,6 +143,7 @@ async function edit(item: KnowledgeCandidate) {
 }
 watch(() => props.resolving, async (current, previous) => {
   if (!current && previous && props.candidates?.items.some(item => item.id === previous && item.review_status !== 'pending')) {
+    reviewingReplacement.value = ''
     await nextTick()
     document.getElementById(`candidate-${previous}`)?.focus({ preventScroll: true })
   }
@@ -135,7 +151,7 @@ watch(() => props.resolving, async (current, previous) => {
 function confirm(id: string) {
   if (busy.value || props.loading || invalidValidity.value) return
   const item = props.candidates?.items.find(value => value.id === id)
-  if (!item || dependencyProblem(item)) return
+  if (!item || dependencyProblem(item) || confirmationProblem(item)) return
   const changes: NonNullable<ReviewDecision['changes']> = { name: name.value.trim(), summary: summary.value.trim() }
   if (validFrom.value !== localInput(item.validity?.valid_from) || validTo.value !== localInput(item.validity?.valid_to)) {
     changes.validity = validFrom.value ? {
@@ -187,7 +203,7 @@ function confirm(id: string) {
         <p>将{{ batchAction === 'confirm' ? '确认并写入图谱' : '拒绝' }}以下 {{ selected.length }} 条候选：</p>
         <ul><li v-for="item in pending.filter(item => selected.includes(item.id))" :key="item.id">{{ item.kind === 'entity' ? '实体' : '关系' }}：{{ item.name }}<template v-if="batchAction === 'confirm' && (item.validity || item.temporal)"> · {{ formatValidity(item) }}</template></li></ul>
         <div v-if="batchAction === 'confirm' && batchProblems.length" class="dependency-warning" role="status">
-          <p>以下关系尚不能确认，请先审核依赖实体，或明确选中本页对应的待审核实体：</p>
+          <p>请先处理以下关系的依赖或替代审核：</p>
           <ul><li v-for="item in batchProblems" :key="item.id">{{ item.name }}：{{ item.problem }}</li></ul>
         </div>
         <p>任意一项无法处理时整批不生效。处理后暂不支持撤销。</p>
@@ -217,10 +233,37 @@ function confirm(id: string) {
         <button class="text-button" type="button" :disabled="batchDisabled" @click="emit('filter', { status: '', kind: 'entity', query: '' })">查看本资料实体候选</button>
       </section>
       <small class="muted-copy">模型置信度 {{ Math.round(item.confidence * 100) }}% · 请以原文证据为准</small>
-      <blockquote v-for="(evidence, index) in item.evidence" :key="index">
+      <blockquote v-for="(evidence, index) in item.replacement ? [] : item.evidence" :key="index">
         <cite>原文第 {{ evidence.start_line }}–{{ evidence.end_line }} 行 · {{ evidence.heading_path.join(' / ') || '文档开头' }}</cite>
         <p>{{ evidence.quote }}</p>
       </blockquote>
+      <p v-if="item.replacement_issue" class="dependency-warning">{{ confirmationProblem(item) }}</p>
+      <section v-if="item.replacement" class="relationship-replacement" aria-label="主数据库变更">
+        <h5 :id="`replacement-${item.id}`" tabindex="-1">主数据库替代建议</h5>
+        <p>从 {{ new Date(item.replacement.effective_at).toLocaleString() }} 起切换关系。</p>
+        <div class="replacement-evidence">
+          <div>
+            <strong>旧关系 · {{ item.replacement.old_relationship.name }}</strong>
+            <p>生效于 {{ new Date(item.replacement.old_relationship.valid_from).toLocaleString() }}<template v-if="item.replacement.old_relationship.valid_to"> · 原截止 {{ new Date(item.replacement.old_relationship.valid_to).toLocaleString() }}</template></p>
+            <blockquote v-for="entry in item.replacement.evidence" :key="entry.id"><cite>{{ entry.title }} · 第 {{ entry.start_line }}–{{ entry.end_line }} 行</cite><p>{{ entry.quote }}</p></blockquote>
+          </div>
+          <div>
+            <strong>新关系 · {{ item.name }}</strong>
+            <p>{{ formatValidity(item) }}</p>
+            <blockquote v-for="entry in item.evidence" :key="entry.chunk_id + entry.quote"><cite>第 {{ entry.start_line }}–{{ entry.end_line }} 行</cite><p>{{ entry.quote }}</p></blockquote>
+          </div>
+        </div>
+        <div class="candidate-actions">
+          <template v-if="reviewingReplacement === item.replacement.approval.token">
+            <button class="primary-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)"
+              @click="emit('resolve', { id: item.id, action: 'confirm', replacement: item.replacement.approval })">确认替代并入图</button>
+            <button type="button" class="text-button" :disabled="busy" @click="reviewingReplacement = ''">取消替代审核</button>
+          </template>
+          <button v-else class="primary-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)"
+            @click="showReplacement(item)">审核此次替代</button>
+        </div>
+      </section>
+      <p v-if="item.supersedes_relationship_id" class="muted-copy">已确认替代旧主数据库关系，历史证据已保留。</p>
       <template v-if="item.review_status === 'pending'">
         <form v-if="editing === item.id" class="project-form" @submit.prevent="confirm(item.id)">
           <label :for="`candidate-name-${item.id}`">名称</label>
@@ -239,8 +282,8 @@ function confirm(id: string) {
           </div>
         </form>
         <div v-else class="candidate-actions">
-          <button class="primary-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)" @click="emit('resolve', { id: item.id, action: 'confirm' })">{{ resolving === item.id ? '正在处理…' : '确认' }}</button>
-          <button class="text-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)" @click="edit(item)">修改后确认</button>
+          <button v-if="!confirmationProblem(item)" class="primary-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)" @click="emit('resolve', { id: item.id, action: 'confirm' })">{{ resolving === item.id ? '正在处理…' : '确认' }}</button>
+          <button v-if="!confirmationProblem(item)" class="text-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)" @click="edit(item)">修改后确认</button>
           <button class="text-button" type="button" :disabled="busy || loading" @click="emit('resolve', { id: item.id, action: 'reject' })">拒绝</button>
         </div>
       </template>
@@ -258,6 +301,10 @@ function confirm(id: string) {
 </template>
 
 <style scoped>
+.relationship-replacement { margin: 14px 0; padding: 14px; border: 1px solid var(--line); font-size: 13px; overflow-wrap: anywhere; }
+.relationship-replacement h5 { font-size: 15px; margin: 0 0 8px; }
+.replacement-evidence { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 16px; }
+.replacement-evidence > div { min-width: 0; }
 .relation-dependencies { margin: 12px 0; padding: 12px; border-left: 2px solid var(--teal); background: #edf5f3; overflow-wrap: anywhere; font-size: 12px; line-height: 1.8; }
 .dependency-warning { color: #7b3850; font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
 .review-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin: 16px 0; }

@@ -617,7 +617,7 @@ export function listCandidates(projectId: string, sourceId: string, page = 1, fi
 
 export function resolveCandidate(decision: ReviewDecision): Promise<KnowledgeCandidate> {
   return apiRequest<KnowledgeCandidate>(`/reviews/${decision.id}/resolve`, {
-    method: 'POST', body: JSON.stringify({ action: decision.action, changes: decision.changes ?? {} }),
+    method: 'POST', body: JSON.stringify({ action: decision.action, changes: decision.changes ?? {}, replacement: decision.replacement }),
   })
 }
 

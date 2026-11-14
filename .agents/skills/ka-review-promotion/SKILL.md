@@ -33,6 +33,8 @@ M4 operations bind task/user/project, normalized input hash, complete target/evi
 
 ## 审核流程（锁顺序不能变）
 
+主数据库候选的替代必须单独提交与预览绑定的回执。项目锁内重校验后，同事务结束旧关系、创建新关系并保存双边有效期和替代方向。见 ADR 0082。
+
 1. 用 `_review_query` 取候选：当前用户、有效项目、来源/任务同项目、任务类型 `knowledge_candidates` 且成功。
 2. 对项目行加锁 `SELECT ... FOR UPDATE`，让关系确认与端点确认串行化。
 3. `db.refresh(candidate)` 读取锁后的最新状态。

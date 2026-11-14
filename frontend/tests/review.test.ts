@@ -56,6 +56,34 @@ it('shows the quoted time and validates corrections before confirming', async ()
   })])
 })
 
+it('shows both sources and requires a separate decision before replacing an existing database', async () => {
+  const approval = { old_relationship_id: 'old-relationship', token: 'a'.repeat(64) }
+  const item: KnowledgeCandidate = { ...candidate, kind: 'relation', name: '订单服务 → PostgreSQL',
+    source_candidate_id: 'order', target_candidate_id: 'postgres',
+    endpoints: [endpoint('order', 'confirmed'), endpoint('postgres', 'confirmed')],
+    evidence: [{ chunk_id: 'new-chunk', quote: '6 月起主数据库使用 PostgreSQL', start_line: 3, end_line: 3, heading_path: [] }],
+    replacement: { approval, effective_at: '2026-06-01T00:00:00Z',
+      old_relationship: { id: 'old-relationship', project_id: project.id, candidate_id: 'old-candidate',
+        source_id: 'order', target_id: 'mysql', type: 'USES', name: '订单服务 → MySQL', summary: 'Old database',
+        status: 'active', confidence: .9, valid_from: '2026-03-01T00:00:00Z', valid_to: null, evidence_count: 1 },
+      evidence: [{ id: 'old-evidence', source_id: 'old-source', chunk_id: 'old-chunk', title: '旧笔记',
+        uri: 'project://old-source', git_url: null, quote: '主数据库使用 MySQL', start_line: 3, end_line: 3, heading_path: [] }],
+    },
+  }
+  const wrapper = mount(CandidateReview, { props: { ...props, candidates: { ...props.candidates, items: [item] } } })
+  const preview = wrapper.get('[aria-label="主数据库变更"]')
+  expect(preview.text()).toContain('主数据库使用 MySQL')
+  expect(preview.text()).toContain('6 月起主数据库使用 PostgreSQL')
+  await wrapper.get('input[type=checkbox]').setValue(true)
+  await wrapper.findAll('button').find(button => button.text() === '审核所选')!.trigger('click')
+  await wrapper.get('.batch-preview').trigger('submit')
+  expect(wrapper.emitted('resolveBatch')).toBeUndefined()
+  await preview.findAll('button').find(button => button.text() === '审核此次替代')!.trigger('click')
+  expect(wrapper.emitted('resolve')).toBeUndefined()
+  await preview.findAll('button').find(button => button.text() === '确认替代并入图')!.trigger('click')
+  expect(wrapper.emitted('resolve')).toEqual([[{ id: item.id, action: 'confirm', replacement: approval }]])
+})
+
 it('disables review and extraction controls during persistence', () => {
   const wrapper = mount(CandidateReview, { props: { ...props, resolving: candidate.id } })
   expect(wrapper.findAll('button').every(button => button.attributes('disabled') !== undefined)).toBe(true)

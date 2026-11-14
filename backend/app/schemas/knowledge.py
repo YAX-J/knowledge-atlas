@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from app.models.domain import ReviewStatus
+from app.schemas.graph import FormalEvidenceRead, KnowledgeEdgeRead
 from app.schemas.tasks import TaskRead
 
 
@@ -67,6 +68,7 @@ class RelationDraft(CandidateDraft):
     type: RelationType
     source: LocalId
     target: LocalId
+    fact_slot: Literal["primary_database"] | None = None
 
 
 class ExtractionDraft(StrictModel):
@@ -98,6 +100,18 @@ class ReviewEndpointRead(BaseModel):
     review_status: ReviewStatus
 
 
+class RelationshipReplacementApproval(StrictModel):
+    old_relationship_id: uuid.UUID
+    token: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+
+
+class RelationshipReplacementRead(BaseModel):
+    approval: RelationshipReplacementApproval
+    old_relationship: KnowledgeEdgeRead
+    evidence: list[FormalEvidenceRead]
+    effective_at: AwareDatetime
+
+
 class ReviewRead(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
@@ -114,6 +128,9 @@ class ReviewRead(BaseModel):
     temporal: TemporalDraft | None = None
     temporal_reference: AwareDatetime | None = None
     validity: FactValidity | None = None
+    replacement: RelationshipReplacementRead | None = None
+    replacement_issue: str | None = None
+    supersedes_relationship_id: uuid.UUID | None = None
     source_candidate_id: uuid.UUID | None = None
     target_candidate_id: uuid.UUID | None = None
     endpoints: list[ReviewEndpointRead] = Field(default_factory=list)
@@ -137,10 +154,12 @@ class ReviewChanges(StrictModel):
 class ReviewResolve(StrictModel):
     action: Literal["confirm", "reject"]
     changes: ReviewChanges = Field(default_factory=ReviewChanges)
+    replacement: RelationshipReplacementApproval | None = None
 
     @model_validator(mode="after")
     def reject_has_no_changes(self):
-        if self.action == "reject" and (self.changes.model_dump(exclude_none=True) or "validity" in self.changes.model_fields_set):
+        if self.action == "reject" and (self.replacement or self.changes.model_dump(exclude_none=True)
+                                         or "validity" in self.changes.model_fields_set):
             raise ValueError("Rejection cannot modify the candidate")
         return self
 

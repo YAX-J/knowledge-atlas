@@ -14,9 +14,9 @@ from app.models.domain import (
     CandidateKnowledge, ProcessingTask, Project, ReviewEvent, ReviewStatus,
     SourceChunk, SourceDocument, SourceStatus, TaskStatus, utc_now,
 )
-from app.schemas.knowledge import ExtractionRead, RelationDraft, ReviewBatchRead, ReviewBatchResolve, ReviewEndpointRead, ReviewRead, ReviewResolve
+from app.schemas.knowledge import ExtractionRead, FactValidity, RelationDraft, ReviewBatchRead, ReviewBatchResolve, ReviewEndpointRead, ReviewRead, ReviewResolve
 from app.schemas.tasks import TaskRead
-from app.services import deepseek, fact_time, graph
+from app.services import deepseek, fact_time, graph, relationship_replacement
 from app.services.ingestion import get_source
 from app.services.projects import get_project
 
@@ -171,6 +171,11 @@ def run_extraction(
                     validity=validity.model_dump(mode="json") if validity else None,
                 )
             if relation:
+                if draft.fact_slot and relationship_replacement.supported(
+                    draft.type, entities[draft.target].type, entities[draft.source].name, entities[draft.target].name,
+                    [entry["quote"] for entry in evidence],
+                ):
+                    payload["fact_slot"] = draft.fact_slot
                 payload.update(source_candidate_id=str(ids[draft.source]), target_candidate_id=str(ids[draft.target]))
                 name = f"{entities[draft.source].name} → {entities[draft.target].name}"[:255]
             else:
@@ -235,6 +240,7 @@ def read_review(candidate: CandidateKnowledge, knowledge_id: uuid.UUID | None = 
         temporal=candidate.payload.get("temporal"),
         temporal_reference=candidate.payload.get("temporal_reference"),
         validity=candidate.payload.get("validity"),
+        supersedes_relationship_id=(candidate.payload.get("replacement") or {}).get("old_relationship_id"),
         knowledge_id=knowledge_id,
         source_candidate_id=candidate.payload.get("source_candidate_id"),
         target_candidate_id=candidate.payload.get("target_candidate_id"),
@@ -290,6 +296,13 @@ def list_reviews(
             endpoint = endpoints.get((item.task_id, item.source_id, endpoint_id))
             if endpoint is not None:
                 item.endpoints.append(ReviewEndpointRead(id=endpoint.id, name=endpoint.name, review_status=endpoint.review_status))
+    for candidate, item in zip(items, result):
+        if item.review_status == ReviewStatus.PENDING and candidate.payload.get("fact_slot"):
+            scoped_endpoints = {str(identifier): endpoints.get((item.task_id, item.source_id, identifier))
+                                for identifier in (item.source_candidate_id, item.target_candidate_id)}
+            item.replacement, item.replacement_issue = relationship_replacement.preview(
+                db, candidate, scoped_endpoints, item.validity,
+            )
     return result, total
 
 
@@ -318,11 +331,13 @@ def _resolve_review(
     changes = decision.changes.model_dump(exclude={"validity"}, exclude_none=True)
     validity_changed = "validity" in decision.changes.model_fields_set
     validity = decision.changes.validity
-    saved_validity = read_review(candidate).validity if validity_changed else None
+    saved_validity = FactValidity.model_validate(candidate.payload["validity"]) if candidate.payload.get("validity") else None
+    replacement_receipt = decision.replacement.model_dump(mode="json") if decision.replacement else None
     if candidate.review_status != ReviewStatus.PENDING:
         if (candidate.review_status != target_status
                 or any(getattr(candidate, key) != value for key, value in changes.items())
-                or (validity_changed and saved_validity != validity)):
+                or (validity_changed and saved_validity != validity)
+                or (replacement_receipt is not None and candidate.payload.get("replacement") != replacement_receipt)):
             raise AppError(status_code=409, code="REVIEW_ALREADY_RESOLVED", message="候选已处理，请刷新状态；当前不支持撤回或改判")
     endpoint_candidates = []
     if target_status == ReviewStatus.CONFIRMED and candidate.payload["kind"] == "relation":
@@ -341,11 +356,32 @@ def _resolve_review(
         if commit:
             db.commit()
         return read_review(candidate, formal_id)
+    replacement = None
+    if target_status == ReviewStatus.CONFIRMED:
+        normalized_validity = validity if validity_changed else saved_validity
+        replacement, issue = relationship_replacement.preview(
+            db, candidate, {str(item.id): item for item in endpoint_candidates}, normalized_validity,
+        )
+        if decision.replacement and (
+            replacement is None or replacement.approval != decision.replacement or validity_changed or changes
+        ):
+            raise AppError(status_code=409, code="REVIEW_REPLACEMENT_STALE",
+                           message="替代建议已变化，请刷新并重新核对原文和时间")
+        if replacement and not decision.replacement:
+            raise AppError(status_code=409, code="REVIEW_REPLACEMENT_REQUIRED",
+                           message="请核对新旧原文并单独确认替代")
+        if issue:
+            raise AppError(status_code=409, code="REVIEW_PRIMARY_DATABASE_CONFLICT",
+                           message="已有主数据库记录与候选重叠，请核对服务、数据库及生效时间")
     before = {"name": candidate.name, "summary": candidate.summary, "review_status": candidate.review_status.value}
     values = {**changes, "review_status": target_status, "updated_at": utc_now()}
     prior_validity = candidate.payload.get("validity")
-    if validity_changed:
-        values["payload"] = {**candidate.payload, "validity": validity.model_dump(mode="json") if validity else None}
+    if validity_changed or replacement_receipt:
+        values["payload"] = dict(candidate.payload)
+        if validity_changed:
+            values["payload"]["validity"] = validity.model_dump(mode="json") if validity else None
+        if replacement_receipt:
+            values["payload"]["replacement"] = replacement_receipt
     updated = db.execute(update(CandidateKnowledge).where(
         CandidateKnowledge.id == review_id, CandidateKnowledge.user_id == user_id,
         CandidateKnowledge.project_id == candidate.project_id,
@@ -359,12 +395,19 @@ def _resolve_review(
     if validity_changed or prior_validity is not None:
         before["validity"] = prior_validity
         after["validity"] = candidate.payload.get("validity")
+    formal_id = graph.promote_candidate(
+        db, candidate, endpoint_candidates,
+        canonical_source_id=replacement.old_relationship.source_id if replacement else None,
+    ) if target_status == ReviewStatus.CONFIRMED else None
+    if replacement:
+        before["replacement"], after["replacement"] = graph.apply_relationship_replacement(
+            db, replacement.old_relationship.id, formal_id, replacement.effective_at,
+        )
     db.add(ReviewEvent(
         candidate_id=candidate.id, user_id=user_id, project_id=candidate.project_id,
         action=decision.action, before=before,
         after=after,
     ))
-    formal_id = graph.promote_candidate(db, candidate, endpoint_candidates) if target_status == ReviewStatus.CONFIRMED else None
     if commit:
         db.commit()
     return read_review(candidate, formal_id)

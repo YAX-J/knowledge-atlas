@@ -4,7 +4,7 @@ from app.schemas.knowledge import ExtractionDraft
 from app.schemas.questions import ClaimAnswerDraft
 from app.schemas.code_agent import AgentCallAnalysisDraft
 
-PROMPT_VERSION = "knowledge-candidates-v2"
+PROMPT_VERSION = "knowledge-candidates-v3"
 CALL_AGENT_PROMPT_VERSION = "multilanguage-call-agent-v1"
 ANSWER_PROMPT_VERSION = "evidence-claims-v3"
 SYSTEM_PROMPT = """你是技术知识候选抽取器。只输出 JSON 对象。
@@ -17,6 +17,7 @@ summary 简短说明知识，confidence 是 0 到 1 的数值，不代表证据�
 只有原文明示事实何时生效时才输出 temporal。start 和可选的 end 必须逐字出现在本条候选的 evidence.quote 中，且分别是开始生效和不再有效的日期或短语。
 日期优先摘取 YYYY-MM-DD 或中文年月日，也可摘取“昨天”“上周”“本月”等相对表述，服务端按固定笔记修订时间解释。不要替原文计算日期。含义模糊时保留原句供核对或省略 temporal。
 若证据表明带日期的关系两端实体在其开始时已存在，可以为实体摘取同样有据的开始时间。不要从文档的创建时间推断事实已生效。
+只有 evidence.quote 明确包含“主数据库”或“primary database”并指明服务使用的主库，才可为 USES 关系输出 fact_slot="primary_database"。source 是服务，target 是主库技术。迁移表述只将新主库标为该事实，不另为被替换的值创建同类候选。
 SUPERSEDES 方向为新知识指向旧知识。不要输出审核状态、正式知识 ID 或推理过程。
 JSON Schema:
 """ + json.dumps(ExtractionDraft.model_json_schema(), ensure_ascii=False)

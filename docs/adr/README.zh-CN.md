@@ -1,5 +1,7 @@
 # 架构决策记录
 
+- [ADR 0082 人工审核主数据库替代](0082-reviewed-primary-database-replacement.zh-CN.md)
+
 - [ADR0077：显式持久化助手执行（已接受；本地验证通过）](0077-durable-assistant-execution.zh-CN.md)
 
 - [ADR 0076：有界项目只读助手（已接受；本地替身验收通过）](0076-read-only-project-assistant.zh-CN.md)

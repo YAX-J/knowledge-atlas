@@ -47,7 +47,7 @@ Project assistant M1 uses separate assistant-task-v1/assistant-report-v1, not Qu
 | 项 | 值 / 位置 |
 | --- | --- |
 | 抽取任务 ID | `uuid5(source_id, PROMPT_VERSION)` |
-| 提示词版本 | `deepseek.PROMPT_VERSION`，当前 `knowledge-candidates-v2` |
+| 提示词版本 | `deepseek.PROMPT_VERSION`，当前 `knowledge-candidates-v3` |
 | 任务类型 | `knowledge_candidates`（解析 Worker 不消费） |
 | 单次分块 | ≤100 块 |
 | 输入字符 | `EXTRACTION_MAX_INPUT_CHARS`，默认 60000 |
