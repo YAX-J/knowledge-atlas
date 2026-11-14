@@ -17,8 +17,11 @@ class EvidenceInput(BaseModel):
 
 
 def payload(item):
-    return dict(id=str(item.id),entity_name=item.entity_name,title=item.title,start_line=item.start_line,
+    evidence = dict(id=str(item.id),entity_name=item.entity_name,title=item.title,start_line=item.start_line,
         end_line=item.end_line,quote=item.quote,entity_names=[entity.name for entity in item.related_entities])
+    if item.relationship is not None:
+        evidence['relationship'] = item.relationship.model_dump(mode='json')
+    return evidence
 
 
 class EvidenceTools:

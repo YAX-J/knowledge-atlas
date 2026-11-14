@@ -17,7 +17,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   selectProject: [project: ApiProject]
   retryProjects: []
-  ask: [question: string, mode: QuestionRetrievalMode]
+  ask: [question: string, mode: QuestionRetrievalMode, validAt?: string]
   retry: []
   clear: []
   openEntity: [id: string]
@@ -25,6 +25,12 @@ const emit = defineEmits<{
 }>()
 const question = ref('')
 const mode = ref<QuestionRetrievalMode>('rrf')
+const historyTime = ref('')
+const validAt = computed(() => {
+  if (!historyTime.value) return ''
+  const date = new Date(historyTime.value)
+  return Number.isNaN(date.getTime()) ? null : date.toISOString()
+})
 const remaining = computed(() => 200 - question.value.length)
 const coverage = computed(() => {
   const result = props.result
@@ -33,7 +39,7 @@ const coverage = computed(() => {
   return `${Math.round(result.retrieval.indexed_count / result.retrieval.eligible_count * 100)}%`
 })
 
-watch(() => props.project?.id, () => { question.value = '' })
+watch(() => props.project?.id, () => { question.value = ''; historyTime.value = '' })
 
 function selectProject(event: Event) {
   const id = (event.target as HTMLSelectElement).value
@@ -42,7 +48,9 @@ function selectProject(event: Event) {
 }
 function submit() {
   const value = question.value.trim()
-  if (value && value.length <= 200 && props.project && !props.loading) emit('ask', value, mode.value)
+  if (!value || value.length > 200 || !props.project || props.loading || validAt.value === null) return
+  if (validAt.value) emit('ask', value, mode.value, validAt.value)
+  else emit('ask', value, mode.value)
 }
 </script>
 
@@ -73,12 +81,15 @@ function submit() {
           <option value="hybrid">混合 + 图关系</option><option value="rrf">BM25 + 向量融合</option>
           <option value="vector">语义向量</option><option value="bm25">BM25 · 检索无需嵌入</option><option value="bm25_source">BM25 + 来源位置</option>
         </select>
+        <label for="question-valid-at">知识时点（本地时间，留空为当前）</label>
+        <input id="question-valid-at" v-model="historyTime" type="datetime-local" step="1" :disabled="loading || !project" />
+        <p v-if="validAt === null" class="retrieval-hint" role="alert">请输入有效的查询日期和时间。</p>
         <p class="retrieval-hint">BM25 可直接检索已确认知识；向量相关方式需要配置嵌入服务并更新索引。生成回答仍需调用模型。</p>
         <div class="ask-footer">
           <small>{{ remaining }} 字可用 · {{ persistent ? '回答和证据将保存在当前项目会话' : '当前回答不会保存为历史记录' }}</small>
           <div>
             <button v-if="result || error || loading" type="button" @click="emit('clear')">{{ loading ? '停止等待' : '清除回答' }}</button>
-            <button class="primary" type="submit" :disabled="loading || !project || !question.trim()">
+            <button class="primary" type="submit" :disabled="loading || !project || !question.trim() || validAt === null">
               {{ loading ? '正在检索证据…' : '检索并回答' }}
             </button>
           </div>
@@ -147,6 +158,9 @@ function submit() {
 .related-evidence-entities { font-size: 12px; line-height: 1.8; color: #435e64; }
 .retrieval-hint { font-size: 12px; line-height: 1.8; color: #536b70; }
 #question-retrieval-mode { max-width: 100%; padding: 8px; margin-top: 8px; }
+#question-valid-at { max-width: 100%; min-height: 40px; padding: 8px; border: 1px solid #aabec0; border-radius: 5px; background: var(--paper); color: var(--ink); font: inherit; }
+#question-valid-at:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.ask-card label[for="question-valid-at"] { margin-top: 12px; }
 .question-page { height: calc(100% - 86px); overflow: auto; padding: 34px 42px 70px 112px; background: #edf3f3; color: var(--ink); }
 .question-heading { display: flex; justify-content: space-between; align-items: end; gap: 28px; max-width: 1180px; margin: 0 auto; }
 .question-kicker { color: var(--teal); font-size: 12px; letter-spacing: .08em; }

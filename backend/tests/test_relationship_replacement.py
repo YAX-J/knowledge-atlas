@@ -3,8 +3,9 @@ import uuid
 
 from sqlalchemy import select
 
-from app.api.routes import agents
+from app.api.routes import agents, conversations, questions
 from app.models.domain import ReviewEvent
+from app.schemas.questions import ClaimAnswerDraft
 from app.services import deepseek
 from tests.test_knowledge import configured
 from tests.test_multi_agent import tool
@@ -93,3 +94,38 @@ def test_reviewed_primary_database_replacement_preserves_history(client, db_sess
     new_edge, evidence = edge_at("2026-06-01T00:00:00Z")
     assert evidence["quote"] == new_quote and evidence["source_id"] == new_source
     assert old_edge["source_id"] == new_edge["source_id"]
+
+    monkeypatch.setattr(questions, "get_settings", lambda: configured)
+    monkeypatch.setattr(conversations, "get_settings", lambda: configured)
+    calls = []
+
+    def answer(_settings, _question, evidence, **_kwargs):
+        selected, = evidence
+        calls.append(selected)
+        return ClaimAnswerDraft(confidence=.9, claims=[dict(
+            text=selected["relationship"]["target"]["name"], status="supported", citation_ids=[selected["id"]],
+        )], missing_information=[])
+
+    monkeypatch.setattr(deepseek, "answer_question", answer)
+    april = dict(question="订单服务的主数据库是什么？", retrieval_mode="bm25", valid_at="2026-04-01T00:00:00Z")
+    june = {**april, "valid_at": "2026-06-01T08:00:00+08:00"}
+    old_answer = client.post(f"{base}/questions", json=april)
+    assert old_answer.status_code == 200, old_answer.text
+    cited, = old_answer.json()["evidence"]
+    assert cited["relationship"]["id"] == old_edge["id"]
+    assert cited["relationship"]["target"]["name"] == "MySQL"
+    assert cited["relationship"]["valid_to"] == "2026-06-01T00:00:00Z"
+    assert cited["quote"] == old_quote and cited["source_id"] == old_source
+    assert old_answer.json()["claims"][0]["citation_ids"] == [cited["id"]]
+
+    conversation = client.post(f"{base}/conversations", json={}).json()
+    turns = f"{base}/conversations/{conversation['id']}/turns"
+    new_answer = client.post(turns, json={**june, "request_id": str(uuid.uuid4())})
+    assert new_answer.status_code in (200, 201), new_answer.text
+    saved, = new_answer.json()["answer"]["evidence"]
+    assert saved["relationship"]["id"] == new_edge["id"]
+    assert saved["relationship"]["target"]["name"] == "PostgreSQL"
+    assert saved["relationship"]["valid_at"] == "2026-06-01T00:00:00Z"
+    assert saved["quote"] == new_quote and saved["source_id"] == new_source
+    assert client.get(turns).json()["items"][0]["answer"]["evidence"] == [saved]
+    assert [item["quote"] for item in calls] == [old_quote, new_quote]

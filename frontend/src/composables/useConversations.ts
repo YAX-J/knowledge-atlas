@@ -87,7 +87,7 @@ export function useConversations(projectId: () => string | undefined) {
     } finally { if (current(project, captured)) loading.value = false }
   }
 
-  async function send(question: string, mode: QuestionRetrievalMode, retry?: ConversationTurn) {
+  async function send(question: string, mode: QuestionRetrievalMode, retry?: ConversationTurn, validAt?: string) {
     const project = projectId(), captured = generation
     if (!project || sending.value || loading.value || busy.value || unknown.value || pendingRequest && !retry) return
     sending.value = true; error.value = ''
@@ -99,11 +99,12 @@ export function useConversations(projectId: () => string | undefined) {
       }
       const conversation = selectedId.value
       const requestId = retry?.request_id ?? crypto.randomUUID()
-      pendingRequest = { id: requestId, request_id: requestId, question, retrieval_mode: mode, valid_at: retry?.valid_at ?? null,
+      const requestTime = retry ? retry.valid_at : validAt
+      pendingRequest = { id: requestId, request_id: requestId, question, retrieval_mode: mode, valid_at: requestTime ?? null,
         position: retry?.position ?? 0, status: 'interrupted', answer: null, error_code: null, created_at: new Date().toISOString() }
       storePending(project, conversation)
       const response = await askConversation(project, conversation, {
-        request_id: requestId, question, retrieval_mode: mode, ...(retry?.valid_at ? { valid_at: retry.valid_at } : {}),
+        request_id: requestId, question, retrieval_mode: mode, ...(requestTime ? { valid_at: requestTime } : {}),
         ...(retry ? { retry_interrupted: true } : {}),
       })
       if (!current(project, captured) || selectedId.value !== conversation) return

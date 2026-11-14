@@ -251,23 +251,27 @@ const questionState = useLatestRequest<QuestionAnswer>(errorMessage)
 const { result: questionResult, loading: questionLoading, error: questionError } = questionState
 let questionText = ''
 let questionMode: QuestionRetrievalMode = 'rrf'
+let questionValidAt: string | undefined
 
 function clearQuestion() {
   questionState.clear()
   questionText = ''
   questionMode = 'rrf'
+  questionValidAt = undefined
 }
 
-async function runQuestion(question: string, mode: QuestionRetrievalMode = 'rrf') {
+async function runQuestion(question: string, mode: QuestionRetrievalMode = 'rrf', validAt?: string) {
   const projectId = project.value?.id
   if (!projectId || questionLoading.value) return
   questionText = question
   questionMode = mode
-  await questionState.run(() => askQuestion(projectId, question, mode), () => project.value?.id === projectId)
+  questionValidAt = validAt
+  await questionState.run(() => validAt ? askQuestion(projectId, question, mode, validAt) : askQuestion(projectId, question, mode),
+    () => project.value?.id === projectId)
 }
 
 function retryQuestion() {
-  if (questionText) void runQuestion(questionText, questionMode)
+  if (questionText) void runQuestion(questionText, questionMode, questionValidAt)
 }
 
 async function openSearchEntity(id: string) {

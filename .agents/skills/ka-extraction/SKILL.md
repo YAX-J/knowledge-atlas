@@ -112,6 +112,8 @@ response = client.post(f"/api/v1/sources/{source['source_id']}/extract")
 
 ## 证据问答边界
 
+- 关系引用使用同一查询时点可见的正式关系及其原文证据 ID。实体上完全相同的引用不能绕过关系的时间过滤。保留回答快照中的关系和原文定位。
+
 - `POST /projects/{project_id}/questions` 同步且不持久化，复用混合检索，最多 5 个实体、12 条输入证据和 5 条输出引用。
 - 只把问题和选定证据发送给模型；`supported=true` 必须引用证据，`supported=false` 必须说明缺失信息。
 - `questions.py` 必须验证每个引用 UUID 属于本次检索集合；未知引用返回 `QUESTION_EVIDENCE_INVALID`，不能降级为无引用回答。

@@ -716,10 +716,10 @@ export function rebuildProjectEmbeddings(projectId: string, retryInterrupted = f
   })
 }
 
-export function askQuestion(projectId: string, question: string, retrievalMode: import('../types').QuestionRetrievalMode = 'rrf'): Promise<QuestionAnswer> {
+export function askQuestion(projectId: string, question: string, retrievalMode: import('../types').QuestionRetrievalMode = 'rrf', validAt?: string): Promise<QuestionAnswer> {
   return apiRequest<QuestionAnswer>(`/projects/${projectId}/questions`, {
     method: 'POST',
-    body: JSON.stringify({ question, retrieval_mode: retrievalMode }),
+    body: JSON.stringify({ question, retrieval_mode: retrievalMode, valid_at: validAt }),
     signal: AbortSignal.timeout(420_000),
   })
 }

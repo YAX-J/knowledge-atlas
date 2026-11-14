@@ -1,14 +1,18 @@
 import uuid
+from datetime import timezone
 from itertools import zip_longest
 
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.errors import AppError
+from app.models.domain import utc_now
 from app.schemas.questions import AnswerClaim, ClaimAnswerDraft, ClaimAnswerDraftV2, EvidenceEntityRead, QuestionEvidenceRead, QuestionRead, RetrievalSummary
 from app.llm.prompts import ANSWER_PROMPT_VERSION
 from app.services import deepseek
+from app.services.question_relationships import passage, relationship_passages, scoped_evidence
 from app.services.search import search_knowledge
+from app.tools.evidence import EvidenceTools, payload
 
 
 MAX_ANSWER_ENTITIES = 5
@@ -32,11 +36,16 @@ def answer_question(
     valid_at, settings: Settings, retrieval_mode: str = 'rrf',
     context: list[dict] | None = None, retrieval_query: str | None = None, strategy: str = 'single_step', code_findings=None,
 ) -> QuestionRead:
-    result = search_knowledge(
-        db, user_id=user_id, project_id=project_id, query=retrieval_query or question, types=[],
-        valid_at=valid_at, top_k=MAX_ANSWER_ENTITIES, mode=retrieval_mode, settings=settings,
-    )
-    evidence_by_id, retrieval = collect_evidence(result)
+    at = (valid_at or utc_now()).astimezone(timezone.utc)
+
+    def retrieve(query, mode):
+        result = search_knowledge(
+            db, user_id=user_id, project_id=project_id, query=query, types=[],
+            valid_at=at, top_k=MAX_ANSWER_ENTITIES, mode=mode, settings=settings,
+        )
+        return collect_answer_evidence(db, user_id=user_id, project_id=project_id, at=at, result=result)
+
+    evidence_by_id, retrieval = retrieve(retrieval_query or question, retrieval_mode)
 
     if not evidence_by_id:
         return QuestionRead(
@@ -53,18 +62,11 @@ def answer_question(
             message='证据问答尚未配置 DeepSeek API 密钥',
         )
 
-    evidence_payload = [{
-        'id': str(item.id), 'entity_name': item.entity_name, 'title': item.title,
-        'start_line': item.start_line, 'end_line': item.end_line, 'quote': item.quote,
-        'entity_names': [entity.name for entity in item.related_entities],
-    } for item in evidence_by_id.values()]
+    evidence_payload = [payload(item) for item in evidence_by_id.values()]
     try:
         from app.agents.registry import get_agent
-        from app.tools.evidence import EvidenceTools
         def search_more(query,mode):
-            found=search_knowledge(db,user_id=user_id,project_id=project_id,query=query,types=[],
-                valid_at=valid_at,top_k=MAX_ANSWER_ENTITIES,mode=mode,settings=settings)
-            records,summary=collect_evidence(found)
+            records,summary=retrieve(query,mode)
             retrieval.truncated |= summary.truncated
             return records
         tools=EvidenceTools(search_more,evidence_by_id)
@@ -75,6 +77,25 @@ def answer_question(
         raise AppError(status_code=503, code=exc.code, message=exc.message) from exc
 
     return validated_answer(question,evidence_by_id,retrieval,draft)
+
+
+def collect_answer_evidence(db, *, user_id, project_id, at, result):
+    records, summary = collect_evidence(result)
+    relationships, truncated = scoped_evidence(db, user_id=user_id, project_id=project_id, at=at, hits=result.items)
+    shared = relationship_passages(db, user_id, project_id, list(records.values()))
+    passages = {passage(item): item for item in records.values()}
+    for item in relationships:
+        original = passages.get(passage(item))
+        if original is not None:
+            attributions = {entity.id: entity for entity in [*original.related_entities, *item.related_entities]}
+            item.related_entities = list(attributions.values())
+            item.entity_id = original.entity_id
+            item.entity_name = original.entity_name
+    available = {item.id: item for item in relationships}
+    available.update((key, item) for key, item in records.items() if passage(item) not in shared)
+    summary.truncated |= truncated or len(available) > MAX_ANSWER_EVIDENCE
+    summary.unique_evidence_count = min(len(available), MAX_ANSWER_EVIDENCE)
+    return dict(list(available.items())[:MAX_ANSWER_EVIDENCE]), summary
 
 
 def collect_evidence(result):

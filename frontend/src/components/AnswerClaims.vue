@@ -1,23 +1,40 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { EvidenceLocator, QuestionAnswer } from '../types'
 
-defineProps<{ answer: QuestionAnswer }>()
+const props = defineProps<{ answer: QuestionAnswer }>()
 const emit = defineEmits<{ openEvidence: [locator: EvidenceLocator] }>()
+const claims = computed(() => {
+  const citations = new Map(props.answer.evidence.map((item, index) => [item.id, { item, position: index + 1 }]))
+  return props.answer.claims?.map(claim => ({
+    ...claim, citations: claim.citation_ids.map(id => ({ id, ...citations.get(id) })),
+  }))
+})
 </script>
 
 <template>
-  <section v-if="answer.claims?.length" class="answer-claims" aria-label="逐条结论与引用">
+  <section v-if="claims?.length" class="answer-claims" aria-label="逐条结论与引用">
     <p class="claim-notice">引用归属已经校验；引用是否充分支撑结论，仍需核对原文。</p>
     <ol>
-      <li v-for="(claim, index) in answer.claims" :key="index" class="answer-claim">
+      <li v-for="(claim, index) in claims" :key="`${answer.id}-${index}`" class="answer-claim">
         <span class="claim-status" :class="claim.status">{{ claim.status === 'supported' ? '附有引用' : '证据不足' }}</span>
         <p>{{ claim.text }}</p>
         <div v-if="claim.citation_ids.length" class="claim-citations" :aria-label="`结论 ${index + 1} 的引用`">
-          <template v-for="id in claim.citation_ids" :key="id">
-            <button v-if="answer.evidence.some(item => item.id === id)" type="button"
-              @click="emit('openEvidence', answer.evidence.find(item => item.id === id)!)">
-              [{{ answer.evidence.findIndex(item => item.id === id) + 1 }}] 查看原文 · {{ answer.evidence.find(item => item.id === id)!.title }}
-            </button>
+          <template v-for="{ id, item, position } in claim.citations" :key="id">
+            <template v-if="item">
+                  <details v-if="item.relationship" class="citation-relationship">
+                    <summary>[{{ position }}] 查看支撑关系</summary>
+                    <p><strong>{{ item.relationship.source.name }} → {{ item.relationship.target.name }}</strong> · {{ item.relationship.type }}</p>
+                    <dl>
+                      <div><dt>查询时点</dt><dd><time :datetime="item.relationship.valid_at">{{ new Date(item.relationship.valid_at).toLocaleString('zh-CN') }}</time></dd></div>
+                      <div><dt>生效时间</dt><dd><time :datetime="item.relationship.valid_from">{{ new Date(item.relationship.valid_from).toLocaleString('zh-CN') }}</time></dd></div>
+                      <div><dt>失效时间</dt><dd><time v-if="item.relationship.valid_to" :datetime="item.relationship.valid_to">{{ new Date(item.relationship.valid_to).toLocaleString('zh-CN') }}</time><span v-else>未指定</span></dd></div>
+                    </dl>
+                    <blockquote>{{ item.quote }}</blockquote>
+                    <button type="button" @click="emit('openEvidence', item)">查看原文 · {{ item.title }}</button>
+                  </details>
+                  <button v-else type="button" @click="emit('openEvidence', item)">[{{ position }}] 查看原文 · {{ item.title }}</button>
+            </template>
             <span v-else role="status">该引用暂不可定位</span>
           </template>
         </div>
@@ -40,5 +57,11 @@ ol { padding-left: 24px; margin: 18px 0; }
 .claim-status.insufficient { color: #805318; background: #f2e8d5; }
 .claim-citations { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; }
 button { max-width: 100%; min-height: 36px; padding: 7px 10px; border: 1px solid #aabec0; border-radius: 4px; background: var(--paper); color: var(--teal); font: inherit; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
-button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.citation-relationship { width: 100%; max-width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #aabec0; border-radius: 5px; background: var(--paper); }
+.citation-relationship summary { cursor: pointer; color: var(--teal); }
+.citation-relationship dl { margin: 10px 0; }
+.citation-relationship dl div { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.citation-relationship dd { margin: 0; }
+.citation-relationship blockquote { margin: 10px 0; padding-left: 10px; border-left: 2px solid #aabec0; }
 </style>

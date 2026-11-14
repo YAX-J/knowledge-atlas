@@ -101,10 +101,21 @@ class EvidenceEntityRead(BaseModel):
     name: str
 
 
+class EvidenceRelationshipRead(BaseModel):
+    id: uuid.UUID
+    type: str
+    source: EvidenceEntityRead
+    target: EvidenceEntityRead
+    valid_at: AwareDatetime
+    valid_from: AwareDatetime
+    valid_to: AwareDatetime | None
+
+
 class QuestionEvidenceRead(FormalEvidenceRead):
     entity_id: uuid.UUID
     entity_name: str
     related_entities: list[EvidenceEntityRead] = Field(default_factory=list)
+    relationship: EvidenceRelationshipRead | None = None
 
 
 class RetrievalSummary(BaseModel):

@@ -14,7 +14,7 @@ export const createConversation = (project: string, title = '新的证据会话'
 export const listConversations = (project: string, page = 1) => apiRequest<Page<Conversation>>(`/projects/${project}/conversations?page=${page}&page_size=20`)
 export const listConversationTurns = (project: string, conversation: string, page = 1) =>
   apiRequest<Page<ConversationTurn>>(`/projects/${project}/conversations/${conversation}/turns?page=${page}&page_size=20`)
-export const askConversation = (project: string, conversation: string, input: { request_id: string; question: string; retrieval_mode: QuestionRetrievalMode; retry_interrupted?: boolean }) =>
+export const askConversation = (project: string, conversation: string, input: { request_id: string; question: string; retrieval_mode: QuestionRetrievalMode; valid_at?: string; retry_interrupted?: boolean }) =>
   apiRequest<ConversationTurn>(`/projects/${project}/conversations/${conversation}/turns`, {
     method: 'POST', body: JSON.stringify(input), signal: AbortSignal.timeout(420_000),
   })

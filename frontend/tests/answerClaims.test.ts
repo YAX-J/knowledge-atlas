@@ -37,6 +37,25 @@ it('shows unavailable citations without emitting a guessed source',()=>{
   expect(wrapper.emitted('openEvidence')).toBeUndefined()
 })
 
+it('opens the exact saved relationship and its source from the cited claim', async () => {
+  const answer = answerFixture()
+  const evidence = answer.evidence[1]!
+  evidence.relationship = {
+    id: 'old-edge', type: 'USES', source: { id: 'orders', name: '订单服务' },
+    target: { id: 'mysql', name: 'MySQL' }, valid_at: '2026-04-01T00:00:00Z',
+    valid_from: '2026-03-01T00:00:00Z', valid_to: '2026-06-01T00:00:00Z',
+  }
+  const wrapper = mount(AnswerClaims, { props: { answer } })
+  const details = wrapper.get('details')
+  expect(details.get('summary').text()).toBe('[2] 查看支撑关系')
+  expect(details.text()).toContain('订单服务 → MySQL')
+  expect(details.findAll('time').map(value => value.attributes('datetime'))).toEqual([
+    evidence.relationship.valid_at, evidence.relationship.valid_from, evidence.relationship.valid_to,
+  ])
+  await details.get('button').trigger('click')
+  expect(wrapper.emitted('openEvidence')).toEqual([[evidence]])
+})
+
 it('forwards per-claim navigation from the shared question/conversation workspace',async()=>{
   const answer=answerFixture()
   const wrapper=mount(QuestionWorkspace,{props:{projects:null,project,projectsLoading:false,projectsError:'',

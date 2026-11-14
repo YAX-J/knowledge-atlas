@@ -19,7 +19,7 @@ function retry() {
   retryConfirmed.value = false
   void send(turn.question, turn.retrieval_mode, turn)
 }
-function ask(question: string, mode: QuestionRetrievalMode) { void send(question, mode) }
+function ask(question: string, mode: QuestionRetrievalMode, validAt?: string) { void send(question, mode, undefined, validAt) }
 </script>
 
 <template>

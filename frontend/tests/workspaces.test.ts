@@ -34,6 +34,14 @@ describe('evidence questions', () => {
     await wrapper.get('form').trigger('submit')
     expect(wrapper.emitted('ask')).toBeUndefined()
   })
+  it('submits the explicitly selected local time as a UTC instant', async () => {
+    const wrapper = mount(QuestionWorkspace, { props: questionProps })
+    await wrapper.get('textarea').setValue('订单服务的主库是什么？')
+    const date = '2026-04-01T08:00'
+    await wrapper.get('#question-valid-at').setValue(date)
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('ask')).toEqual([['订单服务的主库是什么？', 'rrf', new Date(date).toISOString()]])
+  })
   it('exposes error retry and renders provider text without HTML', async () => {
     const wrapper = mount(QuestionWorkspace, { props: { ...questionProps, error: '<script>untrusted</script>' } })
     expect(wrapper.find('script').exists()).toBe(false)

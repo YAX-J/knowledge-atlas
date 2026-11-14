@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Let users select a graph instant for a question and follow a cited claim through the saved relationship and its validity interval to the original source.
+
 - Propose evidence-backed primary database replacements and close the predecessor at the reviewed cutover while preserving both source notes.
 
 - Extract quoted temporal expressions from technical notes, normalize supported calendar dates and let reviewers correct the validity interval before publishing to the historical graph.

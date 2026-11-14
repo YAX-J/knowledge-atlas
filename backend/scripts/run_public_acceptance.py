@@ -182,12 +182,18 @@ def online_prediction(db, *, case, mode, project_id, settings, mapping,isolate_o
     """Call the current application service once, preserving the actual prompt pool."""
     captured = {}
     original_search = questions.search_knowledge
+    original_pool = questions.collect_answer_evidence
 
     def capture_search(*args, **kwargs):
         result = original_search(*args, **kwargs)
         if mode in {'vector', 'hybrid', 'rrf'} and result.indexed_count != result.eligible_count:
             raise ValueError('Incomplete vector index for requested historical scope')
         captured['result'] = result
+        return result
+
+    def capture_pool(*args, **kwargs):
+        result = original_pool(*args, **kwargs)
+        captured['pool'] = result[0]
         return result
 
     began = time.perf_counter()
@@ -198,7 +204,8 @@ def online_prediction(db, *, case, mode, project_id, settings, mapping,isolate_o
                                  types=[], valid_at=at, top_k=5, mode=mode, settings=settings)
         response = None
     else:
-        with patch.object(questions, 'search_knowledge', capture_search):
+        with (patch.object(questions, 'search_knowledge', capture_search),
+              patch.object(questions, 'collect_answer_evidence', capture_pool)):
             try:
                 response = questions.answer_question(db, user_id=USER, project_id=project_id,
                     question=case['question'], valid_at=at, settings=settings, retrieval_mode=mode,
@@ -217,7 +224,7 @@ def online_prediction(db, *, case, mode, project_id, settings, mapping,isolate_o
         answer=response.answer if response else None, supported=response.supported if response else None,
         latency_ms=round((time.perf_counter()-began)*1000, 3), answer_correct=None, explainability_score=None)
     if response or failure:
-        pool, _ = questions.collect_evidence(result)
+        pool = captured['pool']
         prediction.update(answer_protocol=ANSWER_PROMPT_VERSION,
             claims=[item.model_dump(mode='json') for item in response.claims] if response else None,
             claim_evidence=[dict(id=str(item.id), **_evidence_record(item, mapping)) for item in response.evidence] if response else [],
@@ -233,9 +240,10 @@ def reuse_prediction(db, *, case, project_id, settings, mapping, reused):
     old=reused['prediction']
     if old['id']!=case['id'] or old['valid_at']!=case['valid_at']:
         raise ValueError('Reuse case/time mismatch')
+    at=parse_valid_at(case['valid_at']) or datetime.now(timezone.utc)
     result=questions.search_knowledge(db,user_id=USER,project_id=project_id,query=case['question'],types=[],
-        valid_at=parse_valid_at(case['valid_at']),top_k=5,mode='bm25',settings=settings)
-    pool,_=questions.collect_evidence(result)
+        valid_at=at,top_k=5,mode='bm25',settings=settings)
+    pool,_=questions.collect_answer_evidence(db,user_id=USER,project_id=project_id,at=at,result=result)
     records=[dict(id=str(item.id),**_evidence_record(item,mapping)) for item in pool.values()]
     def passage(item):
         return tuple(item[key] for key in ('source','start_line','end_line','quote'))

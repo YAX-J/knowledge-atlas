@@ -345,6 +345,15 @@ export interface QuestionEvidence extends FormalEvidence {
   entity_id: string
   entity_name: string
   related_entities?: { id: string; name: string }[]
+  relationship?: {
+    id: string
+    type: string
+    source: { id: string; name: string }
+    target: { id: string; name: string }
+    valid_at: string
+    valid_from: string
+    valid_to: string | null
+  } | null
 }
 
 export interface QuestionAnswer {
