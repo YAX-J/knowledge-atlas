@@ -26,6 +26,7 @@ const emit = defineEmits<{
 const question = ref('')
 const mode = ref<QuestionRetrievalMode>('rrf')
 const historyTime = ref('')
+const timeInput = ref<HTMLInputElement | null>(null)
 const validAt = computed(() => {
   if (!historyTime.value) return ''
   const date = new Date(historyTime.value)
@@ -51,6 +52,16 @@ function submit() {
   if (!value || value.length > 200 || !props.project || props.loading || validAt.value === null) return
   if (validAt.value) emit('ask', value, mode.value, validAt.value)
   else emit('ask', value, mode.value)
+}
+function adjustTime() {
+  const result = props.result
+  if (!result) return
+  question.value = result.question
+  if (result.time_scope?.valid_at) {
+    const date = new Date(result.time_scope.valid_at)
+    historyTime.value = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 19)
+  }
+  timeInput.value?.focus()
 }
 </script>
 
@@ -81,8 +92,8 @@ function submit() {
           <option value="hybrid">混合 + 图关系</option><option value="rrf">BM25 + 向量融合</option>
           <option value="vector">语义向量</option><option value="bm25">BM25 · 检索无需嵌入</option><option value="bm25_source">BM25 + 来源位置</option>
         </select>
-        <label for="question-valid-at">知识时点（本地时间，留空为当前）</label>
-        <input id="question-valid-at" v-model="historyTime" type="datetime-local" step="1" :disabled="loading || !project" />
+        <label for="question-valid-at">知识时点（留空时从问题识别）</label>
+        <input id="question-valid-at" ref="timeInput" v-model="historyTime" type="datetime-local" step="1" :disabled="loading || !project" />
         <p v-if="validAt === null" class="retrieval-hint" role="alert">请输入有效的查询日期和时间。</p>
         <p class="retrieval-hint">BM25 可直接检索已确认知识；向量相关方式需要配置嵌入服务并更新索引。生成回答仍需调用模型。</p>
         <div class="ask-footer">
@@ -119,8 +130,9 @@ function submit() {
           <strong>{{ Math.round(result.confidence * 100) }}% 置信度</strong>
         </div>
         <p class="asked">{{ result.question }}</p>
-        <h2>{{ result.supported ? '回答' : result.claims?.some(claim => claim.status === 'supported') ? '回答与待确认事项' : '暂不能确认' }}</h2>
+        <h2>{{ result.time_scope?.source === 'clarification' ? '请选择查询时点' : result.supported ? '回答' : result.claims?.some(claim => claim.status === 'supported') ? '回答与待确认事项' : '暂不能确认' }}</h2>
         <AnswerClaims :answer="result" @open-evidence="emit('openEvidence', $event)" />
+        <button v-if="result.time_scope" type="button" @click="adjustTime">{{ result.time_scope.source === 'clarification' ? '手动选择时点' : '修改查询时点' }}</button>
         <template v-if="result.missing_information.length">
           <h3>仍需补充</h3>
           <ul><li v-for="item in result.missing_information" :key="item">{{ item }}</li></ul>

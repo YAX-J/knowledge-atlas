@@ -131,6 +131,12 @@ class RetrievalSummary(BaseModel):
     truncated: bool = False
 
 
+class QuestionTimeScope(BaseModel):
+    source: Literal['manual', 'question', 'current', 'clarification']
+    valid_at: AwareDatetime | None
+    expression: str | None = None
+
+
 class QuestionRead(BaseModel):
     id: uuid.UUID
     question: str
@@ -143,3 +149,4 @@ class QuestionRead(BaseModel):
     missing_information: list[str]
     answer_protocol: Literal['evidence-claims-v2', 'evidence-claims-v3'] | None = None
     claims: list[AnswerClaim] | None = None
+    time_scope: QuestionTimeScope | None = None

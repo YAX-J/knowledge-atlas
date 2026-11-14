@@ -48,6 +48,26 @@ def test_workflow_forwards_and_reports_explicit_local_versions(client,monkeypatc
     assert data['scope']['snapshot_id'] is None
 
 
+@pytest.mark.parametrize(('question', 'time_source', 'at'), [
+    ('2026 年 4 月 1 日的主库是什么？', 'question', '2026-04-01T00:00:00Z'),
+    ('上次迁移前的主库是什么？', 'clarification', None),
+])
+def test_auto_time_scope_excludes_current_code(client, monkeypatch, configured, question, time_source, at):
+    project, _, _, _, main, captured = prepare(client, monkeypatch)
+    monkeypatch.setattr(routes, 'get_settings', lambda: configured)
+    monkeypatch.setattr(deepseek, 'call_agent_turn', lambda *_a, **_k: pytest.fail('No evidence must be free'))
+    url = f'/api/v1/projects/{project}/agent-runs'
+    body = dict(request_id=str(uuid.uuid4()), kind='question_pipeline', source_id=main['source_id'],
+                question=question, include_code_analysis=True, code_strategy='semantic')
+    response = client.post(url, json=body)
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data['status'] == 'succeeded' and not captured
+    assert data['scope']['valid_at'] == at and not data['scope']['include_code_analysis']
+    assert data['result']['answer']['time_scope']['source'] == time_source
+    assert client.post(url, json=body).json() == data
+
+
 @pytest.mark.parametrize('change',[{'valid_at':'2026-10-01T10:30:00'},
     {'valid_at':'2026-10-01T10:30:00Z','include_code_analysis':True,'source_id':str(uuid.uuid4())},
     {'include_code_analysis':True,'source_id':str(uuid.uuid4()),'snapshot_id':str(uuid.uuid4()),'version_ids':[str(uuid.uuid4())]}])

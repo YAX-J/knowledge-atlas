@@ -56,6 +56,37 @@ it('opens the exact saved relationship and its source from the cited claim', asy
   expect(wrapper.emitted('openEvidence')).toEqual([[evidence]])
 })
 
+it('shows the inferred instant and lets a reader override it before asking again', async () => {
+  const answer = answerFixture()
+  answer.time_scope = { source: 'question', valid_at: '2026-04-01T00:00:00Z', expression: '2026 年 4 月 1 日' }
+  const wrapper = mount(QuestionWorkspace, { attachTo: document.body, props: {
+    projects: null, project, projectsLoading: false, projectsError: '', result: answer, loading: false, error: '',
+  } })
+  const shown = wrapper.get('[aria-label="实际查询时点"]')
+  expect(shown.text()).toContain('从问题识别')
+  expect(shown.text()).toContain('2026 年 4 月 1 日')
+  expect(shown.get('time').attributes('datetime')).toBe(answer.time_scope.valid_at)
+  await wrapper.findAll('button').find(button => button.text() === '修改查询时点')!.trigger('click')
+  const input = wrapper.get('#question-valid-at')
+  expect(document.activeElement).toBe(input.element)
+  expect(wrapper.get('textarea').element.value).toBe(answer.question)
+  const chosen = '2026-06-01T08:00'
+  await input.setValue(chosen)
+  await wrapper.get('form').trigger('submit')
+  expect(wrapper.emitted('ask')).toEqual([[answer.question, 'rrf', new Date(chosen).toISOString()]])
+})
+
+it('offers a manual date when the question needs clarification', async () => {
+  const answer = { ...answerFixture(), supported: false, time_scope: { source: 'clarification' as const, valid_at: null }, claims: [] }
+  const wrapper = mount(QuestionWorkspace, { attachTo: document.body, props: {
+    projects: null, project, projectsLoading: false, projectsError: '', result: answer, loading: false, error: '',
+  } })
+  expect(wrapper.text()).toContain('请选择查询时点')
+  expect(wrapper.find('[aria-label="实际查询时点"]').exists()).toBe(false)
+  await wrapper.findAll('button').find(button => button.text() === '手动选择时点')!.trigger('click')
+  expect(document.activeElement).toBe(wrapper.get('#question-valid-at').element)
+})
+
 it('forwards per-claim navigation from the shared question/conversation workspace',async()=>{
   const answer=answerFixture()
   const wrapper=mount(QuestionWorkspace,{props:{projects:null,project,projectsLoading:false,projectsError:'',

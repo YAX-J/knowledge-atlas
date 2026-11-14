@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.errors import AppError
-from app.schemas.questions import AnswerClaim
+from app.schemas.questions import AnswerClaim, QuestionTimeScope
 from app.core.identity import DEVELOPMENT_USER_ID as USER
 from app.llm.prompts import ANSWER_PROMPT_VERSION
 from app.models.domain import CandidateKnowledge, Project
@@ -209,7 +209,9 @@ def online_prediction(db, *, case, mode, project_id, settings, mapping,isolate_o
             try:
                 response = questions.answer_question(db, user_id=USER, project_id=project_id,
                     question=case['question'], valid_at=at, settings=settings, retrieval_mode=mode,
-                    strategy='single_step')
+                    strategy='single_step', time_scope=QuestionTimeScope(
+                        source='manual' if at else 'current', valid_at=at or datetime.now(timezone.utc),
+                    ))
             except AppError as exc:
                 if not isolate_output_errors or exc.code!='QUESTION_OUTPUT_INVALID' or 'result' not in captured:
                     raise

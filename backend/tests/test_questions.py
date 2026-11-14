@@ -1,14 +1,55 @@
 import uuid
+from datetime import datetime, timezone
 
+import pytest
 from pydantic import SecretStr
 
 from app.api.routes import questions as question_routes
 from app.api.routes import search as search_routes
 from app.core.config import Settings
 from app.schemas.questions import AnswerDraft
-from app.services import deepseek, embeddings
+from app.services import deepseek, embeddings, questions
+from app.services.question_time import resolve_question_time
 from tests.test_graph import confirm, extracted
 from tests.test_knowledge import configured
+
+
+@pytest.mark.parametrize(('text', 'source', 'expected'), [
+    ('今天的主库？', 'question', '2026-11-13T18:00:00Z'),
+    ('昨天的主库？', 'question', '2026-11-13T00:00:00Z'),
+    ('What was the database yesterday?', 'question', '2026-11-13T00:00:00Z'),
+    ('现在用什么？', 'current', '2026-11-13T18:00:00Z'),
+    ('2024年2月29号的主库？', 'question', '2024-02-29T00:00:00Z'),
+    ('2026-06-01 的主库？', 'question', '2026-06-01T00:00:00Z'),
+    ('2026-02-29 的主库？', 'clarification', None),
+    ('上次迁移前用什么？', 'clarification', None),
+    ('上周主库是什么？', 'clarification', None),
+    ('4 月 1 日使用什么？', 'clarification', None),
+    ('2026-04-01 到 2026-06-01 用了什么？', 'clarification', None),
+    ('2026-04-01-10 期间用什么？', 'clarification', None),
+    ('2026-04-01 下午 3 点，用什么？', 'clarification', None),
+    ('2026-04-01T11:30:00+08:00 用什么？', 'clarification', None),
+])
+def test_question_time_resolution(text, source, expected):
+    now = datetime(2026, 11, 13, 18, tzinfo=timezone.utc)
+    scope = resolve_question_time(text, None, now)
+    assert scope.source == source
+    assert scope.model_dump(mode='json')['valid_at'] == expected
+
+
+def test_ambiguous_question_asks_for_time_before_retrieval_or_provider(client, monkeypatch):
+    monkeypatch.setattr(question_routes, 'get_settings', lambda: Settings(_env_file=None))
+    monkeypatch.setattr(questions, 'search_knowledge', lambda **_: pytest.fail('Clarification must not retrieve'))
+    project = client.post('/api/v1/projects', json={'name': 'Ambiguous question'}).json()['id']
+    response = client.post(f'/api/v1/projects/{project}/questions', json={
+        'question': '上次迁移前，订单服务的主数据库是什么？',
+    })
+    assert response.status_code == 200, response.text
+    answer = response.json()
+    assert answer['time_scope']['source'] == 'clarification'
+    assert answer['time_scope']['valid_at'] is None
+    assert not answer['supported'] and answer['evidence'] == []
+    assert '手动选择' in answer['missing_information'][0]
 
 
 def prepared_project(client, monkeypatch):

@@ -6,6 +6,7 @@ from app.core.errors import AppError
 from app.models.domain import SourceStatus
 from app.services import code_context, ingestion
 from app.services.projects import get_project
+from app.services.question_time import resolve_question_time
 from app.services.agent_progress import RUN_LEASE_SECONDS, save_progress
 from app.analysis.languages import CODE_SOURCE_TYPES
 from app.agents.code_analysis.engine import LANGUAGE_FAMILIES
@@ -59,7 +60,7 @@ def _run_read(item,review_counts,*,now):
     scope = WorkflowScopeRead(
         note_revision_id=request.get('note_revision_id'),
         retrieval_mode=request.get('retrieval_mode', 'bm25') if question else None,
-        valid_at=request.get('valid_at') if question else None,
+        valid_at=request.get('resolved_valid_at', request.get('valid_at')) if question else None,
         include_code_analysis=include_code,
         code_strategy=request.get('code_strategy', 'single_step') if include_code else None,
         snapshot_id=request.get('snapshot_id') if include_code else None,
@@ -160,13 +161,19 @@ def start_run(db,*,user_id,project_id,request,settings):
         source_id = note_source.source_id
         source = ingestion.get_source(db, user_id=user_id, source_id=source_id)
         data['source_sha256'] = source.content_sha256
+    time_scope = None
+    if request.kind == 'question_pipeline':
+        time_scope = resolve_question_time(request.question, request.valid_at, utc_now())
+        if time_scope.source != 'current':
+            data['resolved_valid_at'] = time_scope.model_dump(mode='json')['valid_at']
+            data['include_code_analysis'] = False
     execution=uuid.uuid4()
     item=AgentRun(id=request.request_id,user_id=user_id,project_id=project_id,source_id=source_id,
         kind=request.kind,status='running',input_sha256=digest,request=data,events=[],usage={},
         execution_id=execution,lease_until=utc_now()+timedelta(seconds=RUN_LEASE_SECONDS))
     db.add(item);db.commit()
     runtime=RunContext(user_id=user_id,project_id=project_id,run_id=request.request_id,source_id=source_id,
-        snapshot_id=request.snapshot_id,valid_at=request.valid_at.isoformat() if request.valid_at else None,
+        snapshot_id=request.snapshot_id,valid_at=time_scope.valid_at.isoformat() if time_scope and time_scope.valid_at else None,
         model_limit=request.model_limit,tool_limit=request.tool_limit,embedding_limit=request.embedding_limit)
     partial_result = {}
     checkpoint_kinds = {'code_checkpoint', 'extraction_checkpoint', 'answer_checkpoint'}
@@ -180,7 +187,7 @@ def start_run(db,*,user_id,project_id,request,settings):
         runtime.event(kind, 'saved')
 
     runtime.on_progress = persist
-    code_source=request.include_code_analysis and source is not None and source.source_type in CODE_SOURCE_TYPES
+    code_source=data['include_code_analysis'] and source is not None and source.source_type in CODE_SOURCE_TYPES
 
     def code():
         if not code_source:return None
@@ -210,6 +217,7 @@ def start_run(db,*,user_id,project_id,request,settings):
     def answer(code_result=None):
         result = questions.answer_question(db,user_id=user_id,project_id=project_id,question=request.question,
             valid_at=request.valid_at,settings=settings,retrieval_mode=request.retrieval_mode,strategy='tools',
+            time_scope=time_scope,
             code_findings={'context':code_result['context'],'calls':code_result['calls'][:20]} if code_result else None).model_dump(mode='json')
         checkpoint('answer_checkpoint', {'answer': result, 'status': 'succeeded'})
         return result

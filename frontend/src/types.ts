@@ -362,6 +362,11 @@ export interface QuestionAnswer {
   supported: boolean
   answer: string
   confidence: number
+  time_scope?: {
+    source: 'manual' | 'question' | 'current' | 'clarification'
+    valid_at: string | null
+    expression?: string | null
+  } | null
   answer_protocol?: 'evidence-claims-v2' | 'evidence-claims-v3' | null
   claims?: { text: string; status: 'supported' | 'insufficient'; citation_ids: string[] }[] | null
   entity_ids: string[]

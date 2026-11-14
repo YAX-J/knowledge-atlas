@@ -10,6 +10,7 @@ from app.schemas.conversations import ConversationList, ConversationRead, TurnLi
 from app.services import graph, questions
 from app.services.evolution import aware
 from app.services.projects import get_project
+from app.services.question_time import resolve_question_time
 
 
 def _conversation(db, user_id, project_id, conversation_id, *, lock=False):
@@ -85,9 +86,11 @@ def answer(db, *, user_id, project_id, conversation_id, request, settings):
             raise AppError(status_code=409, code='CONVERSATION_LIMIT', message='此会话已达 200 轮，请新建会话')
         turn = ConversationTurn(user_id=user_id, project_id=project_id, conversation_id=conversation_id,
             request_id=request.request_id, position=position, question=request.question,
-            retrieval_mode=request.retrieval_mode, valid_at=request.valid_at)
+            retrieval_mode=request.retrieval_mode, valid_at=request.valid_at, created_at=now)
         db.add(turn)
     turn.status, turn.error_code = 'running', None
+    time_scope = resolve_question_time(request.question, request.valid_at,
+                                      aware(turn.created_at) if turn.created_at else now)
     execution_id = uuid.uuid4()
     conversation.active_request_id = request.request_id
     conversation.active_execution_id = execution_id
@@ -98,14 +101,14 @@ def answer(db, *, user_id, project_id, conversation_id, request, settings):
     context = [{'question': item.question, 'answer': (item.answer or {}).get('answer', '')[:1000]} for item in reversed(previous)]
     ids = [uuid.UUID(value) for item in previous[:2] for value in (item.answer or {}).get('entity_ids', [])]
     names = list(db.scalars(select(KnowledgeEntity.name).where(KnowledgeEntity.id.in_(ids),
-        *graph.visible(KnowledgeEntity, user_id, project_id, request.valid_at or now)).order_by(KnowledgeEntity.id).limit(5))) if ids else []
+        *graph.visible(KnowledgeEntity, user_id, project_id, time_scope.valid_at)).order_by(KnowledgeEntity.id).limit(5))) if ids and time_scope.valid_at else []
     # Explicit current wording remains first; old context never contributes citations.
     retrieval_query = ' '.join([request.question, *names])[:200] if context and names else request.question
     db.commit()
     try:
         response = questions.answer_question(db, user_id=user_id, project_id=project_id, question=request.question,
             valid_at=request.valid_at, settings=settings, retrieval_mode=request.retrieval_mode,
-            context=context, retrieval_query=retrieval_query)
+            context=context, retrieval_query=retrieval_query, time_scope=time_scope)
     except Exception as exc:
         db.rollback()
         current = _conversation(db, user_id, project_id, conversation_id, lock=True)

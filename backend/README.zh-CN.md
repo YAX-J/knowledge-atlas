@@ -213,6 +213,8 @@ GITHUB_TIMEOUT_SECONDS=30
 
 ## 证据问答
 
+显式 `valid_at` 优先。后端也能识别一个完整日期、「今天」或「昨天」，并在 `time_scope` 返回实际时点。时间不明确时先提示补充，无需检索或模型调用。
+
 引用正式关系时，答复包含关系两端、有效期和本次查询时点，证据保留原文分块与行号。会话和 Agent 任务保存回答里的关系快照。
 
 `POST /api/v1/projects/{project_id}/questions` 接受 1–200 字的问题和可选的带时区 `valid_at`。接口同步执行有界混合检索，只把选定的正式证据交给 DeepSeek，校验严格 JSON 与引用归属，并只返回实际引用的证据、实体和检索统计。没有证据时直接返回确定性拒答，不调用回答模型。响应不持久化；问答历史、流式输出和多轮编排留待后续。见 [ADR 0011](../docs/adr/0011-synchronous-evidence-grounded-questions.zh-CN.md)。

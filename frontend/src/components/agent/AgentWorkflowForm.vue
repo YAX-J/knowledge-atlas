@@ -59,7 +59,7 @@ function start() {
             <label>问题<textarea v-model="question" maxlength="200" rows="3" required /></label>
             <label>检索方式<select v-model="retrievalMode" aria-label="协作检索方式"><option v-for="(label,mode) in retrievalLabels" :key="mode" :value="mode">{{label}}</option></select></label>
             <p>BM25 检索无需嵌入服务；向量、混合及融合检索需要语义索引。生成回答仍可能调用模型。</p>
-            <label>知识时间（留空为当前）<input v-model="historyTime" aria-label="协作知识时间" type="datetime-local" :aria-invalid="historical&&validAt===null" /></label>
+            <label>知识时间（留空时从问题识别）<input v-model="historyTime" aria-label="协作知识时间" type="datetime-local" :aria-invalid="historical&&validAt===null" /></label>
             <p>时间按 {{timeZone}} 解释。<span v-if="historical">历史问答仅检索当时有效的正式证据，不加入当前代码。</span></p>
             <p v-if="historical&&validAt===null" role="alert">请选择有效的历史时间。</p>
           </template>
@@ -85,7 +85,7 @@ function start() {
           <label>本次模型请求上限<input v-model.number="modelLimit" type="number" min="0" max="8" required /></label>
           <p>开始会使用后端配置的模型，可能产生费用；最多 8 次模型请求、16 次工具调用。资料整理完成后，请核对候选再继续。</p>
           <section v-if="kind==='question_pipeline'||codeEnabled" class="agent-scope" aria-label="本次任务范围">
-            <p v-if="kind==='question_pipeline'">检索：{{retrievalLabels[retrievalMode]}} · {{historical?`${historyTime.replace('T',' ')} (${timeZone})`:'当前有效知识'}}</p>
+            <p v-if="kind==='question_pipeline'">检索：{{retrievalLabels[retrievalMode]}} · {{historical?`${historyTime.replace('T',' ')} (${timeZone})`:'自动识别时点'}}</p>
             <p v-if="codeEnabled">代码范围：{{selectedSnapshot?`固定提交 ${selectedSnapshot.commit_sha.slice(0,12)}`:`当前文件版本，指定 ${selection.versionIds?.length??0} 个相关文件版本`}}</p>
           </section>
           <button type="submit" :disabled="!canStart">{{sending?'正在执行…':'开始协作任务'}}</button>

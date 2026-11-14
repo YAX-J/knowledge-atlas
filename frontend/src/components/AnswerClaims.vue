@@ -4,6 +4,7 @@ import type { EvidenceLocator, QuestionAnswer } from '../types'
 
 const props = defineProps<{ answer: QuestionAnswer }>()
 const emit = defineEmits<{ openEvidence: [locator: EvidenceLocator] }>()
+const timeLabels = { manual: '手动选择', question: '从问题识别', current: '当前', clarification: '待补充' }
 const claims = computed(() => {
   const citations = new Map(props.answer.evidence.map((item, index) => [item.id, { item, position: index + 1 }]))
   return props.answer.claims?.map(claim => ({
@@ -13,6 +14,11 @@ const claims = computed(() => {
 </script>
 
 <template>
+  <p v-if="answer.time_scope?.valid_at" class="answer-time" aria-label="实际查询时点">
+    查询时点 · {{ timeLabels[answer.time_scope.source] }}
+    <span v-if="answer.time_scope.expression">「{{ answer.time_scope.expression }}」</span>
+    <time :datetime="answer.time_scope.valid_at">{{ new Date(answer.time_scope.valid_at).toLocaleString('zh-CN') }}</time>
+  </p>
   <section v-if="claims?.length" class="answer-claims" aria-label="逐条结论与引用">
     <p class="claim-notice">引用归属已经校验；引用是否充分支撑结论，仍需核对原文。</p>
     <ol>
@@ -50,6 +56,8 @@ const claims = computed(() => {
 <style scoped>
 .answer-claims, .legacy-answer { min-width: 0; overflow-wrap: anywhere; }
 .claim-notice { color: #536b70; font-size: 12px; line-height: 1.8; }
+.answer-time { color: #375960; font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
+.answer-time time { margin-left: 6px; }
 ol { padding-left: 24px; margin: 18px 0; }
 .answer-claim { padding: 14px 0; border-bottom: 1px solid var(--line); }
 .answer-claim p, .answer-text { white-space: pre-wrap; font-size: 14px; line-height: 1.9; }

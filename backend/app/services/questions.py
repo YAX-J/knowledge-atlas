@@ -7,10 +7,12 @@ from sqlalchemy.orm import Session
 from app.core.config import Settings
 from app.core.errors import AppError
 from app.models.domain import utc_now
-from app.schemas.questions import AnswerClaim, ClaimAnswerDraft, ClaimAnswerDraftV2, EvidenceEntityRead, QuestionEvidenceRead, QuestionRead, RetrievalSummary
+from app.schemas.questions import AnswerClaim, ClaimAnswerDraft, ClaimAnswerDraftV2, EvidenceEntityRead, QuestionEvidenceRead, QuestionRead, QuestionTimeScope, RetrievalSummary
 from app.llm.prompts import ANSWER_PROMPT_VERSION
 from app.services import deepseek
 from app.services.question_relationships import passage, relationship_passages, scoped_evidence
+from app.services.projects import get_project
+from app.services.question_time import resolve_question_time
 from app.services.search import search_knowledge
 from app.tools.evidence import EvidenceTools, payload
 
@@ -35,8 +37,17 @@ def answer_question(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, question: str,
     valid_at, settings: Settings, retrieval_mode: str = 'rrf',
     context: list[dict] | None = None, retrieval_query: str | None = None, strategy: str = 'single_step', code_findings=None,
+    time_scope: QuestionTimeScope | None = None,
 ) -> QuestionRead:
-    at = (valid_at or utc_now()).astimezone(timezone.utc)
+    scope = time_scope or resolve_question_time(question, valid_at, utc_now())
+    if scope.valid_at is None:
+        get_project(db, user_id=user_id, project_id=project_id)
+        return _insufficient(
+            question, scope, RetrievalSummary(keyword_hits=0, vector_hits=0, graph_hits=0,
+                indexed_count=0, eligible_count=0, mode=retrieval_mode),
+            '请补充一个明确的知识时点。', '在问题里写出完整日期（如 2026 年 4 月 1 日），或手动选择查询时点。',
+        )
+    at = scope.valid_at.astimezone(timezone.utc)
 
     def retrieve(query, mode):
         result = search_knowledge(
@@ -45,16 +56,15 @@ def answer_question(
         )
         return collect_answer_evidence(db, user_id=user_id, project_id=project_id, at=at, result=result)
 
-    evidence_by_id, retrieval = retrieve(retrieval_query or question, retrieval_mode)
+    query = retrieval_query or question
+    if scope.expression:
+        query = query.replace(scope.expression, ' ', 1).strip(' \t，,。:：') or query
+    evidence_by_id, retrieval = retrieve(query, retrieval_mode)
 
     if not evidence_by_id:
-        return QuestionRead(
-            id=uuid.uuid4(), question=question, supported=False,
-            answer='现有已确认知识中没有足够的原文证据回答这个问题。', confidence=0,
-            entity_ids=[], evidence=[], retrieval=retrieval,
-            missing_information=['请补充并确认包含答案的项目资料。'],
-            answer_protocol=ANSWER_PROMPT_VERSION,
-            claims=[AnswerClaim(text='现有已确认知识中没有足够的原文证据回答这个问题。', status='insufficient', citation_ids=[])],
+        return _insufficient(
+            question, scope, retrieval, '现有已确认知识中没有足够的原文证据回答这个问题。',
+            '请补充并确认包含答案的项目资料。',
         )
     if settings.deepseek_api_key is None:
         raise AppError(
@@ -76,7 +86,16 @@ def answer_question(
     except deepseek.QuestionError as exc:
         raise AppError(status_code=503, code=exc.code, message=exc.message) from exc
 
-    return validated_answer(question,evidence_by_id,retrieval,draft)
+    return validated_answer(question,evidence_by_id,retrieval,draft,time_scope=scope)
+
+
+def _insufficient(question, scope, retrieval, message, guidance):
+    return QuestionRead(
+        id=uuid.uuid4(), question=question, supported=False, answer=message, confidence=0,
+        entity_ids=[], evidence=[], retrieval=retrieval, missing_information=[guidance],
+        answer_protocol=ANSWER_PROMPT_VERSION, time_scope=scope,
+        claims=[AnswerClaim(text=message, status='insufficient', citation_ids=[])],
+    )
 
 
 def collect_answer_evidence(db, *, user_id, project_id, at, result):
@@ -131,7 +150,7 @@ def collect_evidence(result):
     return evidence_by_id,retrieval
 
 
-def validated_answer(question,evidence_by_id,retrieval,draft):
+def validated_answer(question,evidence_by_id,retrieval,draft,*,time_scope=None):
     unknown = set(draft.citation_ids) - set(evidence_by_id)
     if unknown:
         raise AppError(
@@ -148,4 +167,5 @@ def validated_answer(question,evidence_by_id,retrieval,draft):
         answer_protocol=(ANSWER_PROMPT_VERSION if isinstance(draft, ClaimAnswerDraft)
                          else 'evidence-claims-v2' if isinstance(draft, ClaimAnswerDraftV2) else None),
         claims=draft.claims if isinstance(draft, (ClaimAnswerDraft, ClaimAnswerDraftV2)) else None,
+        time_scope=time_scope,
     )

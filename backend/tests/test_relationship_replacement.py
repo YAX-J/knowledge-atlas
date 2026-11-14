@@ -128,4 +128,19 @@ def test_reviewed_primary_database_replacement_preserves_history(client, db_sess
     assert saved["relationship"]["valid_at"] == "2026-06-01T00:00:00Z"
     assert saved["quote"] == new_quote and saved["source_id"] == new_source
     assert client.get(turns).json()["items"][0]["answer"]["evidence"] == [saved]
-    assert [item["quote"] for item in calls] == [old_quote, new_quote]
+
+    inferred_april = {"question": "2026 年 4 月 1 日，订单服务的主数据库是什么？", "retrieval_mode": "bm25"}
+    derived = client.post(f"{base}/questions", json=inferred_april).json()
+    assert derived["time_scope"] == dict(source="question", valid_at="2026-04-01T00:00:00Z", expression="2026 年 4 月 1 日")
+    assert derived["evidence"][0] == cited
+    inferred_june = dict(question="2026-06-01，订单服务的主数据库是什么？", retrieval_mode="bm25",
+                         request_id=str(uuid.uuid4()))
+    turn_response = client.post(turns, json=inferred_june)
+    assert turn_response.status_code == 200, turn_response.text
+    assert turn_response.json()["answer"]["time_scope"]["source"] == "question"
+    assert turn_response.json()["answer"]["evidence"][0]["relationship"]["id"] == new_edge["id"]
+    assert client.post(turns, json=inferred_june).json() == turn_response.json()
+    corrected = client.post(f"{base}/questions", json={**inferred_april, "valid_at": june["valid_at"]}).json()
+    assert corrected["time_scope"] == dict(source="manual", valid_at="2026-06-01T00:00:00Z", expression=None)
+    assert corrected["evidence"][0]["relationship"]["id"] == new_edge["id"]
+    assert [item["quote"] for item in calls] == [old_quote, new_quote, old_quote, new_quote, new_quote]

@@ -213,6 +213,8 @@ Call `POST /api/v1/projects/{project_id}/embeddings/rebuild` before semantic, hy
 
 ## Evidence-grounded questions
 
+A supplied `valid_at` takes precedence. Otherwise, the service recognizes a single full date, today or yesterday and returns the effective instant in `time_scope`. Ambiguous time requests ask for clarification before retrieval or model usage.
+
 A cited relationship includes its endpoints, validity interval and the exact graph instant used for retrieval. The evidence retains the original chunk and line anchors. Conversation turns and agent runs retain the relationship snapshot in their saved answer.
 
 `POST /api/v1/projects/{project_id}/questions` accepts a 1–200 character question and optional timezone-aware `valid_at`. It synchronously runs bounded hybrid retrieval, gives DeepSeek only the selected formal evidence, validates strict JSON and citation membership, and returns only cited evidence with entity and retrieval summaries. With no evidence it returns a deterministic unsupported answer without calling the answer model. Responses are not persisted; history, streaming, and multi-turn orchestration are deferred. See [ADR 0011](../docs/adr/0011-synchronous-evidence-grounded-questions.md).
