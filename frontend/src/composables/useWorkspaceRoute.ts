@@ -10,6 +10,11 @@ const paths: Record<WorkspaceNav,string> = {workbench:'workbench',sources:'sourc
   projectGraph:'graph',graph:'demo',conversations:'conversations',questions:'questions',agents:'agents'}
 const sections:GraphSection[] = ['relations','search','identity','evolution','retirement']
 const identifier=(value:string|null) => value && /^[a-zA-Z0-9-]{1,80}$/.test(value) ? value : undefined
+function routeInstant(value: string | null) {
+  if (!value || Number.isNaN(Date.parse(value))) return undefined
+  // Graph history boundaries can carry PostgreSQL microseconds.
+  return /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{4,6}Z$/.test(value) ? value : new Date(value).toISOString()
+}
 export function parseWorkspaceRoute(hash:string,fallback:WorkspaceNav='workbench'):WorkspaceRoute {
   const [path,query='']=hash.replace(/^#\/?/,'').split('?')
   const nav=(Object.entries(paths).find(([,value])=>value===path)?.[0] as WorkspaceNav|undefined) ?? fallback
@@ -17,7 +22,7 @@ export function parseWorkspaceRoute(hash:string,fallback:WorkspaceNav='workbench
   const time=params.get('at'), section=params.get('section') as GraphSection
   return {nav,projectId:identifier(params.get('project')),sourceId:identifier(params.get('source')),
     entityId:identifier(params.get('entity')),relationshipId:identifier(params.get('relationship')),
-    conversationId:identifier(params.get('conversation')),runId:identifier(params.get('run')),validAt:time && !Number.isNaN(Date.parse(time)) ? new Date(time).toISOString() : undefined,
+    conversationId:identifier(params.get('conversation')),runId:identifier(params.get('run')),validAt:routeInstant(time),
     section:sections.includes(section)?section:'relations'}
 }
 export function encodeWorkspaceRoute(route:WorkspaceRoute) {

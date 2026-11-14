@@ -22,6 +22,8 @@ feat/project-agent 上 M1–M2 已实现并通过本地验证：五项只读工�
 
 ## 当前范围
 
+毕业设计主流程已加入已审核数据库切换对比，以及 PostgreSQL 关系图时间轴回放，可在所选时点打开原文证据。
+
 用户指定顺序的 P0/P1/P2 优化已落实到代码；验收证据与边界见[本轮报告](docs/OPTIMIZATION_20261029.zh-CN.md)。早期逐轮计划已移入[历史归档](docs/archive/pre-optimization-20261029/PLANS.zh-CN.md)，不再作为当前能力说明。
 
 | 优先级 | 结果 |

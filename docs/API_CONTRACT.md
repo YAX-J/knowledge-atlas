@@ -131,6 +131,7 @@ result.protocol=assistant-report-v1，action 为 finish 或 ask_user。finish �
 | `GET /api/v1/projects/{project_id}/reviews` | 已实现，分页候选查询 |
 | `POST /api/v1/reviews/{review_id}/resolve` | 已实现，确认/拒绝及名称摘要修正，确认时写入正式图谱 |
 | `GET /api/v1/projects/{project_id}/graph` | 已实现，只读局部图谱 |
+| `GET /api/v1/projects/{project_id}/graph/timeline` | 已实现，只读项目时间轴 |
 | `GET /api/v1/knowledge/entities/{entity_id}` | 已实现，实体详情、证据与直接关系 |
 | `GET /api/v1/knowledge/relationships/{relationship_id}` | 已实现，关系详情与证据 |
 | `POST /api/v1/projects/{project_id}/embeddings/rebuild` | 已实现，显式生成或复用正式实体向量 |
@@ -516,6 +517,10 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 任务详情 `scope.repository_progress` 提供 `phase`、`snapshot_id`、`commit_sha`、`completed_files`、`total_files`、`pending_directories`，解析阶段还提供 `parsed_files`、`waiting_files`、`failed_files`、`skipped_files`。`GET` 读取进度，现有 `cancel` 与 `continue` 控制后台任务。报告沿用 `assistant-report-v2`。
 
 ## 知识图谱
+
+### 图谱时间轴
+
+`GET /api/v1/projects/{project_id}/graph/timeline` 返回 `{ "instants": [...], "truncated": false }`。`instants` 是当前用户和项目内已到达的有效期边界，涵盖未归档实体、关系、重新启用前保存的历史区间和身份合并区间。服务按时间升序返回最近 200 个去重的 UTC 时点，保留数据库时间精度。无记录返回空数组，历史超限时 `truncated` 为 `true`，不可访问的项目返回 404。读取任一时点的切片时，将该值原样传给项目图谱的 `valid_at`。
 
 ### Neo4j 项目快照
 

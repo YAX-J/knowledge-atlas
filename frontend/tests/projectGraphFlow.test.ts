@@ -45,3 +45,30 @@ it('switches data sources, shows whole-snapshot totals, and exposes the explicit
  await wrapper.setProps({ neo4jSyncing: false, neo4jSyncError: '同步失败' })
  expect(wrapper.get('[role=alert]').text()).toBe('同步失败')
 })
+
+it('previews and commits historical graph stops, including sub-millisecond boundaries', async () => {
+  const older = '2026-04-01T00:00:00Z'
+  const newer = '2026-04-01T00:00:00.000005Z'
+  const edge = { ...node, id: 'old', name: 'Old database', source_id: node.id, target_id: node.id,
+    status: 'superseded', valid_from: older, valid_to: newer }
+  const wrapper = mount(ProjectGraph, { props: { ...props,
+    graph: { ...props.graph, edges: [edge] }, timeline: { instants: [older, newer], truncated: false },
+  } })
+  const slider = wrapper.get<HTMLInputElement>('#graph-time-slider')
+  expect(slider.element.value).toBe('2')
+  slider.element.value = '0'
+  await slider.trigger('input')
+  expect(wrapper.emitted('time')).toBeUndefined()
+  await slider.trigger('change')
+  expect(wrapper.emitted('time')).toEqual([[older]])
+  await wrapper.setProps({ validAt: older })
+  expect(wrapper.get('.real-edge.ended').attributes('aria-label')).toContain('后来失效')
+  await slider.setValue('1')
+  expect(wrapper.emitted('time')?.[1]).toEqual([newer])
+  await wrapper.setProps({ validAt: newer })
+  expect(slider.attributes('aria-valuetext')).toContain('.000005')
+  await slider.setValue('2')
+  expect(wrapper.emitted('time')?.[2]).toEqual([''])
+  await wrapper.setProps({ backend: 'neo4j' })
+  expect(wrapper.find('#graph-time-slider').exists()).toBe(false)
+})

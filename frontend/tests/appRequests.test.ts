@@ -17,7 +17,7 @@ import type { EmbeddingIndexStatus, EmbeddingRebuildResult, EntityDetail, Knowle
 vi.mock('../src/api/knowledgeAtlas', async importOriginal => {
   const original = await importOriginal<typeof api>()
   return { ...original, listProjects: vi.fn(), listSources: vi.fn(), listRepositories: vi.fn(), askQuestion: vi.fn(),
-    getEmbeddingStatus: vi.fn(), getEmbeddingJob: vi.fn(), getProjectGraph: vi.fn(), listKnowledgeChanges: vi.fn(), getEntityDetail: vi.fn(),
+    getEmbeddingStatus: vi.fn(), getEmbeddingJob: vi.fn(), getProjectGraph: vi.fn(), getGraphTimeline: vi.fn(), listKnowledgeChanges: vi.fn(), getEntityDetail: vi.fn(),
     getSource: vi.fn(), listSourceChunks: vi.fn(), listCandidates: vi.fn(), getExtraction: vi.fn(),
     searchKnowledge: vi.fn(), rebuildProjectEmbeddings: vi.fn(), listKnowledgeRetirements: vi.fn(), retireKnowledge: vi.fn(),
     uploadSource: vi.fn(), getTask: vi.fn(), resolveCandidatesBatch: vi.fn(), getProject: vi.fn(),

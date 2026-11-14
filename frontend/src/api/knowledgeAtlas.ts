@@ -1,6 +1,6 @@
 import { apiRequest } from './client'
 import type { GovernanceResult, KnowledgeChange, KnowledgeChangeInput, KnowledgeChangeList, KnowledgeHistory } from '../types'
-import type { EmbeddingRebuildResult, EntityDetail, KnowledgeCandidate, KnowledgeSearchMode, KnowledgeSearchResult, Neo4jGraphData, Neo4jSnapshot, ProjectGraphData, QuestionAnswer, RelationshipDetail, ReviewDecision } from '../types'
+import type { EmbeddingRebuildResult, EntityDetail, GraphTimeline, KnowledgeCandidate, KnowledgeSearchMode, KnowledgeSearchResult, Neo4jGraphData, Neo4jSnapshot, ProjectGraphData, QuestionAnswer, RelationshipDetail, ReviewDecision } from '../types'
 
 export interface ApiProject {
   id: string
@@ -649,6 +649,10 @@ export function getProjectGraph(projectId: string, options: GraphQuery & { valid
 
 export function getNeo4jGraph(projectId: string, options: GraphQuery = {}): Promise<Neo4jGraphData> {
   return apiRequest(`/projects/${projectId}/graph/neo4j?${graphQuery(options)}`)
+}
+
+export function getGraphTimeline(projectId: string): Promise<GraphTimeline> {
+  return apiRequest(`/projects/${projectId}/graph/timeline`)
 }
 
 export function syncNeo4jGraph(projectId: string): Promise<Neo4jSnapshot> {

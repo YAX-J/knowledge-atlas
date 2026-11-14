@@ -13,6 +13,8 @@ it('restores the saved collaboration run without carrying its ID to another work
 it('round trips project/source/history context and rejects invalid route inputs',()=>{
   const route:WorkspaceRoute={nav:'projectGraph',projectId:'project-1',sourceId:'source-1',entityId:'entity-1',validAt:'2023-03-20T00:00:00.000Z',section:'identity'}
   expect(parseWorkspaceRoute(encodeWorkspaceRoute(route))).toMatchObject(route)
+  const precise = { ...route, validAt: '2026-06-01T00:00:00.000005Z' }
+  expect(parseWorkspaceRoute(encodeWorkspaceRoute(precise))).toMatchObject(precise)
   const invalid=parseWorkspaceRoute('#/unknown?project=../../secrets&at=nonsense&section=unsafe')
   expect(invalid.nav).toBe('workbench');expect(invalid.projectId).toBeUndefined();expect(invalid.validAt).toBeUndefined()
   expect(invalid.section).toBe('relations')

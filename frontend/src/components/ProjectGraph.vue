@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import KnowledgeSearch from './KnowledgeSearch.vue'
 import type { GraphSection } from '../composables/useWorkspaceRoute'
 import type { ApiProject } from '../api/knowledgeAtlas'
-import type { EmbeddingJob, EmbeddingIndexStatus, EntityDetail, EvidenceLocator, FormalKnowledgeEdge, GraphBackend, KnowledgeSearchMode, KnowledgeSearchResult, Neo4jSnapshot, ProjectGraphData, RelationshipDetail } from '../types'
+import type { EmbeddingJob, EmbeddingIndexStatus, EntityDetail, EvidenceLocator, FormalKnowledgeEdge, GraphBackend, GraphTimeline, KnowledgeSearchMode, KnowledgeSearchResult, Neo4jSnapshot, ProjectGraphData, RelationshipDetail } from '../types'
 
 const props = defineProps<{
   project: ApiProject | null
@@ -31,6 +31,9 @@ const props = defineProps<{
   searchNotice: string
   validAt: string
   mutationBusy: boolean
+  timeline?: GraphTimeline | null
+  timelineLoading?: boolean
+  timelineError?: string
   indexStatus?: EmbeddingIndexStatus | null
   indexStatusLoading?: boolean
   indexStatusError?: string
@@ -55,6 +58,7 @@ const emit = defineEmits<{
   selectSearchEntity: [id: string]
   openEvidence: [locator: EvidenceLocator]
   time: [value: string]
+  retryTimeline: []
   inspectIndex: []
   section: [value: GraphSection]
   backend: [value: GraphBackend]
@@ -66,7 +70,35 @@ watch(() => props.validAt, value => {
   const date = new Date(value)
   localTime.value = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 23)
 }, { immediate: true })
-function applyTime() { emit('time', localTime.value ? new Date(localTime.value).toISOString() : '') }
+function applyTime() {
+  if (!localTime.value) { emit('time', ''); return }
+  const selected = new Date(localTime.value).toISOString()
+  emit('time', props.validAt && new Date(props.validAt).toISOString() === selected ? props.validAt : selected)
+}
+function instantKey(value: string) {
+  const millis = new Date(value).toISOString().slice(0, -1)
+  const fraction = value.match(/\.(\d{4,6})Z$/)?.[1]
+  return millis + (fraction?.padEnd(6, '0').slice(3) ?? '000')
+}
+const stops = computed(() => {
+  const entries = new Map((props.timeline?.instants ?? []).map(value => [instantKey(value), value]))
+  if (props.validAt) entries.set(instantKey(props.validAt), props.validAt)
+  return [...entries.keys()].sort().map(key => entries.get(key)!)
+})
+const previewIndex = ref<number | null>(null)
+const activeIndex = computed(() => props.validAt ? stops.value.indexOf(props.validAt) : stops.value.length)
+const sliderIndex = computed(() => previewIndex.value ?? activeIndex.value)
+const sliderTime = computed(() => stops.value[sliderIndex.value])
+function displayInstant(value: string) {
+  const fraction = instantKey(value).split('.')[1]?.replace(/0+$/, '')
+  return new Date(value).toLocaleString('zh-CN') + (fraction ? `.${fraction}` : '')
+}
+watch([stops, () => props.validAt], () => { previewIndex.value = null })
+function selectTimeline(event: Event) {
+  const value = stops.value[(event.target as HTMLInputElement).valueAsNumber] ?? ''
+  previewIndex.value = null
+  if (value !== props.validAt) emit('time', value)
+}
 const labels: Record<string, string> = {
   Project: '项目', CodeFile: '代码文件', CodeEntity: '代码实体', Technology: '技术', Concept: '概念',
   Problem: '问题', Solution: '方案', Decision: '决策', Alternative: '候选方案', Constraint: '约束',
@@ -84,6 +116,11 @@ const positions = computed(() => new Map(positioned.value.map(item => [item.id, 
 const selected = computed(() => props.entityDetail?.entity ?? props.relationshipDetail?.relationship ?? null)
 const evidence = computed(() => props.entityDetail?.evidence ?? props.relationshipDetail?.evidence ?? [])
 const isNeo4j = computed(() => props.backend === 'neo4j')
+function ended(edge: FormalKnowledgeEdge) {
+  return Boolean(props.validAt && !isNeo4j.value && (edge.status === 'superseded' ||
+    (edge.valid_to && Date.parse(edge.valid_to) <= Date.now())))
+}
+const hasEndedEdges = computed(() => props.graph?.edges.some(ended))
 function edgePath(edge: FormalKnowledgeEdge) {
   const source = positions.value.get(edge.source_id)
   const target = positions.value.get(edge.target_id)
@@ -125,9 +162,22 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
           </p>
         </template>
       </div>
+      <section v-if="project && !isNeo4j && (!section || section === 'relations')" class="graph-timeline" aria-label="图谱时间轴">
+        <p v-if="timelineLoading" role="status">正在读取图谱时间轴…</p>
+        <div v-else-if="timelineError" class="graph-error" role="alert">{{ timelineError }} <button type="button" @click="emit('retryTimeline')">重试时间轴</button></div>
+        <template v-else-if="timeline?.instants.length">
+          <div class="timeline-heading"><label for="graph-time-slider">图谱时间轴</label><output for="graph-time-slider">{{ sliderTime ? displayInstant(sliderTime) : '当前知识' }}</output></div>
+          <input id="graph-time-slider" type="range" min="0" :max="stops.length" step="1" :value="sliderIndex"
+            :disabled="mutationBusy" :aria-valuetext="sliderTime ? displayInstant(sliderTime) : '当前知识'"
+            @input="previewIndex = ($event.target as HTMLInputElement).valueAsNumber" @change="selectTimeline" />
+          <div class="timeline-limits"><time :datetime="stops[0]">{{ displayInstant(stops[0]!) }}</time><span>当前</span></div>
+          <p v-if="timeline.truncated">时间轴仅列出最近的 200 个知识时点。可手动查询更早日期。</p>
+        </template>
+        <p v-else-if="timeline">确认知识后，时间轴会显示生效和失效时点。</p>
+      </section>
       <div class="graph-toolbar">
         <form v-if="!isNeo4j" class="time-query" @submit.prevent="applyTime"><label>历史时间 <input v-model="localTime" type="datetime-local" step="0.001" :disabled="loading || mutationBusy" /></label><button type="submit" :disabled="loading || mutationBusy">查询该时刻</button><button v-if="validAt" type="button" :disabled="loading || mutationBusy" @click="emit('time', '')">返回当前知识</button></form>
-        <span v-if="validAt && !isNeo4j" class="graph-kicker">历史视图 · {{ new Date(validAt).toLocaleString('zh-CN') }}</span>
+        <span v-if="validAt && !isNeo4j" class="graph-kicker">历史视图 · {{ displayInstant(validAt) }}</span>
         <label>知识类型 <select :value="typeFilter" :disabled="loading || neo4jSyncing" @change="filter"><option value="">全部类型</option><option v-for="(label, type) in labels" :key="type" :value="type">{{ label }}</option></select></label>
         <label>邻域深度 <select :value="depth" :disabled="loading || neo4jSyncing || !center" @change="depthChange"><option value="1">一跳</option><option value="2">二跳</option></select></label>
         <button v-if="center" type="button" :disabled="loading || neo4jSyncing" @click="emit('reset')">返回项目总览</button>
@@ -143,10 +193,11 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
       <div class="real-graph-layout">
         <section class="real-graph-canvas" aria-label="已确认知识关系图">
           <p class="graph-scroll-hint">画布可横向滚动，也可使用下方列表选择节点与关系。</p>
+          <p v-if="hasEndedEdges" class="graph-scroll-hint ended-legend">虚线为该时点有效、后来失效或被替代的关系。</p>
           <div class="graph-scroll-area" tabindex="0" aria-label="图谱画布滚动区域">
             <svg :viewBox="`0 0 ${layout.width} ${layout.height}`" :style="{ width: `${layout.width}px`, height: `${layout.height}px` }" role="group" aria-label="真实项目知识图谱">
               <defs><marker id="real-graph-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#718f94" /></marker></defs>
-              <g v-for="edge in graph.edges" :key="edge.id" class="real-edge" :class="{ selected: edge.id === selectedId }" role="button" tabindex="0" :aria-label="`查看关系：${edge.name}`" @click="emit('selectRelationship', edge.id)" @keydown.enter="emit('selectRelationship', edge.id)" @keydown.space.prevent="emit('selectRelationship', edge.id)">
+              <g v-for="edge in graph.edges" :key="edge.id" class="real-edge" :class="{ selected: edge.id === selectedId, ended: ended(edge) }" role="button" tabindex="0" :aria-label="`查看关系：${edge.name}${ended(edge) ? '（后来失效）' : ''}`" @click="emit('selectRelationship', edge.id)" @keydown.enter="emit('selectRelationship', edge.id)" @keydown.space.prevent="emit('selectRelationship', edge.id)">
                 <path :d="edgePath(edge)" class="edge-hit" /><path :d="edgePath(edge)" marker-end="url(#real-graph-arrow)" />
               </g>
               <g v-for="node in positioned" :key="node.id" :transform="`translate(${node.x} ${node.y})`" class="real-node" :class="{ selected: selectedId === node.id }" role="button" tabindex="0" :aria-label="`查看知识：${node.name}`" @click="emit('selectEntity', node.id)" @keydown.enter="emit('selectEntity', node.id)" @keydown.space.prevent="emit('selectEntity', node.id)">
@@ -180,6 +231,14 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
 <style scoped>
 .graph-sections { display:flex;flex-wrap:wrap;gap:10px;margin-top:20px; }.graph-sections [aria-current=page] { background:var(--ink);color:white; }.context-node-picker { display:flex;gap:12px;align-items:center;font-size:13px; }.context-node-picker select { max-width:70%; }.route-error { color:var(--rose); }
 .time-query { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }.time-query input { min-width: 0; max-width: 100%; min-height: 40px; padding: 6px; border: 1px solid #aabec0; border-radius: 5px; color: var(--ink); background: var(--paper); box-sizing: border-box; }.time-query input:focus-visible { outline: 2px solid var(--rose); outline-offset: 3px; }
+.graph-timeline { padding: 8px 12px; min-width: 0; }
+.timeline-heading, .timeline-limits { display: flex; justify-content: space-between; gap: 4px 16px; flex-wrap: wrap; }
+.timeline-heading label { font-weight: 700; }
+.timeline-limits, .graph-timeline p { font-size: 12px; color: #536b70; }
+.graph-timeline input { width: 100%; margin: 5px 0; min-height: 24px; accent-color: var(--teal); cursor: pointer; }
+.graph-timeline input:focus-visible { outline: 2px solid var(--rose); outline-offset: 3px; }
+.real-edge.ended path:not(.edge-hit) { stroke-dasharray: 7 5; }
+.ended-legend { padding-left: 10px; border-left: 2px dashed #718f94; }
 .project-graph-page { height: calc(100% - 86px); overflow: auto; padding: 30px 30px 60px 100px; background: #edf3f3; color: var(--ink); }
 .graph-page-heading { display: flex; justify-content: space-between; gap: 20px; align-items: center; }
 .graph-kicker { color: var(--teal); font-size: 12px; }

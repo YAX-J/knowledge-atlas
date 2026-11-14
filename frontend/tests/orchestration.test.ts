@@ -6,10 +6,10 @@ import { useSourceImport } from '../src/composables/useSourceImport'
 import * as api from '../src/api/knowledgeAtlas'
 import { project } from './fixtures'
 import type { CandidateList, ProcessingTask, SourceList, SourceRepositoryList, SourceUploadResult } from '../src/api/knowledgeAtlas'
-import type { EntityDetail, IngestionErrors, IngestionLoading, Neo4jSnapshot, ProjectGraphData } from '../src/types'
+import type { EntityDetail, GraphTimeline, IngestionErrors, IngestionLoading, Neo4jSnapshot, ProjectGraphData } from '../src/types'
 
 vi.mock('../src/api/knowledgeAtlas', () => ({
-  getEntityDetail:vi.fn(), getRelationshipDetail:vi.fn(), getProjectGraph:vi.fn(), getNeo4jGraph:vi.fn(), syncNeo4jGraph:vi.fn(),
+  getEntityDetail:vi.fn(), getRelationshipDetail:vi.fn(), getProjectGraph:vi.fn(), getGraphTimeline:vi.fn(), getNeo4jGraph:vi.fn(), syncNeo4jGraph:vi.fn(),
   extractKnowledge:vi.fn(), getExtraction:vi.fn(), listCandidates:vi.fn(), resolveCandidate:vi.fn(), resolveCandidatesBatch:vi.fn(),
   importGithubWorkItems:vi.fn(), resolveGithubRepository:vi.fn(), resolveLocalRepository:vi.fn(), syncGithubRepository:vi.fn(),
   uploadSource:vi.fn(), runTask:vi.fn(),
@@ -25,9 +25,27 @@ const graph:ProjectGraphData={nodes:[node],edges:[],truncated:false}
 beforeEach(()=>{
   vi.resetAllMocks()
   vi.mocked(api.getProjectGraph).mockResolvedValue(graph)
+  vi.mocked(api.getGraphTimeline).mockResolvedValue({ instants: [], truncated: false })
   vi.mocked(api.getEntityDetail).mockResolvedValue(detail)
   vi.mocked(api.listCandidates).mockResolvedValue(empty)
   vi.mocked(api.getExtraction).mockResolvedValue({task:null,candidate_count:0})
+})
+
+it('updates timeline stops on project changes and discards late responses', async () => {
+  const context = reactive({ projectId: project.id, active: true, relations: true })
+  const old = deferred<GraphTimeline>()
+  const current = { instants: ['2026-06-01T00:00:00Z'], truncated: false }
+  vi.mocked(api.getGraphTimeline).mockReturnValueOnce(old.promise).mockResolvedValue(current)
+  const { state } = scoped(() => useProjectGraph(() => ({ ...context }), String, vi.fn(), vi.fn()))
+  context.projectId = 'other'
+  await Promise.resolve()
+  old.resolve({ instants: ['2026-04-01T00:00:00Z'], truncated: false })
+  await Promise.resolve()
+  expect(state.timeline.result.value).toEqual(current)
+  state.graphValidAt.value = current.instants[0]!
+  expect(api.getGraphTimeline).toHaveBeenCalledTimes(2)
+  context.relations = false
+  expect(state.timeline.result.value).toBeNull()
 })
 afterEach(()=>{scopes.splice(0).forEach(scope=>scope.stop())})
 

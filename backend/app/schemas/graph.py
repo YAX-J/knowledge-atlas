@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, field_validator
 
 
 class KnowledgeNodeRead(BaseModel):
@@ -34,6 +34,11 @@ class KnowledgeEdgeRead(KnowledgeNodeRead):
 class GraphRead(BaseModel):
     nodes: list[KnowledgeNodeRead]
     edges: list[KnowledgeEdgeRead]
+    truncated: bool
+
+
+class GraphTimelineRead(BaseModel):
+    instants: list[AwareDatetime]
     truncated: bool
 
 

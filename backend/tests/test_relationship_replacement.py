@@ -95,6 +95,12 @@ def test_reviewed_primary_database_replacement_preserves_history(client, db_sess
     assert evidence["quote"] == new_quote and evidence["source_id"] == new_source
     assert old_edge["source_id"] == new_edge["source_id"]
 
+    timeline = client.get(f"{base}/graph/timeline").json()
+    assert timeline == {"instants": ["2026-03-01T00:00:00Z", "2026-06-01T00:00:00Z"], "truncated": False}
+    for at, expected in zip(timeline["instants"], [old_edge, new_edge]):
+        edge, _ = edge_at(at)
+        assert edge["id"] == expected["id"]
+
     monkeypatch.setattr(questions, "get_settings", lambda: configured)
     monkeypatch.setattr(conversations, "get_settings", lambda: configured)
     calls = []

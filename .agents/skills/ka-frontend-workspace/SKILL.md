@@ -198,6 +198,8 @@ AnswerClaims is shared by question/conversation and AgentWorkspace. Show claim s
 
 For a saved `comparison`, display both graph instants and the reviewed cutover. Label each relationship disclosure by its citation UUID and route it through the same exact evidence navigation. Keep the single-instant override out of comparison results and guide readers to put both dates in the question.
 
+The PostgreSQL graph timeline loads separately from each historical slice and is fenced by project, graph section and data source. Preview range changes on input and query the slice on change. Preserve UTC microseconds in route restoration and send the same `valid_at` to relationship details. Verify keyboard navigation, exact source location and restoration in desktop Chrome.
+
 
 ## Summary history and form boundary (ADR0071)
 

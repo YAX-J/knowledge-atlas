@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import get_args
 
 from pydantic import ValidationError
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, union
 from sqlalchemy.orm import Session, aliased
 
 from app.core.errors import AppError
@@ -21,13 +21,14 @@ from app.models.domain import (
 from app.models.graph import KnowledgeEntity, KnowledgeEvidence, KnowledgeRelationship
 from app.models.workspace import EntityMerge, KnowledgePeriod
 from app.services import identities
-from app.schemas.graph import EntityDetail, FormalEvidenceRead, GraphRead, KnowledgeEdgeRead, KnowledgeNodeRead, RelationshipDetail
+from app.schemas.graph import EntityDetail, FormalEvidenceRead, GraphRead, GraphTimelineRead, KnowledgeEdgeRead, KnowledgeNodeRead, RelationshipDetail
 from app.schemas.knowledge import EntityType, EvidenceDraft, FactValidity, RelationType
 from app.services.projects import get_project
 from app.services.source_links import github_file_urls, github_line_url
 
 
 MAX_EDGES = 500
+MAX_TIMELINE_INSTANTS = 200
 NEO4J_MAX_NODES = 5000
 NEO4J_MAX_EDGES = 20000
 
@@ -328,6 +329,37 @@ def get_graph(
     ).order_by(KnowledgeRelationship.created_at, KnowledgeRelationship.id).limit(MAX_EDGES + 1))) if ids else []
     truncated = truncated or len(edges) > MAX_EDGES
     return GraphRead(nodes=_reads(db, nodes, at=at), edges=_reads(db, edges[:MAX_EDGES], edges=True, at=at), truncated=truncated)
+
+
+def timeline(db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID) -> GraphTimelineRead:
+    get_project(db, user_id=user_id, project_id=project_id)
+    now = utc_now()
+    boundaries = []
+    for record, kind in ((KnowledgeEntity, 'entity'), (KnowledgeRelationship, 'relationship')):
+        scope = (record.user_id == user_id, record.project_id == project_id, record.status != 'archived')
+        for field in ('valid_from', 'valid_to'):
+            boundary = getattr(record, field)
+            boundaries.append(select(boundary.label('instant')).where(
+                *scope, boundary <= now, or_(record.valid_to.is_(None), record.valid_from < record.valid_to),
+            ))
+            saved = getattr(KnowledgePeriod, field)
+            boundaries.append(select(saved.label('instant')).join(record, and_(
+                record.id == KnowledgePeriod.knowledge_id, record.user_id == KnowledgePeriod.user_id,
+                record.project_id == KnowledgePeriod.project_id,
+            )).where(*scope, KnowledgePeriod.kind == kind, saved <= now,
+                     KnowledgePeriod.valid_from < KnowledgePeriod.valid_to))
+    for boundary in (EntityMerge.valid_from, EntityMerge.valid_to):
+        boundaries.append(select(boundary.label('instant')).where(
+            EntityMerge.user_id == user_id, EntityMerge.project_id == project_id, boundary <= now,
+            or_(EntityMerge.valid_to.is_(None), EntityMerge.valid_from < EntityMerge.valid_to),
+        ))
+    instants = union(*boundaries).subquery().c.instant
+    newest_first = list(db.scalars(select(instants).order_by(instants.desc()).limit(MAX_TIMELINE_INSTANTS + 1)))
+    return GraphTimelineRead(
+        instants=[value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+                  for value in reversed(newest_first[:MAX_TIMELINE_INSTANTS])],
+        truncated=len(newest_first) > MAX_TIMELINE_INSTANTS,
+    )
 
 
 def read_projection(

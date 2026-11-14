@@ -143,6 +143,11 @@ export interface ProjectGraphData {
   truncated: boolean
 }
 
+export interface GraphTimeline {
+  instants: string[]
+  truncated: boolean
+}
+
 export type GraphBackend = 'postgresql' | 'neo4j'
 
 export interface Neo4jSnapshot {

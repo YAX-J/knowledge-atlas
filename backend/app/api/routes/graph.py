@@ -7,7 +7,7 @@ from pydantic import AwareDatetime
 from app.api.dependencies import CurrentUserId, DatabaseSession
 from app.core.config import get_settings
 from app.core.errors import AppError
-from app.schemas.graph import EntityDetail, GraphRead, Neo4jGraphRead, Neo4jGraphSync, RelationshipDetail
+from app.schemas.graph import EntityDetail, GraphRead, GraphTimelineRead, Neo4jGraphRead, Neo4jGraphSync, RelationshipDetail
 from app.schemas.knowledge import EntityType
 from app.services import graph, neo4j_graph
 
@@ -31,6 +31,11 @@ def get_graph(
 ):
     return graph.get_graph(db, user_id=user_id, project_id=project_id, center_id=center_id,
                            depth=depth, types=_graph_types(types), valid_at=valid_at, limit=limit)
+
+
+@router.get("/projects/{project_id}/graph/timeline", response_model=GraphTimelineRead)
+def get_timeline(project_id: uuid.UUID, db: DatabaseSession, user_id: CurrentUserId):
+    return graph.timeline(db, user_id=user_id, project_id=project_id)
 
 
 @router.get("/health/neo4j")

@@ -22,6 +22,8 @@ The approved single-project refactor is implemented: three registered agents, tw
 
 ## Current scope
 
+The thesis workflow now includes reviewed database cutover comparisons and timeline playback on the PostgreSQL relationship graph, with source citations at the selected instant.
+
 The user's ordered P0/P1/P2 optimization is implemented in code. Acceptance evidence and limits live in [the current report](docs/OPTIMIZATION_20261029.md). Historical phase/checkpoint prose is preserved in [the archive](docs/archive/pre-optimization-20261029/PLANS.md); it is not the current capability specification.
 
 | Priority | Result |

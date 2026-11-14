@@ -1,6 +1,7 @@
 import { onScopeDispose, ref, watch } from 'vue'
-import { getEntityDetail, getNeo4jGraph, getProjectGraph, getRelationshipDetail, syncNeo4jGraph } from '../api/knowledgeAtlas'
-import type { EntityDetail, GraphBackend, Neo4jSnapshot, ProjectGraphData, RelationshipDetail } from '../types'
+import { getEntityDetail, getGraphTimeline, getNeo4jGraph, getProjectGraph, getRelationshipDetail, syncNeo4jGraph } from '../api/knowledgeAtlas'
+import type { EntityDetail, GraphBackend, GraphTimeline, Neo4jSnapshot, ProjectGraphData, RelationshipDetail } from '../types'
+import { useLatestRequest } from './useLatestRequest'
 
 export function useProjectGraph(context: () => { projectId: string | undefined; active: boolean; relations?: boolean },
   errorMessage: (error: unknown) => string, clearHistory: () => void, onEntityLoaded: () => void) {
@@ -22,6 +23,7 @@ export function useProjectGraph(context: () => { projectId: string | undefined; 
   const neo4jSnapshot = ref<Neo4jSnapshot | null>(null)
   const neo4jSyncing = ref(false)
   const neo4jSyncError = ref('')
+  const timeline = useLatestRequest<GraphTimeline>(errorMessage)
   let graphRequest = 0, graphDetailRequest = 0
   function clearProjectGraph() {
     graphRequest++; graphDetailRequest++
@@ -141,6 +143,18 @@ export function useProjectGraph(context: () => { projectId: string | undefined; 
     else void selectGraphRelationship(graphSelectedId.value)
   }
 
+  async function loadGraphTimeline() {
+    const { projectId, active, relations } = context()
+    if (disposed || !projectId || !active || relations === false || graphBackend.value !== 'postgresql') {
+      timeline.clear()
+      return
+    }
+    await timeline.run(() => getGraphTimeline(projectId), () => {
+      const current = context()
+      return current.projectId === projectId && current.active && current.relations !== false && graphBackend.value === 'postgresql'
+    })
+  }
+
   function filterGraph(type: string) { graphType.value = type; void loadRealGraph('') }
   function setGraphDepth(depth: number) { graphDepth.value = depth; void loadRealGraph() }
 
@@ -160,9 +174,12 @@ export function useProjectGraph(context: () => { projectId: string | undefined; 
       void loadRealGraph('')
     }
   }, { flush: 'sync' })
+  watch([() => context().projectId, () => context().active, () => context().relations, graphBackend],
+    loadGraphTimeline, { immediate: true, flush: 'sync' })
   onScopeDispose(() => { disposed = true; clearProjectGraph() })
   return { realGraph, realEntityDetail, realRelationshipDetail, graphLoading, graphDetailLoading, graphError, graphDetailError,
     graphSelectedId, graphSelectionKind, graphCenter, graphType, graphDepth, graphValidAt,
     graphBackend, neo4jSnapshot, neo4jSyncing, neo4jSyncError, selectGraphBackend, syncGraphToNeo4j,
-    clearProjectGraph, loadRealGraph, selectGraphEntity, selectGraphRelationship, retryGraphDetail, filterGraph, setGraphDepth }
+    timeline, loadGraphTimeline, clearProjectGraph, loadRealGraph, selectGraphEntity, selectGraphRelationship,
+    retryGraphDetail, filterGraph, setGraphDepth }
 }

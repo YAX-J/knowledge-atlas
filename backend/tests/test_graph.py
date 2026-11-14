@@ -1,6 +1,6 @@
 import copy
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import func, select
@@ -21,6 +21,7 @@ from app.models.domain import (
     utc_now,
 )
 from app.models.graph import KnowledgeEntity, KnowledgeEvidence, KnowledgeRelationship
+from app.models.workspace import KnowledgePeriod
 from app.schemas.knowledge import ExtractionDraft
 from app.services import deepseek, graph
 from tests.test_knowledge import configured, parsed_source, reviews
@@ -44,6 +45,36 @@ def confirm(client, candidate):
 
 def count(db, model):
     return db.scalar(select(func.count()).select_from(model))
+
+
+def test_timeline_limits_boundaries_to_reviewed_project_history(client, db_session, configured, monkeypatch):
+    project_id, _, candidates = extracted(client, monkeypatch)
+    url = f"/api/v1/projects/{project_id}/graph/timeline"
+    assert client.get(url).json() == {"instants": [], "truncated": False}
+    for candidate in candidates:
+        confirm(client, candidate)
+    now = datetime(2026, 11, 14, tzinfo=timezone.utc)
+    monkeypatch.setattr(graph, 'utc_now', lambda: now)
+    start, close, resume = (datetime(2026, month, 1, tzinfo=timezone.utc) for month in (3, 4, 5))
+    edge = db_session.scalars(select(KnowledgeRelationship)).one()
+    edge.valid_from = resume
+    db_session.add(KnowledgePeriod(user_id=edge.user_id, project_id=edge.project_id, knowledge_id=edge.id,
+                                   kind='relationship', valid_from=start, valid_to=close))
+    for index, entity in enumerate(db_session.scalars(select(KnowledgeEntity).order_by(KnowledgeEntity.id))):
+        entity.valid_from = start if index == 0 else now + timedelta(days=1)
+    db_session.commit()
+    assert client.get(url).json() == {
+        'instants': ['2026-03-01T00:00:00Z', '2026-04-01T00:00:00Z', '2026-05-01T00:00:00Z'], 'truncated': False,
+    }
+    monkeypatch.setattr(graph, 'MAX_TIMELINE_INSTANTS', 2)
+    assert client.get(url).json() == {
+        'instants': ['2026-04-01T00:00:00Z', '2026-05-01T00:00:00Z'], 'truncated': True,
+    }
+    app.dependency_overrides[get_current_user_id] = uuid.uuid4
+    try:
+        assert client.get(url).status_code == 404
+    finally:
+        app.dependency_overrides.pop(get_current_user_id)
 
 
 def test_confirmation_persists_graph_and_locatable_evidence(client, db_session, configured, monkeypatch):

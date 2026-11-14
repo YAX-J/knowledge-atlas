@@ -193,6 +193,8 @@ Confirmation writes formal entities, relationships, and evidence in the review t
 
 ## Project graph
 
+`GET /api/v1/projects/{project_id}/graph/timeline` lists up to 200 recent, distinct UTC boundaries from confirmed knowledge and identity history in the current project. The browser passes a selected boundary to the graph's `valid_at` to read that historical slice. `truncated` indicates earlier boundaries exist.
+
 `GET /api/v1/projects/{project_id}/graph` returns `nodes`, `edges`, and `truncated` for active, user-scoped projects. Optional parameters are `center_id`, `depth` (1 or 2), `types` (comma-separated entity types), `valid_at`, and `limit` (1–200, default 100); edges are capped at 500. Visibility requires non-archived status and a current or saved historical validity interval at the query time, followed by effective identity projection (ADR 0056).
 
 `GET /api/v1/knowledge/entities/{entity_id}` returns the entity, up to 100 direct relationships, and evidence with the original filename, `project://` URI, nullable GitHub URL, quote, heading path, and server-calculated line range. Repository-file links are commit-pinned to exact lines; Issue/Pull Request links open the canonical conversation while line ranges refer to the imported Markdown snapshot. `GET /api/v1/knowledge/relationships/{relationship_id}` returns the relationship and its evidence. Canvas coordinates are not part of the API; layout belongs to the frontend.

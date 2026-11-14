@@ -193,6 +193,8 @@ GITHUB_TIMEOUT_SECONDS=30
 
 ## 项目图谱
 
+`GET /api/v1/projects/{project_id}/graph/timeline` 返回当前项目已确认知识和身份记录的最近 200 个去重 UTC 边界。浏览器将选中的边界传给图谱的 `valid_at` 读取历史切片。`truncated` 表示还有更早的边界。
+
 `GET /api/v1/projects/{project_id}/graph` 返回当前用户有效项目的 `nodes`、`edges` 和 `truncated`。可选参数为 `center_id`、`depth`（1 或 2）、`types`（逗号分隔的实体类型）、`valid_at` 和 `limit`（1–200，默认 100）；边上限为 500。可见条件为未归档、当前或已保存历史生效区间包含查询时间，再按该时刻投影身份（ADR 0056）。
 
 `GET /api/v1/knowledge/entities/{entity_id}` 返回实体、最多 100 条直接关系，以及带原始文件名、`project://` URI、可空 GitHub URL、引用、标题路径和后端计算行号的证据。仓库文件链接固定到 Commit 精确行号；Issue/Pull Request 链接打开规范会话，行号则定位导入的 Markdown 快照。`GET /api/v1/knowledge/relationships/{relationship_id}` 返回关系及其证据。画布坐标不属于接口，布局由前端负责。
