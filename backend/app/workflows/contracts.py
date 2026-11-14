@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Annotated, Literal
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, model_serializer, model_validator
 
 
 class WorkflowRequest(BaseModel):
@@ -9,6 +9,7 @@ class WorkflowRequest(BaseModel):
     request_id: uuid.UUID
     kind: Literal['knowledge_pipeline','question_pipeline']
     source_id: uuid.UUID|None=None
+    note_revision_id: uuid.UUID | None = None
     snapshot_id: uuid.UUID|None=None
     version_ids: list[uuid.UUID]=Field(default_factory=list,max_length=99)
     code_strategy: Literal['single_step','tools','semantic']='single_step'
@@ -22,8 +23,10 @@ class WorkflowRequest(BaseModel):
 
     @model_validator(mode='after')
     def task_shape(self):
-        if self.kind=='knowledge_pipeline' and (self.source_id is None or self.question is not None or self.valid_at is not None):
-            raise ValueError('Knowledge workflow requires a current source and no question/history time')
+        if self.kind=='knowledge_pipeline' and ((self.source_id is None) == (self.note_revision_id is None) or self.question is not None or self.valid_at is not None):
+            raise ValueError('Knowledge workflow requires exactly one source or note revision and no question/history time')
+        if self.note_revision_id and self.kind != 'knowledge_pipeline':
+            raise ValueError('A note revision is only supported for knowledge extraction')
         if self.kind=='question_pipeline' and not self.question:raise ValueError('Question required')
         if self.include_code_analysis and not self.source_id:raise ValueError('Code analysis requires a source')
         if self.valid_at and self.include_code_analysis:raise ValueError('Historical questions use confirmed historical evidence without current-code hints')
@@ -45,12 +48,20 @@ class RunEvent(BaseModel):
 
 
 class WorkflowScopeRead(BaseModel):
+    note_revision_id: uuid.UUID | None = None
     retrieval_mode: Literal['bm25','bm25_source','rrf','hybrid','vector']|None=None
     valid_at: AwareDatetime|None=None
     include_code_analysis: bool=False
     code_strategy: Literal['single_step','tools','semantic']|None=None
     snapshot_id: uuid.UUID|None=None
     version_ids: list[uuid.UUID]=Field(default_factory=list)
+
+    @model_serializer(mode='wrap')
+    def serialize_scope(self, handler):
+        fields = handler(self)
+        if self.note_revision_id is None:
+            fields.pop('note_revision_id', None)
+        return fields
 
 
 class WorkflowRead(BaseModel):

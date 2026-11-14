@@ -45,6 +45,8 @@ result.protocol=assistant-report-v1，action 为 finish 或 ask_user。finish �
 
 ## Agent 协作契约（ADR 0064–0065）
 
+`knowledge_pipeline` 接受 `source_id` 或 `note_revision_id`，两者只能选一项。传入笔记修订时，后端校验项目归属和正文，生成或复用 Markdown 快照，并解析后再抽取。空正文返回 422 `NOTE_EMPTY`。完整任务响应通过 `scope.note_revision_id` 返回固定修订，通过 `source_id` 返回快照。审核和证据定位使用该快照。
+
 [ADR 0068](adr/0068-explicit-workflow-scope.zh-CN.md)：`WorkflowRead` 新增只读 `scope` 对象（启动、列表、详情和恢复均返回），字段为 `retrieval_mode: bm25|bm25_source|rrf|hybrid|vector|null`、`valid_at: aware datetime|null`、`include_code_analysis: boolean`、`code_strategy: single_step|tools|semantic|null`、`snapshot_id: UUID|null`、`version_ids: UUID[]`。仅问答返回检索方式/知识时间，未开启代码时返回空代码范围；原始 request、source_sha256、提示词不回传。已有输入字段不变，前端现提交 valid_at/snapshot_id/version_ids，按浏览器本地时区将日期输入转换为 UTC；固定提交与本地覆盖互斥，历史时间与当前代码互斥。选择列表来自既有 `GET /sources/{source_id}/analysis-contexts`，其 loading/error/过期选择不能触发按默认范围的付费回退；同 UUID 重试继续复用原请求。默认模式仍为 BM25，数据结构/迁移 head 仍为 `20261029_0019`。
 
 新增 POST/GET `/api/v1/projects/{project_id}/agent-runs`、GET `/{run_id}` 与 POST `/{run_id}/resume`。启动必须带 `request_id` UUID 和 `knowledge_pipeline|question_pipeline`；同 UUID 相同输入只读复用，不同输入 409，越权 404。状态为 running/awaiting_review/succeeded/failed/interrupted。执行期间保存过程事件、调用预留计数和校验后的步骤结果，同步结束保存最终 result/events/usage/error_code/review_counts；读取不调用供应商。完整请求字段、预算、历史/代码上下文限制与错误见[协作 API](MULTI_AGENT.zh-CN.md#运行和持久化契约)。旧接口保持兼容；抽取 GET 展示最近创建的单轮/工具任务，旧 POST 保留单轮策略。

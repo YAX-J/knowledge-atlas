@@ -48,7 +48,7 @@ knowledge-atlas/
 | `knowledge_extraction` | 已授权原文块元数据、`read_chunk`、可选的代码结果提示 | 结构化候选；原有抽取服务逐项验证精确原文证据 |
 | `evidence_qa` | 已确认且符合项目/历史时间的证据、`search_knowledge`、`read_evidence` | 引用 ID 必须来自正式检索证据；初始无证据时不调用模型 |
 
-`knowledge_pipeline`：可选代码分析 → 工具读取原文并抽取 → 保存候选 → `awaiting_review` → 原有人工审核 → 显式恢复 → `succeeded`。代码结果只作提示，不能替代原文引用。任务保存的候选必须仍属于同一资料和抽取任务，且全部确认或拒绝后才能恢复。恢复不调用模型、嵌入或自动索引；人工拒绝也是合法的完成决定。
+`knowledge_pipeline` 接受已解析的 `source_id` 或已保存的 `note_revision_id`。笔记任务创建或复用该修订的 Markdown 快照，解析后在 `scope.note_revision_id` 保留修订标识。受支持的代码资料可以使用可选代码分析提供提示。Agent 读取原文分块并保存候选供人工审核。所有候选确认或拒绝后，显式继续将任务标记为 `succeeded`，此时无需模型或嵌入请求。
 
 `question_pipeline`：可选代码分析 → 有范围的证据检索/工具问答 → 引用校验 → `succeeded`。代码结果只帮助导航，回答结论仍须正式证据。历史问答拒绝混入当前代码提示。新流程默认离线 `bm25`；原有问答和会话默认策略保持兼容。流程回答保存在任务结果中；现有持久化会话保留独立入口。
 

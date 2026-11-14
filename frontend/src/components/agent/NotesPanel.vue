@@ -1,18 +1,21 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useNotes } from '../../composables/useNotes'
 import { snapshotNote } from '../../api/notes'
-const props=defineProps<{projectId?:string;revisionId?:string;revisionToken?:number;refreshToken?:number}>()
-const emit=defineEmits<{attach:[id:string];openSource:[id:string]}>()
+const props=defineProps<{projectId?:string;revisionId?:string;revisionToken?:number;refreshToken?:number;analysisBusy?:boolean;analyzing?:boolean}>()
+const emit=defineEmits<{attach:[id:string];openSource:[id:string];analyze:[id:string]}>()
 const panel=ref<HTMLElement|null>(null)
 const {items,selected,historical,revisions,title,markdown,loading,saving,unknown,conflict,error,query,page,total,truncated,dirty,blocked,refresh,select,openRevision,save,resolveUnknown,create,retry,reload}=useNotes(()=>props.projectId)
+const savedRevision=computed(()=>historical.value??selected.value?.current)
+const canAnalyze=computed(()=>!!props.projectId&&!props.analysisBusy&&!blocked.value&&!!savedRevision.value?.markdown.trim())
+function analyze(){if(canAnalyze.value&&savedRevision.value)emit('analyze',savedRevision.value.id)}
 watch(()=>[props.revisionId,props.revisionToken],async()=>{const id=props.revisionId;if(!id)return;await openRevision(id);await nextTick();if(historical.value?.id===id){panel.value?.scrollIntoView?.({block:'start'});panel.value?.querySelector<HTMLElement>('h3')?.focus({preventScroll:true})}})
 watch(()=>props.refreshToken,()=>void refresh())
 async function snapshot(){const project=props.projectId,revision=historical.value??selected.value?.current;if(!project||!revision)return;try{const result=await snapshotNote(project,revision.id);if(props.projectId===project)emit('openSource',result.source_id)}catch(cause){if(props.projectId===project)error.value=cause instanceof Error?cause.message:'快照创建失败'}}
 </script>
 <template>
   <section ref="panel" class="notes-panel" aria-label="项目笔记">
-    <header><div><small>NOTES · 不可变修订</small><h2>项目笔记</h2><p>原始笔记可检索和引用。正式知识需从固定修订创建资料快照，再抽取并人工审核。</p></div><button :disabled="!projectId||blocked" @click="create()">新建笔记</button></header>
+    <header><div><h2>项目笔记</h2><p>记录技术决策和实践，再让 Agent 从已保存的版本提取知识。</p></div><button :disabled="!projectId||blocked" @click="create()">新建笔记</button></header>
     <div class="notes-layout"><aside><form aria-label="搜索项目笔记" @submit.prevent="page=1;refresh()"><label>搜索笔记<input v-model="query" maxlength="200" /></label><button :disabled="!projectId||loading">搜索</button></form>
       <p v-if="!items.length&&!loading">暂无匹配笔记。</p><p v-if="truncated">搜索已达扫描上限，请缩小范围。</p>
       <div class="note-list"><button v-for="item in items" :key="item.id" :disabled="blocked" :aria-pressed="selected?.id===item.id" @click="select(item.id)">{{item.title}}<small>{{item.origin==='assistant'?'Agent 草稿':'个人笔记'}} · {{item.current_revision_id.slice(0,8)}}</small></button></div>
@@ -28,10 +31,17 @@ async function snapshot(){const project=props.projectId,revision=historical.valu
         <details v-if="Object.keys(selected.current.provenance).length"><summary>草稿原始引用与来源记录</summary><pre>{{JSON.stringify(selected.current.provenance,null,2)}}</pre></details>
         <details><summary>修订历史</summary><button v-for="revision in revisions" :key="revision.id" :disabled="blocked" @click="openRevision(revision.id)">修订 {{revision.number}} · {{new Date(revision.created_at).toLocaleString()}}</button></details>
       </template><p v-else-if="!historical">选择一份笔记，或新建笔记开始记录。</p>
-      <div v-if="historical||selected"><button :disabled="dirty||saving||unknown||conflict" @click="emit('attach',(historical??selected!.current).id)">将此修订附加到助手</button><button :disabled="dirty||saving||unknown||conflict" @click="snapshot">创建固定资料快照</button></div>
+      <div v-if="savedRevision">
+        <p id="note-analysis-help">分析会将此修订的原文分块发送至 DeepSeek。确认候选后，知识才会进入图谱。</p>
+        <button class="note-analyze" :disabled="!canAnalyze" aria-describedby="note-analysis-help" @click="analyze">分析笔记并提取知识</button>
+        <button :disabled="dirty||saving||unknown||conflict" @click="emit('attach',savedRevision.id)">将此修订附加到助手</button>
+        <button :disabled="dirty||saving||unknown||conflict" @click="snapshot">创建固定资料快照</button>
+      </div>
+      <p v-if="analyzing" role="status">Agent 正在分析笔记…</p>
     </article></div>
   </section>
 </template>
 <style scoped>
+.note-analyze{background:var(--ink,#183b3c);color:#fff;border-color:var(--ink,#183b3c)}
 .notes-panel{margin:24px 0;padding:22px;background:var(--paper,#f8fbfb);border:1px solid var(--line,#c9d5d7);border-top:3px solid #b38a33;min-width:0;color:var(--ink)}header{display:flex;justify-content:space-between;gap:16px}h2{font-size:20px}.notes-layout{display:grid;grid-template-columns:minmax(180px,260px) minmax(0,1fr);gap:24px}.notes-layout>*{min-width:0}label{display:grid;gap:7px;margin:10px 0;font-size:13px}input,textarea{box-sizing:border-box;width:100%;font:inherit;padding:9px;border:1px solid #a8bdbf;background:#fff;color:inherit}textarea{resize:vertical;max-height:500px;overflow:auto}p,small{font-size:12px;line-height:1.8;overflow-wrap:anywhere}small{display:block}button{font:inherit;font-size:12px;min-height:36px;padding:8px 10px;margin:5px 8px 5px 0;max-width:100%;overflow-wrap:anywhere;border:1px solid #a8bdbf;background:#fff;color:inherit;cursor:pointer}button:disabled{opacity:.6}button:focus-visible,input:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--rose,#a75870);outline-offset:3px}.note-list{max-height:300px;overflow:auto}.note-list button{display:block;width:100%;text-align:left}.note-list [aria-pressed=true]{border-color:var(--rose);background:#f7eaf0}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:400px;overflow:auto;background:#edf3f3;padding:12px;font-size:12px}details{margin:12px 0}summary{cursor:pointer}@media(max-width:900px){.notes-layout{grid-template-columns:1fr}}
 </style>

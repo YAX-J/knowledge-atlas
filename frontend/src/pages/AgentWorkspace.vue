@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AnswerClaims from '../components/AnswerClaims.vue'
-import { onScopeDispose, ref, watch } from 'vue'
+import { nextTick, onScopeDispose, ref, watch } from 'vue'
 import type { ApiProject, ApiProjectList, ApiSource } from '../api/knowledgeAtlas'
 import { useAgentRuns } from '../composables/useAgentRuns'
 import type { AgentRun } from '../api/agents'
@@ -12,15 +12,28 @@ import ProjectAssistantPanel from '../components/agent/ProjectAssistantPanel.vue
 import NotesPanel from '../components/agent/NotesPanel.vue'
 
 const props=defineProps<{project:ApiProject|null;projects:ApiProjectList|null;source:ApiSource|null;runId?:string}>()
-const emit=defineEmits<{selectProject:[project:ApiProject];openSource:[sourceId:string];openEvidence:[locator:EvidenceLocator];run:[id:string]}>()
+const emit=defineEmits<{selectProject:[project:ApiProject];openSource:[sourceId:string];openReview:[sourceId:string];openGraph:[];openEvidence:[locator:EvidenceLocator];run:[id:string]}>()
 const {runs,selected,loading,sending,unknown,error,busy,refresh,select,submit,resume,retry}=useAgentRuns(()=>props.project?.id)
 const timeZone=Intl.DateTimeFormat().resolvedOptions().timeZone
 const assistantSending=ref(false)
+const analyzingNote=ref(false)
+const workflowHeading=ref<HTMLElement|null>(null)
 const noteAttachments=ref<string[]>([]),noteRevision=ref(''),noteRefresh=ref(0)
 const noteOpenToken=ref(0)
 function openNote(id:string){noteRevision.value=id;noteOpenToken.value++}
 watch(()=>props.project?.id,()=>{noteAttachments.value=[];noteRevision.value='';noteRefresh.value++})
 function attachNote(id:string){if(!noteAttachments.value.includes(id)&&noteAttachments.value.length<20)noteAttachments.value.push(id)}
+async function analyzeNote(revisionId:string){
+  if(busy.value||assistantSending.value)return
+  analyzingNote.value=true
+  try {
+    await submit({kind:'knowledge_pipeline',note_revision_id:revisionId,embedding_limit:0})
+  } finally {
+    analyzingNote.value=false
+  }
+  await nextTick()
+  workflowHeading.value?.focus()
+}
 const retrievalLabels:Record<QuestionRetrievalMode,string>={bm25:'BM25 词法',bm25_source:'BM25 + 来源位置',rrf:'BM25 + 向量融合',hybrid:'混合 + 图关系',vector:'语义向量'}
 const status:Record<AgentRun['status'],string>={running:'正在协作',awaiting_review:'等待人工审核',succeeded:'已完成',failed:'未完成',interrupted:'执行已中断'}
 watch(()=>[props.project?.id,props.runId],()=>{if(props.runId&&props.runId!==selected.value?.id)void select(props.runId)},{immediate:true})
@@ -32,9 +45,11 @@ onScopeDispose(()=>clearInterval(timer))
 
 <template>
   <main class="agent-workspace" aria-labelledby="agent-workspace-title">
-    <header><div><span class="agent-kicker">Agent / 有证据的协作</span><h1 id="agent-workspace-title">协作任务</h1><p>代码分析、知识候选整理与证据问答共享任务范围。正式知识经过人工审核后入图。</p></div>
+    <header><div><h1 id="agent-workspace-title">笔记与 Agent</h1><p>写下技术笔记，交给 Agent 提取实体和关系。审核时可以回到对应版本的原文。</p></div>
       <label>当前项目<select :value="project?.id??''" :disabled="sending||assistantSending" @change="changeProject"><option disabled value="">请选择项目</option><option v-for="item in projects?.items??[]" :key="item.id" :value="item.id">{{item.name}}</option></select></label></header>
-    <NotesPanel :project-id="project?.id" :revision-id="noteRevision" :revision-token="noteOpenToken" :refresh-token="noteRefresh" @attach="attachNote" @open-source="emit('openSource',$event)" />
+    <NotesPanel :project-id="project?.id" :revision-id="noteRevision" :revision-token="noteOpenToken" :refresh-token="noteRefresh"
+      :analysis-busy="busy||assistantSending" :analyzing="analyzingNote"
+      @attach="attachNote" @analyze="analyzeNote" @open-source="emit('openSource',$event)" />
     <ProjectAssistantPanel :project-id="project?.id" :disabled="sending" :note-revision-ids="noteAttachments" @clear-notes="noteAttachments=[]" @notes-changed="noteRefresh++" @open-note="openNote" @sending="assistantSending=$event" @open-source="emit('openSource',$event)" @open-evidence="emit('openEvidence',$event)" />
     <div class="agent-columns">
       <AgentWorkflowForm :project="project" :source="source" :busy="busy" :sending="sending" @start="submit($event)">
@@ -43,19 +58,21 @@ onScopeDispose(()=>clearInterval(timer))
         <button type="button" :disabled="!project||loading" @click="refresh()">{{loading?'正在读取…':'刷新任务与处理状态'}}</button>
         <p v-if="error" role="alert">{{error}}</p>
       </AgentWorkflowForm>
-      <section class="agent-detail" aria-labelledby="workflow-detail-title"><h2 id="workflow-detail-title">任务记录</h2>
+      <section class="agent-detail" aria-labelledby="workflow-detail-title"><h2 id="workflow-detail-title" ref="workflowHeading" tabindex="-1">任务记录</h2>
         <p v-if="!loading&&!runs?.items.length">还没有协作任务。</p>
         <div class="agent-run-list"><button v-for="item in runs?.items??[]" :key="item.id" :aria-pressed="selected?.id===item.id" :disabled="sending||unknown" @click="select(item.id)">{{item.kind==='knowledge_pipeline'?'知识整理':'证据问答'}} · {{status[item.status]}} <small>{{new Date(item.created_at).toLocaleString()}}</small></button></div>
         <nav v-if="runs&&runs.total>runs.page_size" aria-label="协作任务分页"><button :disabled="loading||runs.page<=1" @click="refresh(runs.page-1)">上一页</button><span>{{runs.page}}</span><button :disabled="loading||runs.page*runs.page_size>=runs.total" @click="refresh(runs.page+1)">下一页</button></nav>
         <article v-if="selected"><h3>{{status[selected.status]}}</h3><p>模型请求 {{selected.usage.model??0}} · 工具执行 {{selected.usage.tool??0}} · 嵌入请求 {{selected.usage.embedding??0}}</p>
-          <section v-if="selected.scope&&(selected.scope.retrieval_mode||selected.scope.include_code_analysis)" class="agent-scope" aria-label="所选任务范围">
+          <section v-if="selected.scope&&(selected.scope.note_revision_id||selected.scope.retrieval_mode||selected.scope.include_code_analysis)" class="agent-scope" aria-label="所选任务范围">
+            <button v-if="selected.scope.note_revision_id" @click="openNote(selected.scope.note_revision_id)">查看分析使用的笔记修订</button>
             <p v-if="selected.scope.retrieval_mode">检索：{{retrievalLabels[selected.scope.retrieval_mode]}} · {{selected.scope.valid_at?new Date(selected.scope.valid_at).toLocaleString()+`（${timeZone}）`:'当前有效知识'}}</p>
             <p v-if="selected.scope.include_code_analysis">代码分析：{{selected.scope.code_strategy==='semantic'?'编译器静态分析':selected.scope.code_strategy==='tools'?'只读工具 Agent':'单轮候选判断'}}<span v-if="selected.scope.version_ids.length"> · 指定 {{selected.scope.version_ids.length}} 个相关文件版本</span></p>
           </section>
           <AgentCodeResult v-if="selected.result?.code_analysis" :result="selected.result.code_analysis" />
           <p v-if="selected.error_code" role="alert">任务未完成（{{selected.error_code}}）。请核对记录后显式新建任务。</p>
           <div v-if="selected.status==='awaiting_review'" class="agent-review"><p>本次候选：待审核 {{selected.review_counts.pending??0}} · 已确认 {{selected.review_counts.confirmed??0}} · 已拒绝 {{selected.review_counts.rejected??0}}</p>
-            <button v-if="selected.source_id" @click="emit('openSource',selected.source_id)">打开原文与候选审核</button><button :disabled="sending||(selected.review_counts.pending??0)>0" @click="resume">审核完成，继续流程</button></div>
+            <button v-if="selected.source_id" @click="emit('openReview',selected.source_id)">打开原文与候选审核</button><button :disabled="sending||(selected.review_counts.pending??0)>0" @click="resume">审核完成，继续流程</button></div>
+          <button v-if="selected.scope?.note_revision_id&&(selected.review_counts.confirmed??0)>0" @click="emit('openGraph')">查看项目图谱</button>
           <section v-if="selected.result?.answer" aria-label="协作回答"><h3>回答</h3><AnswerClaims :answer="selected.result.answer" @open-evidence="emit('openEvidence', $event)" /><p v-for="missing in selected.result.answer.missing_information" :key="missing">{{missing}}</p>
             <article v-for="evidence in selected.result.answer.evidence" :key="evidence.id"><strong>{{evidence.title}}</strong><p>{{evidence.quote}}</p><button @click="emit('openEvidence',{source_id:evidence.source_id,chunk_id:evidence.chunk_id})">查看引用原文</button></article></section>
           <AgentRunTrace :events="selected.events" />

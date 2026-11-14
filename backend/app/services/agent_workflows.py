@@ -12,6 +12,7 @@ from app.agents.code_analysis.engine import LANGUAGE_FAMILIES
 
 import hashlib
 import json
+import time
 import uuid
 from datetime import timedelta, timezone
 from sqlalchemy import func, select, update
@@ -56,6 +57,7 @@ def _run_read(item,review_counts,*,now):
     question = item.kind == 'question_pipeline'
     include_code = bool(request.get('include_code_analysis', False))
     scope = WorkflowScopeRead(
+        note_revision_id=request.get('note_revision_id'),
         retrieval_mode=request.get('retrieval_mode', 'bm25') if question else None,
         valid_at=request.get('valid_at') if question else None,
         include_code_analysis=include_code,
@@ -120,18 +122,25 @@ def list_runs(db,*,user_id,project_id,page,page_size,summary=False):
 
 
 def start_run(db,*,user_id,project_id,request,settings):
-    from app.services import knowledge, questions
+    from app.services import knowledge, notes, parsing, questions
     from app.workflows.routing import PIPELINES
 
     get_project(db,user_id=user_id,project_id=project_id)
     source=None
+    source_id=request.source_id
     if request.source_id:
         source=ingestion.get_source(db,user_id=user_id,source_id=request.source_id)
         if source.project_id!=project_id:raise AppError(status_code=404,code='SOURCE_NOT_FOUND',message='资料不属于此项目')
         if source.status!=SourceStatus.READY:raise AppError(status_code=409,code='SOURCE_NOT_PARSED',message='请先解析所选资料')
         if request.include_code_analysis and source.source_type not in CODE_SOURCE_TYPES:
             raise AppError(status_code=422,code='CALL_AGENT_UNAVAILABLE',message='代码分析需要支持的代码资料')
-    data=request.model_dump(mode='json',exclude={'request_id'})
+    excluded = {'request_id'} if request.note_revision_id else {'request_id', 'note_revision_id'}
+    data=request.model_dump(mode='json',exclude=excluded)
+    if request.note_revision_id:
+        revision = notes.revision(db, user_id=user_id, project_id=project_id, revision_id=request.note_revision_id)
+        if not revision.markdown.strip():
+            raise AppError(status_code=422, code='NOTE_EMPTY', message='请先保存有正文的技术笔记')
+        data['note_sha256'] = revision.content_sha256
     data['source_sha256']=source.content_sha256 if source else None
     digest=hashlib.sha256(json.dumps(data,sort_keys=True).encode()).hexdigest()
     db.execute(select(Project.id).where(Project.id==project_id,Project.user_id==user_id).with_for_update())
@@ -142,12 +151,19 @@ def start_run(db,*,user_id,project_id,request,settings):
         if existing.input_sha256!=digest:raise AppError(status_code=409,code='WORKFLOW_REQUEST_CONFLICT',message='此任务标识已用于不同输入')
         db.commit()
         return read_run(db,user_id=user_id,project_id=project_id,run_id=existing.id)
+    note_source = None
+    if request.note_revision_id:
+        note_source = notes.snapshot(db, user_id=user_id, project_id=project_id,
+                                     revision_id=request.note_revision_id, settings=settings, commit=False)
+        source_id = note_source.source_id
+        source = ingestion.get_source(db, user_id=user_id, source_id=source_id)
+        data['source_sha256'] = source.content_sha256
     execution=uuid.uuid4()
-    item=AgentRun(id=request.request_id,user_id=user_id,project_id=project_id,source_id=request.source_id,
+    item=AgentRun(id=request.request_id,user_id=user_id,project_id=project_id,source_id=source_id,
         kind=request.kind,status='running',input_sha256=digest,request=data,events=[],usage={},
         execution_id=execution,lease_until=utc_now()+timedelta(seconds=RUN_LEASE_SECONDS))
     db.add(item);db.commit()
-    runtime=RunContext(user_id=user_id,project_id=project_id,run_id=request.request_id,source_id=request.source_id,
+    runtime=RunContext(user_id=user_id,project_id=project_id,run_id=request.request_id,source_id=source_id,
         snapshot_id=request.snapshot_id,valid_at=request.valid_at.isoformat() if request.valid_at else None,
         model_limit=request.model_limit,tool_limit=request.tool_limit,embedding_limit=request.embedding_limit)
     partial_result = {}
@@ -176,12 +192,12 @@ def start_run(db,*,user_id,project_id,request,settings):
         hint={'context':code_result['context'],'uncovered_calls':code_result['uncovered_call_count'],
             'calls':[dict(line=item['line'],expression=item['call_quote'],callee=item['callee_name'],resolution=item['resolution'])
                 for item in code_result['calls'][:50]]} if code_result else {}
-        result=knowledge.run_extraction(db,user_id=user_id,source_id=request.source_id,settings=settings,strategy='tools',code_findings=hint)
+        result=knowledge.run_extraction(db,user_id=user_id,source_id=source_id,settings=settings,strategy='tools',code_findings=hint)
         if not result.task or result.task.status!='succeeded':
             error=result.task.error if result.task else {}
             raise AppError(status_code=502,code=(error or {}).get('code','EXTRACTION_FAILED'),message='候选整理未完成，请查看任务状态')
         ids=list(db.scalars(select(CandidateKnowledge.id).where(CandidateKnowledge.user_id==user_id,
-            CandidateKnowledge.project_id==project_id,CandidateKnowledge.source_id==request.source_id,
+            CandidateKnowledge.project_id==project_id,CandidateKnowledge.source_id==source_id,
             CandidateKnowledge.task_id==result.task.id).order_by(CandidateKnowledge.id)))
         result = dict(extraction_task_id=str(result.task.id),candidate_ids=[str(identifier) for identifier in ids],
             status='awaiting_review' if ids else 'succeeded')
@@ -199,6 +215,25 @@ def start_run(db,*,user_id,project_id,request,settings):
     with run_scope(runtime):
         try:
             runtime.event('workflow','started')
+            if note_source is not None:
+                # The regular Worker can acquire the same parsing task after the snapshot commits.
+                deadline = time.monotonic() + 10
+                while True:
+                    try:
+                        parsed = parsing.run_task(db, user_id=user_id, task_id=note_source.parse_task_id,
+                                                  settings=settings, recover_expired=True)
+                        break
+                    except AppError as exc:
+                        if exc.code != 'TASK_NOT_RUNNABLE' or time.monotonic() >= deadline:
+                            raise
+                        task = parsing.get_task(db, user_id=user_id, task_id=note_source.parse_task_id)
+                        if task.status != 'running':
+                            raise
+                        db.rollback()
+                        time.sleep(0.25)
+                if parsed.status != 'succeeded':
+                    raise AppError(status_code=409, code='SOURCE_PARSE_FAILED', message='笔记解析失败，请检查正文后重试')
+                runtime.event('note_parsing', 'succeeded')
             if request.kind=='knowledge_pipeline':result=PIPELINES[request.kind](code,extract)
             else:result=PIPELINES[request.kind](code,answer)
             status=result['status']

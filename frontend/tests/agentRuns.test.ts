@@ -9,7 +9,10 @@ import { project, source, answerFixture } from './fixtures'
 
 vi.mock('../src/api/agents')
 vi.mock('../src/components/agent/ProjectAssistantPanel.vue',()=>({default:{template:'<div />'}}))
-vi.mock('../src/components/agent/NotesPanel.vue',()=>({default:{template:'<div />'}}))
+vi.mock('../src/components/agent/NotesPanel.vue',()=>({default:{
+  emits:['analyze'],
+  template:`<button id="analyze-note" @click="$emit('analyze','revision-1')">分析笔记</button>`,
+}}))
 enableAutoUnmount(afterEach)
 const page=(items:api.AgentRun[]=[])=>({items,total:items.length,page:1,page_size:10})
 const run:api.AgentRun={id:'run-1',project_id:project.id,source_id:source.id,kind:'knowledge_pipeline',
@@ -48,6 +51,7 @@ it('loads a lightweight history row and fetches its complete detail only when se
 })
 
 it('starts an explicit workflow, opens its exact source and waits for human decisions before resume',async()=>{
+  vi.mocked(api.listAgentRuns).mockResolvedValueOnce(page()).mockResolvedValue(page([run]))
   const wrapper=mount(AgentWorkspace,{props});await flushPromises()
   expect(wrapper.text()).toContain('还没有协作任务')
   await wrapper.get('form').trigger('submit');await flushPromises()
@@ -56,14 +60,30 @@ it('starts an explicit workflow, opens its exact source and waits for human deci
   expect(api.startAgentRun).toHaveBeenCalledOnce()
   expect(vi.mocked(api.startAgentRun).mock.calls[0]![1]).toMatchObject({kind:'knowledge_pipeline',source_id:source.id,include_code_analysis:false,model_limit:8})
   const open=wrapper.findAll('button').find(item=>item.text()==='打开原文与候选审核')!
-  await open.trigger('click');expect(wrapper.emitted('openSource')).toEqual([[source.id]])
+  await open.trigger('click');expect(wrapper.emitted('openReview')).toEqual([[source.id]])
   const resume=wrapper.findAll('button').find(item=>item.text()==='审核完成，继续流程')!
   expect(resume.attributes('disabled')).toBeDefined()
   vi.mocked(api.getAgentRun).mockResolvedValue({...run,review_counts:{confirmed:1}})
   await wrapper.findAll('button').find(item=>item.text()==='刷新任务与处理状态')!.trigger('click');await flushPromises()
   await resume.trigger('click');await flushPromises()
   expect(api.resumeAgentRun).toHaveBeenCalledWith(project.id,run.id)
+  expect(wrapper.get('.agent-run-list button').text()).toContain('已完成')
   expect(wrapper.text()).toContain('已完成');expect(wrapper.emitted('run')?.[0]).toEqual([run.id])
+})
+
+it('submits a note revision without relying on the workspace source selection',async()=>{
+  const noteRun={...run,scope:{
+    retrieval_mode:null,valid_at:null,include_code_analysis:false,code_strategy:null,
+    snapshot_id:null,version_ids:[],note_revision_id:'revision-1',
+  }}
+  vi.mocked(api.startAgentRun).mockResolvedValue(noteRun)
+  vi.mocked(api.getAgentRun).mockResolvedValue(noteRun)
+  const wrapper=mount(AgentWorkspace,{props});await flushPromises()
+  await wrapper.get('#analyze-note').trigger('click');await flushPromises()
+  expect(vi.mocked(api.startAgentRun).mock.calls[0]![1]).toEqual({
+    request_id:expect.any(String),kind:'knowledge_pipeline',note_revision_id:'revision-1',embedding_limit:0,
+  })
+  expect(wrapper.text()).toContain('查看分析使用的笔记修订')
 })
 
 it('preserves unknown submission UUID and only retries after an explicit user action',async()=>{

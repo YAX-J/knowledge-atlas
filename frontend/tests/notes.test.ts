@@ -19,17 +19,24 @@ it('autosaves a new immutable revision after debounce and attaches exact revisio
   const wrapper=mount(NotesPanel,{props:{projectId:project.id}});await flushPromises()
   await wrapper.findAll('button').find(b=>b.text().includes('First note'))!.trigger('click');await flushPromises()
   vi.useFakeTimers();await wrapper.get('textarea').setValue('Changed');expect(api.editNote).not.toHaveBeenCalled()
+  const analyze=wrapper.findAll('button').find(b=>b.text()==='分析笔记并提取知识')!
+  expect(analyze.attributes('disabled')).toBeDefined()
   await vi.advanceTimersByTimeAsync(650);await flushPromises()
   expect(api.editNote).toHaveBeenCalledWith(project.id,note.id,expect.objectContaining({expected_revision_id:revision.id,markdown:'Changed'}))
   expect(wrapper.text()).toContain('修订 2')
   await wrapper.findAll('button').find(b=>b.text()==='将此修订附加到助手')!.trigger('click')
   expect(wrapper.emitted('attach')).toEqual([['rev-2']])
+  await analyze.trigger('click')
+  expect(wrapper.emitted('analyze')).toEqual([['rev-2']])
 })
 
 it('renders historical content safely without making an edit request',async()=>{
   const wrapper=mount(NotesPanel,{props:{projectId:project.id}});await flushPromises();await wrapper.setProps({revisionId:revision.id});await flushPromises()
   expect(wrapper.text()).toContain('<script>raw</script>');expect(wrapper.find('script').exists()).toBe(false)
   expect(wrapper.text()).toContain('历史修订 1');expect(api.editNote).not.toHaveBeenCalled()
+  await wrapper.findAll('button').find(b=>b.text()==='分析笔记并提取知识')!.trigger('click')
+  expect(wrapper.emitted('analyze')).toEqual([[revision.id]])
+  expect(api.snapshotNote).not.toHaveBeenCalled()
 })
 
 it('opens the matching note during simultaneous list refresh and artifact navigation',async()=>{

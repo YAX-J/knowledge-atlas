@@ -60,7 +60,16 @@ export function useAgentRuns(projectId:()=>string|undefined) {
     const project=projectId(),id=selected.value?.id,captured=generation
     if(!project||!id||sending.value||selected.value?.status!=='awaiting_review')return
     sending.value=true;error.value=''
-    try {const result=await resumeAgentRun(project,id);if(current(project,captured))selected.value=result}
+    try {
+      const result=await resumeAgentRun(project,id)
+      if(!current(project,captured))return
+      selected.value=result
+      if(runs.value){
+        runs.value.items=runs.value.items.map(row=>row.id===id
+          ? {...row,status:result.status,updated_at:result.updated_at,error_code:result.error_code}
+          : row)
+      }
+    }
     catch(cause){if(current(project,captured))error.value=describe(cause)}
     finally {if(current(project,captured))sending.value=false}
   }

@@ -12,7 +12,7 @@ Current 2026-10-31: M3–M4 implement immutable editable notes and capability-sc
 
 回答现按结论逐条绑定引用，证据不足单独标明，并可直接跳原文；历史记录仍保留旧格式，不自动补推对应关系。引用归属校验不证明结论语义正确，评估现采用 OpenRouter Jev、直连 TypeSafe 或 CF 原生匿名评审，人工覆盖率0%。见 [ADR 0069](docs/adr/0069-answer-claim-evidence.zh-CN.md)。
 
-面向毕业设计的个人技术知识系统：把技术文档、代码和 GitHub 活动整理成可回溯原文的时序知识图谱，并提供带引用的检索与问答。前端 Vue 3，后端 FastAPI，业务数据保存在 PostgreSQL + pgvector。
+Knowledge Atlas 是面向毕业设计的个人技术知识系统。默认流程从你写的技术笔记开始。打开「工作台 → 打开项目笔记」，保存 Markdown 后点击「分析笔记并提取知识」。Agent 从所选修订提取实体和关系，你可以核对原文后确认入图。之后可在时序图谱、检索和问答中回溯证据。前端使用 Vue 3，后端使用 FastAPI，业务数据保存在 PostgreSQL + pgvector。
 
 项目关系图支持切换到 Neo4j、手动同步正式知识快照、查看一跳或两跳邻域及定位原文证据。见 [Neo4j 本机配置](docs/DEVELOPMENT_SETUP.zh-CN.md#可选的-neo4j-图谱快照)。
 
@@ -26,7 +26,7 @@ Current 2026-10-31: M3–M4 implement immutable editable notes and capability-sc
 
 | 环节 | 实现与使用边界 |
 | --- | --- |
-| 收集资料 | Markdown、多语言代码、文件夹、GitHub 固定提交、Issue/PR/Review/thread 版本；去重、原路径/行号、Worker 租约恢复和有界续扫 |
+| 技术笔记与资料 | 可编辑的 Markdown 项目笔记、历史修订和一键分析。资料库支持 Markdown、多语言代码、文件夹、GitHub 固定提交及 Issue/PR/Review/thread 版本 |
 | 抽取与审核 | 结构化模型候选、精确原文校验、修改/拒绝/具名批量确认；人工确认后事务入图并保存审计 |
 | 图谱与治理 | 真实节点/关系、证据定位、历史有效期、替代链和分组演化、别名、合并/解除、撤回/启用、冲突检查 |
 | 检索与问答 | 关键词、BM25、来源位置 BM25、向量、混合与 RRF；严格引用、无证据拒答、持久化会话及有界多轮上下文 |

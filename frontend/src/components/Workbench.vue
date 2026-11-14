@@ -12,7 +12,7 @@ function choose(event: Event) { const item = props.projects?.items.find(item => 
     <div v-if="error" role="alert" class="workbench-error"><p>{{ error }}</p><button @click="emit('refresh')">重新读取工作台</button></div>
     <p v-if="loading" role="status">正在读取项目进度…</p>
     <section class="workbench-map" aria-label="知识沉淀流程">
-      <article><span class="step-number">1</span><div><h2>收集资料</h2><p>导入笔记、源码或仓库。原文、版本和行号一起保留。</p><dl><dt>资料 / 已解析</dt><dd>{{ overview?.sources ?? '—' }} / {{ overview?.ready_sources ?? '—' }}</dd></dl><button @click="emit('navigate', 'sources')">打开资料库</button></div></article>
+      <article><span class="step-number">1</span><div><h2>从技术笔记开始</h2><p>写下你的技术决策和实践，保存后交给 Agent 分析。</p><dl><dt>资料 / 已解析</dt><dd>{{ overview?.sources ?? '—' }} / {{ overview?.ready_sources ?? '—' }}</dd></dl><button class="primary" @click="emit('navigate', 'agents')">打开项目笔记</button><button @click="emit('navigate', 'sources')">打开资料库</button></div></article>
       <article><span class="step-number">2</span><div><h2>核对与沉淀</h2><p>查看抽取候选及原文，确认实体和关系，建立可信知识。</p><dl><dt>待审核候选</dt><dd>{{ overview?.pending_reviews ?? '—' }}</dd></dl><button @click="emit('navigate', 'review')">继续审核知识</button></div></article>
       <article><span class="step-number">3</span><div><h2>关联与回忆</h2><p>沿图谱核对决策，查看演化历史，带着证据继续提问。</p><dl><dt>当前实体 / 关系</dt><dd>{{ overview?.entities ?? '—' }} / {{ overview?.relationships ?? '—' }}</dd></dl><button @click="emit('navigate', 'graph')">浏览真实图谱</button></div></article>
     </section>

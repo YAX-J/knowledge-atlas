@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Start the workbench from personal technical notes. Analyze a saved revision with the knowledge Agent, review the proposed entities and relationships, and trace confirmed graph evidence to that revision.
+
 - Add a durable whole-repository assistant task for commit-pinned import, parsing, progress, and a report with exact source citations.
 
 - Sync whole GitHub repositories through commit-pinned batches, show progress, and retain the last successful checkpoint on interruption.

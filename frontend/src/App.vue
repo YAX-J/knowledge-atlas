@@ -439,6 +439,16 @@ async function selectSource(sourceId: string, taskId: string | null) {
   await refreshSource()
 }
 
+async function openAgentReview(sourceId: string) {
+  if (changeBusy.value || reviewBusy.value) return
+  changeNav('sources')
+  await selectSource(sourceId, null)
+  await nextTick()
+  if (activeNav.value === 'sources' && selectedSourceId.value === sourceId) {
+    document.getElementById('candidate-title')?.focus()
+  }
+}
+
 async function refreshSource(chunkPage = 1) {
   const sourceId = selectedSourceId.value
   const taskId = selectedTaskId.value
@@ -668,6 +678,7 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
     <Workbench v-if="activeNav === 'workbench'" :project="project" :projects="projects" :overview="overviewState.result.value" :loading="overviewState.loading.value || loading.projects" :error="overviewState.error.value || errors.projects" @navigate="changeNav" @select-project="selectProject" @refresh="project ? refreshOverview() : loadProjects()" />
     <AgentWorkspace v-else-if="activeNav === 'agents'" :key="project?.id" :project="project" :projects="projects" :source="source" :run-id="agentRunId"
       @select-project="selectProject" @run="agentRunId=$event" @open-evidence="openEvidence"
+      @open-review="openAgentReview" @open-graph="changeNav('graph')"
       @open-source="activeNav='sources';selectSource($event,null)" />
     <ConversationsWorkspace v-else-if="activeNav === 'conversations'" :project="project" :projects="projects" :projects-loading="loading.projects" :projects-error="errors.projects" :conversation-id="conversationId" @conversation="conversationId = $event" @select-project="selectProject" @retry-projects="loadProjects()" @open-entity="openQuestionEntity" @open-evidence="openEvidence" />
     <SourceWorkspace

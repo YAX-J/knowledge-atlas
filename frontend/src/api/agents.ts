@@ -4,7 +4,7 @@ import type { AgentCallAnalysis } from './knowledgeAtlas'
 
 export interface AgentEvent { sequence:number; agent:string; kind:string; status:string; elapsed_ms:number; attempt?:number|null; tool_name?:string|null }
 export interface WorkflowInput {
-  request_id:string; kind:'knowledge_pipeline'|'question_pipeline'; source_id?:string
+  request_id:string; kind:'knowledge_pipeline'|'question_pipeline'; source_id?:string; note_revision_id?:string
   question?:string; retrieval_mode?:'bm25'|'bm25_source'|'rrf'|'hybrid'|'vector'
   valid_at?:string; snapshot_id?:string; version_ids?:string[]
   include_code_analysis?:boolean; code_strategy?:'single_step'|'tools'|'semantic'
@@ -21,7 +21,7 @@ export interface AgentRun extends AgentRunSummary {
   created_at:string;updated_at:string;review_counts:Record<string,number>
   scope?: {retrieval_mode:'bm25'|'bm25_source'|'rrf'|'hybrid'|'vector'|null;valid_at:string|null;
     include_code_analysis:boolean;code_strategy:'single_step'|'tools'|'semantic'|null;
-    snapshot_id:string|null;version_ids:string[]} | null
+    snapshot_id:string|null;version_ids:string[];note_revision_id?:string|null} | null
 }
 export const listAgentRuns=(project:string,page=1)=>apiRequest<Page<AgentRunSummary>>(`/projects/${project}/agent-runs?page=${page}&page_size=10&summary=true`)
 export const getAgentRun=(project:string,id:string)=>apiRequest<AgentRun>(`/projects/${project}/agent-runs/${id}`)
