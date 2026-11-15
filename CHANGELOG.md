@@ -8,6 +8,8 @@ The project is pre-release. Version numbers and release dates will be added when
 
 ## Unreleased
 
+- Configure the shared project test fixture for offline extraction so assistant regressions run without a developer's `.env`.
+
 - Replay historical PostgreSQL graph slices from a keyboard-accessible timeline and distinguish relationships that later ended.
 
 - Compare a reviewed primary database switch using two dates or a uniquely identified cutover, with a saved graph instant and exact note citation for each side.

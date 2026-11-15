@@ -33,6 +33,7 @@ def extracted(client, monkeypatch, draft_override=None):
         draft = draft_override(draft)
     monkeypatch.setattr(deepseek, "extract_candidates", lambda *_: ExtractionDraft.model_validate(draft))
     response = client.post(f"/api/v1/sources/{source['source_id']}/extract")
+    assert response.status_code == 200, response.text
     assert response.json()["task"]["status"] == "succeeded"
     return project_id, source, reviews(client, project_id)["items"]
 

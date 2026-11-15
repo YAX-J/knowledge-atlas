@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import SecretStr
 
+from app.api.routes import knowledge as knowledge_routes
 from app.api.routes import questions as question_routes
 from app.api.routes import search as search_routes
 from app.core.config import Settings
@@ -60,6 +61,7 @@ def prepared_project(client, monkeypatch):
         embedding_base_url='https://embeddings.example/v1',
         embedding_model='test-embedding-1024',
     )
+    monkeypatch.setattr(knowledge_routes, 'get_settings', lambda: settings)
     monkeypatch.setattr(question_routes, 'get_settings', lambda: settings)
     monkeypatch.setattr(search_routes, 'get_settings', lambda: settings)
 
