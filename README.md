@@ -1,5 +1,7 @@
 # Knowledge Atlas
 
+[简体中文](README.zh-CN.md)
+
 Knowledge Atlas is a graduation project that organizes a developer's technical notes, code, and repository history into a temporal personal knowledge graph. Start in the workbench by opening the project notes, saving a Markdown revision, and selecting **Analyze note and extract knowledge**. Review each candidate against the original text before adding it to the graph. Search results, historical graph views, and answers can then lead back to the supporting evidence.
 
 The frontend uses Vue 3, the API uses FastAPI, and PostgreSQL with pgvector stores project data. The optional Neo4j projection supports explicit snapshot synchronization, one- and two-hop neighborhoods, and evidence navigation. [Neo4j setup](docs/DEVELOPMENT_SETUP.zh-CN.md#可选的-neo4j-图谱快照)

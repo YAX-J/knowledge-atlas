@@ -14,7 +14,7 @@ M5 offline preparation is ADR0080 plus paired PROJECT_ASSISTANT_M5 guides and an
 
 ADR0076 introduces synchronous M1 assistant/tasks and source head20261031_0020, without automatically upgrading the installed database. Keep paired PROJECT_ASSISTANT_M1 guides, Agent plan/status, backend/setup/ADR indexes and changelogs synchronized. M1 passed user-selected Agent-run local substitute/native/desktop verification; M2–M5 are still planned. Do not conflate new typed raw/code/knowledge reports with QuestionRead, or task-envelope persistence with async runner/recovery. Preserve historical schema announcements as dated context and frozen quality/ledgers.
 
-行为变化时，在同一轮更新对应文档。根目录 `README.md` 使用英文，其余项目文档使用中文。下方各轮的双语说明记录当时的维护方式。
+行为变化时，在同一轮更新对应文档。根目录保留中英文 README，其余项目文档使用中文。下方各轮的双语说明记录当时的维护方式。
 
 ## 何时使用
 
@@ -30,7 +30,7 @@ ADR0076 introduces synchronous M1 assistant/tasks and source head20261031_0020, 
 | API 路径、字段、错误码、分页 | `docs/API_CONTRACT.md`、`backend/README.zh-CN.md` |
 | 实体、关系、证据、时序语义 | `docs/KNOWLEDGE_MODEL.md`；必要时 ADR |
 | 架构边界、存储选型、任务模型 | `docs/adr/` 新 ADR，并更新 ADR 索引 |
-| 能力状态、安装方式、仓库结构 | `README.md`、`PLANS.zh-CN.md`、`docs/ROADMAP.md` |
+| 能力状态、安装方式、仓库结构 | `README.md`、`README.zh-CN.md`、`PLANS.zh-CN.md`、`docs/ROADMAP.md` |
 | 前端结构、交互、组件职责 | `docs/FRONTEND.md` |
 | 环境、命令、端口、配置项 | `docs/DEVELOPMENT_SETUP.zh-CN.md`、`backend/README.zh-CN.md` |
 | 每次行为变化 | `CHANGELOG.zh-CN.md` 的 `Unreleased` |
@@ -38,7 +38,7 @@ ADR0076 introduces synchronous M1 assistant/tasks and source head20261031_0020, 
 
 ## 文档语言
 
-英文项目入口链接到现有中文文档。命令、接口字段、标识符和版本号保持原样，引用评测语料时保留原文。
+根目录的 `README.md` 为英文，`README.zh-CN.md` 为简体中文，两版在页首提供语言切换链接。同步两版的功能说明、命令、状态和文档链接。引用评测语料时保留原文。
 
 ## 状态标注
 
