@@ -1,6 +1,5 @@
 # ADR 0060 检查数据库结构的就绪状态
 
-[English](0060-schema-aware-readiness.md)
 
 - 状态：已接受
 - 日期：2026-10-29

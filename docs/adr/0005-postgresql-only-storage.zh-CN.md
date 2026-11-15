@@ -1,6 +1,5 @@
 # ADR 0005 仅使用 PostgreSQL，暂缓引入 Neo4j
 
-[English](0005-postgresql-only-storage.md)
 
 - 状态：Accepted（已接受）
 - 日期：2026-10-17

@@ -1,6 +1,5 @@
 # ADR 0046：显式整批审核与只读索引状态
 
-[English](0046-atomic-batch-review-index-status.md)
 
 状态：已接受
 

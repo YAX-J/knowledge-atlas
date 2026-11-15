@@ -1,6 +1,5 @@
 # ADR 0068 显式协作范围与已保存范围读取
 
-[English](0068-explicit-workflow-scope.md)
 
 - 状态：已接受
 - 日期：2026-10-30

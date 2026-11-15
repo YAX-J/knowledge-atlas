@@ -1,6 +1,5 @@
 # ADR 0030：解析有界仓库内 Java 静态导入调用
 
-[English](0030-java-static-import-calls.md)
 
 - 状态：已接受
 - 日期：2026-10-22

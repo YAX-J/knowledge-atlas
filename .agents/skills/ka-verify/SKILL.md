@@ -128,7 +128,7 @@ npm run build
 - [ ] 改知识模型 → `docs/KNOWLEDGE_MODEL.md`。
 - [ ] 改架构决策 → 新 ADR。
 - [ ] 改能力/安装/结构 → `README.md`。
-- [ ] 变更记录进 `CHANGELOG.md` 的 `Unreleased`。
+- [ ] 变更记录进 `CHANGELOG.zh-CN.md` 的 `Unreleased`。
 - [ ] 有 `.zh-CN.md` 的文档成对更新，语言链接有效。
 - [ ] 计划中的能力仍明确标注“规划中”。
 

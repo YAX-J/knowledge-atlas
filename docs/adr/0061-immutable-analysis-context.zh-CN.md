@@ -1,6 +1,5 @@
 # ADR 0061 不可变代码分析上下文
 
-[English](0061-immutable-analysis-context.md)
 
 - 状态：已接受
 - 日期：2026-10-29

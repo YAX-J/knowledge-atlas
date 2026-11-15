@@ -1,6 +1,5 @@
 # ADR 0065 持久化协作与显式人工检查点
 
-[English](0065-durable-reviewed-workflows.md)
 
 - Status: Accepted
 - Date: 2026-10-29

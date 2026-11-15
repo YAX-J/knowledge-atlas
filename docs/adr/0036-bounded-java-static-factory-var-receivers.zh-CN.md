@@ -1,6 +1,5 @@
 # ADR 0036：从静态工厂调用推断有界 Java `var` 接收者
 
-[English](0036-bounded-java-static-factory-var-receivers.md)
 
 - 状态：已接受
 - 日期：2026-10-23

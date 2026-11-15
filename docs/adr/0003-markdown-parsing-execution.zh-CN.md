@@ -1,6 +1,5 @@
 # ADR 0003 持久化 Markdown 分块并显式执行解析
 
-[English](0003-markdown-parsing-execution.md)
 
 - 状态：Accepted（已接受）
 - 日期：2026-10-17

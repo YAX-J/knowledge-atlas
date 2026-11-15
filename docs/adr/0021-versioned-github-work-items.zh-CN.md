@@ -1,6 +1,5 @@
 # ADR 0021：把有界 GitHub 工作项导入为不可变来源版本
 
-[English](0021-versioned-github-work-items.md)
 
 - 状态：已接受
 - 日期：2026-10-21

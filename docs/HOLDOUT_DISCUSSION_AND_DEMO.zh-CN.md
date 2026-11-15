@@ -1,6 +1,5 @@
 # 实验讨论草稿与固定演示脚本
 
-[English](HOLDOUT_DISCUSSION_AND_DEMO.md)
 
 本文件为可纳入论文的Markdown草稿及答辩材料，不表示已修改或定稿Word论文。数值来自[完整问答重试](../evaluation/results/2026-10-31-holdout-v3-run2/REPORT.zh-CN.md)与[457请求裁判报告](../evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.zh-CN.md)，无需再调用模型。
 

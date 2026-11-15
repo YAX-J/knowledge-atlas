@@ -1,6 +1,5 @@
 # ADR 0039：显式审核跨来源知识演化
 
-[English](0039-reviewed-knowledge-evolution.md)
 
 - 状态：已接受
 - 日期：2026-10-23

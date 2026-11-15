@@ -1,6 +1,5 @@
 # ADR 0041 通过 Agent 执行有界多语言跨文件调用分析
 
-[English](0041-bounded-multilanguage-agent-call-analysis.md)
 
 - 状态：Accepted
 - 日期：2026-10-24

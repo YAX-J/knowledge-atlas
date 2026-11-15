@@ -1,6 +1,5 @@
 # ADR 0045：可选排名融合与在线证据分配
 
-[English](0045-opt-in-rank-fusion.md)
 
 状态：已接受
 

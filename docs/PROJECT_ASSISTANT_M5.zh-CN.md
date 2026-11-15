@@ -1,6 +1,5 @@
 # 项目助手 M5：离线验收与质量评估准备
 
-[English](PROJECT_ASSISTANT_M5.md)
 
 状态：**离线准备已实现，M5 整体尚未完成**。产品基线：`e0998c4`，库版本：`20261031_0023`。见 [ADR0080](adr/0080-project-agent-development-acceptance.zh-CN.md)及[独立任务包](../evaluation/development/project-agent-m5-v1/README.zh-CN.md)。本阶段没有业务迁移、API、依赖或界面变化。
 

@@ -1,6 +1,5 @@
 # ADR0080：分离工程验收与项目 Agent 任务质量
 
-[English](0080-project-agent-development-acceptance.md)
 
 状态：已接受 · 2026-10-31 · M5 离线准备
 

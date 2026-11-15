@@ -1,31 +1,30 @@
-# Security Policy
+# 安全说明
 
-[简体中文](SECURITY.zh-CN.md)
 
-Knowledge Atlas is currently a pre-release graduation project and is not intended for production deployment.
+Knowledge Atlas 当前是尚未发布正式版本的毕业设计项目，不用于生产部署。
 
-## Reporting a security issue
+## 报告安全问题
 
-Do not open a public issue containing credentials, private source code, personal data, or a reproducible exploit against a deployed instance. Report the issue privately to the repository owner and include only the minimum information needed to reproduce it safely.
+不要在公开 Issue 中包含凭据、私有源码、个人数据，或针对已部署实例的可复现利用方式。请私下向仓库所有者报告，只提供安全复现所需的最少信息。
 
-## Sensitive data rules
+## 敏感数据规则
 
-- Never commit `.env` files, API keys, GitHub tokens, database passwords, or model-provider credentials.
-- Use synthetic data in Mock fixtures, screenshots, tests, and documentation.
-- Do not upload private repositories or personal notes to third-party model providers without explicit authorization.
-- Logs must not contain access tokens, full prompts containing confidential code, or database connection strings.
-- Uploaded files must be treated as untrusted input and validated by type, size, and parser behavior.
+- 不得提交 `.env` 文件、API 密钥、GitHub Token、数据库密码或模型服务凭据。
+- Mock 夹具、截图、测试和文档使用合成数据。
+- 未经明确授权，不得将私有仓库或个人笔记上传给第三方模型服务。
+- 日志不得包含访问令牌、包含机密代码的完整提示词或数据库连接字符串。
+- 上传文件必须视为不可信输入，并按类型、大小和解析器行为校验。
 
-## Planned deployment safeguards
+## 规划中的部署防护
 
-Before any public or shared deployment, the project should add:
+在任何公开或共享部署之前，项目应补齐：
 
-- Authentication and project-level authorization checks.
-- File upload limits and parser isolation.
-- Secret management and credential rotation procedures.
-- Dependency and container vulnerability scanning.
-- Database backups and restore verification.
-- Audit logging for knowledge confirmation, merge, and deletion operations.
-- Rate limits for model-backed and ingestion endpoints.
+- 身份认证和项目级授权检查。
+- 文件上传限制和解析隔离。
+- 密钥管理和凭据轮换流程。
+- 依赖与容器漏洞扫描。
+- 数据库备份与恢复验证。
+- 知识确认、合并和删除操作的审计日志。
+- 模型接口和导入接口的频率限制。
 
-Security features listed here are requirements, not claims about the current implementation.
+此处列出的安全能力是要求，不代表当前实现已全部具备。

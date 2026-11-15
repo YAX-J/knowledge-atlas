@@ -1,6 +1,5 @@
 # ADR 0062 可恢复的工作台与模块编排
 
-[English](0062-restorable-workspace-composition.md)
 
 - 状态：已接受
 - 日期：2026-10-29

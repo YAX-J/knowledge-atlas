@@ -2,7 +2,7 @@
 
 M5 离线准备（2026-10-31）：已实现冻结的独立20项开发任务、18项验收矩阵、零调用预演、任务/评分导入及统一工程验收命令。M5 整体仍待授权后的真实执行器/夹具重放、真实质量、托管 CI、演示和发布。真实调用为零，无业务迁移，库版本保持0023；历史评估/授权/账本不变。见 [M5 状态与操作说明](PROJECT_ASSISTANT_M5.zh-CN.md)。
 
-Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a31-table backup/verified isolated restore; all30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](PROJECT_ASSISTANT_M34.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.
+Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a31-table backup/verified isolated restore; all30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](PROJECT_ASSISTANT_M34.zh-CN.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.
 
 2026-10-31：第1–2项已完成：`evidence-claims-v3` 后端计算总体状态，使用[独立合成开发用例](../evaluation/development/claim-support-v3/README.zh-CN.md)验证正常/非法输出及 v2/平铺历史兼容。没有真实调用或 v3 质量结论。[历史裁判](../evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.zh-CN.md)及其5条 v2 失败、冻结数据/账本原样保留，人工0%。后续版本冻结与论文定稿尚未执行。
 

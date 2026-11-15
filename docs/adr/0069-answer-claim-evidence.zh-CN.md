@@ -1,6 +1,5 @@
 # ADR 0069：回答结论逐条关联证据
 
-[English](0069-answer-claim-evidence.md)
 
 - 状态：接受
 - 日期：2026-10-30

@@ -1,6 +1,5 @@
 # ADR 0051：可选的来源位置词法检索
 
-[English](0051-source-aware-lexical-retrieval.md)
 
 状态：已接受
 

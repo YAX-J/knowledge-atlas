@@ -1,6 +1,5 @@
 # ADR 0020：从快照派生不可变 GitHub 证据链接
 
-[English](0020-derived-immutable-github-evidence-links.md)
 
 - 状态：已接受
 - 日期：2026-10-20

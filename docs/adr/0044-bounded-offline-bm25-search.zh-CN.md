@@ -1,6 +1,5 @@
 # ADR 0044：新增有界离线词法检索基线
 
-[English](0044-bounded-offline-bm25-search.md)
 
 - 状态：已接受
 - 日期：2026-10-25

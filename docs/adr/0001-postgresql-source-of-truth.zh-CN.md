@@ -1,6 +1,5 @@
 # ADR 0001 PostgreSQL 作为事实来源
 
-[English](0001-postgresql-source-of-truth.md)
 
 - 状态：Superseded（已被 [ADR 0005](0005-postgresql-only-storage.zh-CN.md) 替代）
 - 日期：2026-10-17

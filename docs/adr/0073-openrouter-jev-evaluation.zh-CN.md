@@ -1,6 +1,5 @@
 # ADR 0073：OpenRouter Jev 评审
 
-[English](0073-openrouter-jev-evaluation.md)
 
 - 状态：接受
 - 日期：2026-10-30

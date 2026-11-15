@@ -1,6 +1,5 @@
 # ADR 0019：持久化增量 GitHub Commit 快照
 
-[English](0019-incremental-github-commit-snapshots.md)
 
 - 状态：已接受
 - 日期：2026-10-20

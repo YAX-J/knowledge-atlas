@@ -6,7 +6,6 @@
 
 - [ADR 0076：有界项目只读助手（已接受；本地替身验收通过）](0076-read-only-project-assistant.zh-CN.md)
 
-[English](README.md)
 
 架构决策记录（Architecture Decision Record，ADR）用于保存长期有效的选择。这些选择会影响多个组件、数据语义、安全、部署或后续实施。
 
@@ -27,11 +26,11 @@
 使用四位序号和简短的小写名称：
 
 ```text
-0001-postgresql-source-of-truth.md
-0002-native-svg-for-prototype-graph.md
+0001-postgresql-source-of-truth.zh-CN.md
+0002-native-svg-for-prototype-graph.zh-CN.md
 ```
 
-序号不得重复使用。被替代的记录仍保留在仓库中。中文版使用相同序号和 `.zh-CN.md` 后缀，不占用新序号。
+序号不得重复使用。被替代的记录仍保留在仓库中。文件使用 `.zh-CN.md` 后缀。
 
 ## 状态取值
 

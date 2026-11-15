@@ -1,6 +1,5 @@
 # ADR 0029：打包有界仓库内 Java 分析 V1
 
-[English](0029-java-analysis-v1.md)
 
 - Status: Accepted
 - Date: 2026-10-21

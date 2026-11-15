@@ -1,6 +1,5 @@
 # ADR 0002 原型图谱使用原生 SVG
 
-[English](0002-native-svg-for-prototype-graph.md)
 
 - 状态：Accepted（已接受）
 - 日期：2026-10-17

@@ -1,6 +1,5 @@
 # ADR 0028：在有界异常作用域内解析 Java 调用
 
-[English](0028-java-exception-scope-receivers.md)
 
 - Status: Accepted
 - Date: 2026-10-21

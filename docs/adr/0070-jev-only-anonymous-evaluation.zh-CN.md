@@ -1,6 +1,5 @@
 # ADR 0070：Jev 匿名自动评审
 
-[English](0070-jev-only-anonymous-evaluation.md)
 
 - 状态：接受
 - 日期：2026-10-30

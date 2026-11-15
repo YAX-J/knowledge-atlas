@@ -1,6 +1,5 @@
 # ADR 0008 带证据的项目关键词检索
 
-[English](0008-project-keyword-search.md)
 
 - 状态：已接受
 - 日期：2026-10-17

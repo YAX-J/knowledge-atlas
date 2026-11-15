@@ -1,6 +1,5 @@
 # ADR 0033：将已保存的提交说明导入为证据来源
 
-[English](0033-saved-commit-evidence-sources.md)
 
 - 状态：已接受
 - 日期：2026-10-22

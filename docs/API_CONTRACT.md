@@ -1,6 +1,6 @@
 # Knowledge Atlas 前后端接口草案
 
-Implemented M3/M4 (ADR0078–0079), head0023: `POST/GET /projects/{project_id}/notes`, `GET/PUT .../notes/{note_id}`, `GET .../notes/{note_id}/revisions`, `GET .../notes/revisions/{revision_id}`, and `POST .../notes/revisions/{revision_id}/source`. Create binds request_id; edits require request_id + expected_revision_id + title/markdown and return409 on conflict. Search uses query/page/page_size and exposes scanned/truncated. New assistant-task-v3 submissions return202 with exact note_revision_ids, allowed_actions and optional repository_id/repository_commit. Task reads expose operations, unknown_operations, remaining, final_artifact_id and waiting_approval. `POST .../assistant/tasks/{task_id}/approvals` requires request_id, operation_id, proposal_sha256 and decision approve/reject. This never starts a model; explicit checkpoint-bound continue remains separate. `POST .../artifacts/{artifact_id}/note` accepts request_id and creates a provenance-preserving editable draft. Results use assistant-report-v2; note citations carry note_id/revision_id and no fabricated formal evidence IDs. v1/v2 requests/replays remain compatible. See [complete behavior/limits](PROJECT_ASSISTANT_M34.md).
+Implemented M3/M4 (ADR0078–0079), head0023: `POST/GET /projects/{project_id}/notes`, `GET/PUT .../notes/{note_id}`, `GET .../notes/{note_id}/revisions`, `GET .../notes/revisions/{revision_id}`, and `POST .../notes/revisions/{revision_id}/source`. Create binds request_id; edits require request_id + expected_revision_id + title/markdown and return409 on conflict. Search uses query/page/page_size and exposes scanned/truncated. New assistant-task-v3 submissions return202 with exact note_revision_ids, allowed_actions and optional repository_id/repository_commit. Task reads expose operations, unknown_operations, remaining, final_artifact_id and waiting_approval. `POST .../assistant/tasks/{task_id}/approvals` requires request_id, operation_id, proposal_sha256 and decision approve/reject. This never starts a model; explicit checkpoint-bound continue remains separate. `POST .../artifacts/{artifact_id}/note` accepts request_id and creates a provenance-preserving editable draft. Results use assistant-report-v2; note citations carry note_id/revision_id and no fabricated formal evidence IDs. v1/v2 requests/replays remain compatible. See [complete behavior/limits](PROJECT_ASSISTANT_M34.zh-CN.md).
 
 ## 项目助手 M2（ADR0077）
 
@@ -450,7 +450,7 @@ GitHub provider item ID、`updated_at` 与 `include_comments` 组合标识工作
 
 默认执行租约 300 秒，最多自动尝试 3 次；达到次数上限的过期任务变为 `failed`，`error.code` 为 `TASK_ATTEMPTS_EXHAUSTED`，需要手动重试。普通 `SOURCE_PARSE_FAILED` 不会自动重试。旧任务无租约时根据开始时间或更新时间判断超时。手动接口对所有 `running` 任务仍返回 HTTP 409，恢复由 Worker 执行。
 
-Worker 与手动执行竞争时，只有认领成功的一方执行；另一方可能得到当前成功结果或 HTTP 409，客户端可刷新状态。前端当前通过“刷新状态”读取后台结果，尚未自动轮询。运行方式与限制见 [后端说明](../backend/README.md)。
+Worker 与手动执行竞争时，只有认领成功的一方执行；另一方可能得到当前成功结果或 HTTP 409，客户端可刷新状态。前端当前通过“刷新状态”读取后台结果，尚未自动轮询。运行方式与限制见 [后端说明](../backend/README.zh-CN.md)。
 
 ### 查询资料原文
 

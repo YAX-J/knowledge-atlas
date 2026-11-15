@@ -1,6 +1,5 @@
 # 当前版本问答的端到端实验
 
-[English](CURRENT_SYSTEM_EVALUATION.md)
 
 当前代码按 [ADR0075](adr/0075-server-derived-answer-support.zh-CN.md) 使用 `evidence-claims-v3`，由后端计算总体支持状态；[独立虚构开发检查](../evaluation/development/claim-support-v3/README.zh-CN.md)不调用真实供应商。下文已完成实验、分数和预演指纹均属于历史 v2，保留其五条格式失败、版本及账本。旧批准方案/复用 scope 不能授权或转换为 v3 运行。后续真实实验必须重新生成指纹、使用独立输出并明确授权；v3 质量仍未测量。
 

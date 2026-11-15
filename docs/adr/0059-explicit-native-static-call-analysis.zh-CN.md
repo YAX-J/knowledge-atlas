@@ -1,6 +1,5 @@
 # ADR 0059 显式原生静态声明分析
 
-[English](0059-explicit-native-static-call-analysis.md)
 
 - Status: Accepted
 - Date: 2026-10-26

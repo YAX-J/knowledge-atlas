@@ -1,6 +1,5 @@
 # ADR 0032：检索有界 Java 源码符号并打开原文分块
 
-[English](0032-bounded-code-symbol-search.md)
 
 - 状态：已接受
 - 日期：2026-10-22

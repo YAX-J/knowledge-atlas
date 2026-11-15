@@ -26,7 +26,6 @@
 
 多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#。默认解析只做语法结构且不调用模型；`POST /sources/{source_id}/agent-call-analysis` 是显式有界模型操作，只能从同仓库后端候选中选择目标，返回 ID 与精确源码行会再次校验，且不写正式图谱。见[扩展名和边界](../../../MULTILANGUAGE_PARSING.zh-CN.md)。
 
-[English](../../../../backend/README.md)
 
 为 Knowledge Atlas 持久化、Markdown/Java 导入、带证据校验的候选提取与审核，以及有界只读项目图谱查询提供服务的 FastAPI 后端。
 

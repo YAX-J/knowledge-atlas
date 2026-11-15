@@ -1,6 +1,5 @@
 # ADR 0066 使用全局语料统计的分批词法检索
 
-[English](0066-batched-global-lexical-retrieval.md)
 
 - 状态：已接受
 - 日期：2026-10-30

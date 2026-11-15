@@ -1,6 +1,5 @@
 # 多 Agent 改造验收
 
-[English](MULTI_AGENT_ACCEPTANCE.md)
 
 改造已落在现有 Knowledge Atlas 项目内。实际目录、API、预算与运行边界见[实现说明](MULTI_AGENT.zh-CN.md)，决策见 ADR0064–0065。本轮由用户授权 Agent 执行验证，没有新增真实付费模型实验。
 

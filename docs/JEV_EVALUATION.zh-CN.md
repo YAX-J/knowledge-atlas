@@ -1,6 +1,5 @@
 # Jev 匿名自动评审
 
-[English](JEV_EVALUATION.md)
 
 通过 OpenRouter 使用 Jev 时见独立 [OpenRouter指南](OPENROUTER_EVALUATION.zh-CN.md)，选择 --provider openrouter。直连 TypeSafe 的密钥/模型字段及 --allow-jev-calls 仍只适用于直连 TypeSafe。
 

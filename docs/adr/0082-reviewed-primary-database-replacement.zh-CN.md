@@ -1,6 +1,5 @@
 # ADR 0082 人工审核主数据库替代
 
-[English](0082-reviewed-primary-database-replacement.md)
 
 ## 决策
 

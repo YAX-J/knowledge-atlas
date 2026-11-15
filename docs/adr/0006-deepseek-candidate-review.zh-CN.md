@@ -1,6 +1,5 @@
 # ADR 0006 显式 DeepSeek 候选提取与证据审核
 
-[English](0006-deepseek-candidate-review.md)
 
 - 状态：Accepted（已接受）
 - 日期：2026-10-17

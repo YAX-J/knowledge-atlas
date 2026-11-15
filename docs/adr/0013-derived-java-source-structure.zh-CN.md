@@ -1,6 +1,5 @@
 # ADR 0013 在正式图谱之外派生有界 Java 源码结构
 
-[English](0013-derived-java-source-structure.md)
 
 - Status: Accepted
 - Date: 2026-10-18

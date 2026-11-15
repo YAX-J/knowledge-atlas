@@ -22,7 +22,6 @@
 
 多语言解析 V1 已将原 Markdown/Java 导入链路扩展到 Python、JavaScript/JSX、TypeScript/TSX、Go、C、C++、C#，贯通单文件/文件夹、GitHub 文件、Worker、精确原文分块、大纲及符号检索。默认解析只做语法结构且不调用模型；新增显式有界 Agent 操作，可在兼容语言族的同仓库静态声明候选中分析跨文件调用。后端校验每个目标 ID 与精确源码行，结果保持临时派生且不进入正式图谱。见 [ADR 0040](../../adr/0040-multilanguage-source-parsing.zh-CN.md) 与 [ADR 0041](../../adr/0041-bounded-multilanguage-agent-call-analysis.zh-CN.md)。
 
-[English](../../../PLANS.md)
 
 本文标明当前实施阶段，并指向详细路线，不替代 [开发路线](../../ROADMAP.md)。
 

@@ -1,6 +1,5 @@
 # ADR 0048：关系审核依赖可见性
 
-[English](0048-review-endpoint-visibility.md)
 
 状态：已接受
 

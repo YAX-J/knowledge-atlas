@@ -2,7 +2,6 @@
 
 当前实验离线演示见[论文讨论及固定5分钟脚本](HOLDOUT_DISCUSSION_AND_DEMO.zh-CN.md)与[457次裁判报告](../evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.zh-CN.md)。展示已保存的直接/跨文档/历史/拒答案例，并展示失败与不确定性；不现场重新付费，也不假定已清理的临时项目存在于应用库。人工评分仍0%。
 
-[English](DEMO.md)
 
 仅用于本机单用户毕业演示，尚无认证，不向公网发布。默认走本机 PostgreSQL + pgvector；Docker 可选。模型和嵌入调用始终需要显式操作，启动不会付费。
 

@@ -1,6 +1,5 @@
 # ADR 0063 实测驱动的索引规划
 
-[English](0063-measured-index-planning.md)
 
 - 状态：已接受
 - 日期：2026-10-29

@@ -1,6 +1,5 @@
 # OpenRouter Jev 匿名自动评审
 
-[English](OPENROUTER_EVALUATION.md)
 
 离线评审新增 `openrouter`，与直连 TypeSafe 的 `jev` 和原生 `cloudflare` 适配器并列，此渠道仍使用 Jev。人工评分覆盖率保持0%，正式知识入图仍须人工审核。本轮只做 HTTP 替身和零调用预演，不代表真实账号、付款或模型质量验收。
 

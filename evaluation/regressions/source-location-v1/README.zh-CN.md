@@ -1,6 +1,5 @@
 # 来源位置功能回归
 
-[English](README.md)
 
 cases.json 的 9 个合成案例在本次实现期间独立于既有 40 题语料编写，覆盖 Java/Python/TypeScript 文件名/路径、中文标题、直接事实、无匹配词及误导性词面重叠。`backend/tests/test_source_retrieval.py` 中每例均经隔离的普通上传→解析→模拟抽取→显式审核→正式证据链路。
 

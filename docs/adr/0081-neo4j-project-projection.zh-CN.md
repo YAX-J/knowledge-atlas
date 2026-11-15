@@ -1,6 +1,5 @@
 # ADR 0081 可选的 Neo4j 项目图谱快照
 
-[English](0081-neo4j-project-projection.md)
 
 2026-11-13 接受。已使用本机 Neo4j Desktop 和 PostgreSQL 验证。
 

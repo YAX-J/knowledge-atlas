@@ -1,6 +1,5 @@
 # ADR 0058 可续扫的不可变 GitHub 清单
 
-[English](0058-resumable-immutable-github-manifests.md)
 
 - Status: Accepted
 - Date: 2026-10-26

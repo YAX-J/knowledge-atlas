@@ -1,6 +1,5 @@
 # ADR 0049：资料组合筛选与分页恢复
 
-[English](0049-source-discovery-filters.md)
 
 状态：已接受
 

@@ -1,6 +1,6 @@
 # Knowledge Atlas 系统架构
 
-Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a31-table backup/verified isolated restore; all30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](PROJECT_ASSISTANT_M34.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.
+Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a31-table backup/verified isolated restore; all30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](PROJECT_ASSISTANT_M34.zh-CN.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.
 
 M2（ADR0077）使用独立助手 runner 消费 async_v2 queued，迁移0021增加尝试/步骤/产物/继续回执及执行模式/修订/耗时。模型/单项工具之间原子保存检查点，显式继续跳过已完成步骤；未知调用不自动重放。取消、租约和版本 fencing 保护发布。v1/AgentRun/解析 Worker 保持原边界；当前业务/源码 head0021。见[当前说明](PROJECT_ASSISTANT_M2.zh-CN.md)，下方 M1 公告为历史基线。
 

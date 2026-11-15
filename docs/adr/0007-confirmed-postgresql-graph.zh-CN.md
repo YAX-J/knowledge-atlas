@@ -1,6 +1,5 @@
 # ADR 0007 将已确认候选写入 PostgreSQL 正式图谱
 
-[English](0007-confirmed-postgresql-graph.md)
 
 - 状态：Accepted（已接受）
 - 日期：2026-10-17

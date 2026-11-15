@@ -2,7 +2,6 @@
 
 历史 M1 验收记录。当前 M2 执行与业务迁移见 [PROJECT_ASSISTANT_M2](PROJECT_ASSISTANT_M2.zh-CN.md)；下方 M1 未升级/无 runner 的陈述描述该历史轮次。
 
-[English](PROJECT_ASSISTANT_M1.md)
 
 已通过本地供应商替身验证，见 [ADR 0076](adr/0076-read-only-project-assistant.zh-CN.md)。源码迁移 head 为 `20261031_0020`，尚未升级已安装业务数据库。
 

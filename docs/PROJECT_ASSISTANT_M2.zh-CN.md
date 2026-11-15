@@ -1,6 +1,5 @@
 # 项目助手 M2
 
-[English](PROJECT_ASSISTANT_M2.md)
 
 M2 按 [ADR0077](adr/0077-durable-assistant-execution.zh-CN.md)实现并通过本地验证；业务库/源码 head 均为 `20261031_0021`。M3–M5 仍为规划，本轮零真实调用，真实任务质量未测量。
 

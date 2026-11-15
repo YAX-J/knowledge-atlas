@@ -1,6 +1,5 @@
 # ADR 0022：解析通过显式声明接收者发起的有界 Java 调用
 
-[English](0022-bounded-java-declared-receiver-calls.md)
 
 - 状态：Accepted
 - 日期：2026-10-21

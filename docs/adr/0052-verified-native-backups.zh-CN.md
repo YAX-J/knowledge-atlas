@@ -1,6 +1,5 @@
 # ADR 0052：可验证的原生 PostgreSQL 备份与受控恢复
 
-[English](0052-verified-native-backups.md)
 
 状态：已接受
 

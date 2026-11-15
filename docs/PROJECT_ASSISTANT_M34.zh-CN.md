@@ -1,6 +1,5 @@
 # 项目助手 M3 / M4
 
-[English](PROJECT_ASSISTANT_M34.md)
 
 2026-10-31 在 `feat/project-agent` 实现。[ADR0078](adr/0078-immutable-note-revisions.zh-CN.md)定义笔记，[ADR0079](adr/0079-governed-assistant-actions.zh-CN.md)定义能力和审批。M5 和真实模型质量仍独立。
 

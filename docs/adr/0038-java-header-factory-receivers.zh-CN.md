@@ -1,6 +1,5 @@
 # ADR 0038：在循环与资源头部推断 Java 工厂接收者
 
-[English](0038-java-header-factory-receivers.md)
 
 - 状态：已接受
 - 日期：2026-10-23

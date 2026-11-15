@@ -1,6 +1,5 @@
 # 版本变化记录
 
-[English](CHANGELOG.md)
 
 Knowledge Atlas 的重要变化记录在此。
 

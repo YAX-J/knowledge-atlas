@@ -1,6 +1,5 @@
 # 优化 1–3 验收 — 2026-10-25
 
-[English](RELIABILITY_RETRIEVAL_RECOVERY_20261025.md)
 
 已按要求顺序实现：
 

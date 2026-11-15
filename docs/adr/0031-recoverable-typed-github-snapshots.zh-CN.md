@@ -1,6 +1,5 @@
 # ADR 0031：以类型安全的来源复用恢复不完整 GitHub 快照
 
-[English](0031-recoverable-typed-github-snapshots.md)
 
 - 状态：已接受
 - 日期：2026-10-22

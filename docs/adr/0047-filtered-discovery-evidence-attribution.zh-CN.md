@@ -1,6 +1,5 @@
 # ADR 0047：筛选知识与保留原文的全部实体归属
 
-[English](0047-filtered-discovery-evidence-attribution.md)
 
 状态：已接受
 

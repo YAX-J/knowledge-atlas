@@ -1,6 +1,5 @@
 # ADR 0023：独立版本化有界 GitHub Pull Request Review 活动
 
-[English](0023-versioned-github-pull-reviews.md)
 
 - Status: Accepted
 - Date: 2026-10-21

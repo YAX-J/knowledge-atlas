@@ -1,6 +1,5 @@
 # ADR 0076：有界项目只读助手
 
-[English](0076-read-only-project-assistant.md)
 
 - 状态：已接受；M1 本地替身验收通过
 - 日期：2026-10-31

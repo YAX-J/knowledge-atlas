@@ -1,6 +1,5 @@
 # 毕业设计优化复盘（2026-10-25）
 
-[English](OPTIMIZATION_REVIEW.md)
 
 ## 判断与本轮方案
 

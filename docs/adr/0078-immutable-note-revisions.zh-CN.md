@@ -1,6 +1,5 @@
 # ADR 0078：可编辑笔记与不可变修订
 
-[English](0078-immutable-note-revisions.md)
 
 状态：已接受 · 2026-10-31 · M3
 

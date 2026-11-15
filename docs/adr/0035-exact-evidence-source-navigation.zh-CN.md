@@ -1,6 +1,5 @@
 # ADR 0035：从证据跳转到精确原文分块
 
-[English](0035-exact-evidence-source-navigation.md)
 
 - 状态：已接受
 - 日期：2026-10-22

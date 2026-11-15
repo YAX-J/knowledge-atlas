@@ -1,6 +1,5 @@
 # ADR 0064 现有应用内的受限 Agent 模块
 
-[English](0064-scoped-agent-modules.md)
 
 - Status: Accepted
 - Date: 2026-10-29

@@ -1,6 +1,5 @@
 # ADR 0026：在有界词法块内解析 Java 局部接收者
 
-[English](0026-scoped-java-local-receivers.md)
 
 - Status: Accepted
 - Date: 2026-10-21

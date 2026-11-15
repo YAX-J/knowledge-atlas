@@ -22,7 +22,7 @@ GitHub sync adds optional `continue_from_snapshot` UUID; response adds `continua
 
 Call analysis adds `strategy=semantic` for Java/JS/JSX/TS/TSX/Go; no provider calls. Response adds candidate_generation/uncovered_call_count/semantic_diagnostics with syntax/type-context kinds. Missing native SDK is 503 SEMANTIC_BACKEND_UNAVAILABLE; duplicate path versions 409 SEMANTIC_SNAPSHOT_AMBIGUOUS; invalid paths 409 SEMANTIC_PATH_INVALID; other languages 422 SEMANTIC_LANGUAGE_UNSUPPORTED. Existing Agent modes retain ID/line validation and bounds.
 
-Questions now default to rrf; GET search still defaults keyword, real search UI BM25. Context never contributes citation IDs. Graph/search/evidence/index counts project current identity at the effective query time. See [acceptance](../../../FUNCTIONAL_COMPLETION_20261026.md); earlier dated API notes below are historical.
+Questions now default to rrf; GET search still defaults keyword, real search UI BM25. Context never contributes citation IDs. Graph/search/evidence/index counts project current identity at the effective query time. See [acceptance](../../../FUNCTIONAL_COMPLETION_20261026.zh-CN.md); earlier dated API notes below are historical.
 
 ## 多语言代码解析（已实现）
 
@@ -393,7 +393,7 @@ GitHub provider item ID、`updated_at` 与 `include_comments` 组合标识工作
 
 默认执行租约 300 秒，最多自动尝试 3 次；达到次数上限的过期任务变为 `failed`，`error.code` 为 `TASK_ATTEMPTS_EXHAUSTED`，需要手动重试。普通 `SOURCE_PARSE_FAILED` 不会自动重试。旧任务无租约时根据开始时间或更新时间判断超时。手动接口对所有 `running` 任务仍返回 HTTP 409，恢复由 Worker 执行。
 
-Worker 与手动执行竞争时，只有认领成功的一方执行；另一方可能得到当前成功结果或 HTTP 409，客户端可刷新状态。前端当前通过“刷新状态”读取后台结果，尚未自动轮询。运行方式与限制见 [后端说明](../../../../backend/README.md)。
+Worker 与手动执行竞争时，只有认领成功的一方执行；另一方可能得到当前成功结果或 HTTP 409，客户端可刷新状态。前端当前通过“刷新状态”读取后台结果，尚未自动轮询。运行方式与限制见 [后端说明](../../../../backend/README.zh-CN.md)。
 
 ### 查询资料原文
 

@@ -1,36 +1,36 @@
-## Summary
+## 变更概述
 
-Describe what changed and why.
+请说明改动内容和原因。
 
-## Project phase
+## 项目阶段
 
-Which current phase or user flow does this change support?
+请说明改动对应的项目阶段或用户流程。
 
-## Verification
+## 验证
 
-- [ ] Relevant build or tests pass.
-- [ ] `git diff --check` passes.
-- [ ] UI changes were checked at appropriate viewport sizes.
-- [ ] Documentation matches the implementation.
-- [ ] No generated output, secret, private data, or unrelated file is included.
+- [ ] 相关构建或测试通过。
+- [ ] `git diff --check` 通过。
+- [ ] 已在适当的视口尺寸检查界面改动。
+- [ ] 文档与实现一致。
+- [ ] 已核对提交文件，排除生成产物、凭据、私有数据和无关文件。
 
-Commands and observed results:
+请记录执行过的命令和实际结果。
 
 ```text
-Add verification evidence here.
+在此填写验证结果。
 ```
 
-## Documentation and architecture impact
+## 文档与架构影响
 
-- API contract changed: yes / no
-- Knowledge model changed: yes / no
-- Architecture decision required: yes / no
-- Setup or environment changed: yes / no
+- API 契约变更（是 / 否）
+- 知识模型变更（是 / 否）
+- 需要架构决策记录（是 / 否）
+- 安装或环境配置变更（是 / 否）
 
-## Screenshots
+## 截图
 
-Include current screenshots for visible UI changes when practical.
+有可见界面改动时，请附相关截图。
 
-## Remaining limitations
+## 已知限制
 
-List known limitations or follow-up work without expanding this pull request's scope.
+请列出与本次改动相关的已知限制或后续工作。

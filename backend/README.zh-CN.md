@@ -16,7 +16,6 @@ M2 已通过本地验证，业务库迁至源码 head20261031_0021。`python -m 
 
 单项目 Agent 协作已接通。更新依赖后使用迁移 `20261029_0019`；新增固定版本 LangGraph，继续使用现有虚拟环境，执行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"`（backend 目录）。已有数据先备份与隔离恢复核验，再 `alembic upgrade head`。三个角色、四个协作接口和同步/人工审核边界见[实现说明](../docs/MULTI_AGENT.zh-CN.md)。
 
-[English](README.md)
 
 当前说明见本轮验收与 ADR 0060–0063；迁移 head `20261029_0019`。旧日期检查点已归档，不再叠加在当前说明顶部。 [验收 / Acceptance](../docs/OPTIMIZATION_20261029.zh-CN.md)
 

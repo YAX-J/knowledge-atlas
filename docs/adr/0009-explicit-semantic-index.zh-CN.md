@@ -1,6 +1,5 @@
 # ADR 0009：显式构建正式知识语义索引
 
-[English](0009-explicit-semantic-index.md)
 
 - Status: Accepted
 - Date: 2026-10-18

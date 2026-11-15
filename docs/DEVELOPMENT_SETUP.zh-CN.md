@@ -12,7 +12,6 @@ M1 源码 head 现为 `20261031_0020`（增量 assistant_tasks），取代下方
 
 单项目 Agent 协作已接通。更新依赖后使用迁移 `20261029_0019`；新增固定版本 LangGraph，继续使用现有虚拟环境，执行 `.\.venv\Scripts\python.exe -m pip install -e ".[dev,evaluation]"`（backend 目录）。已有数据先备份与隔离恢复核验，再 `alembic upgrade head`。三个角色、四个协作接口和同步/人工审核边界见[实现说明](MULTI_AGENT.zh-CN.md)。
 
-[English](DEVELOPMENT_SETUP.md)
 
 当前源码 head `20261031_0020`；已有库升级前先[备份/隔离恢复](BACKUP_RESTORE.zh-CN.md)。`/health/ready` 同时检查连接与关键结构，失败不会自动迁移。完整启动见[演示](DEMO.zh-CN.md)，能力/验证见[当前验收](OPTIMIZATION_20261029.zh-CN.md)。默认真实 workbench，模型操作显式执行。
 
@@ -55,7 +54,7 @@ cd knowledge-atlas
 git status
 ```
 
-开始实施前阅读 `README.md`、[代理规范](../AGENTS.zh-CN.md) 和 [实施计划](../PLANS.zh-CN.md)。
+开始实施前阅读 `README.md`、[代理规范](../AGENTS.md) 和 [实施计划](../PLANS.zh-CN.md)。
 
 ## 前端环境
 

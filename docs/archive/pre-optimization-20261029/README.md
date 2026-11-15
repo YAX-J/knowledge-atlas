@@ -217,15 +217,15 @@ knowledge-atlas/
 ├─ docs/
 │  ├─ adr/                  # 重要技术决策记录
 │  ├─ ARCHITECTURE.md       # 目标架构与关键数据流
-│  ├─ DEVELOPMENT_SETUP.md  # 本地环境与开发流程
+│  ├─ DEVELOPMENT_SETUP.zh-CN.md  # 本地环境与开发流程
 │  ├─ FRONTEND.md           # 前端结构和交互说明
 │  ├─ KNOWLEDGE_MODEL.md    # 实体、关系、证据和时序模型
 │  ├─ API_CONTRACT.md       # 前后端接口草案
 │  └─ ROADMAP.md            # 开发阶段和验收标准
 ├─ AGENTS.md                # Codex/AI 编码代理的仓库级约束
-├─ PLANS.md                 # 当前实施重点与阶段计划
+├─ PLANS.zh-CN.md           # 当前实施重点与阶段计划
 ├─ CONTRIBUTING.md          # 分支、提交和评审规范
-├─ CHANGELOG.md             # 版本变化记录
+├─ CHANGELOG.zh-CN.md       # 版本变化记录
 ├─ SECURITY.md              # 敏感数据与漏洞报告约定
 ├─ compose.yaml             # PostgreSQL、API 和 Worker 本地环境
 └─ README.md
@@ -235,22 +235,22 @@ knowledge-atlas/
 
 ## 文档索引
 
-以下默认指向中文版；已有英文文档使用 `.zh-CN.md` 文件并列提供中文版本，页面顶部可以切换语言。
+以下是保留的中文项目文档。
 
 - [系统架构](../../ARCHITECTURE.md)
-- [本地开发与环境初始化](../../DEVELOPMENT_SETUP.zh-CN.md) · [English](../../DEVELOPMENT_SETUP.md)
-- [后端开发说明](../../../backend/README.zh-CN.md) · [English](../../../backend/README.md)
+- [本地开发与环境初始化](../../DEVELOPMENT_SETUP.zh-CN.md)
+- [后端开发说明](../../../backend/README.zh-CN.md)
 - [前端开发说明](../../FRONTEND.md)
 - [开发者知识模型](../../KNOWLEDGE_MODEL.md)
 - [前后端接口草案](../../API_CONTRACT.md)
 - [开发路线与验收标准](../../ROADMAP.md)
-- [阶段六测评集与实验运行](../../../evaluation/README.zh-CN.md) · [English](../../../evaluation/README.md)
-- [当前实施计划](../../../PLANS.zh-CN.md) · [English](../../../PLANS.md)
-- [贡献与协作规范](../../../CONTRIBUTING.zh-CN.md) · [English](../../../CONTRIBUTING.md)
-- [版本变化记录](../../../CHANGELOG.zh-CN.md) · [English](../../../CHANGELOG.md)
-- [安全说明](../../../SECURITY.zh-CN.md) · [English](../../../SECURITY.md)
-- [技术决策记录](../../adr/README.zh-CN.md) · [English](../../adr/README.md)
-- [AI 编码代理说明](../../../AGENTS.zh-CN.md) · [English](../../../AGENTS.md)
+- [阶段六测评集与实验运行](../../../evaluation/README.zh-CN.md)
+- [当前实施计划](../../../PLANS.zh-CN.md)
+- [贡献与协作规范](../../../CONTRIBUTING.md)
+- [版本变化记录](../../../CHANGELOG.zh-CN.md)
+- [安全说明](../../../SECURITY.md)
+- [技术决策记录](../../adr/README.zh-CN.md)
+- [AI 编码代理说明](../../../AGENTS.md)
 
 ## 最小闭环
 

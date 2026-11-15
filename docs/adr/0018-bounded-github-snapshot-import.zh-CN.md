@@ -1,6 +1,5 @@
 # ADR 0018：显式导入有界的 GitHub 仓库快照
 
-[English](0018-bounded-github-snapshot-import.md)
 
 - 状态：已接受
 - 日期：2026-10-20

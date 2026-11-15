@@ -1,6 +1,5 @@
 # ADR 0037：解析未限定名 Java 工厂接收者
 
-[English](0037-unqualified-java-factory-receivers.md)
 
 - 状态：已接受
 - 日期：2026-10-23

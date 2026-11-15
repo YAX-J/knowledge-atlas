@@ -1,6 +1,5 @@
 # ADR 0024：通过 GraphQL 快照化有界 GitHub Review thread 状态
 
-[English](0024-bounded-github-review-thread-state.md)
 
 - Status: Accepted
 - Date: 2026-10-21

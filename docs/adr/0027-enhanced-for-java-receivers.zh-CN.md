@@ -1,6 +1,5 @@
 # ADR 0027：通过有界增强 for 元素解析 Java 接收者
 
-[English](0027-enhanced-for-java-receivers.md)
 
 - Status: Accepted
 - Date: 2026-10-21

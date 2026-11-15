@@ -2,7 +2,6 @@
 
 真实holdout-v3 Clef评审已按用户明确授权完成457次请求，见[模型结果与边界](../evaluation/results/2026-10-31-holdout-v3-clef-run1/REPORT.zh-CN.md)。不产生人工评分、校准或不可变权重结论。下文适配开发/预演示例保留为历史，完成本轮不授权后续调用。
 
-[English](CLOUDFLARE_EVALUATION.md)
 
 OpenRouter Jev 已作为独立[离线适配](OPENROUTER_EVALUATION.zh-CN.md)提供。使用本指南时明确 --provider cloudflare，新环境示例选择 openrouter。CF 原生适配不包含第三方 Jev 统一路由。
 

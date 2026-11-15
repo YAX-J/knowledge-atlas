@@ -1,6 +1,5 @@
 # ADR 0043：有界只读仓库工具 Agent
 
-[English](0043-bounded-read-only-tool-agent.md)
 
 - 状态：已接受
 - 日期：2026-10-24

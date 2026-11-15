@@ -1,32 +1,32 @@
 ---
-name: Bug report
-about: Report reproducible incorrect behavior
+name: 缺陷报告
+about: 报告可复现的问题
 title: "bug: "
 labels: bug
 assignees: ""
 ---
 
-## Description
+## 问题描述
 
-What happened, and what did you expect instead?
+请描述实际结果与预期结果。
 
-## Steps to reproduce
+## 复现步骤
 
 1.
 2.
 3.
 
-## Environment
+## 运行环境
 
-- Operating system:
-- Browser and version:
-- Node.js version:
-- Commit or branch:
+- 操作系统
+- 浏览器及版本
+- Node.js 版本
+- 提交或分支
 
-## Evidence
+## 相关证据
 
-Include screenshots, console output, or a minimal fixture. Remove credentials, private source code, and personal data.
+请附截图、控制台输出或最小复现用例。提交前移除凭据、私有源码和个人数据。
 
-## Scope
+## 影响范围
 
-Which component is affected: frontend, API, ingestion, graph, retrieval, Agent, documentation, or infrastructure?
+请说明受影响的模块，例如前端、API、导入、图谱、检索、Agent、文档或基础设施。

@@ -1,6 +1,5 @@
 # ADR 0012 使用保留行号的有界 Java 源码导入
 
-[English](0012-bounded-java-source-ingestion.md)
 
 - Status: Accepted
 - Date: 2026-10-18

@@ -1,6 +1,5 @@
 # ADR 0017 按需解析有界的跨文件 Java 方法调用
 
-[English](0017-bounded-cross-file-java-method-calls.md)
 
 - 状态：Accepted
 - 日期：2026-10-19

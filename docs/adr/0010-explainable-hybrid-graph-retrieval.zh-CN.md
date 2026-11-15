@@ -1,6 +1,5 @@
 # ADR 0010：融合一跳图信号的可解释混合检索
 
-[English](0010-explainable-hybrid-graph-retrieval.md)
 
 - 状态：已接受
 - 日期：2026-10-18

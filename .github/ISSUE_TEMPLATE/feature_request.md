@@ -1,28 +1,28 @@
 ---
-name: Feature request
-about: Propose a scoped capability or improvement
+name: 功能建议
+about: 提出一项明确的功能或改进
 title: "feat: "
 labels: enhancement
 assignees: ""
 ---
 
-## Problem
+## 背景
 
-What developer problem or project goal does this address?
+请说明遇到的问题或希望达成的项目目标。
 
-## Proposed outcome
+## 预期结果
 
-Describe observable behavior, not only an implementation choice.
+请描述完成后可观察的行为。
 
-## Acceptance criteria
+## 验收标准
 
 - [ ]
 - [ ]
 
-## Scope boundaries
+## 范围边界
 
-What should explicitly remain out of scope?
+请列出本次建议的范围边界。
 
-## Architecture and documentation impact
+## 架构与文档影响
 
-Does this affect the API contract, knowledge model, evidence rules, temporal semantics, security, or deployment? If so, identify the required document or ADR updates.
+请说明 API 契约、知识模型、证据规则、时序语义、安全或部署是否受到影响，以及需要同步的文档或 ADR。

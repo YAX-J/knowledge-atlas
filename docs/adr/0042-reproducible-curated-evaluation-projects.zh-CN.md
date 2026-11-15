@@ -1,6 +1,5 @@
 # ADR 0042 通过审核服务重放可复现的合成实验项目
 
-[English](0042-reproducible-curated-evaluation-projects.md)
 
 状态：Accepted
 

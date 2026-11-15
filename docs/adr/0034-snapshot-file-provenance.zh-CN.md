@@ -1,6 +1,5 @@
 # ADR 0034：查询已保存的快照逐文件来源
 
-[English](0034-snapshot-file-provenance.md)
 
 - 状态：已接受
 - 日期：2026-10-22

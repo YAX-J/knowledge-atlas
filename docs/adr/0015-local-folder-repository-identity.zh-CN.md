@@ -1,6 +1,5 @@
 # ADR 0015 在项目内标识本地文件夹来源仓库
 
-[English](0015-local-folder-repository-identity.md)
 
 - 状态：Accepted
 - 日期：2026-10-19

@@ -1,6 +1,5 @@
 # ADR 0014 按需解析有界的跨文件 Java 类型关系
 
-[English](0014-bounded-cross-file-java-types.md)
 
 - 状态：Accepted
 - 日期：2026-10-19

@@ -1,6 +1,5 @@
 # ADR 0072：显式 Workers AI 评审适配
 
-[English](0072-cloudflare-judge-adapter.md)
 
 - 状态：接受
 - 日期：2026-10-30

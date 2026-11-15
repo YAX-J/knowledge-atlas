@@ -1,6 +1,5 @@
 # ADR 0056 审计身份与历史生效区间
 
-[English](0056-audited-identities-and-validity.md)
 
 - Status: Accepted
 - Date: 2026-10-26

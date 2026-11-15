@@ -1,6 +1,5 @@
 # ADR 0050：持久化索引更新归属与未知结果
 
-[English](0050-durable-index-rebuilds.md)
 
 状态：已接受
 

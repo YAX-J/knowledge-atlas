@@ -1,6 +1,5 @@
 # ADR 0071：有界符号缓存与轻量协作历史
 
-[English](0071-bounded-read-caches-and-summaries.md)
 
 - 状态：接受
 - 日期：2026-10-30

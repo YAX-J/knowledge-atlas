@@ -1,6 +1,5 @@
 # ADR 0025：从构造器初始化推断有界 Java var 接收者
 
-[English](0025-constructor-initialized-java-var-receivers.md)
 
 - Status: Accepted
 - Date: 2026-10-21

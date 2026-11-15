@@ -1,6 +1,5 @@
 # ADR 0057 证据约束的持久化会话与实测默认策略
 
-[English](0057-grounded-persistent-conversations.md)
 
 - Status: Accepted
 - Date: 2026-10-26

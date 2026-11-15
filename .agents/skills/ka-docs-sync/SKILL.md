@@ -1,6 +1,6 @@
 ---
 name: ka-docs-sync
-description: Knowledge Atlas 的双语文档同步。修改 API、知识模型、架构决策、能力状态或迁移版本后，需要更新 README、docs、ADR、CHANGELOG 时使用。触发词：docs, README, ADR, CHANGELOG, translation, 文档, 翻译, 变更记录.
+description: Knowledge Atlas 的文档同步。修改 API、知识模型、架构决策、能力状态或迁移版本后，需要更新 README、docs、ADR、CHANGELOG 时使用。触发词：docs, README, ADR, CHANGELOG, 文档, 变更记录.
 ---
 
 M3/M4 ADR0078–0079 and PROJECT_ASSISTANT_M34 have paired translations. Keep source/business head0023, immutable note references vs formal evidence, v1/v2 compatibility, capability approval defaults,8/16 shared attempts, explicit continuation, backup recovery and M5 deferred status aligned. No live-quality claim from substitute/browser tests; keep frozen evaluations/ledgers/human0 unchanged.
@@ -14,7 +14,7 @@ M5 offline preparation is ADR0080 plus paired PROJECT_ASSISTANT_M5 guides and an
 
 ADR0076 introduces synchronous M1 assistant/tasks and source head20261031_0020, without automatically upgrading the installed database. Keep paired PROJECT_ASSISTANT_M1 guides, Agent plan/status, backend/setup/ADR indexes and changelogs synchronized. M1 passed user-selected Agent-run local substitute/native/desktop verification; M2–M5 are still planned. Do not conflate new typed raw/code/knowledge reports with QuestionRead, or task-envelope persistence with async runner/recovery. Preserve historical schema announcements as dated context and frozen quality/ledgers.
 
-仓库文档是交付物的一部分。规则是：**行为变了，对应文档同轮更新；有中文版的，两种语言一起改。**
+行为变化时，在同一轮更新对应文档。根目录 `README.md` 使用英文，其余项目文档使用中文。下方各轮的双语说明记录当时的维护方式。
 
 ## 何时使用
 
@@ -27,35 +27,18 @@ ADR0076 introduces synchronous M1 assistant/tasks and source head20261031_0020, 
 
 | 改动 | 必须更新 |
 | --- | --- |
-| API 路径、字段、错误码、分页 | `docs/API_CONTRACT.md`；`backend/README.md` 与中文版 |
+| API 路径、字段、错误码、分页 | `docs/API_CONTRACT.md`、`backend/README.zh-CN.md` |
 | 实体、关系、证据、时序语义 | `docs/KNOWLEDGE_MODEL.md`；必要时 ADR |
 | 架构边界、存储选型、任务模型 | `docs/adr/` 新 ADR，并更新 ADR 索引 |
-| 能力状态、安装方式、仓库结构 | `README.md`；`PLANS.md`、`docs/ROADMAP.md` |
+| 能力状态、安装方式、仓库结构 | `README.md`、`PLANS.zh-CN.md`、`docs/ROADMAP.md` |
 | 前端结构、交互、组件职责 | `docs/FRONTEND.md` |
-| 环境、命令、端口、配置项 | `docs/DEVELOPMENT_SETUP.md` 与中文版；`backend/README.md` |
-| 每次行为变化 | `CHANGELOG.md` 的 `Unreleased` |
+| 环境、命令、端口、配置项 | `docs/DEVELOPMENT_SETUP.zh-CN.md`、`backend/README.zh-CN.md` |
+| 每次行为变化 | `CHANGELOG.zh-CN.md` 的 `Unreleased` |
 | 安全、贡献流程 | `SECURITY.md`、`CONTRIBUTING.md` |
 
-## 双语配对
+## 文档语言
 
-以下文件成对维护，语言链接必须双向有效：
-
-- `AGENTS.md` ↔ `AGENTS.zh-CN.md`
-- `PLANS.md` ↔ `PLANS.zh-CN.md`
-- `CHANGELOG.md` ↔ `CHANGELOG.zh-CN.md`
-- `CONTRIBUTING.md` ↔ `CONTRIBUTING.zh-CN.md`
-- `SECURITY.md` ↔ `SECURITY.zh-CN.md`
-- `docs/DEVELOPMENT_SETUP.md` ↔ `docs/DEVELOPMENT_SETUP.zh-CN.md`
-- `backend/README.md` ↔ `backend/README.zh-CN.md`
-- `docs/adr/README.md` ↔ `docs/adr/README.zh-CN.md`
-- 每个 `docs/adr/NNNN-*.md` ↔ `NNNN-*.zh-CN.md`
-
-约定：
-
-- 两种语言保留相同的命令、标识符、版本号、文件名和状态。
-- 不机翻专有名词；`SUPERSEDES`、`valid_from`、`pending` 等保持原样。
-- 语言切换链接指向对方文件顶部。
-- 只改一种语言时，在提交说明里明确“翻译待补”，不要假装已同步。
+英文项目入口链接到现有中文文档。命令、接口字段、标识符和版本号保持原样，引用评测语料时保留原文。
 
 ## 状态标注
 
@@ -67,9 +50,9 @@ ADR0076 introduces synchronous M1 assistant/tasks and source head20261031_0020, 
 ## ADR 流程
 
 - 触发：存储选型、任务执行模型、抽取/审核边界、正式图谱写入等架构级决策。
-- 命名：`docs/adr/NNNN-kebab-title.md`，同时写 `.zh-CN.md`。
+- 命名：`docs/adr/NNNN-kebab-title.zh-CN.md`。
 - 内容：Status、Date、Decision、Consequences；写清边界和未做的事。
-- 更新 `docs/adr/README.md` 索引，保持中英同步。
+- 更新 `docs/adr/README.zh-CN.md` 索引。
 - 决策改变时新增 ADR 标明取代关系，不直接改写旧 ADR 的结论。
 
 ## CHANGELOG
@@ -77,7 +60,6 @@ ADR0076 introduces synchronous M1 assistant/tasks and source head20261031_0020, 
 - 变化写在 `## Unreleased` 下，按 `Added` / `Changed` / `Known limitations` 分组。
 - 只写用户可感知的行为，不写“重构了某文件”。
 - 已知限制要具体：哪些验证没做、哪些能力仍是 Mock。
-- 中英两版同轮更新。
 
 ## 漂移检查
 
@@ -87,14 +69,14 @@ ADR0076 introduces synchronous M1 assistant/tasks and source head20261031_0020, 
 - 能力列表：README 的“当前状态”是否仍与代码一致。
 - 图谱/检索/问答：是否仍被错误描述为已实现或未实现。
 - 搜索关键词：`尚未实现`、`规划中`、`Mock`、`待验收`，逐个确认。
-- 链接：双语互链、ADR 索引、README 文档索引是否可点。
+- 检查 ADR 索引和 README 文档索引中的链接。
 - 错误结构、分页参数、状态枚举是否在 API 文档中更新。
 
 本轮已同步的典型漂移（保留为检查示例）：
 
-- 正式图谱落地后，`README.md`、`docs/ARCHITECTURE.md`、`docs/ROADMAP.md`、`backend/README.md` 曾仍写“尚未实现”。
+- 正式图谱落地后，`README.md`、`docs/ARCHITECTURE.md`、`docs/ROADMAP.md`、`backend/README.zh-CN.md` 曾仍写“尚未实现”。
 - 迁移 head 变为 `0005` 后，`docs/DEVELOPMENT_SETUP.zh-CN.md` 与后端 README 曾仍写预期 `0004`。
-- ADR 0007 落地后，`docs/adr/README.md` 的既有决策索引曾缺少条目。
+- ADR 0007 落地后，`docs/adr/README.zh-CN.md` 的既有决策索引曾缺少条目。
 - `CHANGELOG` 曾缺少图谱写入记录。
 
 这些现在已修正；下次改行为时按上面的检查项重新核对。
@@ -102,7 +84,7 @@ ADR0076 introduces synchronous M1 assistant/tasks and source head20261031_0020, 
 ## 完成检查
 
 - [ ] 行为、文档、测试三者描述一致。
-- [ ] 双语文件同轮更新，语言链接有效。
+- [ ] 相关文档同轮更新，链接有效。
 - [ ] 规划中/已实现/Mock/待验收标注准确。
 - [ ] CHANGELOG 已更新。
 - [ ] ADR 索引与新增决策一致。
@@ -118,7 +100,7 @@ Current root README/PLANS/ROADMAP/FRONTEND consolidate capabilities; pre-2026102
 
 ## Single-project multi-agent extension (ADR0064–0065)
 
-Current extension is ADR0064–0065, docs/MULTI_AGENT.md and .zh-CN.md, with agent_runs migration0019. Update actual canonical tree and legacy aliases, shared/per-role attempted-call limits, explicit human resume, synchronous event persistence and lack of crash-node recovery. Keep root/backend/setup/API/frontend/knowledge-model/plan/changelog paired where companions exist. Preserve historical0018 reports and frozen experiments. Do not describe stub protocol tests as new real-provider quality or completed human grading.
+Current extension is ADR0064–0065, docs/MULTI_AGENT.zh-CN.md, with agent_runs migration0019. Update actual canonical tree and legacy aliases, shared/per-role attempted-call limits, explicit human resume, synchronous event persistence and lack of crash-node recovery. Keep root/backend/setup/API/frontend/knowledge-model/plan/changelog paired where companions exist. Preserve historical0018 reports and frozen experiments. Do not describe stub protocol tests as new real-provider quality or completed human grading.
 
 ## Batched lexical v2 (ADR 0066)
 

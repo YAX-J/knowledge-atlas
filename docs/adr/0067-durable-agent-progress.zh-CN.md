@@ -1,6 +1,5 @@
 # ADR 0067 Agent 过程持久化与校验后的步骤检查点
 
-[English](0067-durable-agent-progress.md)
 
 - 状态：已接受
 - 日期：2026-10-30

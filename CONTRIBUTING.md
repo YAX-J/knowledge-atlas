@@ -1,17 +1,16 @@
-# Contributing to Knowledge Atlas
+# Knowledge Atlas 贡献与协作规范
 
-[简体中文](CONTRIBUTING.zh-CN.md)
 
-Knowledge Atlas is currently a graduation project, but changes should remain reviewable and reproducible.
+Knowledge Atlas 当前是毕业设计项目，但修改仍应便于审查和复现。
 
-## Before starting
+## 开始之前
 
-1. Read `AGENTS.md` and the relevant files under `docs/`.
-2. Check `PLANS.md` for the active implementation phase.
-3. Keep the change focused on one behavior or one documentation concern.
-4. Create an ADR before implementing a material architecture change.
+1. 阅读 [代理规范](AGENTS.md) 和 `docs/` 下的相关文档。
+2. 查看 [实施计划](PLANS.zh-CN.md)，确认当前阶段。
+3. 每次修改聚焦一个行为或一个文档主题。
+4. 实施重要架构变更之前先创建 ADR。
 
-## Local frontend setup
+## 本地前端环境
 
 ```bash
 cd frontend
@@ -19,13 +18,13 @@ npm install
 npm run dev
 ```
 
-Before submitting a frontend change:
+提交前端修改之前运行：
 
 ```bash
 npm run build
 ```
 
-## Local backend setup
+## 本地后端环境
 
 ```bash
 cd backend
@@ -35,18 +34,18 @@ python -m pip install -e ".[dev]"
 python -m pytest
 ```
 
-Use Alembic for schema changes. Do not call `Base.metadata.create_all()` from application startup; it is reserved for isolated tests.
+数据库结构变更使用 Alembic。不要在应用启动时调用 `Base.metadata.create_all()`；该操作只用于隔离测试。
 
-## Branch and commit conventions
+## 分支与提交约定
 
-Suggested branch names:
+建议的分支命名：
 
 - `feat/<short-description>`
 - `fix/<short-description>`
 - `docs/<short-description>`
 - `chore/<short-description>`
 
-Use concise commit messages with an imperative summary. Conventional Commit prefixes are recommended but not required:
+提交信息使用简洁、表达动作的摘要。推荐但不强制使用 Conventional Commits 前缀：
 
 ```text
 feat: add evidence review endpoint
@@ -54,41 +53,41 @@ fix: keep timeline selection and detail panel in sync
 docs: define temporal relationship direction
 ```
 
-Do not combine generated files, dependency upgrades, broad formatting, and feature behavior in one commit unless they are inseparable.
+除非无法分离，否则不要将生成文件、依赖升级、大范围格式调整和功能行为放进同一个提交。
 
-## Pull requests
+## Pull Request
 
-A pull request should explain:
+Pull Request 应说明：
 
-- What changed and why.
-- Which user flow or project phase it supports.
-- How it was verified.
-- Whether API, knowledge-model, architecture, or setup documents changed.
-- Remaining limitations and follow-up work.
+- 改了什么，以及为什么修改。
+- 支持哪个用户流程或项目阶段。
+- 如何验证。
+- 是否修改 API、知识模型、架构或环境配置文档。
+- 剩余限制和后续工作。
 
-For visible UI work, include a current screenshot or short recording when practical.
+对于可见界面修改，条件允许时附上当前截图或简短录屏。
 
-## Code expectations
+## 代码要求
 
-- Prefer small, typed components and explicit data structures.
-- Keep Mock data separate from UI components.
-- Preserve evidence and temporal semantics defined in the knowledge model.
-- Add or update tests when a test harness exists.
-- Keep API handlers thin and put persistence workflows in application services.
-- Do not include credentials, private source code, or personal data.
+- 优先使用小型、带类型的组件和明确的数据结构。
+- Mock 数据与界面组件分离。
+- 保持知识模型定义的证据和时序语义。
+- 已有测试框架时，新增或更新测试。
+- API 处理函数保持简洁，业务持久化流程放在应用服务中。
+- 不包含凭据、私有源码或个人数据。
 
-## Documentation expectations
+## 文档要求
 
-- Keep completed and planned functionality clearly separated.
-- Update API examples when response shapes change.
-- Record durable architecture decisions in `docs/adr/`.
-- Add user-facing changes to the `Unreleased` section of `CHANGELOG.md`.
+- 明确区分已完成与规划中的能力。
+- 响应结构变化时同步更新 API 示例。
+- 长期有效的架构决策记录在 `docs/adr/`。
+- 用户可见变化记录在 `CHANGELOG.zh-CN.md` 的 `Unreleased` 小节。
 
-## Review checklist
+## 审查清单
 
-- [ ] The change is within the current scope.
-- [ ] Relevant build or tests pass.
-- [ ] UI changes were checked at appropriate viewport sizes.
-- [ ] Documentation matches the implementation.
-- [ ] No generated output, secret, or unrelated file is included.
-- [ ] `git diff --check` passes.
+- [ ] 修改属于当前范围。
+- [ ] 相关构建或测试通过。
+- [ ] 界面修改已经在合适的视口尺寸下检查。
+- [ ] 文档与实现一致。
+- [ ] 没有包含生成产物、密钥或无关文件。
+- [ ] `git diff --check` 通过。

@@ -1,6 +1,5 @@
 # 多语言代码解析 V1
 
-[English](MULTILANGUAGE_PARSING.md)
 
 ## 已实现的范围
 

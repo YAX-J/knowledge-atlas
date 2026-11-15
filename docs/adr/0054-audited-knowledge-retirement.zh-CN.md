@@ -2,7 +2,6 @@
 
 状态：已接受 · 日期：2026-10-26
 
-[English](0054-audited-knowledge-retirement.md)
 
 ## 决策
 

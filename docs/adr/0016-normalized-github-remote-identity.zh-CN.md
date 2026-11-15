@@ -1,6 +1,5 @@
 # ADR 0016 在仓库导入前规范化 GitHub remote 身份
 
-[English](0016-normalized-github-remote-identity.md)
 
 - 状态：Accepted
 - 日期：2026-10-19

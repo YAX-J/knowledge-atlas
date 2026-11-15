@@ -1,6 +1,5 @@
 # ADR 0079：有范围的助手动作与人工审批
 
-[English](0079-governed-assistant-actions.md)
 
 状态：已接受 · 2026-10-31 · M4
 

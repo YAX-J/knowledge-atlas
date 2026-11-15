@@ -1,6 +1,5 @@
 # 发现与审核流程验收 — 2026-10-25
 
-[English](DISCOVERY_OPTIMIZATION_20261025.md)
 
 本轮按 [ADR 0047](adr/0047-filtered-discovery-evidence-attribution.zh-CN.md) 实现：
 

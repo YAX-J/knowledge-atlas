@@ -1,6 +1,5 @@
 # ADR 0077：显式持久化助手执行
 
-[English](0077-durable-assistant-execution.md)
 
 - 状态：已接受；本地验证通过
 - 日期：2026-10-31

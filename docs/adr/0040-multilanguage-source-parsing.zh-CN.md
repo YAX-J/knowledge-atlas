@@ -1,6 +1,5 @@
 # ADR 0040：扩展代码多语言解析而不改变知识权威边界
 
-[English](0040-multilanguage-source-parsing.md)
 
 状态：已接受
 

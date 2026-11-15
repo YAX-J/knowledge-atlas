@@ -1,6 +1,5 @@
 # 搜索状态优化 — 2026-10-25
 
-[English](SEARCH_STATE_OPTIMIZATION_20261025.md)
 
 搜索、重试、索引状态读取和显式索引更新编排现集中到 `frontend/src/composables/useKnowledgeSearch.ts`。App 保留项目选择、图谱导航和原文定位职责；没有 API、数据库或依赖变化。
 

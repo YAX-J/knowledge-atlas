@@ -1,6 +1,5 @@
 # ADR 0075：后端计算回答总体支持状态
 
-[English](0075-server-derived-answer-support.md)
 
 - 状态：已接受
 - 日期：2026-10-31

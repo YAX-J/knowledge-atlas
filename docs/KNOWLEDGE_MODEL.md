@@ -1,6 +1,6 @@
 # Knowledge Atlas 开发者知识模型
 
-Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a31-table backup/verified isolated restore; all30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](PROJECT_ASSISTANT_M34.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.
+Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a31-table backup/verified isolated restore; all30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](PROJECT_ASSISTANT_M34.zh-CN.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.
 
 M2（ADR0077，迁移0021）增加 assistant_attempts/assistant_steps/assistant_artifacts/assistant_continuations，保留旧 AgentRun/正式知识语义。尝试元数据记录 started/succeeded/failed/unknown，步骤保存有范围的业务上下文及引用池，最终 artifact 和任务结果原子提交；继续回执绑定请求 UUID/修订/检查点。没有自动知识写入。业务记录随项目保留，无 TTL；归档隐藏，物理项目删除级联。详见[当前 M2](PROJECT_ASSISTANT_M2.zh-CN.md)。
 
@@ -141,7 +141,7 @@ Conversation/ConversationTurn 保存项目隔离历史；历史回答快照不�
 
 后端已保存 `SourceChunk` 作为原文证据的基础记录；确认候选时会生成 `KnowledgeEvidence` 并引用分块。每个分块带有稳定 UUID、`user_id`、`project_id`、`source_id`、从 0 开始的顺序、块类型、结构路径、原文、SHA-256 及从 1 开始且包含两端的行号。Markdown 使用标题/段落/列表/代码类型与标题路径；Java 使用代码/注释/类型/方法类型，路径为 `[类型]` 或 `[类型, 方法]`。类型前连续注解归类型，方法外的纯注释行单独成块。分块保留来源换行符。相同来源、位置边界、块类型和内容产生相同 UUID；不同来源的分块不会共享 UUID。
 
-来源在当前阶段保持不可变：同一项目、同一可空仓库、来源类型中的相同文件字节复用来源，修改字节或切换仓库则创建独立来源。本地文件夹仓库以稳定 UUID 标识，来源可保存 `repository_id` 和规范化的仓库内 `relative_path`；重复内容仍复用该仓库中的首次来源并保留首次路径。旧来源的 `repository_id` 为 `null`，继续在未归属集合中保持原有去重语义。这不表示新旧来源之间已经建立版本或 `SUPERSEDES` 关系。Java 类型和方法分块也不是自动创建的正式 `CodeEntity`；`ready` 仅表示来源解析完成，不表示知识已抽取或确认。决策见 [ADR 0003](adr/0003-markdown-parsing-execution.md)、[ADR 0012](adr/0012-bounded-java-source-ingestion.md) 与 [ADR 0015](adr/0015-local-folder-repository-identity.zh-CN.md)。
+来源在当前阶段保持不可变：同一项目、同一可空仓库、来源类型中的相同文件字节复用来源，修改字节或切换仓库则创建独立来源。本地文件夹仓库以稳定 UUID 标识，来源可保存 `repository_id` 和规范化的仓库内 `relative_path`；重复内容仍复用该仓库中的首次来源并保留首次路径。旧来源的 `repository_id` 为 `null`，继续在未归属集合中保持原有去重语义。这不表示新旧来源之间已经建立版本或 `SUPERSEDES` 关系。Java 类型和方法分块也不是自动创建的正式 `CodeEntity`；`ready` 仅表示来源解析完成，不表示知识已抽取或确认。决策见 [ADR 0003](adr/0003-markdown-parsing-execution.zh-CN.md)、[ADR 0012](adr/0012-bounded-java-source-ingestion.zh-CN.md) 与 [ADR 0015](adr/0015-local-folder-repository-identity.zh-CN.md)。
 
 仓库可额外保存规范化 GitHub 身份：`provider=github`、小写 `remote_owner` / `remote_name` 和不含凭据的规范 `remote_url`。身份既可关联已有 `local_folder`，也可先作为 `git_remote` 独立登记；登记不会访问 GitHub，也不代表已导入分支、Commit 或文件。首次成功同步保存稳定 provider ID，后续可在 GitHub 返回 owner/name 变化时更新规范坐标；边界见 [ADR 0016](adr/0016-normalized-github-remote-identity.zh-CN.md) 与 [ADR 0019](adr/0019-incremental-github-commit-snapshots.zh-CN.md)。
 

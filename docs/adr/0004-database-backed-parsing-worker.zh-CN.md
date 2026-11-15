@@ -1,6 +1,5 @@
 # ADR 0004 带执行租约的数据库解析 Worker
 
-[English](0004-database-backed-parsing-worker.md)
 
 - 状态：Accepted（已接受）
 - 日期：2026-10-17

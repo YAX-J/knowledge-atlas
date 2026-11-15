@@ -4,9 +4,8 @@
 
 [ADR 0075](adr/0075-server-derived-answer-support.zh-CN.md) 已实现 `evidence-claims-v3`：模型只返回 confidence、claims、missing_information，后端按所有条目状态计算 API 的 supported；逐条引用、缺失信息、预算与项目边界保持严格。v2 和平铺历史按原保存值读取/重放，不重算或调模型；v2 不作为新输出回退。使用独立虚构开发用例验证结构与兼容性，未测量 v3 真实质量。冻结 v2 实验/账本/评分和 schema head `20261029_0019` 不变，人工覆盖率0%。
 
-[English](MULTI_AGENT.md)
 
-Knowledge Atlas 已在现有后端内加入三个注册 Agent 和两条显式 LangGraph 流程。继续共用 Vue 前端、FastAPI、数据库、Worker 和依赖环境。目录与完整契约见[英文对应文档](MULTI_AGENT.md)；架构决策见 [ADR 0064](adr/0064-scoped-agent-modules.zh-CN.md)、[ADR 0065](adr/0065-durable-reviewed-workflows.zh-CN.md)，本次检查见[验收记录](MULTI_AGENT_ACCEPTANCE.zh-CN.md)。
+Knowledge Atlas 已在现有后端内加入三个注册 Agent 和两条显式 LangGraph 流程。继续共用 Vue 前端、FastAPI、数据库、Worker 和依赖环境。目录与完整契约见[英文对应文档](MULTI_AGENT.zh-CN.md)；架构决策见 [ADR 0064](adr/0064-scoped-agent-modules.zh-CN.md)、[ADR 0065](adr/0065-durable-reviewed-workflows.zh-CN.md)，本次检查见[验收记录](MULTI_AGENT_ACCEPTANCE.zh-CN.md)。
 
 ## 当前目录
 
