@@ -15,7 +15,7 @@ The frontend uses Vue 3, the API uses FastAPI, and PostgreSQL with pgvector stor
 | Graph and governance | Explore entities, relationships, evidence, and historical snapshots. Inspect replacement chains and grouped changes, manage aliases and merges, restore or withdraw knowledge, and check for conflicts. |
 | Search and Q&A | Use keyword, BM25, source-aware BM25, vector, hybrid, or RRF retrieval. Ask about a historical instant or compare an approved database cutover. Saved answers link each supported claim to its evidence and, where applicable, its relationship and validity interval. |
 | Code analysis | Inspect syntax, static call candidates, and compiler-backed Java, TypeScript, and Go declarations. Select a pinned commit or local source version when paths repeat. Analysis is read-only and does not execute user code or build scripts. Scan limits and truncation are reported. |
-| Workbench | Browse live project data or open the separate mock demo. A workspace URL can restore a project, source, graph selection, historical instant, or conversation. |
+| Workbench | Browse live project data in the six-module deck, use the command palette to navigate, or open the separate mock demo. A workspace URL can restore a project, source, graph selection, historical instant, or conversation. |
 | Agent workflows | Use the three specialist roles, two fixed LangGraph workflows, or the asynchronous project assistant. Tasks save their input scope, usage, and checkpoints. Proposed edits require explicit approval, with the option to cancel or explicitly continue. |
 | Verification | Run migration checks, backup and restore drills, native PostgreSQL acceptance, offline evaluations, and synthetic performance benchmarks. |
 

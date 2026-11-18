@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { Search } from '@element-plus/icons-vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { ChatDotRound, Collection, Search } from '@element-plus/icons-vue'
+import { deckCommands } from '../deckNavigation'
 import type { KnowledgeNode } from '../types'
 
 const props = defineProps<{
@@ -8,84 +9,142 @@ const props = defineProps<{
   selectedId: string
   graphActive: boolean
   projectName?: string
+  active?: string
+  focusOnly?: boolean
 }>()
 
 const emit = defineEmits<{
   select: [id: string]
   search: [query: string]
+  navigate: [id: string]
+  toggleFocus: []
 }>()
 
+type PaletteItem = { id: string; title: string; detail: string; kind: 'command' | 'demo' | 'search' }
 const query = ref('')
-const isFocused = ref(false)
+const scope = ref<'all' | 'command' | 'knowledge'>('all')
+const selected = ref(0)
+const dialog = ref<HTMLDialogElement | null>(null)
 const searchInput = ref<HTMLInputElement | null>(null)
-function shortcut(event: KeyboardEvent) { if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); searchInput.value?.focus() } }
+const commandTrigger = ref<HTMLButtonElement | null>(null)
+let previousFocus: HTMLElement | null = null
+
+const context = computed(() => deckCommands.find(item => item.id === props.active) ?? deckCommands[0])
+const scopes = [
+  { id: 'all', label: '全部' }, { id: 'command', label: '命令' }, { id: 'knowledge', label: '知识' },
+] as const
+
+const results = computed<PaletteItem[]>(() => {
+  const keyword = query.value.trim().toLowerCase()
+  const items: PaletteItem[] = []
+  if (scope.value !== 'knowledge') {
+    for (const item of deckCommands) {
+      if (`${item.label} ${item.caption} ${item.id}`.toLowerCase().includes(keyword)) {
+        items.push({ id: item.id, title: `打开${item.label}`, detail: item.caption, kind: 'command' })
+      }
+    }
+  }
+  if (!keyword || scope.value === 'command') return items
+  if (props.graphActive) {
+    for (const node of props.nodes.filter(node => `${node.label} ${node.description} ${node.project}`.toLowerCase().includes(keyword)).slice(0, 5)) {
+      items.push({ id: node.id, title: node.label, detail: `${node.project} · ${node.subtitle}`, kind: 'demo' })
+    }
+  } else {
+    items.push({ id: 'query', title: `检索「${query.value.trim()}」`, detail: '当前项目 · BM25 + 来源位置', kind: 'search' })
+  }
+  return items
+})
+watch([query, scope], () => { selected.value = 0 })
+
+function openPalette() {
+  if (!dialog.value || dialog.value.open) return
+  previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  query.value = ''
+  scope.value = 'all'
+  selected.value = 0
+  dialog.value.showModal()
+  searchInput.value?.focus()
+}
+
+function shortcut(event: KeyboardEvent) {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault()
+    openPalette()
+  }
+}
 onMounted(() => window.addEventListener('keydown', shortcut))
 onUnmounted(() => window.removeEventListener('keydown', shortcut))
 
-const results = computed(() => {
-  const keyword = query.value.trim().toLowerCase()
-  if (!keyword) return []
-  return props.nodes.filter((node) =>
-    `${node.label} ${node.description} ${node.project}`.toLowerCase().includes(keyword),
-  ).slice(0, 5)
-})
-
-function choose(node: KnowledgeNode) {
-  query.value = node.label
-  isFocused.value = false
-  emit('select', node.id)
+function restoreFocus() {
+  const target = previousFocus?.isConnected ? previousFocus : commandTrigger.value
+  if (target === document.body) commandTrigger.value?.focus()
+  else target?.focus()
+  previousFocus = null
 }
 
-function submit() {
-  if (!props.graphActive) { if (query.value.trim()) emit('search', query.value.trim()); return }
-  if (results.value[0]) choose(results.value[0])
+function step(offset: number) {
+  if (!results.value.length) return
+  selected.value = (selected.value + offset + results.value.length) % results.value.length
+  void nextTick(() => document.getElementById(`deck-option-${selected.value}`)?.scrollIntoView?.({ block: 'nearest' }))
 }
 
-function closeResults() {
-  window.setTimeout(() => {
-    isFocused.value = false
-  }, 120)
+function choose(item = results.value[selected.value]) {
+  if (!item) return
+  if (dialog.value?.open) {
+    dialog.value.close()
+    restoreFocus()
+  }
+  if (item.kind === 'command') emit('navigate', item.id)
+  else if (item.kind === 'demo') emit('select', item.id)
+  else emit('search', query.value.trim())
+}
+
+function cancel() {
+  dialog.value?.close()
+  restoreFocus()
 }
 </script>
 
 <template>
   <header class="app-header">
-    <div class="brand" role="img" aria-label="Knowledge Atlas">
-      <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
-        <path d="M12 19 28 10M12 19l16 12" />
-        <circle cx="10" cy="20" r="5" />
-        <circle class="brand-mark__rose" cx="30" cy="9" r="4" />
-        <circle class="brand-mark__amber" cx="30" cy="31" r="4" />
-      </svg>
-      <span>Knowledge Atlas</span>
+    <div class="deck-context">
+      <strong>{{ context?.label }}</strong><span class="context-caption">{{ context?.caption }}</span>
     </div>
-
-    <div class="global-search" :class="{ 'is-focused': isFocused }">
-      <el-icon><Search /></el-icon>
-      <input
-        ref="searchInput"
-        v-model="query"
-        type="search"
-        :placeholder="graphActive ? '搜索独立演示图谱' : '搜索当前项目的知识、文件名或路径'"
-        :aria-label="graphActive ? '搜索演示知识' : '搜索当前项目知识'"
-        maxlength="200"
-        @focus="isFocused = true"
-        @blur="closeResults"
-        @keydown.enter="submit"
-      />
-      <span class="search-shortcut">Ctrl K</span>
-      <div v-if="graphActive && isFocused && query" class="search-results">
-        <button v-for="node in results" :key="node.id" type="button" @click="choose(node)">
-          <span>{{ node.label }}</span>
-          <small>{{ node.project }} · {{ node.subtitle }}</small>
-        </button>
-        <p v-if="results.length === 0">没有找到相关知识，试试“消息”或“订单”。</p>
+    <span class="context-project" :title="projectName">
+      <Collection aria-hidden="true" /><span>{{ graphActive ? '独立演示' : projectName || '未选择项目' }}</span>
+    </span>
+    <div class="context-actions">
+      <slot />
+      <button class="deck-button focus-button" type="button" :aria-pressed="Boolean(focusOnly)" @click="emit('toggleFocus')">
+        <ChatDotRound aria-hidden="true" />{{ focusOnly ? '退出专注' : '专注提问' }}
+      </button>
+      <button ref="commandTrigger" class="deck-button" type="button" aria-haspopup="dialog" @click="openPalette">
+        <Search aria-hidden="true" />命令 <kbd>Ctrl K</kbd>
+      </button>
+    </div>
+    <dialog ref="dialog" class="deck-palette" aria-label="命令面板" @cancel.prevent="cancel" @click.self="cancel">
+      <div class="palette-content">
+        <div class="palette-search">
+          <Search aria-hidden="true" />
+          <input ref="searchInput" v-model="query" type="search" maxlength="200"
+            placeholder="搜索命令或当前项目知识…" aria-label="搜索命令或知识" aria-controls="deck-results"
+            @keydown.down.prevent="step(1)" @keydown.up.prevent="step(-1)" @keydown.enter.prevent="choose()">
+          <button class="deck-button" type="button" aria-label="关闭命令面板" @click="cancel">Esc</button>
+        </div>
+        <div class="palette-scopes" role="group" aria-label="搜索范围">
+          <button v-for="item in scopes" :key="item.id" class="deck-button" type="button" :aria-pressed="scope === item.id" @click="scope = item.id">{{ item.label }}</button>
+        </div>
+        <ul id="deck-results" class="palette-results" aria-label="可用命令和知识">
+          <li v-for="(item, index) in results" :key="`${item.kind}-${item.id}`">
+            <button :id="`deck-option-${index}`" type="button" :class="{ 'is-selected': index === selected }"
+              @focus="selected = index" @click="choose(item)">
+              <span>{{ item.title }}</span><small>{{ item.detail }}</small>
+            </button>
+          </li>
+          <li v-if="!results.length" class="palette-empty">{{ query ? '没有匹配项，试试其他关键词或范围。' : '输入关键词开始检索。' }}</li>
+        </ul>
+        <footer>↑ ↓ 选择 · Enter 打开 · Esc 关闭</footer>
       </div>
-    </div>
-
-    <div class="sync-status">
-      <span>{{ graphActive ? '独立演示' : '当前项目' }}</span>
-      <strong>{{ graphActive ? `${nodes.length} 个演示节点` : projectName || '尚未选择' }}</strong>
-    </div>
+    </dialog>
   </header>
 </template>

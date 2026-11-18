@@ -118,7 +118,7 @@ onScopeDispose(() => {disposed = true; reads++; contextReads++; repositoryReads+
 
 <template>
   <section class="project-assistant" aria-labelledby="project-assistant-title">
-    <header><div><span class="assistant-kicker">PROJECT ASSISTANT · M3 / M4</span><h2 id="project-assistant-title">项目助手</h2>
+    <header><div><h2 id="project-assistant-title" tabindex="-1">项目助手</h2>
       <p>结合固定资料、笔记与已确认知识整理报告。默认只读；已有内容与正式知识变更必须审批。共享最多 8 次模型请求、16 次工具执行。</p></div>
       <button type="button" :disabled="!projectId || loading || sending" @click="refresh()">刷新助手任务</button></header>
     <div class="assistant-layout">

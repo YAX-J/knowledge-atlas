@@ -38,7 +38,7 @@ const kindLabels = { type: '类型', field: '字段/属性', method: '函数/方
 
 <template>
   <section class="code-search" aria-labelledby="code-search-title" :aria-busy="loading">
-    <div class="source-section-heading"><h3 id="code-search-title">代码符号检索</h3><span class="muted-copy">多语言 · 只读定位</span></div>
+    <div class="source-section-heading"><h3 id="code-search-title" tabindex="-1">代码符号检索</h3><span class="muted-copy">多语言 · 只读定位</span></div>
     <p class="source-upload-hint">按名称或文件路径查找已解析的类型、字段与方法，可跳转到原文。结果来自源码结构，不是已审核知识。</p>
     <form class="code-search-form" @submit.prevent="submit">
       <label class="code-search-query">符号名称或文件路径

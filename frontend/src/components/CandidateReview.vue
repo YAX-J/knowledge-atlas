@@ -165,138 +165,151 @@ function confirm(id: string) {
 
 <template>
   <section class="candidate-review" aria-labelledby="candidate-title" :aria-busy="loading || busy">
-    <div class="source-section-heading">
-      <h3 id="candidate-title" tabindex="-1">候选知识 <span v-if="candidates">{{ candidates.total }}</span></h3>
-      <button class="text-button" type="button" :disabled="loading || busy" @click="emit('refresh')">刷新候选</button>
-    </div>
-    <p class="source-upload-hint">提取时会将本篇资料的原文分块发送至 DeepSeek。核对证据并确认后，知识会写入项目图谱；关系两端的实体需要先确认。</p>
-    <div class="review-progress" role="status">
-      <strong>资料处理进度</strong><p>{{ nextStep }}</p>
-      <p v-if="counts && !loading && !error">整份资料：待审核 {{ counts.pending }} · 已确认 {{ counts.confirmed }} · 已拒绝 {{ counts.rejected }}</p>
-      <button v-if="counts?.confirmed" class="text-button" type="button" :disabled="loading || busy" @click="emit('graph')">查看图谱与检索</button>
-    </div>
-    <button v-if="extraction?.task?.status !== 'succeeded'" class="primary-button" type="button" :disabled="loading || busy" @click="emit('extract')">
-      {{ extracting ? '正在提取，请稍候…' : extraction?.task?.status === 'failed' ? '重试提取候选知识' : extraction?.task?.status === 'running' ? '恢复超时提取' : '提取候选知识' }}
-    </button>
-    <p v-if="extraction?.task?.status === 'running' && !extracting" class="muted-copy" role="status">提取任务正在执行，请刷新候选查看结果。中断后可在租约到期时手动恢复。</p>
-    <p v-if="loading" class="muted-copy" role="status">正在读取候选知识…</p>
-    <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
-    <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
-    <form class="review-filters" aria-label="筛选候选" @submit.prevent="applyFilters()">
-      <label>审核状态<select v-model="filterStatus" :disabled="batchDisabled"><option value="">全部状态</option><option value="pending">待审核</option><option value="confirmed">已确认</option><option value="rejected">已拒绝</option></select></label>
-      <label>候选类别<select v-model="filterKind" :disabled="batchDisabled"><option value="">实体与关系</option><option value="entity">仅实体</option><option value="relation">仅关系</option></select></label>
-      <label>名称或摘要<input v-model="filterQuery" type="search" maxlength="200" :disabled="batchDisabled" placeholder="输入文字查找候选" /></label>
-      <button class="primary-button" type="submit" :disabled="batchDisabled">应用筛选</button>
-      <button class="text-button" type="button" :disabled="batchDisabled" @click="applyFilters(true)">重置筛选</button>
-    </form>
-    <p v-if="candidates && (filters?.status || filters?.kind || filters?.query)" class="muted-copy" role="status">筛选命中 {{ candidates.total }} 条；上方处理进度仍统计整份资料。</p>
-    <section v-if="pending.length" class="batch-review" aria-label="批量审核">
-      <p>已选 {{ selected.length }} 条当前页候选。请逐项核对原文后选择；关系两端须已确认或一同选中。</p>
-      <p v-if="editing" class="muted-copy">请先完成或取消正在修改的候选。</p>
-      <div class="candidate-actions">
-        <button class="text-button" type="button" :disabled="batchDisabled" @click="selectPage">选择本页待审核项</button>
-        <button class="text-button" type="button" :disabled="batchDisabled || !selected.length" @click="selected = []">清空选择</button>
-        <button class="primary-button" type="button" :disabled="batchDisabled || !selected.length" @click="batchAction = 'confirm'">审核所选</button>
-        <button class="text-button" type="button" :disabled="batchDisabled || !selected.length" @click="batchAction = 'reject'">拒绝所选</button>
+    <div class="review-queue">
+      <div class="source-section-heading">
+        <h3 id="candidate-title" tabindex="-1">候选知识 <span v-if="candidates">{{ candidates.total }}</span></h3>
+        <button class="text-button" type="button" :disabled="loading || busy" @click="emit('refresh')">刷新候选</button>
       </div>
-      <form v-if="batchAction" class="batch-preview" @submit.prevent="submitBatch">
-        <p>将{{ batchAction === 'confirm' ? '确认并写入图谱' : '拒绝' }}以下 {{ selected.length }} 条候选：</p>
-        <ul><li v-for="item in pending.filter(item => selected.includes(item.id))" :key="item.id">{{ item.kind === 'entity' ? '实体' : '关系' }}：{{ item.name }}<template v-if="batchAction === 'confirm' && (item.validity || item.temporal)"> · {{ formatValidity(item) }}</template></li></ul>
-        <div v-if="batchAction === 'confirm' && batchProblems.length" class="dependency-warning" role="status">
-          <p>请先处理以下关系的依赖或替代审核：</p>
-          <ul><li v-for="item in batchProblems" :key="item.id">{{ item.name }}：{{ item.problem }}</li></ul>
-        </div>
-        <p>任意一项无法处理时整批不生效。处理后暂不支持撤销。</p>
-        <button class="primary-button" type="submit" :disabled="batchDisabled || (batchAction === 'confirm' && !!batchProblems.length)">{{ batchAction === 'confirm' ? '确认所选并入图' : '确认拒绝所选' }}</button>
-        <button class="text-button" type="button" :disabled="batchDisabled" @click="batchAction = ''">取消批量操作</button>
+      <p class="source-upload-hint">提取时会将本篇资料的原文分块发送至 DeepSeek。核对证据并确认后，知识会写入项目图谱；关系两端的实体需要先确认。</p>
+      <div class="review-progress" role="status">
+        <strong>资料处理进度</strong><p>{{ nextStep }}</p>
+        <p v-if="counts && !loading && !error">整份资料：待审核 {{ counts.pending }} · 已确认 {{ counts.confirmed }} · 已拒绝 {{ counts.rejected }}</p>
+        <button v-if="counts?.confirmed" class="text-button" type="button" :disabled="loading || busy" @click="emit('graph')">查看图谱与检索</button>
+      </div>
+      <button v-if="extraction?.task?.status !== 'succeeded'" class="primary-button" type="button" :disabled="loading || busy" @click="emit('extract')">
+        {{ extracting ? '正在提取，请稍候…' : extraction?.task?.status === 'failed' ? '重试提取候选知识' : extraction?.task?.status === 'running' ? '恢复超时提取' : '提取候选知识' }}
+      </button>
+      <p v-if="extraction?.task?.status === 'running' && !extracting" class="muted-copy" role="status">提取任务正在执行，请刷新候选查看结果。中断后可在租约到期时手动恢复。</p>
+      <p v-if="loading" class="muted-copy" role="status">正在读取候选知识…</p>
+      <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
+      <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
+      <form class="review-filters" aria-label="筛选候选" @submit.prevent="applyFilters()">
+        <label>审核状态<select v-model="filterStatus" :disabled="batchDisabled"><option value="">全部状态</option><option value="pending">待审核</option><option value="confirmed">已确认</option><option value="rejected">已拒绝</option></select></label>
+        <label>候选类别<select v-model="filterKind" :disabled="batchDisabled"><option value="">实体与关系</option><option value="entity">仅实体</option><option value="relation">仅关系</option></select></label>
+        <label>名称或摘要<input v-model="filterQuery" type="search" maxlength="200" :disabled="batchDisabled" placeholder="输入文字查找候选" /></label>
+        <button class="primary-button" type="submit" :disabled="batchDisabled">应用筛选</button>
+        <button class="text-button" type="button" :disabled="batchDisabled" @click="applyFilters(true)">重置筛选</button>
       </form>
-    </section>
-    <p v-if="!loading && !error && candidates?.total === 0" class="empty-copy">{{ filters?.status || filters?.kind || filters?.query ? '没有符合筛选条件的候选，可调整或重置筛选。' : extraction?.task?.status === 'succeeded' ? '本篇资料未提取到有明确证据的候选知识。' : '还没有候选知识。完成提取后，可在这里核对名称、摘要和原文证据。' }}</p>
-    <article v-for="item in candidates?.items ?? []" :key="item.id" class="candidate-card">
-      <header>
-        <label v-if="item.review_status === 'pending'" class="candidate-select"><input v-model="selected" type="checkbox" :value="item.id" :disabled="batchDisabled" :aria-label="`选择候选：${item.name}`" />选择</label>
-        <span>{{ item.kind === 'entity' ? '实体' : '关系' }} · {{ labels[item.type] ?? item.type }}</span>
-        <span class="source-status" :class="{ 'status-ready': item.review_status === 'confirmed', 'status-failed': item.review_status === 'rejected' }">{{ labels[item.review_status] }}</span>
-      </header>
-      <h4 :id="`candidate-${item.id}`" tabindex="-1">{{ item.name }}</h4>
-      <p class="candidate-summary">{{ item.summary }}</p>
-      <p v-if="item.validity || item.temporal" class="candidate-summary">
-        {{ item.review_status === 'pending' ? '建议有效期' : '审核时有效期' }} · {{ formatValidity(item) }}
-      </p>
-      <p v-if="item.temporal" class="muted-copy">
-        原文时间表述「{{ item.temporal.start }}」<template v-if="item.temporal.end">至「{{ item.temporal.end }}」</template>
-        <template v-if="item.temporal_reference"> · 修订时间 {{ new Date(item.temporal_reference).toLocaleString() }}</template>
-      </p>
-      <section v-if="item.kind === 'relation'" class="relation-dependencies" :aria-label="`${item.name} 的关系端点`">
-        <p v-for="endpoint in relationEndpoints(item)" :key="endpoint.role">{{ endpoint.role }}：{{ endpoint.candidate?.name ?? '不可访问的实体候选' }} · {{ endpoint.candidate ? labels[endpoint.candidate.review_status] : '状态不可用' }}</p>
-        <p v-if="item.review_status === 'pending' && dependencyProblem(item)" class="dependency-warning">确认前需处理：{{ dependencyProblem(item) }}</p>
-        <button class="text-button" type="button" :disabled="batchDisabled" @click="emit('filter', { status: '', kind: 'entity', query: '' })">查看本资料实体候选</button>
-      </section>
-      <small class="muted-copy">模型置信度 {{ Math.round(item.confidence * 100) }}% · 请以原文证据为准</small>
-      <blockquote v-for="(evidence, index) in item.replacement ? [] : item.evidence" :key="index">
-        <cite>原文第 {{ evidence.start_line }}–{{ evidence.end_line }} 行 · {{ evidence.heading_path.join(' / ') || '文档开头' }}</cite>
-        <p>{{ evidence.quote }}</p>
-      </blockquote>
-      <p v-if="item.replacement_issue" class="dependency-warning">{{ confirmationProblem(item) }}</p>
-      <section v-if="item.replacement" class="relationship-replacement" aria-label="主数据库变更">
-        <h5 :id="`replacement-${item.id}`" tabindex="-1">主数据库替代建议</h5>
-        <p>从 {{ new Date(item.replacement.effective_at).toLocaleString() }} 起切换关系。</p>
-        <div class="replacement-evidence">
-          <div>
-            <strong>旧关系 · {{ item.replacement.old_relationship.name }}</strong>
-            <p>生效于 {{ new Date(item.replacement.old_relationship.valid_from).toLocaleString() }}<template v-if="item.replacement.old_relationship.valid_to"> · 原截止 {{ new Date(item.replacement.old_relationship.valid_to).toLocaleString() }}</template></p>
-            <blockquote v-for="entry in item.replacement.evidence" :key="entry.id"><cite>{{ entry.title }} · 第 {{ entry.start_line }}–{{ entry.end_line }} 行</cite><p>{{ entry.quote }}</p></blockquote>
-          </div>
-          <div>
-            <strong>新关系 · {{ item.name }}</strong>
-            <p>{{ formatValidity(item) }}</p>
-            <blockquote v-for="entry in item.evidence" :key="entry.chunk_id + entry.quote"><cite>第 {{ entry.start_line }}–{{ entry.end_line }} 行</cite><p>{{ entry.quote }}</p></blockquote>
-          </div>
-        </div>
+      <p v-if="candidates && (filters?.status || filters?.kind || filters?.query)" class="muted-copy" role="status">筛选命中 {{ candidates.total }} 条；上方处理进度仍统计整份资料。</p>
+      <section v-if="pending.length" class="batch-review" aria-label="批量审核">
+        <p>已选 {{ selected.length }} 条当前页候选。请逐项核对原文后选择；关系两端须已确认或一同选中。</p>
+        <p v-if="editing" class="muted-copy">请先完成或取消正在修改的候选。</p>
         <div class="candidate-actions">
-          <template v-if="reviewingReplacement === item.replacement.approval.token">
-            <button class="primary-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)"
-              @click="emit('resolve', { id: item.id, action: 'confirm', replacement: item.replacement.approval })">确认替代并入图</button>
-            <button type="button" class="text-button" :disabled="busy" @click="reviewingReplacement = ''">取消替代审核</button>
-          </template>
-          <button v-else class="primary-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)"
-            @click="showReplacement(item)">审核此次替代</button>
+          <button class="text-button" type="button" :disabled="batchDisabled" @click="selectPage">选择本页待审核项</button>
+          <button class="text-button" type="button" :disabled="batchDisabled || !selected.length" @click="selected = []">清空选择</button>
+          <button class="primary-button" type="button" :disabled="batchDisabled || !selected.length" @click="batchAction = 'confirm'">审核所选</button>
+          <button class="text-button" type="button" :disabled="batchDisabled || !selected.length" @click="batchAction = 'reject'">拒绝所选</button>
         </div>
-      </section>
-      <p v-if="item.supersedes_relationship_id" class="muted-copy">已确认替代旧主数据库关系，历史证据已保留。</p>
-      <template v-if="item.review_status === 'pending'">
-        <form v-if="editing === item.id" class="project-form" @submit.prevent="confirm(item.id)">
-          <label :for="`candidate-name-${item.id}`">名称</label>
-          <input :id="`candidate-name-${item.id}`" v-model="name" required maxlength="255" :disabled="busy" />
-          <label :for="`candidate-summary-${item.id}`">摘要</label>
-          <textarea :id="`candidate-summary-${item.id}`" v-model="summary" required maxlength="2000" rows="3" :disabled="busy" />
-          <label :for="`candidate-from-${item.id}`">生效时间（本地时间）</label>
-          <input :id="`candidate-from-${item.id}`" v-model="validFrom" type="datetime-local" step="0.001" :disabled="busy" />
-          <label :for="`candidate-to-${item.id}`">失效时间（可留空）</label>
-          <input :id="`candidate-to-${item.id}`" v-model="validTo" type="datetime-local" step="0.001" :disabled="busy" />
-          <p class="muted-copy">两项留空时从确认起生效。关系有效期须落在两端实体的有效期内。</p>
-          <p v-if="invalidValidity" class="inline-error" role="alert">请填写生效时间，失效时间须晚于生效时间。</p>
-          <div class="candidate-actions">
-            <button class="primary-button" type="submit" :disabled="busy || invalidValidity || !name.trim() || !summary.trim()">保存并确认</button>
-            <button class="text-button" type="button" :disabled="busy" @click="editing = ''">取消修改</button>
+        <form v-if="batchAction" class="batch-preview" @submit.prevent="submitBatch">
+          <p>将{{ batchAction === 'confirm' ? '确认并写入图谱' : '拒绝' }}以下 {{ selected.length }} 条候选：</p>
+          <ul><li v-for="item in pending.filter(item => selected.includes(item.id))" :key="item.id">{{ item.kind === 'entity' ? '实体' : '关系' }}：{{ item.name }}<template v-if="batchAction === 'confirm' && (item.validity || item.temporal)"> · {{ formatValidity(item) }}</template></li></ul>
+          <div v-if="batchAction === 'confirm' && batchProblems.length" class="dependency-warning" role="status">
+            <p>请先处理以下关系的依赖或替代审核：</p>
+            <ul><li v-for="item in batchProblems" :key="item.id">{{ item.name }}：{{ item.problem }}</li></ul>
           </div>
+          <p>任意一项无法处理时整批不生效。处理后暂不支持撤销。</p>
+          <button class="primary-button" type="submit" :disabled="batchDisabled || (batchAction === 'confirm' && !!batchProblems.length)">{{ batchAction === 'confirm' ? '确认所选并入图' : '确认拒绝所选' }}</button>
+          <button class="text-button" type="button" :disabled="batchDisabled" @click="batchAction = ''">取消批量操作</button>
         </form>
-        <div v-else class="candidate-actions">
-          <button v-if="!confirmationProblem(item)" class="primary-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)" @click="emit('resolve', { id: item.id, action: 'confirm' })">{{ resolving === item.id ? '正在处理…' : '确认' }}</button>
-          <button v-if="!confirmationProblem(item)" class="text-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)" @click="edit(item)">修改后确认</button>
-          <button class="text-button" type="button" :disabled="busy || loading" @click="emit('resolve', { id: item.id, action: 'reject' })">拒绝</button>
+      </section>
+    </div>
+    <div class="review-results">
+      <h3 class="review-results-title">候选与原文对照</h3>
+      <p v-if="!loading && !error && candidates?.total === 0" class="empty-copy">{{ filters?.status || filters?.kind || filters?.query ? '没有符合筛选条件的候选，可调整或重置筛选。' : extraction?.task?.status === 'succeeded' ? '本篇资料未提取到有明确证据的候选知识。' : '还没有候选知识。完成提取后，可在这里核对名称、摘要和原文证据。' }}</p>
+      <article v-for="item in candidates?.items ?? []" :key="item.id" class="candidate-card">
+        <header>
+          <label v-if="item.review_status === 'pending'" class="candidate-select"><input v-model="selected" type="checkbox" :value="item.id" :disabled="batchDisabled" :aria-label="`选择候选：${item.name}`" />选择</label>
+          <span>{{ item.kind === 'entity' ? '实体' : '关系' }} · {{ labels[item.type] ?? item.type }}</span>
+          <span class="source-status" :class="{ 'status-ready': item.review_status === 'confirmed', 'status-failed': item.review_status === 'rejected' }">{{ labels[item.review_status] }}</span>
+        </header>
+        <div class="candidate-comparison">
+        <div class="candidate-proposal">
+        <h4 :id="`candidate-${item.id}`" tabindex="-1">{{ item.name }}</h4>
+        <p class="candidate-summary">{{ item.summary }}</p>
+        <p v-if="item.validity || item.temporal" class="candidate-summary">
+          {{ item.review_status === 'pending' ? '建议有效期' : '审核时有效期' }} · {{ formatValidity(item) }}
+        </p>
+        <p v-if="item.temporal" class="muted-copy">
+          原文时间表述「{{ item.temporal.start }}」<template v-if="item.temporal.end">至「{{ item.temporal.end }}」</template>
+          <template v-if="item.temporal_reference"> · 修订时间 {{ new Date(item.temporal_reference).toLocaleString() }}</template>
+        </p>
+        <section v-if="item.kind === 'relation'" class="relation-dependencies" :aria-label="`${item.name} 的关系端点`">
+          <p v-for="endpoint in relationEndpoints(item)" :key="endpoint.role">{{ endpoint.role }}：{{ endpoint.candidate?.name ?? '不可访问的实体候选' }} · {{ endpoint.candidate ? labels[endpoint.candidate.review_status] : '状态不可用' }}</p>
+          <p v-if="item.review_status === 'pending' && dependencyProblem(item)" class="dependency-warning">确认前需处理：{{ dependencyProblem(item) }}</p>
+          <button class="text-button" type="button" :disabled="batchDisabled" @click="emit('filter', { status: '', kind: 'entity', query: '' })">查看本资料实体候选</button>
+        </section>
+        <small class="muted-copy">模型置信度 {{ Math.round(item.confidence * 100) }}% · 请以原文证据为准</small>
         </div>
-      </template>
-      <div v-else-if="item.review_status === 'confirmed' && !item.knowledge_id" class="candidate-actions">
-        <span class="muted-copy">这条旧候选已通过审核，尚未写入正式图谱。</span>
-        <button class="primary-button" type="button" :disabled="busy || loading" @click="emit('resolve', { id: item.id, action: 'confirm' })">补写入图谱</button>
-      </div>
-    </article>
-    <nav v-if="pages > 1" class="source-pagination" aria-label="候选知识分页">
-      <button type="button" :disabled="loading || busy || (candidates?.page ?? 1) <= 1" @click="emit('refresh', (candidates?.page ?? 1) - 1)">上一页</button>
-      <span>{{ candidates?.page }} / {{ pages }}</span>
-      <button type="button" :disabled="loading || busy || (candidates?.page ?? 1) >= pages" @click="emit('refresh', (candidates?.page ?? 1) + 1)">下一页</button>
-    </nav>
+        <div v-if="!item.replacement" class="candidate-original">
+        <strong>来源原文</strong>
+        <p v-if="!item.evidence.length" class="muted-copy">当前候选没有可显示的原文片段。</p>
+        <blockquote v-for="(evidence, index) in item.evidence" :key="index">
+          <cite>原文第 {{ evidence.start_line }}–{{ evidence.end_line }} 行 · {{ evidence.heading_path.join(' / ') || '文档开头' }}</cite>
+          <p>{{ evidence.quote }}</p>
+        </blockquote>
+        </div>
+        </div>
+        <p v-if="item.replacement_issue" class="dependency-warning">{{ confirmationProblem(item) }}</p>
+        <section v-if="item.replacement" class="relationship-replacement" aria-label="主数据库变更">
+          <h5 :id="`replacement-${item.id}`" tabindex="-1">主数据库替代建议</h5>
+          <p>从 {{ new Date(item.replacement.effective_at).toLocaleString() }} 起切换关系。</p>
+          <div class="replacement-evidence">
+            <div>
+              <strong>旧关系 · {{ item.replacement.old_relationship.name }}</strong>
+              <p>生效于 {{ new Date(item.replacement.old_relationship.valid_from).toLocaleString() }}<template v-if="item.replacement.old_relationship.valid_to"> · 原截止 {{ new Date(item.replacement.old_relationship.valid_to).toLocaleString() }}</template></p>
+              <blockquote v-for="entry in item.replacement.evidence" :key="entry.id"><cite>{{ entry.title }} · 第 {{ entry.start_line }}–{{ entry.end_line }} 行</cite><p>{{ entry.quote }}</p></blockquote>
+            </div>
+            <div>
+              <strong>新关系 · {{ item.name }}</strong>
+              <p>{{ formatValidity(item) }}</p>
+              <blockquote v-for="entry in item.evidence" :key="entry.chunk_id + entry.quote"><cite>第 {{ entry.start_line }}–{{ entry.end_line }} 行</cite><p>{{ entry.quote }}</p></blockquote>
+            </div>
+          </div>
+          <div class="candidate-actions">
+            <template v-if="reviewingReplacement === item.replacement.approval.token">
+              <button class="primary-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)"
+                @click="emit('resolve', { id: item.id, action: 'confirm', replacement: item.replacement.approval })">确认替代并入图</button>
+              <button type="button" class="text-button" :disabled="busy" @click="reviewingReplacement = ''">取消替代审核</button>
+            </template>
+            <button v-else class="primary-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)"
+              @click="showReplacement(item)">审核此次替代</button>
+          </div>
+        </section>
+        <p v-if="item.supersedes_relationship_id" class="muted-copy">已确认替代旧主数据库关系，历史证据已保留。</p>
+        <template v-if="item.review_status === 'pending'">
+          <form v-if="editing === item.id" class="project-form" @submit.prevent="confirm(item.id)">
+            <label :for="`candidate-name-${item.id}`">名称</label>
+            <input :id="`candidate-name-${item.id}`" v-model="name" required maxlength="255" :disabled="busy" />
+            <label :for="`candidate-summary-${item.id}`">摘要</label>
+            <textarea :id="`candidate-summary-${item.id}`" v-model="summary" required maxlength="2000" rows="3" :disabled="busy" />
+            <label :for="`candidate-from-${item.id}`">生效时间（本地时间）</label>
+            <input :id="`candidate-from-${item.id}`" v-model="validFrom" type="datetime-local" step="0.001" :disabled="busy" />
+            <label :for="`candidate-to-${item.id}`">失效时间（可留空）</label>
+            <input :id="`candidate-to-${item.id}`" v-model="validTo" type="datetime-local" step="0.001" :disabled="busy" />
+            <p class="muted-copy">两项留空时从确认起生效。关系有效期须落在两端实体的有效期内。</p>
+            <p v-if="invalidValidity" class="inline-error" role="alert">请填写生效时间，失效时间须晚于生效时间。</p>
+            <div class="candidate-actions">
+              <button class="primary-button" type="submit" :disabled="busy || invalidValidity || !name.trim() || !summary.trim()">保存并确认</button>
+              <button class="text-button" type="button" :disabled="busy" @click="editing = ''">取消修改</button>
+            </div>
+          </form>
+          <div v-else class="candidate-actions">
+            <button v-if="!confirmationProblem(item)" class="primary-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)" @click="emit('resolve', { id: item.id, action: 'confirm' })">{{ resolving === item.id ? '正在处理…' : '确认' }}</button>
+            <button v-if="!confirmationProblem(item)" class="text-button" type="button" :disabled="busy || loading || !!dependencyProblem(item)" @click="edit(item)">修改后确认</button>
+            <button class="text-button" type="button" :disabled="busy || loading" @click="emit('resolve', { id: item.id, action: 'reject' })">拒绝</button>
+          </div>
+        </template>
+        <div v-else-if="item.review_status === 'confirmed' && !item.knowledge_id" class="candidate-actions">
+          <span class="muted-copy">这条旧候选已通过审核，尚未写入正式图谱。</span>
+          <button class="primary-button" type="button" :disabled="busy || loading" @click="emit('resolve', { id: item.id, action: 'confirm' })">补写入图谱</button>
+        </div>
+      </article>
+      <nav v-if="pages > 1" class="source-pagination" aria-label="候选知识分页">
+        <button type="button" :disabled="loading || busy || (candidates?.page ?? 1) <= 1" @click="emit('refresh', (candidates?.page ?? 1) - 1)">上一页</button>
+        <span>{{ candidates?.page }} / {{ pages }}</span>
+        <button type="button" :disabled="loading || busy || (candidates?.page ?? 1) >= pages" @click="emit('refresh', (candidates?.page ?? 1) + 1)">下一页</button>
+      </nav>
+    </div>
   </section>
 </template>
 

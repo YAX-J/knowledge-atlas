@@ -248,12 +248,13 @@ function sourceMeta(source: SourceListItem | ApiSource) {
   <main class="source-workspace" aria-labelledby="source-workspace-title">
     <header class="source-page-heading">
       <div>
-        <h1 id="source-workspace-title">{{ view === 'projects' ? '我的项目' : '资料来源' }}</h1>
+        <h1 id="source-workspace-title" tabindex="-1">{{ view === 'projects' ? '我的项目' : '资料来源' }}</h1>
         <p>把技术笔记和源码留在项目里，让每段证据都有迹可循。</p>
       </div>
       <span class="data-label">真实项目与资料</span>
     </header>
 
+    <slot name="source-nav" />
     <div class="source-layout">
       <aside class="project-column" aria-label="项目管理">
         <div class="source-section-heading">
@@ -316,59 +317,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
           <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
           <p v-if="fileError || errors.upload" class="inline-error" role="alert">{{ fileError || errors.upload }}</p>
 
-          <section class="repository-panel" aria-labelledby="repository-panel-title">
-            <div class="source-section-heading">
-              <h3 id="repository-panel-title">来源仓库 <span v-if="repositories">{{ repositories.total }}</span></h3>
-              <button class="text-button" type="button" :disabled="loading.repositories || locked" @click="emit('repositoriesPage', repositories?.page ?? 1)">刷新仓库</button>
-            </div>
-            <p v-if="loading.repositories" class="muted-copy" role="status">正在读取仓库身份…</p>
-            <div v-if="errors.repositories" class="inline-error" role="alert"><p>{{ errors.repositories }}</p><button class="text-button" type="button" @click="emit('repositoriesPage', repositories?.page ?? 1)">重试加载仓库</button></div>
-            <p v-if="errors.sync" class="inline-error" role="alert">{{ errors.sync }}</p>
-            <p v-if="errors.activity" class="inline-error" role="alert">{{ errors.activity }}</p>
-            <p v-if="errors.commit" class="inline-error" role="alert">{{ errors.commit }}</p>
-            <p v-if="!loading.repositories && !errors.repositories && repositories?.total === 0" class="empty-copy">尚未登记仓库；上传文件夹或登记 GitHub 地址后会显示在这里。</p>
-            <div v-if="repositories?.items.length" class="repository-list">
-              <article v-for="repository in repositories.items" :key="repository.id" class="repository-card">
-                <span>{{ repository.kind === 'local_folder' ? '本地文件夹' : 'GitHub 远程仓库' }}</span>
-                <strong>{{ repository.name }}</strong>
-                <a v-if="repository.remote_url" :href="repository.remote_url" target="_blank" rel="noopener noreferrer">{{ repository.remote_url }}</a>
-                <small v-else>尚未关联 GitHub remote</small>
-                <small v-if="repository.provider_repository_id">GitHub ID · {{ repository.provider_repository_id }}</small>
-                <div v-if="repository.provider === 'github'" class="repository-sync">
-                  <label :for="`github-ref-${repository.id}`">同步 ref <span>选填</span></label>
-                  <input :id="`github-ref-${repository.id}`" v-model="githubRefs[repository.id]" type="text" maxlength="255" placeholder="默认分支" :disabled="locked" />
-                  <label><input v-model="githubRescans[repository.id]" type="checkbox" :disabled="locked" />重新扫描（发现新增语言文件）</label>
-                  <button class="text-button" type="button" :disabled="locked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubRefs[repository.id]?.trim() || undefined, rescan: githubRescans[repository.id] ?? false, wholeRepository: true })">{{ loading.sync ? '正在同步…' : '同步整个仓库' }}</button>
-                  <button v-if="githubContinuations?.[repository.id]" class="text-button" type="button" :disabled="locked || githubContinuations[repository.id]!.blocked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubContinuations[repository.id]!.ref, continueFromSnapshot: githubContinuations[repository.id]!.snapshotId, wholeRepository: true })">继续同一提交（剩余 {{ githubContinuations[repository.id]!.remaining }} 份，待遍历 {{ githubContinuations[repository.id]!.pendingDirectories }} 个目录）</button>
-                  <button class="text-button" type="button" :disabled="locked" @click="emit('importGithubActivity', repository.id)">{{ loading.activity ? '正在导入…' : '导入 Issue / PR / Review thread' }}</button>
-                  <button class="text-button" type="button" :disabled="locked" @click="emit('snapshots', repository)">查看同步快照</button>
-                </div>
-              </article>
-            </div>
-            <nav v-if="repositoryPages > 1" class="source-pagination" aria-label="仓库分页">
-              <button type="button" :disabled="loading.repositories || locked || (repositories?.page ?? 1) <= 1" @click="emit('repositoriesPage', (repositories?.page ?? 1) - 1)">上一页</button>
-              <span>{{ repositories?.page }} / {{ repositoryPages }}</span>
-              <button type="button" :disabled="loading.repositories || locked || (repositories?.page ?? 1) >= repositoryPages" @click="emit('repositoriesPage', (repositories?.page ?? 1) + 1)">下一页</button>
-            </nav>
-            <slot name="snapshots" />
-            <details class="repository-register">
-              <summary>登记 GitHub remote</summary>
-              <form class="repository-form" @submit.prevent="submitGithubRepository">
-                <label for="github-remote-url">GitHub 仓库地址</label>
-                <input id="github-remote-url" v-model="remoteUrl" type="text" maxlength="1024" required placeholder="https://github.com/owner/repository" :disabled="locked" />
-                <label for="local-repository-link">关联本地仓库 <span>选填</span></label>
-                <select id="local-repository-link" v-model="localRepositoryId" :disabled="locked || !linkableLocalRepositories.length">
-                  <option value="">不关联，登记为远程仓库</option>
-                  <option v-for="repository in linkableLocalRepositories" :key="repository.id" :value="repository.id">{{ repository.name }}</option>
-                </select>
-            <p class="source-upload-hint">接受 GitHub HTTPS 或 SSH remote。整仓同步会按同一提交分批导入受支持文件，解析 Worker 会处理已导入的文件。</p>
-                <p v-if="errors.remote" class="inline-error" role="alert">{{ errors.remote }}</p>
-                <button class="primary-button" type="submit" :disabled="locked || !remoteUrl.trim()">{{ loading.remote ? '正在登记…' : '登记 remote' }}</button>
-              </form>
-            </details>
-          </section>
 
-          <slot name="code-search" />
           <div class="source-section-heading">
             <h3 id="source-list-title" tabindex="-1">{{ filteredSources ? '筛选资料' : '项目资料' }} <span v-if="sources">{{ sources.total }}</span></h3>
             <button class="text-button" type="button" :disabled="loading.sources || locked" @click="emit('sourcesPage', sources?.page ?? 1)">刷新资料</button>
@@ -532,6 +481,59 @@ function sourceMeta(source: SourceListItem | ApiSource) {
               </template>
             </template>
           </section>
+          <section class="repository-panel" aria-labelledby="repository-panel-title">
+            <div class="source-section-heading">
+              <h3 id="repository-panel-title" tabindex="-1">来源仓库 <span v-if="repositories">{{ repositories.total }}</span></h3>
+              <button class="text-button" type="button" :disabled="loading.repositories || locked" @click="emit('repositoriesPage', repositories?.page ?? 1)">刷新仓库</button>
+            </div>
+            <p v-if="loading.repositories" class="muted-copy" role="status">正在读取仓库身份…</p>
+            <div v-if="errors.repositories" class="inline-error" role="alert"><p>{{ errors.repositories }}</p><button class="text-button" type="button" @click="emit('repositoriesPage', repositories?.page ?? 1)">重试加载仓库</button></div>
+            <p v-if="errors.sync" class="inline-error" role="alert">{{ errors.sync }}</p>
+            <p v-if="errors.activity" class="inline-error" role="alert">{{ errors.activity }}</p>
+            <p v-if="errors.commit" class="inline-error" role="alert">{{ errors.commit }}</p>
+            <p v-if="!loading.repositories && !errors.repositories && repositories?.total === 0" class="empty-copy">尚未登记仓库；上传文件夹或登记 GitHub 地址后会显示在这里。</p>
+            <div v-if="repositories?.items.length" class="repository-list">
+              <article v-for="repository in repositories.items" :key="repository.id" class="repository-card">
+                <span>{{ repository.kind === 'local_folder' ? '本地文件夹' : 'GitHub 远程仓库' }}</span>
+                <strong>{{ repository.name }}</strong>
+                <a v-if="repository.remote_url" :href="repository.remote_url" target="_blank" rel="noopener noreferrer">{{ repository.remote_url }}</a>
+                <small v-else>尚未关联 GitHub remote</small>
+                <small v-if="repository.provider_repository_id">GitHub ID · {{ repository.provider_repository_id }}</small>
+                <div v-if="repository.provider === 'github'" class="repository-sync">
+                  <label :for="`github-ref-${repository.id}`">同步 ref <span>选填</span></label>
+                  <input :id="`github-ref-${repository.id}`" v-model="githubRefs[repository.id]" type="text" maxlength="255" placeholder="默认分支" :disabled="locked" />
+                  <label><input v-model="githubRescans[repository.id]" type="checkbox" :disabled="locked" />重新扫描（发现新增语言文件）</label>
+                  <button class="text-button" type="button" :disabled="locked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubRefs[repository.id]?.trim() || undefined, rescan: githubRescans[repository.id] ?? false, wholeRepository: true })">{{ loading.sync ? '正在同步…' : '同步整个仓库' }}</button>
+                  <button v-if="githubContinuations?.[repository.id]" class="text-button" type="button" :disabled="locked || githubContinuations[repository.id]!.blocked" @click="emit('syncGithub', { repositoryId: repository.id, ref: githubContinuations[repository.id]!.ref, continueFromSnapshot: githubContinuations[repository.id]!.snapshotId, wholeRepository: true })">继续同一提交（剩余 {{ githubContinuations[repository.id]!.remaining }} 份，待遍历 {{ githubContinuations[repository.id]!.pendingDirectories }} 个目录）</button>
+                  <button class="text-button" type="button" :disabled="locked" @click="emit('importGithubActivity', repository.id)">{{ loading.activity ? '正在导入…' : '导入 Issue / PR / Review thread' }}</button>
+                  <button class="text-button" type="button" :disabled="locked" @click="emit('snapshots', repository)">查看同步快照</button>
+                </div>
+              </article>
+            </div>
+            <nav v-if="repositoryPages > 1" class="source-pagination" aria-label="仓库分页">
+              <button type="button" :disabled="loading.repositories || locked || (repositories?.page ?? 1) <= 1" @click="emit('repositoriesPage', (repositories?.page ?? 1) - 1)">上一页</button>
+              <span>{{ repositories?.page }} / {{ repositoryPages }}</span>
+              <button type="button" :disabled="loading.repositories || locked || (repositories?.page ?? 1) >= repositoryPages" @click="emit('repositoriesPage', (repositories?.page ?? 1) + 1)">下一页</button>
+            </nav>
+            <slot name="snapshots" />
+            <details class="repository-register">
+              <summary>登记 GitHub remote</summary>
+              <form class="repository-form" @submit.prevent="submitGithubRepository">
+                <label for="github-remote-url">GitHub 仓库地址</label>
+                <input id="github-remote-url" v-model="remoteUrl" type="text" maxlength="1024" required placeholder="https://github.com/owner/repository" :disabled="locked" />
+                <label for="local-repository-link">关联本地仓库 <span>选填</span></label>
+                <select id="local-repository-link" v-model="localRepositoryId" :disabled="locked || !linkableLocalRepositories.length">
+                  <option value="">不关联，登记为远程仓库</option>
+                  <option v-for="repository in linkableLocalRepositories" :key="repository.id" :value="repository.id">{{ repository.name }}</option>
+                </select>
+            <p class="source-upload-hint">接受 GitHub HTTPS 或 SSH remote。整仓同步会按同一提交分批导入受支持文件，解析 Worker 会处理已导入的文件。</p>
+                <p v-if="errors.remote" class="inline-error" role="alert">{{ errors.remote }}</p>
+                <button class="primary-button" type="submit" :disabled="locked || !remoteUrl.trim()">{{ loading.remote ? '正在登记…' : '登记 remote' }}</button>
+              </form>
+            </details>
+          </section>
+
+          <slot name="code-search" />
         </template>
       </section>
     </div>

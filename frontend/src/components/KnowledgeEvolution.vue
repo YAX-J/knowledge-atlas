@@ -119,7 +119,7 @@ function submit() {
       <nav v-if="changes && changes.total > changes.page_size" class="pagination" aria-label="演化记录分页"><button type="button" :disabled="busy || changesLoading || changes.page <= 1" @click="emit('changes', changes.page - 1)">上一页</button><span>第 {{ changes.page }} 页 / {{ changes.total }} 条</span><button type="button" :disabled="busy || changesLoading || changes.page * changes.page_size >= changes.total" @click="emit('changes', changes.page + 1)">下一页</button></nav>
     </section>
     <section class="governance" aria-label="知识质量检查">
-      <h3>知识质量检查 <button type="button" :disabled="busy || governanceLoading" @click="emit('inspect')">{{ governanceLoading ? '正在检查…' : '运行只读检查' }}</button></h3>
+      <h3 id="governance-title" tabindex="-1">知识质量检查 <button type="button" :disabled="busy || governanceLoading" @click="emit('inspect')">{{ governanceLoading ? '正在检查…' : '运行只读检查' }}</button></h3>
       <label>问题类别<select :value="governanceKind ?? ''" :disabled="busy || governanceLoading" @change="filterGovernance"><option value="">全部问题</option><option v-for="(label, value) in governanceLabels" :key="value" :value="value">{{ label }}</option></select></label>
       <p v-if="governance?.counts_by_kind">本次扫描范围：<span v-for="(label, value) in governanceLabels" :key="value">{{ label }} {{ governance.counts_by_kind[value] ?? 0 }}　</span></p>
       <p>检查当前知识的缺失证据、同名重复/可能冲突与孤立节点。结果只供人工核对，不会合并、删除或更改知识。</p>

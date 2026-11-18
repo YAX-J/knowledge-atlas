@@ -25,6 +25,10 @@ const emit = defineEmits<{
 }>()
 const question = ref('')
 const mode = ref<QuestionRetrievalMode>('rrf')
+const retrievalLabels: Record<QuestionRetrievalMode, string> = {
+  hybrid: '混合 + 图关系', rrf: 'BM25 + 向量融合', vector: '语义向量',
+  bm25: 'BM25', bm25_source: 'BM25 + 来源位置',
+}
 const historyTime = ref('')
 const timeInput = ref<HTMLInputElement | null>(null)
 const validAt = computed(() => {
@@ -66,7 +70,7 @@ function adjustTime() {
 </script>
 
 <template>
-  <main class="question-page" aria-labelledby="question-title">
+  <component :is="persistent ? 'section' : 'main'" class="question-page" aria-labelledby="question-title">
     <header class="question-heading">
       <div>
         <span class="question-kicker">项目知识 / 可核验回答</span>
@@ -82,6 +86,76 @@ function adjustTime() {
       </label>
     </header>
 
+    <div class="question-results">
+      <section v-if="!project && projectsLoading" class="question-state" role="status">
+        <span class="pulse" aria-hidden="true">◎</span><h2>正在读取项目</h2><p>项目加载完成后即可限定问答范围。</p>
+      </section>
+      <section v-else-if="!project && projectsError" class="question-state error-state" role="alert">
+        <span aria-hidden="true">!</span><h2>项目列表加载失败</h2><p>{{ projectsError }}</p><button type="button" @click="emit('retryProjects')">重试加载项目</button>
+      </section>
+      <section v-else-if="!project" class="question-state">
+        <span aria-hidden="true">◇</span><h2>先选择一个项目</h2><p>问答范围严格限定在当前项目的已确认知识中。</p>
+      </section>
+      <section v-else-if="loading" class="question-state" role="status" aria-live="polite">
+        <span class="pulse" aria-hidden="true">◎</span><h2>正在检索项目证据</h2><p>正在核对已确认知识及原文。停止等待不会撤销服务端已发出的模型请求。</p>
+      </section>
+      <section v-else-if="error" class="question-state error-state" role="alert">
+        <span aria-hidden="true">!</span><h2>这次没有得到可确认的结果</h2><p>{{ error }}</p><button type="button" @click="emit('retry')">重试本次问题</button>
+      </section>
+      <section v-else-if="result" class="answer-layout">
+        <section v-if="result.time_scope?.source !== 'comparison'" class="question-retrieval" aria-label="提问原文与检索统计">
+          <div class="question-quote">
+            <h2>提问原文</h2>
+            <p>{{ result.question }}</p>
+            <small>{{ result.time_scope?.valid_at ? new Date(result.time_scope.valid_at).toLocaleString('zh-CN') : '未限定时点' }}</small>
+          </div>
+          <div class="question-retrieval-summary">
+            <div><h2>检索组成</h2><span>后端计算</span></div>
+            <p v-if="result.retrieval.mode">{{ retrievalLabels[result.retrieval.mode] }}</p>
+            <dl class="retrieval-stats">
+              <div><dt>关键词命中</dt><dd>{{ result.retrieval.keyword_hits }}</dd></div>
+              <div v-if="result.retrieval.bm25_hits != null"><dt>BM25 命中</dt><dd>{{ result.retrieval.bm25_hits }}</dd></div>
+              <div><dt>语义命中</dt><dd>{{ result.retrieval.vector_hits }}</dd></div>
+              <div><dt>图关系命中</dt><dd>{{ result.retrieval.graph_hits }}</dd></div>
+              <div><dt>语义索引覆盖</dt><dd>{{ coverage }}</dd></div>
+            </dl>
+            <p class="retrieval-hint">本次选取 {{ result.retrieval.unique_evidence_count ?? result.evidence.length }} 段去重原文，去除 {{ result.retrieval.duplicate_evidence_count ?? 0 }} 次重复引用。<span v-if="result.retrieval.truncated">本次使用有界检索结果，未覆盖项目全部知识。</span></p>
+          </div>
+        </section>
+        <article class="answer-card">
+          <div class="answer-status" :class="{ unsupported: !result.supported }">
+            <span>{{ result.supported ? '附有引用' : result.claims?.some(claim => claim.status === 'supported') ? '部分结论有引用' : '证据不足' }}</span>
+            <strong v-if="result.time_scope?.source !== 'comparison'">{{ Math.round(result.confidence * 100) }}% 置信度</strong>
+          </div>
+          <p v-if="result.time_scope?.source === 'comparison'" class="asked">{{ result.question }}</p>
+          <h2>{{ result.time_scope?.source === 'comparison' ? '切换前后对比' : result.time_scope?.source === 'clarification' ? '请选择查询时点' : result.supported ? '回答' : result.claims?.some(claim => claim.status === 'supported') ? '回答与待确认事项' : '暂不能确认' }}</h2>
+          <AnswerClaims :answer="result" @open-evidence="emit('openEvidence', $event)" />
+          <button v-if="result.time_scope && result.time_scope.source !== 'comparison'" type="button" @click="adjustTime">{{ result.time_scope.source === 'clarification' ? '手动选择时点' : '修改查询时点' }}</button>
+          <template v-if="result.missing_information.length">
+            <h3>仍需补充</h3>
+            <ul><li v-for="item in result.missing_information" :key="item">{{ item }}</li></ul>
+          </template>
+
+        </article>
+
+        <aside class="evidence-panel" aria-label="回答引用的原文证据">
+          <div class="evidence-heading"><span>引用证据</span><strong>{{ result.evidence.length }}</strong></div>
+          <p v-if="!result.evidence.length" class="no-evidence">本次没有可引用的证据。</p>
+          <article v-for="(item, index) in result.evidence" :key="item.id" class="evidence-card">
+            <div><span>[{{ index + 1 }}]</span><button type="button" @click="emit('openEntity', item.entity_id)">{{ item.entity_name }} ↗</button></div>
+            <p v-if="(item.related_entities?.length ?? 0) > 1" class="related-evidence-entities">同一原文也关联：<button v-for="entity in item.related_entities?.filter(entity => entity.id !== item.entity_id) ?? []" :key="entity.id" type="button" @click="emit('openEntity', entity.id)">{{ entity.name }} ↗</button></p>
+            <strong>{{ item.title }}</strong>
+            <small>第 {{ item.start_line }}–{{ item.end_line }} 行 · {{ item.heading_path.join(' / ') || '文档开头' }}</small>
+            <a v-if="item.git_url" :href="item.git_url" target="_blank" rel="noopener noreferrer">在 GitHub 查看来源 ↗</a>
+            <blockquote>{{ item.quote }}</blockquote>
+            <button type="button" class="evidence-source-button" @click="emit('openEvidence', item)">查看原文分块</button>
+          </article>
+        </aside>
+      </section>
+      <section v-else class="question-state">
+        <span aria-hidden="true">?</span><h2>提出一个问题</h2><p>回答与引用会显示在这里。打开引用即可核对文件、行号和原文。</p>
+      </section>
+    </div>
     <section class="ask-card" aria-label="提问">
       <form @submit.prevent="submit">
         <label for="evidence-question">你想从项目知识中确认什么？</label>
@@ -95,8 +169,11 @@ function adjustTime() {
         <label for="question-valid-at">知识时点（留空时从问题识别）</label>
         <input id="question-valid-at" ref="timeInput" v-model="historyTime" type="datetime-local" step="1" :disabled="loading || !project" />
         <p v-if="validAt === null" class="retrieval-hint" role="alert">请输入有效的查询日期和时间。</p>
-        <p class="retrieval-hint">对比两天请留空知识时点，例如「对比 2026-04-01 和 2026-06-01，订单服务的主数据库有什么变化？」</p>
-        <p class="retrieval-hint">普通问答使用模型生成回答。BM25 可直接检索已确认知识，向量相关方式需要配置嵌入服务并更新索引。</p>
+        <details class="ask-help">
+          <summary>检索方式和时点说明</summary>
+          <p class="retrieval-hint">对比两天请留空知识时点，例如「对比 2026-04-01 和 2026-06-01，订单服务的主数据库有什么变化？」</p>
+          <p class="retrieval-hint">普通问答使用模型生成回答。BM25 可直接检索已确认知识，向量相关方式需要配置嵌入服务并更新索引。</p>
+        </details>
         <div class="ask-footer">
           <small>{{ remaining }} 字可用 · {{ persistent ? '回答和证据将保存在当前项目会话' : '当前回答不会保存为历史记录' }}</small>
           <div>
@@ -108,63 +185,7 @@ function adjustTime() {
         </div>
       </form>
     </section>
-
-    <section v-if="!project && projectsLoading" class="question-state" role="status">
-      <span class="pulse" aria-hidden="true">◎</span><h2>正在读取项目</h2><p>项目加载完成后即可限定问答范围。</p>
-    </section>
-    <section v-else-if="!project && projectsError" class="question-state error-state" role="alert">
-      <span aria-hidden="true">!</span><h2>项目列表加载失败</h2><p>{{ projectsError }}</p><button type="button" @click="emit('retryProjects')">重试加载项目</button>
-    </section>
-    <section v-else-if="!project" class="question-state">
-      <span aria-hidden="true">◇</span><h2>先选择一个项目</h2><p>问答范围严格限定在当前项目的已确认知识中。</p>
-    </section>
-    <section v-else-if="loading" class="question-state" role="status" aria-live="polite">
-      <span class="pulse" aria-hidden="true">◎</span><h2>正在检索项目证据</h2><p>正在核对已确认知识及原文。停止等待不会撤销服务端已发出的模型请求。</p>
-    </section>
-    <section v-else-if="error" class="question-state error-state" role="alert">
-      <span aria-hidden="true">!</span><h2>这次没有得到可确认的结果</h2><p>{{ error }}</p><button type="button" @click="emit('retry')">重试本次问题</button>
-    </section>
-    <section v-else-if="result" class="answer-layout">
-      <article class="answer-card">
-        <div class="answer-status" :class="{ unsupported: !result.supported }">
-          <span>{{ result.supported ? '附有引用' : result.claims?.some(claim => claim.status === 'supported') ? '部分结论有引用' : '证据不足' }}</span>
-          <strong v-if="result.time_scope?.source !== 'comparison'">{{ Math.round(result.confidence * 100) }}% 置信度</strong>
-        </div>
-        <p class="asked">{{ result.question }}</p>
-        <h2>{{ result.time_scope?.source === 'comparison' ? '切换前后对比' : result.time_scope?.source === 'clarification' ? '请选择查询时点' : result.supported ? '回答' : result.claims?.some(claim => claim.status === 'supported') ? '回答与待确认事项' : '暂不能确认' }}</h2>
-        <AnswerClaims :answer="result" @open-evidence="emit('openEvidence', $event)" />
-        <button v-if="result.time_scope && result.time_scope.source !== 'comparison'" type="button" @click="adjustTime">{{ result.time_scope.source === 'clarification' ? '手动选择时点' : '修改查询时点' }}</button>
-        <template v-if="result.missing_information.length">
-          <h3>仍需补充</h3>
-          <ul><li v-for="item in result.missing_information" :key="item">{{ item }}</li></ul>
-        </template>
-        <dl v-if="result.time_scope?.source !== 'comparison'" class="retrieval-stats">
-          <div><dt>词法命中</dt><dd>{{ (result.retrieval.bm25_hits ?? 0) + result.retrieval.keyword_hits }}</dd></div>
-          <div><dt>语义命中</dt><dd>{{ result.retrieval.vector_hits }}</dd></div>
-          <div><dt>图关系命中</dt><dd>{{ result.retrieval.graph_hits }}</dd></div>
-          <div><dt>语义索引覆盖</dt><dd>{{ coverage }}</dd></div>
-        </dl>
-        <p v-if="result.time_scope?.source !== 'comparison'" class="retrieval-hint">本次选取 {{ result.retrieval.unique_evidence_count ?? result.evidence.length }} 段去重原文，去除 {{ result.retrieval.duplicate_evidence_count ?? 0 }} 次重复引用。<span v-if="result.retrieval.truncated">本次使用有界检索结果，未覆盖项目全部知识。</span></p>
-      </article>
-
-      <aside class="evidence-panel" aria-label="回答引用的原文证据">
-        <div class="evidence-heading"><span>引用证据</span><strong>{{ result.evidence.length }}</strong></div>
-        <p v-if="!result.evidence.length" class="no-evidence">本次没有可引用的证据。</p>
-        <article v-for="(item, index) in result.evidence" :key="item.id" class="evidence-card">
-          <div><span>[{{ index + 1 }}]</span><button type="button" @click="emit('openEntity', item.entity_id)">{{ item.entity_name }} ↗</button></div>
-          <p v-if="(item.related_entities?.length ?? 0) > 1" class="related-evidence-entities">同一原文也关联：<button v-for="entity in item.related_entities?.filter(entity => entity.id !== item.entity_id) ?? []" :key="entity.id" type="button" @click="emit('openEntity', entity.id)">{{ entity.name }} ↗</button></p>
-          <strong>{{ item.title }}</strong>
-          <small>第 {{ item.start_line }}–{{ item.end_line }} 行 · {{ item.heading_path.join(' / ') || '文档开头' }}</small>
-          <a v-if="item.git_url" :href="item.git_url" target="_blank" rel="noopener noreferrer">在 GitHub 查看来源 ↗</a>
-          <blockquote>{{ item.quote }}</blockquote>
-          <button type="button" class="evidence-source-button" @click="emit('openEvidence', item)">查看原文分块</button>
-        </article>
-      </aside>
-    </section>
-    <section v-else class="question-state">
-      <span aria-hidden="true">?</span><h2>答案应当可以追溯</h2><p>每条支持性回答都会列出模型实际引用的原文片段，并可跳回对应图谱实体。</p>
-    </section>
-  </main>
+  </component>
 </template>
 
 <style scoped>

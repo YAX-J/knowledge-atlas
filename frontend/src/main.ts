@@ -5,5 +5,6 @@ import 'element-plus/theme-chalk/el-icon.css'
 import 'element-plus/theme-chalk/el-message.css'
 import App from './App.vue'
 import './styles.css'
+import './deck.css'
 
 createApp(App).component('ElIcon', ElIcon).mount('#app')

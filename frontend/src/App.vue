@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Filter, FullScreen, Minus, Plus, RefreshRight } from '@element-plus/icons-vue'
 import AppHeader from './components/AppHeader.vue'
 import SideRail from './components/SideRail.vue'
 import KnowledgeGraph from './components/KnowledgeGraph.vue'
@@ -22,6 +23,7 @@ import KnowledgeManagement from './components/KnowledgeManagement.vue'
 import { useKnowledgeManagement } from './composables/useKnowledgeManagement'
 import { getOverview } from './api/workspace'
 import type { ProjectOverview } from './types'
+import type { SourceListItem } from './api/knowledgeAtlas'
 import { ApiError } from './api/client'
 import { useLatestRequest } from './composables/useLatestRequest'
 import { useSourceImport } from './composables/useSourceImport'
@@ -56,6 +58,27 @@ import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, Questio
 const selectedId = ref('event-driven')
 const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'mock' ? 'graph' : import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'workbench')
 const graphSection = ref<GraphSection>('relations')
+const workbench = ref<InstanceType<typeof Workbench> | null>(null)
+const focusOnly = ref(false)
+const largeView = ref(false)
+const sourceEntry = ref('sources')
+const agentEntry = ref('agents')
+
+const activeDeckPage = computed(() => {
+  if (activeNav.value === 'sources') return sourceEntry.value
+  if (activeNav.value === 'agents') return agentEntry.value
+  if (activeNav.value === 'graph') return 'demo'
+  if (activeNav.value !== 'projectGraph') return activeNav.value
+  const entries: Record<GraphSection, string> = {
+    relations: 'graph', search: 'search', evolution: 'govern', identity: 'identity', retirement: 'retirement',
+  }
+  return entries[graphSection.value]
+})
+watch(activeNav, nav => {
+  if (nav !== 'sources') sourceEntry.value = 'sources'
+  if (nav !== 'agents') agentEntry.value = 'agents'
+  if (nav !== 'workbench' && !['graph', 'projectGraph', 'questions', 'conversations'].includes(nav)) focusOnly.value = false
+})
 const conversationId = ref('')
 const agentRunId = ref('')
 const timelineIndex = ref(timelinePoints.length - 1)
@@ -213,6 +236,13 @@ const { identity: managedIdentity, operations: managementOperations, loading: ma
     await Promise.all([loadRealGraph(''), loadIndexStatus(), loadChanges(1), loadRetirements()])
   })
 const overviewState = useLatestRequest<ProjectOverview>(errorMessage)
+const railCounts = computed(() => ({
+  workbench: overviewState.result.value?.pending_reviews,
+  sources: sources.value?.total,
+  review: overviewState.result.value?.pending_reviews,
+  graph: overviewState.result.value?.entities,
+  search: overviewState.result.value?.entities,
+}))
 async function refreshOverview() {
   const id = project.value?.id
   if (!id) return
@@ -277,6 +307,7 @@ function retryQuestion() {
 
 async function openSearchEntity(id: string) {
   const projectId = project.value?.id
+  graphSection.value = 'relations'
   await selectGraphEntity(id)
   await nextTick()
   if (project.value?.id === projectId && graphSelectedId.value === id) document.getElementById('formal-knowledge-detail')?.focus()
@@ -284,6 +315,7 @@ async function openSearchEntity(id: string) {
 
 async function openQuestionEntity(id: string) {
   if (!project.value) return
+  graphSection.value = 'relations'
   activeNav.value = 'projectGraph'
   clearSearch()
   graphValidAt.value = ''
@@ -575,16 +607,27 @@ function changeNav(value: string) {
   if (changeBusy.value || reviewBusy.value) return
   cancelRouteRestore()
   if (value === 'demo') { activeNav.value = 'graph'; return }
-  if (value === 'review') {
+  if (value === 'review' || value === 'repositories' || value === 'code') {
     activeNav.value = 'sources'
-    void nextTick(() => { const target = document.getElementById('candidate-title'); target?.scrollIntoView({ block: 'start' }); target?.focus() })
+    sourceEntry.value = value
+    if (!projects.value && !loading.projects) void loadProjects()
+    const target = value === 'review' ? 'candidate-title' : value === 'repositories' ? 'repository-panel-title' : 'code-search-title'
+    void nextTick(() => focusDeckHeading(target, 'source-list-title'))
     return
   }
-  if (value === 'search' || value === 'govern') {
+  if (value === 'notes' || value === 'agents') {
+    activeNav.value = 'agents'
+    agentEntry.value = value
+    if (!projects.value && !loading.projects) void loadProjects()
+    void nextTick(() => focusDeckHeading(value === 'notes' ? 'notes-title' : 'project-assistant-title', 'agent-workspace-title'))
+    return
+  }
+  if (value === 'search' || value === 'govern' || value === 'identity' || value === 'retirement') {
     if (!project.value) { activeNav.value = 'sources'; return }
-    openProjectGraph()
-    graphSection.value = value === 'search' ? 'search' : 'identity'
-    void nextTick(() => document.getElementById(value === 'search' ? 'project-knowledge-query' : 'knowledge-management-title')?.focus())
+    const section = value === 'govern' ? 'evolution' : value
+    if (activeNav.value !== 'projectGraph') openProjectGraph()
+    graphSection.value = section
+    if (section === 'evolution') void nextTick(() => focusDeckHeading('governance-title', 'evolution-title'))
     return
   }
   if (value === 'filter') {
@@ -602,12 +645,43 @@ function changeNav(value: string) {
     else { activeNav.value = 'sources'; ElMessage({ message: '请先选择或创建项目，再打开真实图谱。', type: 'info' }) }
     return
   }
-  if (value === 'projects' || value === 'sources' || value === 'questions' || value === 'workbench' || value === 'conversations' || value === 'agents') {
+  if (value === 'projects' || value === 'sources' || value === 'questions' || value === 'workbench' || value === 'conversations') {
     activeNav.value = value
+    if (value === 'workbench') focusOnly.value = false
+    if (value === 'sources') sourceEntry.value = 'sources'
     filterOpen.value = false
     if (!projects.value && !loading.projects) void loadProjects()
+    if (value === 'sources') void nextTick(() => focusDeckHeading('source-workspace-title'))
   }
 }
+
+function focusDeckHeading(id: string, fallback?: string) {
+  const target = document.getElementById(id) ?? (fallback ? document.getElementById(fallback) : null)
+  target?.scrollIntoView?.({ block: 'start' })
+  target?.focus({ preventScroll: true })
+}
+
+function toggleFocus() {
+  if (focusOnly.value) {
+    focusOnly.value = false
+    return
+  }
+  if (!['projectGraph', 'questions', 'conversations'].includes(activeNav.value)) {
+    changeNav('questions')
+    if (activeNav.value !== 'questions') return
+  }
+  focusOnly.value = true
+}
+
+async function openWorkbenchSource(item: SourceListItem) {
+  if (item.project_id !== project.value?.id) return
+  changeNav('sources')
+  if (activeNav.value !== 'sources') return
+  await selectSource(item.id, item.task_id)
+  await nextTick()
+  if (activeNav.value === 'sources' && sourceEntry.value === 'sources' && selectedSourceId.value === item.id) focusDeckHeading('source-reader')
+}
+
 async function searchCurrentProject(query: string) {
   if (reviewBusy.value || changeBusy.value) return
   if (!project.value) { activeNav.value = 'sources'; ElMessage({ message: '请先选择项目。', type: 'info' }); return }
@@ -675,12 +749,35 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
 </script>
 
 <template>
-  <div class="app-shell">
-    <AppHeader :nodes="nodes" :selected-id="selectedId" :graph-active="activeNav === 'graph'" :project-name="project?.name" @select="selectNode" @search="searchCurrentProject" />
-    <SideRail :active="activeNav === 'projectGraph' ? 'graph' : activeNav" @change="changeNav" />
+  <div class="app-shell" :class="{ 'deck-large-view': largeView && activeNav !== 'workbench' }">
+    <AppHeader :nodes="nodes" :selected-id="selectedId" :graph-active="activeNav === 'graph'" :project-name="project?.name"
+      :active="activeDeckPage" :focus-only="focusOnly" @select="selectNode" @search="searchCurrentProject" @navigate="changeNav" @toggle-focus="toggleFocus">
+      <template v-if="activeNav === 'workbench'">
+        <button class="deck-button layout-action" type="button" @click="workbench?.resetLayout()"><RefreshRight aria-hidden="true" />重置布局</button>
+        <button class="deck-button layout-action" type="button" @click="workbench?.toggleAll()">
+          <Plus v-if="workbench?.allCollapsed" aria-hidden="true" /><Minus v-else aria-hidden="true" />{{ workbench?.allCollapsed ? '展开全部' : '收起全部' }}
+        </button>
+        <button class="deck-button layout-action" type="button" :aria-pressed="Boolean(workbench?.expanded)" @click="workbench?.toggleLargeCard()">
+          <FullScreen aria-hidden="true" />{{ workbench?.expanded ? '全部模块' : '大卡片' }}
+        </button>
+      </template>
+      <template v-else>
+        <button v-if="activeNav === 'graph'" class="deck-button" type="button" :aria-pressed="filterOpen" @click="changeNav('filter')">
+          <Filter aria-hidden="true" />筛选图谱
+        </button>
+        <button class="deck-button layout-action" type="button" :aria-pressed="largeView" @click="largeView = !largeView">
+          <FullScreen aria-hidden="true" />{{ largeView ? '退出大卡片' : '大卡片' }}
+        </button>
+      </template>
+    </AppHeader>
+    <SideRail :active="activeDeckPage" :focus-only="focusOnly" :counts="railCounts" @change="changeNav" />
     <div v-if="routeError" class="route-error" role="alert">{{ routeError }} <button type="button" @click="retryRoute">重试恢复位置</button></div>
 
-    <Workbench v-if="activeNav === 'workbench'" :project="project" :projects="projects" :overview="overviewState.result.value" :loading="overviewState.loading.value || loading.projects" :error="overviewState.error.value || errors.projects" @navigate="changeNav" @select-project="selectProject" @refresh="project ? refreshOverview() : loadProjects()" />
+    <Workbench v-if="activeNav === 'workbench'" ref="workbench" :project="project" :projects="projects" :overview="overviewState.result.value"
+      :recent-sources="sources?.items" :sources-loading="loading.sources" :sources-error="errors.sources"
+      :locked="reviewBusy || changeBusy || loading.upload || loading.task || loading.sync || loading.activity || loading.commit"
+      :loading="overviewState.loading.value || loading.projects" :error="overviewState.error.value || errors.projects"
+      @navigate="changeNav" @select-project="selectProject" @open-source="openWorkbenchSource" @refresh="project ? refreshOverview() : loadProjects()" />
     <AgentWorkspace v-else-if="activeNav === 'agents'" :key="project?.id" :project="project" :projects="projects" :source="source" :run-id="agentRunId"
       @select-project="selectProject" @run="agentRunId=$event" @open-evidence="openEvidence"
       @open-review="openAgentReview" @open-graph="changeNav('graph')"
@@ -688,6 +785,7 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
     <ConversationsWorkspace v-else-if="activeNav === 'conversations'" :project="project" :projects="projects" :projects-loading="loading.projects" :projects-error="errors.projects" :conversation-id="conversationId" @conversation="conversationId = $event" @select-project="selectProject" @retry-projects="loadProjects()" @open-entity="openQuestionEntity" @open-evidence="openEvidence" />
     <SourceWorkspace
       v-else-if="activeNav === 'projects' || activeNav === 'sources'"
+      :class="{ 'review-focused': activeDeckPage === 'review' }"
       :view="activeNav" :projects="projects" :project="project" :repositories="repositories" :sources="sources"
       :source-filters="sourceFilters" :sources-requested-page="sourcesRequestedPage"
       :github-continuations="githubContinuations"
@@ -705,6 +803,13 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
       @analyze-calls="runAgentCallAnalysis"
       @graph="openProjectGraph"
     >
+      <template v-if="activeNav === 'sources' && project" #source-nav>
+        <nav class="source-tabs" aria-label="资料库功能">
+          <button v-for="entry in [{ id: 'sources', label: '资料文件' }, { id: 'repositories', label: '来源仓库' }, { id: 'code', label: '代码结构' }, { id: 'review', label: '候选审核' }]"
+            :key="entry.id" class="deck-button" type="button" :aria-current="activeDeckPage === entry.id ? 'page' : undefined"
+            @click="changeNav(entry.id)">{{ entry.label }}</button>
+        </nav>
+      </template>
       <template #evidence-navigation>
         <section v-if="evidenceTarget" id="evidence-navigation" class="evidence-navigation" aria-label="证据原文定位" :aria-busy="evidenceNavigationLoading" tabindex="-1">
           <p v-if="evidenceNavigationLoading" role="status">正在定位证据原文分块…</p>
@@ -778,7 +883,7 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
       <section class="graph-workspace">
         <div class="workspace-title">
           <div>
-            <h1>你的技术宇宙，正在成形</h1>
+            <h1>独立演示图谱</h1>
             <p>演示图谱 · 节点与问答使用模拟数据。真实资料可从左侧入口管理。</p>
           </div>
           <div class="workspace-stats" aria-label="图谱统计">

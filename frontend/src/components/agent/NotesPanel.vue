@@ -15,7 +15,7 @@ async function snapshot(){const project=props.projectId,revision=historical.valu
 </script>
 <template>
   <section ref="panel" class="notes-panel" aria-label="项目笔记">
-    <header><div><h2>项目笔记</h2><p>记录技术决策和实践，再让 Agent 从已保存的版本提取知识。</p></div><button :disabled="!projectId||blocked" @click="create()">新建笔记</button></header>
+    <header><div><h2 id="notes-title" tabindex="-1">项目笔记</h2><p>记录技术决策和实践，再让 Agent 从已保存的版本提取知识。</p></div><button :disabled="!projectId||blocked" @click="create()">新建笔记</button></header>
     <div class="notes-layout"><aside><form aria-label="搜索项目笔记" @submit.prevent="page=1;refresh()"><label>搜索笔记<input v-model="query" maxlength="200" /></label><button :disabled="!projectId||loading">搜索</button></form>
       <p v-if="!items.length&&!loading">暂无匹配笔记。</p><p v-if="truncated">搜索已达扫描上限，请缩小范围。</p>
       <div class="note-list"><button v-for="item in items" :key="item.id" :disabled="blocked" :aria-pressed="selected?.id===item.id" @click="select(item.id)">{{item.title}}<small>{{item.origin==='assistant'?'Agent 草稿':'个人笔记'}} · {{item.current_revision_id.slice(0,8)}}</small></button></div>

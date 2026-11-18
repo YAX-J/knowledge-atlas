@@ -45,7 +45,7 @@ onScopeDispose(()=>clearInterval(timer))
 
 <template>
   <main class="agent-workspace" aria-labelledby="agent-workspace-title">
-    <header><div><h1 id="agent-workspace-title">笔记与 Agent</h1><p>写下技术笔记，交给 Agent 提取实体和关系。审核时可以回到对应版本的原文。</p></div>
+    <header><div><h1 id="agent-workspace-title" tabindex="-1">笔记与 Agent</h1><p>写下技术笔记，交给 Agent 提取实体和关系。审核时可以回到对应版本的原文。</p></div>
       <label>当前项目<select :value="project?.id??''" :disabled="sending||assistantSending" @change="changeProject"><option disabled value="">请选择项目</option><option v-for="item in projects?.items??[]" :key="item.id" :value="item.id">{{item.name}}</option></select></label></header>
     <NotesPanel :project-id="project?.id" :revision-id="noteRevision" :revision-token="noteOpenToken" :refresh-token="noteRefresh"
       :analysis-busy="busy||assistantSending" :analyzing="analyzingNote"
