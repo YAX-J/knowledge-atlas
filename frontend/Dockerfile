@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-ENV VITE_API_BASE_URL=/api/v1 VITE_DATA_SOURCE=api
+ENV VITE_API_BASE_URL=/api/v1 VITE_DATA_SOURCE=graph
 RUN npm run build
 
 FROM nginx:stable-alpine

@@ -4,12 +4,12 @@ import { deckGroups } from '../deckNavigation'
 
 const props = defineProps<{ active: string; focusOnly?: boolean; counts?: Record<string, number | undefined> }>()
 const emit = defineEmits<{ change: [value: string] }>()
-const groups = computed(() => props.focusOnly ? deckGroups.filter(group => group.label === '回忆') : deckGroups)
+const groups = computed(() => props.focusOnly ? deckGroups.filter(group => group.id === 'explore') : deckGroups)
 </script>
 
 <template>
   <nav class="side-rail" aria-label="主要导航">
-    <button type="button" class="rail-brand" aria-label="Knowledge Atlas 工作台" title="返回工作台" @click="emit('change', 'workbench')">KA</button>
+    <button type="button" class="rail-brand" aria-label="Knowledge Atlas 图谱首页" title="返回图谱" @click="emit('change', 'graph')">KA</button>
     <div v-for="group in groups" :key="group.label" class="rail-group" role="group" :aria-label="group.label">
       <div class="rail-caption" aria-hidden="true">{{ group.label }}</div>
       <button v-for="item in group.items" :key="item.id" class="rail-button"

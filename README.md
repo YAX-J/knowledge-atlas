@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md)
 
-Knowledge Atlas is a graduation project that organizes a developer's technical notes, code, and repository history into a temporal personal knowledge graph. Start in the workbench by opening the project notes, saving a Markdown revision, and selecting **Analyze note and extract knowledge**. Review each candidate against the original text before adding it to the graph. Search results, historical graph views, and answers can then lead back to the supporting evidence.
+Knowledge Atlas is a graduation project that organizes a developer's technical notes, code, and repository history into a temporal personal knowledge graph. The frontend opens the project graph. To add knowledge, open **Project notes**, save a Markdown revision, and select **Analyze note and extract knowledge**. Review each candidate against the original text before adding it to the graph. Search results, historical graph views, and answers can then lead back to the supporting evidence.
 
 The frontend uses Vue 3, the API uses FastAPI, and PostgreSQL with pgvector stores project data. The optional Neo4j projection supports explicit snapshot synchronization, one- and two-hop neighborhoods, and evidence navigation. [Neo4j setup](docs/DEVELOPMENT_SETUP.zh-CN.md#可选的-neo4j-图谱快照)
 
@@ -12,7 +12,7 @@ The frontend uses Vue 3, the API uses FastAPI, and PostgreSQL with pgvector stor
 | --- | --- |
 | Notes and sources | Edit Markdown notes, revisit immutable revisions, and analyze a fixed revision. Import Markdown, supported source code, local folders, GitHub commit snapshots, and versioned issues, pull requests, reviews, and threads. |
 | Candidate review | Verify structured candidates against exact excerpts. Review proposed validity intervals and primary database replacements before committing them to the graph. |
-| Graph and governance | Explore entities, relationships, evidence, and historical snapshots. Inspect replacement chains and grouped changes, manage aliases and merges, restore or withdraw knowledge, and check for conflicts. |
+| Graph and governance | Open the graph on startup, switch projects from the top bar, and explore entities, relationships, evidence, and historical snapshots. Inspect replacement chains and grouped changes, manage aliases and merges, restore or withdraw knowledge, and check for conflicts. |
 | Search and Q&A | Use keyword, BM25, source-aware BM25, vector, hybrid, or RRF retrieval. Ask about a historical instant or compare an approved database cutover. Saved answers link each supported claim to its evidence and, where applicable, its relationship and validity interval. |
 | Code analysis | Inspect syntax, static call candidates, and compiler-backed Java, TypeScript, and Go declarations. Select a pinned commit or local source version when paths repeat. Analysis is read-only and does not execute user code or build scripts. Scan limits and truncation are reported. |
 | Workbench | Browse live project data in the six-module deck, use the command palette to navigate, or open the separate mock demo. A workspace URL can restore a project, source, graph selection, historical instant, or conversation. |

@@ -44,7 +44,7 @@ NEO4J_DATABASE=neo4j
 2. 调用 `POST /api/v1/projects/{project_id}/graph/neo4j/sync`，应返回写入快照的 `node_count`、`edge_count` 和 `valid_at`。
 3. 调用 `GET /api/v1/projects/{project_id}/graph/neo4j`，应返回该快照的节点、边和有效时间。用 `center_id` 和 `depth` 检查邻域遍历。
 
-在项目的「关系图」页，将「图谱数据源」切到 Neo4j，点击「同步到 Neo4j」，即可看到快照时间和总量。选择节点作为中心，将邻域深度切到二跳，再选中一条关系即可打开原文证据。正式知识变化后再次同步。也可以在 FastAPI 的 `/docs` 发出上述请求。见 [API 契约](API_CONTRACT.md#neo4j-项目快照)和 [ADR 0081](adr/0081-neo4j-project-projection.zh-CN.md)。
+在项目的「关系图」页点击「筛选」，将「图谱数据源」切到 Neo4j，点击「同步到 Neo4j」，即可看到快照时间和总量。选择节点作为中心，将邻域深度切到二跳，再选中一条关系即可打开原文证据。正式知识变化后再次同步。也可以在 FastAPI 的 `/docs` 发出上述请求。见 [API 契约](API_CONTRACT.md#neo4j-项目快照)和 [ADR 0081](adr/0081-neo4j-project-projection.zh-CN.md)。
 
 ## 克隆与检查
 
@@ -74,7 +74,7 @@ npm run dev
 | `npm run build` | 执行 Vue TypeScript 检查并构建生产资源 |
 | `npm run preview` | 预览最近一次生产构建 |
 
-演示图谱及其中的节点追问使用本地 Mock，不需凭据；项目/资料、候选审核、项目图谱和独立证据问答使用真实 API。配置 `VITE_API_BASE_URL` 时可将 `frontend/.env.example` 复制为 `frontend/.env`；`VITE_DATA_SOURCE=api` 默认打开资料页。环境变量变化后重启 Vite；此配置不会把演示图谱及节点追问转换为真实数据。
+演示图谱及其中的节点追问使用本地 Mock，不需凭据；项目/资料、候选审核、项目图谱和独立证据问答使用真实 API。配置 `VITE_API_BASE_URL` 时可将 `frontend/.env.example` 复制为 `frontend/.env`；`VITE_DATA_SOURCE=graph` 是默认入口，打开真实项目图谱。`api`、`workbench`、`mock` 分别直达资料页、项目总览和独立演示。环境变量变化后重启 Vite。
 
 ## 后端环境
 

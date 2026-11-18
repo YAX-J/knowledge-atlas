@@ -19,7 +19,7 @@ cd ..
 .\scripts\start-demo.ps1 -Seed
 ```
 
-启动器先迁移，再可选建立一个全新的 `[EVAL]` 合成项目，后台启动 API、解析 Worker、前端；访问 `http://127.0.0.1:5174`，API 文档在 `http://127.0.0.1:8001/docs`。后续不需要新项目时去掉 `-Seed`。日志位于 `output/demo-native/<本次运行>/`。端口占用则退出，不终止已有服务；可传 `-ApiPort 8002 -FrontendPort 5175`。保持当前终端，Ctrl+C 仅清理启动器持有的子进程；不删除数据库或演示项目。`-Seed` 每次都新建项目，不是刷新既有项目。
+启动器先迁移，再可选建立一个全新的 `[EVAL]` 合成项目，后台启动 API、解析 Worker、前端；访问 `http://127.0.0.1:5174` 会打开项目关系图，顶部可切换项目，API 文档在 `http://127.0.0.1:8001/docs`。后续不需要新项目时去掉 `-Seed`。日志位于 `output/demo-native/<本次运行>/`。端口占用则退出，不终止已有服务；可传 `-ApiPort 8002 -FrontendPort 5175`。保持当前终端，Ctrl+C 仅清理启动器持有的子进程；不删除数据库或演示项目。`-Seed` 每次都新建项目，不是刷新既有项目。
 
 ## 可选：Docker Compose
 
@@ -29,7 +29,7 @@ docker compose up -d --build
 docker compose --profile demo run --rm demo-init
 ```
 
-访问 `http://localhost:8080`。包含 PostgreSQL/pgvector、API、Worker、前端 nginx 同源代理与健康检查。数据库宿主端口默认 5433，避免占用本机 5432；可设置 `KA_POSTGRES_PORT`、`KA_API_PORT`、`KA_FRONTEND_PORT`。只绑定 loopback。第一次也可用 `docker compose --profile demo up -d --build` 启动全部服务并初始化。
+访问 `http://localhost:8080` 打开项目关系图。包含 PostgreSQL/pgvector、API、Worker、前端 nginx 同源代理与健康检查。数据库宿主端口默认 5433，避免占用本机 5432；可设置 `KA_POSTGRES_PORT`、`KA_API_PORT`、`KA_FRONTEND_PORT`。只绑定 loopback。第一次也可用 `docker compose --profile demo up -d --build` 启动全部服务并初始化。
 
 `demo-init` 的 `output/demo/preparation` 已存在时会拒绝重放，避免重复造项目；保留报告并使用原项目。不要为了重试删除业务数据库。普通停止用 `docker compose down`，不加 `-v`，保留命名卷。DeepSeek/嵌入密钥仅由显式环境变量进入 API，不打包进前端。无需密钥即可解析、查看合成审核图谱和关键词检索；语义/问答/Agent 需按各自配置显式调用。初始化后的索引未生成，不伪装成已具备语义能力。
 

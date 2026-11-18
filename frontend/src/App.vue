@@ -56,8 +56,14 @@ import { edges, evidences, nodes, nodeTypeLabels, timelinePoints } from './mock/
 import type { IngestionErrors, IngestionLoading, NodeType, WorkspaceNav, QuestionAnswer } from './types'
 
 const selectedId = ref('event-driven')
-const activeNav = ref<WorkspaceNav>(import.meta.env.VITE_DATA_SOURCE === 'mock' ? 'graph' : import.meta.env.VITE_DATA_SOURCE === 'api' ? 'sources' : 'workbench')
+const entryMode = import.meta.env.VITE_DATA_SOURCE
+const initialWorkspace: WorkspaceNav = entryMode === 'mock' ? 'graph'
+  : entryMode === 'api' ? 'sources'
+  : entryMode === 'workbench' ? 'workbench'
+  : 'projectGraph'
+const activeNav = ref<WorkspaceNav>(initialWorkspace)
 const graphSection = ref<GraphSection>('relations')
+const graphDetailsOpen = ref(false)
 const workbench = ref<InstanceType<typeof Workbench> | null>(null)
 const focusOnly = ref(false)
 const largeView = ref(false)
@@ -77,6 +83,7 @@ const activeDeckPage = computed(() => {
 watch(activeNav, nav => {
   if (nav !== 'sources') sourceEntry.value = 'sources'
   if (nav !== 'agents') agentEntry.value = 'agents'
+  if (nav !== 'projectGraph') graphDetailsOpen.value = false
   if (nav !== 'workbench' && !['graph', 'projectGraph', 'questions', 'conversations'].includes(nav)) focusOnly.value = false
 })
 const conversationId = ref('')
@@ -308,6 +315,7 @@ function retryQuestion() {
 async function openSearchEntity(id: string) {
   const projectId = project.value?.id
   graphSection.value = 'relations'
+  graphDetailsOpen.value = true
   await selectGraphEntity(id)
   await nextTick()
   if (project.value?.id === projectId && graphSelectedId.value === id) document.getElementById('formal-knowledge-detail')?.focus()
@@ -317,6 +325,7 @@ async function openQuestionEntity(id: string) {
   if (!project.value) return
   graphSection.value = 'relations'
   activeNav.value = 'projectGraph'
+  graphDetailsOpen.value = true
   clearSearch()
   graphValidAt.value = ''
   graphType.value = ''
@@ -369,8 +378,17 @@ async function loadProjects(page = 1) {
   }
 }
 
+const projectSelectionLocked = computed(() => reviewBusy.value || changeBusy.value || loading.upload ||
+  loading.task || loading.remote || loading.sync || loading.activity || loading.commit)
+const graphProjects = computed(() => {
+  const listed = projects.value?.items ?? []
+  const current = project.value
+  return current && !listed.some(item => item.id === current.id) ? [current, ...listed] : listed
+})
+
 function selectProject(value: ApiProject) {
-  if (reviewBusy.value || changeBusy.value || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
+  if (projectSelectionLocked.value) return
+  graphDetailsOpen.value = false
   clearEvolution()
   conversationId.value = ''
   agentRunId.value = ''
@@ -580,16 +598,34 @@ async function runAgentCallAnalysis(strategy: 'single_step' | 'tools' | 'semanti
   }
 }
 
+function loadGraphWorkspace() {
+  return Promise.all([loadRealGraph(''), loadIndexStatus(), loadChanges(1)])
+}
+
 function openProjectGraph() {
-  if (!project.value || reviewBusy.value || changeBusy.value) return
+  if (reviewBusy.value || changeBusy.value) return
   clearSearch()
   activeNav.value = 'projectGraph'
   graphType.value = ''
   graphCenter.value = ''
   graphValidAt.value = ''
-  void loadIndexStatus()
-  void loadChanges(1)
-  void loadRealGraph('')
+  graphDetailsOpen.value = false
+  if (project.value) void loadGraphWorkspace()
+  else if (!projects.value && !loading.projects) void retryGraphProjects()
+}
+
+async function retryGraphProjects() {
+  await loadProjects()
+  if (activeNav.value === 'projectGraph' && project.value) await loadGraphWorkspace()
+}
+
+function selectGraphProject(id: string) {
+  if (activeNav.value !== 'projectGraph' || projectSelectionLocked.value || loading.projects || project.value?.id === id) return
+  const selected = graphProjects.value.find(item => item.id === id)
+  if (!selected) return
+  cancelRouteRestore()
+  selectProject(selected)
+  void loadGraphWorkspace()
 }
 
 const selectedNode = computed(() => nodes.find((node) => node.id === selectedId.value) ?? nodes[0])
@@ -605,6 +641,10 @@ function selectNode(id: string) {
 
 function changeNav(value: string) {
   if (changeBusy.value || reviewBusy.value) return
+  if (value === 'graph' && activeNav.value === 'projectGraph' && graphSection.value === 'relations') {
+    focusOnly.value = false
+    return
+  }
   cancelRouteRestore()
   if (value === 'demo') { activeNav.value = 'graph'; return }
   if (value === 'review' || value === 'repositories' || value === 'code') {
@@ -641,8 +681,8 @@ function changeNav(value: string) {
   }
   if (value === 'graph') {
     graphSection.value = 'relations'
-    if (project.value) openProjectGraph()
-    else { activeNav.value = 'sources'; ElMessage({ message: '请先选择或创建项目，再打开真实图谱。', type: 'info' }) }
+    if (activeNav.value !== 'projectGraph') openProjectGraph()
+    focusOnly.value = false
     return
   }
   if (value === 'projects' || value === 'sources' || value === 'questions' || value === 'workbench' || value === 'conversations') {
@@ -715,9 +755,11 @@ function setTimeline(value: number) {
   ensureVisibleSelection(timelinePoints[value]!.date)
 }
 
+const graphRouteSelection = computed(() => activeNav.value === 'projectGraph' &&
+  (graphSection.value !== 'relations' || graphDetailsOpen.value) ? graphSelectedId.value || undefined : undefined)
 const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:activeNav.value,projectId:project.value?.id,
-  sourceId:selectedSourceId.value || undefined,entityId:graphSelectionKind.value==='entity'?graphSelectedId.value || undefined:undefined,
-  relationshipId:graphSelectionKind.value==='relationship'?graphSelectedId.value || undefined:undefined,
+  sourceId:selectedSourceId.value || undefined,entityId:graphSelectionKind.value==='entity'?graphRouteSelection.value:undefined,
+  relationshipId:graphSelectionKind.value==='relationship'?graphRouteSelection.value:undefined,
   validAt:graphValidAt.value || undefined,conversationId:conversationId.value || undefined,runId:agentRunId.value||undefined,section:graphSection.value}),async (route,current)=>{
   if(route.nav==='graph'){activeNav.value='graph';return}
   activeNav.value=route.nav
@@ -741,6 +783,7 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
   if(route.nav==='projectGraph' && project.value){
     graphValidAt.value=route.validAt ?? ''
     graphSelectedId.value=route.entityId ?? ''
+    graphDetailsOpen.value = Boolean(route.entityId || route.relationshipId)
     await loadRealGraph(route.entityId ?? '')
     if(current() && route.relationshipId)await selectGraphRelationship(route.relationshipId)
     if(current())await Promise.all([loadIndexStatus(),loadChanges(1)])
@@ -751,7 +794,10 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
 <template>
   <div class="app-shell" :class="{ 'deck-large-view': largeView && activeNav !== 'workbench' }">
     <AppHeader :nodes="nodes" :selected-id="selectedId" :graph-active="activeNav === 'graph'" :project-name="project?.name"
-      :active="activeDeckPage" :focus-only="focusOnly" @select="selectNode" @search="searchCurrentProject" @navigate="changeNav" @toggle-focus="toggleFocus">
+      :active="activeDeckPage" :focus-only="focusOnly"
+      :project-options="activeNav === 'projectGraph' ? graphProjects : undefined" :project-id="project?.id"
+      :project-switch-disabled="loading.projects || projectSelectionLocked" @select-project="selectGraphProject"
+      @select="selectNode" @search="searchCurrentProject" @navigate="changeNav" @toggle-focus="toggleFocus">
       <template v-if="activeNav === 'workbench'">
         <button class="deck-button layout-action" type="button" @click="workbench?.resetLayout()"><RefreshRight aria-hidden="true" />重置布局</button>
         <button class="deck-button layout-action" type="button" @click="workbench?.toggleAll()">
@@ -766,7 +812,7 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
           <Filter aria-hidden="true" />筛选图谱
         </button>
         <button class="deck-button layout-action" type="button" :aria-pressed="largeView" @click="largeView = !largeView">
-          <FullScreen aria-hidden="true" />{{ largeView ? '退出大卡片' : '大卡片' }}
+          <FullScreen aria-hidden="true" />{{ activeDeckPage === 'graph' ? (largeView ? '退出全宽' : '全宽画布') : (largeView ? '退出大卡片' : '大卡片') }}
         </button>
       </template>
     </AppHeader>
@@ -840,8 +886,11 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
           @extract="extractSource" @refresh="loadReviews" @filter="applyReviewFilters" @resolve="reviewCandidate" @resolve-batch="reviewCandidatesBatch" @graph="openProjectGraph" />
       </template>
     </SourceWorkspace>
-    <ProjectGraph v-else-if="activeNav === 'projectGraph'" :project="project" :graph="realGraph"
+    <ProjectGraph v-else-if="activeNav === 'projectGraph'" :key="`graph:${project?.id ?? ''}`" :project="project" :graph="realGraph"
+      :projects-loading="loading.projects" :projects-error="errors.projects" :wide-canvas="largeView"
+      v-model:details-open="graphDetailsOpen"
       :section="graphSection" @section="graphSection = $event"
+      @manage-projects="changeNav('projects')" @retry-projects="retryGraphProjects"
       :backend="graphBackend" :neo4j-snapshot="neo4jSnapshot" :neo4j-syncing="neo4jSyncing" :neo4j-sync-error="neo4jSyncError"
       @backend="selectGraphBackend" @sync-neo4j="syncGraphToNeo4j"
       :valid-at="graphValidAt" :mutation-busy="changeBusy" @time="setGraphTime"

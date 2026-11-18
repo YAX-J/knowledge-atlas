@@ -38,7 +38,7 @@ try {
     } finally { Pop-Location }
     $env:CORS_ORIGINS = '["http://127.0.0.1:' + $FrontendPort + '"]'
     $env:VITE_API_BASE_URL = 'http://127.0.0.1:' + $ApiPort + '/api/v1'
-    $env:VITE_DATA_SOURCE = 'api'
+    $env:VITE_DATA_SOURCE = 'graph'
     $started += Start-Process -FilePath $backendPython -ArgumentList @('-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', $ApiPort) -WorkingDirectory $backendDir -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $runDir 'api.log') -RedirectStandardError (Join-Path $runDir 'api-error.log')
     $started += Start-Process -FilePath $backendPython -ArgumentList @('-m', 'app.worker') -WorkingDirectory $backendDir -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $runDir 'worker.log') -RedirectStandardError (Join-Path $runDir 'worker-error.log')
     $started += Start-Process -FilePath $backendPython -ArgumentList @('-m', 'app.assistant_runner') -WorkingDirectory $backendDir -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $runDir 'assistant.log') -RedirectStandardError (Join-Path $runDir 'assistant-error.log')

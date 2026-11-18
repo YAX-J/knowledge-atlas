@@ -59,6 +59,49 @@ beforeEach(() => {
   vi.mocked(api.listKnowledgeRetirements).mockResolvedValue({ items:[],total:0,page:1,page_size:20 })
 })
 
+it('opens the real project graph at the root and switches projects without carrying an old selection', async () => {
+  vi.stubEnv('VITE_DATA_SOURCE', 'graph')
+  const second = { ...project, id: 'project-2', name: 'Second project' }
+  const empty = { items: [], total: 0, page: 1, page_size: 20 }
+  vi.mocked(api.listProjects).mockResolvedValue({ ...empty, items: [project, second], total: 2 })
+  vi.mocked(api.listSources).mockResolvedValue(empty)
+  vi.mocked(api.listRepositories).mockResolvedValue(empty)
+  vi.mocked(api.listKnowledgeChanges).mockResolvedValue(empty)
+  vi.mocked(api.getProjectGraph).mockResolvedValue({ nodes: [], edges: [], truncated: false })
+  try {
+    const wrapper = shallowMount(App)
+    await flushPromises()
+    expect(wrapper.getComponent(ProjectGraph).props('project')).toEqual(project)
+    expect(wrapper.getComponent(ProjectGraph).props('detailsOpen')).toBe(false)
+    expect(window.location.hash).toBe(`#/graph?project=${project.id}`)
+    expect(api.getProjectGraph).toHaveBeenCalledTimes(1)
+    wrapper.getComponent(AppHeader).vm.$emit('selectProject', second.id)
+    await flushPromises()
+    expect(wrapper.getComponent(ProjectGraph).props('project')).toEqual(second)
+    expect(api.getProjectGraph).toHaveBeenLastCalledWith(second.id, expect.objectContaining({ centerId: undefined, validAt: '' }))
+    expect(window.location.hash).toBe(`#/graph?project=${second.id}`)
+  } finally {
+    vi.unstubAllEnvs()
+  }
+})
+
+it('retries starting the graph after a failed project read', async () => {
+  const empty = { items: [], total: 0, page: 1, page_size: 20 }
+  vi.mocked(api.listProjects).mockRejectedValueOnce(new Error('Projects unavailable'))
+    .mockResolvedValueOnce({ ...empty, items: [project], total: 1 })
+  vi.mocked(api.listSources).mockResolvedValue(empty)
+  vi.mocked(api.listRepositories).mockResolvedValue(empty)
+  vi.mocked(api.getProjectGraph).mockResolvedValue({ nodes: [], edges: [], truncated: false })
+  const wrapper = shallowMount(App)
+  await flushPromises()
+  expect(wrapper.getComponent(ProjectGraph).props('projectsError')).toContain('请检查后端服务')
+  wrapper.getComponent(ProjectGraph).vm.$emit('retryProjects')
+  await flushPromises()
+  expect(wrapper.getComponent(ProjectGraph).props('projectsError')).toBe('')
+  expect(wrapper.getComponent(ProjectGraph).props('project')).toEqual(project)
+  expect(api.getProjectGraph).toHaveBeenCalledTimes(1)
+})
+
 it('restores a source deep link from a project outside the first project page and refuses a foreign source', async () => {
   const selected={...project,id:'second-project'}
   vi.mocked(api.listProjects).mockResolvedValue({items:[project],total:21,page:1,page_size:20})

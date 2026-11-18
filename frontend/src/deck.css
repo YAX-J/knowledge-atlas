@@ -64,6 +64,19 @@
   font-size: 11.5px;
 }
 .context-project > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.context-project-select { padding-block: 4px; }
+.context-project-select select {
+  min-width: 0;
+  max-width: 100%;
+  padding: 3px 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+.context-project-select select:disabled { cursor: not-allowed; }
 .context-project svg, .deck-button svg { width: 13px; height: 13px; flex: none; }
 .context-actions { margin-left: auto; flex: none; }
 .deck-button {
@@ -394,6 +407,10 @@
 .app-shell .question-kicker { display: none; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .app-shell .graph-page-toolbar { flex-wrap: wrap; padding: 0; background: transparent; }
+.app-shell .graph-page-toolbar.graph-toolbar-empty { margin: 0; }
+.app-shell .graph-toolbar-button { display: inline-flex; align-items: center; gap: 5px; }
+.graph-toolbar-button svg { width: 14px; height: 14px; }
+.app-shell .graph-page-toolbar .graph-toolbar-button[aria-expanded=true] { background: var(--indigo-soft); color: var(--accent); }
 .app-shell .graph-page-toolbar .graph-sections { margin: 0; }
 .app-shell .graph-page-toolbar .graph-actions { gap: 5px; }
 .app-shell .graph-page-toolbar .graph-actions button { min-height: 29px; padding: 5px 9px; border: 0; background: var(--surface); }
@@ -495,8 +512,9 @@
 .app-shell .hit-heading button { min-height: 28px; border: 0; padding: 4px 6px; background: transparent; color: var(--ink); }
 
 .app-shell .formal-graph-deck { min-width: 0; }
-.app-shell .relations-deck { display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: var(--stage-gap); }
-.project-graph-page:has(.relations-deck) { display: flex; flex-direction: column; }
+.app-shell .relations-deck { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 0 var(--stage-gap); }
+.app-shell .relations-deck.filters-open { grid-template-columns: 228px minmax(0, 1fr); }
+.app-shell .graph-home { display: flex; flex-direction: column; }
 .relations-deck { flex: 1; min-height: 0; }
 .app-shell .graph-controls { padding: 0 0 10px; margin: 0 0 var(--stage-gap); border: 0; border-radius: var(--module-radius); background: var(--surface); box-shadow: var(--deck-shadow); }
 .app-shell .relations-deck .graph-controls { margin: 0; overflow: auto; }
@@ -506,16 +524,56 @@
 .app-shell .relations-deck :is(.graph-toolbar, .graph-source-bar, .time-query) { display: grid; align-content: start; }
 .app-shell .graph-source-bar { background: var(--surface-2); }
 .app-shell .relations-deck :is(.graph-toolbar, .graph-source-bar) label { display: grid; gap: 5px; }
-.app-shell .relations-deck .graph-timeline input { accent-color: var(--deck-indigo); }
+.app-shell .relations-deck .graph-timeline {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-top: var(--stage-gap);
+  padding: 9px 14px;
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  box-shadow: var(--deck-shadow);
+  font-size: 12px;
+}
+.app-shell .relations-deck .graph-timeline:empty { display: none; }
+.app-shell .relations-deck .graph-timeline > p { margin: 0; }
+.app-shell .relations-deck .graph-timeline input { min-height: 18px; accent-color: var(--deck-indigo); }
 .app-shell .relations-deck .graph-snapshot { margin: 0; }
 .app-shell .graph-deck-content { min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .app-shell .graph-deck-content > :is(.graph-message, .graph-empty) { margin: 0; border: 0; border-radius: var(--module-radius); }
 .app-shell .graph-deck-results, .app-shell .real-graph-layout { display: flex; flex-direction: column; min-height: 0; flex: 1; }
-.app-shell .real-graph-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(230px, 320px); align-items: stretch; gap: var(--stage-gap); }
+.app-shell .real-graph-layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); align-items: stretch; gap: var(--stage-gap); }
+.app-shell .real-graph-layout.details-open { grid-template-columns: minmax(0, 1fr) 312px; }
 .app-shell .real-graph-canvas, .app-shell .formal-detail { min-height: 0; border: 0; border-radius: var(--module-radius); background: var(--surface); box-shadow: var(--deck-shadow); }
 .app-shell .real-graph-canvas { display: flex; flex-direction: column; }
-.app-shell .real-graph-canvas .graph-scroll-area { flex: 1; min-height: 0; max-height: none; background: var(--surface); }
-.app-shell .graph-scroll-area svg { width: 100%; min-width: 455px; height: auto; }
+.app-shell .real-graph-canvas .graph-scroll-area,
+.app-shell .graph-project-empty {
+  background-color: #f7f9fe;
+  background-image: radial-gradient(#cbd5e9 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.app-shell .real-graph-canvas .graph-scroll-area { flex: 1; min-height: 0; max-height: none; cursor: grab; }
+.app-shell .real-graph-canvas .graph-scroll-area.is-panning { cursor: grabbing; user-select: none; }
+.app-shell .graph-scroll-area svg { max-width: none; flex: none; }
+.graph-world { display: grid; place-items: center; width: max-content; height: max-content; min-width: 100%; min-height: 100%; padding: 18px; }
+.app-shell .graph-scroll-area:focus-visible { outline-offset: -3px; }
+.graph-canvas-heading, .graph-panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.graph-zoom, .graph-empty-actions { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.graph-zoom { padding: 3px; border-radius: var(--control-radius); background: var(--surface-3); }
+.graph-zoom output { min-width: 35px; text-align: center; color: var(--ink-2); font: 11px var(--mono); }
+.app-shell .graph-icon-button { display: grid; place-items: center; min-width: 28px; min-height: 28px; padding: 5px; border: 0; background: transparent; color: var(--ink-2); }
+.graph-icon-button svg { width: 15px; height: 15px; }
+.app-shell .graph-project-empty, .app-shell .graph-loading { flex: 1; min-height: 0; align-content: center; }
+.app-shell .graph-project-empty { padding: 18px; overflow: auto; }
+.graph-empty-content {
+  max-width: 450px;
+  padding: 25px 27px;
+  border-radius: var(--module-radius);
+  background: var(--surface);
+  box-shadow: var(--deck-shadow);
+}
+.graph-empty-icon { display: inline-grid; width: 40px; height: 40px; place-items: center; border-radius: 13px; background: var(--indigo-soft); color: var(--accent); }
+.graph-empty-icon svg { width: 20px; }
+.graph-empty-actions { flex-wrap: wrap; }
 .app-shell .graph-scroll-hint { margin: 6px 12px; }
 .app-shell .real-edge path:not(.edge-hit) { stroke: #9baabc; }
 .app-shell .real-edge:is(:focus-visible, .selected) path:not(.edge-hit) { stroke: var(--accent); }
@@ -587,22 +645,23 @@
 .app-shell .ask-footer button { min-height: 30px; padding: 5px 10px; }
 
 @media (max-width: 1200px) {
-  .app-shell .relations-deck { grid-template-columns: 190px minmax(0, 1fr); }
-  .app-shell .real-graph-layout { grid-template-columns: minmax(0, 1fr) minmax(200px, 250px); }
+  .app-shell .relations-deck.filters-open { grid-template-columns: 190px minmax(0, 1fr); }
+  .app-shell .real-graph-layout.details-open { grid-template-columns: minmax(0, 1fr) minmax(200px, 250px); }
   .app-shell .atlas-main .insight-panel { position: static; width: auto; }
 }
 @media (max-width: 960px) {
-  .app-shell .relations-deck { grid-template-columns: 1fr; }
+  .app-shell .relations-deck, .app-shell .relations-deck.filters-open { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; gap: var(--stage-gap); }
   .app-shell .relations-deck .graph-controls { overflow: visible; }
   .app-shell .relations-deck :is(.graph-toolbar, .graph-source-bar, .time-query) { display: flex; }
   .app-shell .real-graph-layout { min-height: 460px; }
-  .app-shell .project-graph-page:has(.relations-deck) { display: block; }
+  .app-shell .relations-deck .graph-timeline { margin-top: 0; }
+  .app-shell .graph-home { display: block; }
   .app-shell .knowledge-search, .app-shell .answer-layout, .question-retrieval { grid-template-columns: minmax(0, 1fr); }
   .app-shell .index-status { width: 100%; }
 }
 @media (max-width: 760px) {
-  .app-shell .source-layout, .app-shell .candidate-review, .app-shell .atlas-main, .app-shell .real-graph-layout, .app-shell > .conversation-workspace { grid-template-columns: minmax(0, 1fr); }
-  .app-shell .real-graph-layout, .app-shell .atlas-main { grid-template-rows: minmax(360px, auto) auto; overflow: auto; }
+  .app-shell .source-layout, .app-shell .candidate-review, .app-shell .atlas-main, .app-shell .real-graph-layout.details-open, .app-shell > .conversation-workspace { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .real-graph-layout.details-open, .app-shell .atlas-main { grid-template-rows: minmax(360px, auto) auto; overflow: auto; }
   .app-shell .atlas-main.panel-collapsed { grid-template-rows: minmax(360px, 1fr); }
   .app-shell .conversation-workspace .conversation-answer { height: 720px !important; }
   .app-shell .question-heading { align-items: flex-start; }

@@ -9,6 +9,9 @@ const props = defineProps<{
   selectedId: string
   graphActive: boolean
   projectName?: string
+  projectId?: string
+  projectOptions?: readonly { id: string; name: string }[]
+  projectSwitchDisabled?: boolean
   active?: string
   focusOnly?: boolean
 }>()
@@ -17,6 +20,7 @@ const emit = defineEmits<{
   select: [id: string]
   search: [query: string]
   navigate: [id: string]
+  selectProject: [id: string]
   toggleFocus: []
 }>()
 
@@ -110,7 +114,15 @@ function cancel() {
     <div class="deck-context">
       <strong>{{ context?.label }}</strong><span class="context-caption">{{ context?.caption }}</span>
     </div>
-    <span class="context-project" :title="projectName">
+    <label v-if="projectOptions?.length && !graphActive" class="context-project context-project-select" :title="projectName">
+      <Collection aria-hidden="true" />
+      <select :value="projectId ?? ''" :disabled="projectSwitchDisabled" aria-label="当前图谱项目"
+        @change="emit('selectProject', ($event.target as HTMLSelectElement).value)">
+        <option value="" disabled>选择项目</option>
+        <option v-for="item in projectOptions" :key="item.id" :value="item.id">{{ item.name }}</option>
+      </select>
+    </label>
+    <span v-else class="context-project" :title="projectName">
       <Collection aria-hidden="true" /><span>{{ graphActive ? '独立演示' : projectName || '未选择项目' }}</span>
     </span>
     <div class="context-actions">
