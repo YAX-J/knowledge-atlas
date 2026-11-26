@@ -51,6 +51,7 @@ export type IngestionOperation = 'projects' | 'create' | 'repositories' | 'remot
 export type IngestionLoading = Record<IngestionOperation, boolean>
 export type IngestionErrors = Record<IngestionOperation, string>
 export interface SourceFilters {
+  archived?: boolean
   query: string
   type: string
   status: '' | 'uploaded' | 'processing' | 'ready' | 'failed'

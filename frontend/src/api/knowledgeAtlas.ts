@@ -3,6 +3,7 @@ import type { GovernanceResult, KnowledgeChange, KnowledgeChangeInput, Knowledge
 import type { EmbeddingRebuildResult, EntityDetail, GraphTimeline, KnowledgeCandidate, KnowledgeSearchMode, KnowledgeSearchResult, Neo4jGraphData, Neo4jSnapshot, ProjectGraphData, QuestionAnswer, RelationshipDetail, ReviewDecision } from '../types'
 
 export interface ApiProject {
+  archived_at?: string | null
   id: string
   name: string
   description: string
@@ -24,6 +25,7 @@ export interface SourceUploadResult {
 }
 
 export interface ApiSource {
+  archived?: boolean
   id: string
   project_id: string
   repository_id: string | null
@@ -538,6 +540,7 @@ export function listSources(projectId: string, page = 1, pageSize = 20, filters?
   if (filters?.query.trim()) query.set('q', filters.query.trim())
   if (filters?.type) query.set('source_type', filters.type)
   if (filters?.status) query.set('source_status', filters.status)
+  if (filters?.archived) query.set('archived', 'true')
   return apiRequest<SourceList>(`/projects/${projectId}/sources?${query}`)
 }
 

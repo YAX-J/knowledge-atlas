@@ -8,6 +8,8 @@ import KnowledgeGraph from './components/KnowledgeGraph.vue'
 import InsightPanel from './components/InsightPanel.vue'
 import TimelineBar from './components/TimelineBar.vue'
 import SourceWorkspace from './components/SourceWorkspace.vue'
+import ProjectManagement from './components/ProjectManagement.vue'
+import SourceArchiveControl from './components/SourceArchiveControl.vue'
 import CodeSymbolSearch from './components/CodeSymbolSearch.vue'
 import RepositorySnapshots from './components/RepositorySnapshots.vue'
 import SnapshotFiles from './components/SnapshotFiles.vue'
@@ -98,6 +100,7 @@ const project = ref<ApiProject | null>(null)
 const repositories = ref<SourceRepositoryList | null>(null)
 const sources = ref<SourceList | null>(null)
 const sourceFilters = ref<SourceFilters>({ query: '', type: '', status: '' })
+const managementBusy = ref(false)
 const sourcesRequestedPage = ref(1)
 const selectedSourceId = ref('')
 const selectedTaskId = ref<string | null>(null)
@@ -181,11 +184,11 @@ const {
 } = useRepositorySnapshots({ project, activeNav, loading, errors, notice, selectedSourceId, selectedTaskId,
   clearSourceSelection, selectSource, loadSources, refreshSource, errorMessage })
 const { evidenceTarget, evidenceNavigationLoading, evidenceNavigationError, clearEvidenceNavigation, openEvidence } = useEvidenceNavigation({ project, activeNav, errors, chunks, focusedChunkId, notice, selectedSourceId, selectedTaskId,
-  locked: () => changeBusy.value || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit,
+  locked: () => managementBusy.value || changeBusy.value || loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit,
   clearSourceSelection, refreshSource, errorMessage })
 const { githubContinuations, registerGithubRepository, syncRegisteredGithubRepository, importRegisteredGithubActivity, uploadFiles, parseSource } = useSourceImport({
   project, repositories, sources, selectedSourceId, selectedTaskId, task, notice, loading, errors,
-  locked: () => reviewBusy.value || changeBusy.value,
+  locked: () => managementBusy.value || reviewBusy.value || changeBusy.value,
   prepareSource: () => { sourcesRequest++; clearSourceSelection() },
   loadSources: page => loadSources(page), loadRepositories: page => loadRepositories(page), refreshSource: () => refreshSource(), errorMessage,
 })
@@ -371,6 +374,10 @@ async function loadProjects(page = 1) {
     if (request !== projectsRequest) return
     projects.value = result
     if (!project.value && result.items[0]) selectProject(result.items[0])
+    else if (project.value && !projectSelectionLocked.value) {
+      const refreshed=result.items.find(item=>item.id===project.value?.id)
+      if(refreshed)project.value=refreshed
+    }
   } catch (error) {
     if (request === projectsRequest) errors.projects = errorMessage(error)
   } finally {
@@ -378,7 +385,7 @@ async function loadProjects(page = 1) {
   }
 }
 
-const projectSelectionLocked = computed(() => reviewBusy.value || changeBusy.value || loading.upload ||
+const projectSelectionLocked = computed(() => managementBusy.value || reviewBusy.value || changeBusy.value || loading.upload ||
   loading.task || loading.remote || loading.sync || loading.activity || loading.commit)
 const graphProjects = computed(() => {
   const listed = projects.value?.items ?? []
@@ -412,6 +419,16 @@ function selectProject(value: ApiProject) {
   notice.value = ''
   void Promise.all([loadRepositories(1), loadSources(1)])
 }
+
+async function projectManaged(value:ApiProject) {
+  if(value.id===project.value?.id || !project.value) {
+    if(value.archived_at) { clearSourceSelection();project.value=null }
+    else project.value=value
+  }
+  await loadProjects(1)
+}
+
+async function sourceManaged() { await Promise.all([loadSources(1),refreshSource()]) }
 
 async function addProject(input: { name: string; description: string }) {
   if (loading.create || loading.upload || loading.task || loading.remote || loading.sync || loading.activity || loading.commit) return
@@ -640,7 +657,7 @@ function selectNode(id: string) {
 }
 
 function changeNav(value: string) {
-  if (changeBusy.value || reviewBusy.value) return
+  if (managementBusy.value || changeBusy.value || reviewBusy.value) return
   if (value === 'graph' && activeNav.value === 'projectGraph' && graphSection.value === 'relations') {
     focusOnly.value = false
     return
@@ -788,7 +805,7 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
     if(current() && route.relationshipId)await selectGraphRelationship(route.relationshipId)
     if(current())await Promise.all([loadIndexStatus(),loadChanges(1)])
   }
-},()=>reviewBusy.value || changeBusy.value || loading.upload || loading.task || loading.sync || loading.activity || loading.commit)
+},()=>managementBusy.value || reviewBusy.value || changeBusy.value || loading.upload || loading.task || loading.sync || loading.activity || loading.commit)
 </script>
 
 <template>
@@ -840,7 +857,7 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
       :agent-call-analysis="agentCallAnalysis"
       :analysis-contexts="analysisContexts" :analysis-context-error="analysisContextError"
       :focused-chunk-id="focusedChunkId"
-      :loading="loading" :errors="errors" :notice="notice" :review-busy="reviewBusy"
+      :loading="loading" :errors="errors" :notice="notice" :review-busy="reviewBusy || managementBusy"
       @create="addProject" @select-project="selectProject" @projects-page="loadProjects"
       @repositories-page="loadRepositories" @resolve-github="registerGithubRepository" @sync-github="syncRegisteredGithubRepository" @import-github-activity="importRegisteredGithubActivity"
       @snapshots="loadSnapshots"
@@ -856,6 +873,8 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
             @click="changeNav(entry.id)">{{ entry.label }}</button>
         </nav>
       </template>
+      <template #project-management><ProjectManagement :key="project?.id??'empty-project'" :project="project" :locked="projectSelectionLocked" @busy="managementBusy=$event" @updated="projectManaged" /></template>
+      <template #source-management><SourceArchiveControl v-if="project&&source" :key="source.id+String(source.archived)" :project-id="project.id" :source-id="source.id" :archived="!!source.archived" :locked="projectSelectionLocked" @busy="managementBusy=$event" @changed="sourceManaged" /></template>
       <template #evidence-navigation>
         <section v-if="evidenceTarget" id="evidence-navigation" class="evidence-navigation" aria-label="证据原文定位" :aria-busy="evidenceNavigationLoading" tabindex="-1">
           <p v-if="evidenceNavigationLoading" role="status">正在定位证据原文分块…</p>

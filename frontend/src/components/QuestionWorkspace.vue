@@ -130,6 +130,7 @@ function adjustTime() {
           <p v-if="result.time_scope?.source === 'comparison'" class="asked">{{ result.question }}</p>
           <h2>{{ result.time_scope?.source === 'comparison' ? '切换前后对比' : result.time_scope?.source === 'clarification' ? '请选择查询时点' : result.supported ? '回答' : result.claims?.some(claim => claim.status === 'supported') ? '回答与待确认事项' : '暂不能确认' }}</h2>
           <AnswerClaims :answer="result" @open-evidence="emit('openEvidence', $event)" />
+          <slot name="answer-feedback" />
           <button v-if="result.time_scope && result.time_scope.source !== 'comparison'" type="button" @click="adjustTime">{{ result.time_scope.source === 'clarification' ? '手动选择时点' : '修改查询时点' }}</button>
           <template v-if="result.missing_information.length">
             <h3>仍需补充</h3>

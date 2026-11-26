@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { ApiProject, ApiProjectList } from '../api/knowledgeAtlas'
 import type { EvidenceLocator, QuestionRetrievalMode } from '../types'
 import QuestionWorkspace from './QuestionWorkspace.vue'
+import AnswerFeedbackPanel from './AnswerFeedbackPanel.vue'
 import { useConversations } from '../composables/useConversations'
 
 const props = defineProps<{ project: ApiProject | null; projects: ApiProjectList | null; projectsLoading: boolean; projectsError: string; conversationId?: string }>()
 const emit = defineEmits<{ selectProject: [project: ApiProject]; retryProjects: []; openEntity: [id: string]; openEvidence: [locator: EvidenceLocator]; conversation: [id:string] }>()
 const { conversations, turns, selectedId, result, loading, sending, busy, error, unknown, retryTurn, refresh, select, start, send } = useConversations(() => props.project?.id)
 const retryConfirmed = ref(false)
+const feedbackTurn = computed(()=>turns.value?.items.find(turn=>turn.answer?.id===result.value?.id))
 watch(()=>[props.project?.id,props.conversationId],()=>{
   if(props.project && props.conversationId && props.conversationId!==selectedId.value)void select(props.conversationId)
 },{immediate:true})
@@ -42,7 +44,9 @@ function ask(question: string, mode: QuestionRetrievalMode, validAt?: string) { 
       <form v-if="retryTurn && !unknown" @submit.prevent="retry"><p>上一轮失败或中断，重新请求可能再次计费。</p><label><input v-model="retryConfirmed" type="checkbox" />确认重新请求此轮回答</label><button :disabled="!retryConfirmed || busy" type="submit">重新请求</button></form>
     </aside>
     <QuestionWorkspace class="conversation-answer" :projects="projects" :project="project" :projects-loading="projectsLoading" :projects-error="projectsError" :result="result" :loading="sending || busy" :error="error" persistent
-      @select-project="emit('selectProject', $event)" @retry-projects="emit('retryProjects')" @ask="ask" @retry="refresh()" @clear="result = null" @open-entity="emit('openEntity', $event)" @open-evidence="emit('openEvidence', $event)" />
+      @select-project="emit('selectProject', $event)" @retry-projects="emit('retryProjects')" @ask="ask" @retry="refresh()" @clear="result = null" @open-entity="emit('openEntity', $event)" @open-evidence="emit('openEvidence', $event)">
+      <template #answer-feedback><AnswerFeedbackPanel v-if="project&&feedbackTurn&&result?.claims?.length" :key="feedbackTurn.id" :project-id="project.id" :turn-id="feedbackTurn.id" :answer="result" /></template>
+    </QuestionWorkspace>
   </main>
 </template>
 

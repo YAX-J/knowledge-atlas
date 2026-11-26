@@ -17,6 +17,7 @@ from app.api.routes import (
     tasks,
     workspace,
     conversations,
+    library,
 )
 
 
@@ -37,4 +38,5 @@ api_router.include_router(search.router)
 api_router.include_router(questions.router)
 api_router.include_router(workspace.router)
 api_router.include_router(conversations.router)
+api_router.include_router(library.router)
 

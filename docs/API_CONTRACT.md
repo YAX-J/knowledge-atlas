@@ -1,5 +1,16 @@
 # Knowledge Atlas 前后端接口草案
 
+## 2026-11-26 资料库管理与结论纠错（ADR 0084）
+
+- `PUT /projects/{project_id}`：`{name,description,expected_updated_at}`，返回 `ProjectRead`。更新时间必须带时区，过期修改返回 409 `PROJECT_CHANGED`。相同目标值重复提交返回当前记录。
+- `GET /projects?archived=true`：只列出本用户归档项目，沿用分页；默认仍只列日常项目。`ProjectRead` 新增可空 `archived_at`，时间按 UTC 返回。
+- `PUT /projects/{project_id}/archive`：`{archived:boolean,expected_updated_at}`，返回 `ProjectRead`。未知/越界 404；运行或待审核任务存在时为 409 `PROJECT_BUSY`；归档后普通项目接口 404，通过归档列表读取版本后可恢复。
+- `PUT /projects/{project_id}/sources/{source_id}/archive`：`{archived:boolean,reason}`，原因去空白后 1–2000 字符。返回 `{source_id,archived}`，按目标状态幂等，用户/项目/资料不匹配 404。`GET .../sources?archived=true` 分页查归档资料，默认仅日常资料，列表与详情新增 `archived`。保留原文和固定快照，正式知识不会因资料归档而撤回。
+- `GET /projects/{project_id}/answers/{turn_id}/feedback`：最近 50 条，仅成功且已保存的会话回答；无数据返回 `[]`，越界/不存在 404 `ANSWER_NOT_FOUND`。
+- `POST` 同路径：`{request_id,claim_index,category,comment}`。结论序号从 0 起，类别为 `incorrect/irrelevant_citation/overstatement/wrong_version/incomplete`，说明去空白后 1–2000 字符。返回 201，含记录 UUID、轮次、答案哈希、结论文本、类别、说明和时间。结论不存在 422 `ANSWER_CLAIM_NOT_FOUND`；同 UUID 不同输入 409 `FEEDBACK_REQUEST_CONFLICT`。答案文本与哈希由服务端取得，记录不改原答或评分。
+
+上述路径均带既有 `/api/v1` 前缀。源码数据库预期版本为 `20261126_0024`，业务库不自动迁移；较早章节为对应日期契约。
+
 Implemented M3/M4 (ADR0078–0079), head0023: `POST/GET /projects/{project_id}/notes`, `GET/PUT .../notes/{note_id}`, `GET .../notes/{note_id}/revisions`, `GET .../notes/revisions/{revision_id}`, and `POST .../notes/revisions/{revision_id}/source`. Create binds request_id; edits require request_id + expected_revision_id + title/markdown and return409 on conflict. Search uses query/page/page_size and exposes scanned/truncated. New assistant-task-v3 submissions return202 with exact note_revision_ids, allowed_actions and optional repository_id/repository_commit. Task reads expose operations, unknown_operations, remaining, final_artifact_id and waiting_approval. `POST .../assistant/tasks/{task_id}/approvals` requires request_id, operation_id, proposal_sha256 and decision approve/reject. This never starts a model; explicit checkpoint-bound continue remains separate. `POST .../artifacts/{artifact_id}/note` accepts request_id and creates a provenance-preserving editable draft. Results use assistant-report-v2; note citations carry note_id/revision_id and no fabricated formal evidence IDs. v1/v2 requests/replays remain compatible. See [complete behavior/limits](PROJECT_ASSISTANT_M34.zh-CN.md).
 
 ## 项目助手 M2（ADR0077）

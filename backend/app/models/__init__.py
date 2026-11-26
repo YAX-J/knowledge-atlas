@@ -20,8 +20,10 @@ from app.models.agent_run import AgentRun
 from app.models.assistant_task import AssistantTask, AssistantAttempt, AssistantStep, AssistantArtifact, AssistantContinuation
 from app.models.notes import Note, NoteRevision, NoteSource
 from app.models.assistant_operation import AssistantOperation, AssistantApproval
+from app.models.library import SourceArchive, AnswerFeedback
 
 __all__ = [
+    'SourceArchive', 'AnswerFeedback',
     'AssistantTask',
     'AssistantAttempt', 'AssistantStep', 'AssistantArtifact', 'AssistantContinuation',
     'Note','NoteRevision','NoteSource','AssistantOperation','AssistantApproval',

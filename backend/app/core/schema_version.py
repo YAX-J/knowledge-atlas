@@ -1,11 +1,12 @@
 """Readiness checks physical ownership as well as the migration marker."""
 from sqlalchemy import inspect, text
 
-EXPECTED_REVISION = '20261031_0023'
+EXPECTED_REVISION = '20261126_0024'
 WORKSPACE_TABLES = frozenset({'entity_aliases', 'entity_merges', 'knowledge_periods',
     'knowledge_operations', 'conversations', 'conversation_turns', 'agent_runs', 'assistant_tasks',
     'assistant_attempts', 'assistant_steps', 'assistant_artifacts', 'assistant_continuations',
-    'notes','note_revisions','note_sources','assistant_operations','assistant_approvals'})
+    'notes','note_revisions','note_sources','assistant_operations','assistant_approvals',
+    'source_archives','answer_feedback'})
 
 
 def schema_status(db):

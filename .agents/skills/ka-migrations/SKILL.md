@@ -10,6 +10,8 @@ M3/M4 ADR0078–0079 head0023 adds notes/revisions/source mappings plus assistan
 M2 ADR0077 source/business head is20261031_0021. Before0020 and0021 business upgrades, backup and isolated schema restore passed;25 then26 old business-table fingerprints were preserved. 0021 adds execution mode/revision/elapsed and four attempt/step/artifact/continuation tables, defaults legacy tasks to sync_v1 and closes queued/cancelled states as interrupted on maintenance downgrade. Test native upgrade/downgrade/upgrade and two-consumer skip-locked claiming; never downgrade business data for acceptance.
 # 模型与数据库迁移
 
+2026-11-26 ADR0084 新增 `source_archives`、`answer_feedback`，源码预期 head0024、业务库不自动升级；旧来源/知识/证据不回填。用临时 SQLite 与隔离 PostgreSQL schema 验收升降级，禁止对业务库执行验收降级。版本就绪检查需包含两张表；业务升级仍先备份及隔离恢复。
+
 迁移是正式数据的唯一结构变更入口。实现在 `backend/migrations/versions/`，模型在 `backend/app/models/`，迁移测试在 `backend/tests/test_migrations.py`。
 
 ## 何时使用

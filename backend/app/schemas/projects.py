@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 
 class ProjectCreate(BaseModel):
@@ -25,6 +25,23 @@ class ProjectRead(BaseModel):
     description: str
     created_at: datetime
     updated_at: datetime
+    archived_at: datetime | None = None
+
+    @field_validator('created_at', 'updated_at', 'archived_at')
+    @classmethod
+    def utc_time(cls, value):
+        return value.replace(tzinfo=timezone.utc) if value is not None and value.tzinfo is None else value
+
+
+class ProjectEdit(ProjectCreate):
+    model_config = ConfigDict(extra='forbid')
+    expected_updated_at: AwareDatetime
+
+
+class ProjectArchive(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    archived: bool = Field(strict=True)
+    expected_updated_at: AwareDatetime
 
 
 class ProjectList(BaseModel):

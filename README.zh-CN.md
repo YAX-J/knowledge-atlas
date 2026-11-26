@@ -8,6 +8,8 @@ Knowledge Atlas 是面向毕业设计的个人技术知识系统，将开发者�
 
 ## 当前可用能力
 
+项目可编辑、归档和恢复；资料可按归档状态筛选并恢复，历史证据保留。已保存会话支持按结论记录问题和纠错说明，不改写原答或正式知识。[资料库与反馈](docs/adr/0084-library-archiving-answer-feedback.zh-CN.md)
+
 本地带路径上传按路径与内容共同去重：同内容的不同路径分别保留来源，同路径同内容复用已有任务。无路径单文件仍按内容复用，历史缺失路径需重新上传补齐。[来源身份规则](docs/adr/0083-path-aware-source-ingestion.zh-CN.md)
 
 | 环节 | 功能 |
@@ -30,7 +32,7 @@ Agent 任务保留选定的检索方式、历史时点和代码版本。原有�
 
 ## 本地启动
 
-安装 Python、Node.js 和带 pgvector 的 PostgreSQL，按环境说明填写 `backend/.env`，迁移前备份已有数据库。当前迁移版本为 `20261031_0023`，就绪检查会报告迁移版本落后或缺少必要表和列的数据库。[环境配置](docs/DEVELOPMENT_SETUP.zh-CN.md)、[备份与恢复](docs/BACKUP_RESTORE.zh-CN.md)
+安装 Python、Node.js 和带 pgvector 的 PostgreSQL，按环境说明填写 `backend/.env`，迁移前备份已有数据库。当前源码预期迁移版本为 `20261126_0024`；已有业务库不自动升级，就绪检查会报告版本落后或缺表。新增归档与纠错两表，升级前完成备份及隔离恢复，再执行 `alembic upgrade head`。[环境配置](docs/DEVELOPMENT_SETUP.zh-CN.md)、[备份与恢复](docs/BACKUP_RESTORE.zh-CN.md)
 
 ```powershell
 cd backend

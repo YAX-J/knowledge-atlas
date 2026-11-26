@@ -130,7 +130,7 @@ describe('cross-file Agent workspace', () => {
     expect(wrapper.text()).not.toContain('这个项目还没有资料')
     await wrapper.get('.source-filters input').setValue('  notes/decision  ')
     await wrapper.get('.source-filters').trigger('submit')
-    expect(wrapper.emitted('filterSources')).toEqual([[{ query: 'notes/decision', type: 'markdown', status: 'failed' }]])
+    expect(wrapper.emitted('filterSources')).toEqual([[{ query: 'notes/decision', type: 'markdown', status: 'failed', archived: false }]])
     await wrapper.findAll('button').find(button => button.text() === '重置资料筛选')!.trigger('click')
     expect(wrapper.emitted('filterSources')?.[1]).toEqual([{ query: '', type: '', status: '' }])
   })

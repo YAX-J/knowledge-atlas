@@ -10,6 +10,8 @@ Local uploads with relative paths now deduplicate by path and content: identical
 
 The real graph supports deterministic topology and directed layouts, pointer or Alt+arrow node movement, relationship filtering, and shortest undirected association highlighting within the loaded subgraph. Positions are local view state; arrows keep their original direction. [Graph interaction](docs/FRONTEND.md)
 
+Projects can be edited, archived and restored; source archiving preserves original evidence. Saved conversation claims support immutable issue feedback without rewriting answers or knowledge. Source head is now `20261126_0024`, adding two tables. Existing databases are not automatically migrated: back up, verify an isolated restore, then run `alembic upgrade head`. [Library and feedback](docs/adr/0084-library-archiving-answer-feedback.zh-CN.md)
+
 ## Current capabilities
 
 | Area | What you can do |
@@ -31,7 +33,7 @@ Agent runs retain the selected retrieval method, historical instant, and code ve
 
 ## Run locally
 
-Install Python, Node.js, and PostgreSQL with pgvector. Configure `backend/.env` and back up any existing database before a migration. The current migration head is `20261031_0023`. The readiness check reports databases that are behind or missing required tables or columns. [Environment setup](docs/DEVELOPMENT_SETUP.zh-CN.md), [backup and restore](docs/BACKUP_RESTORE.zh-CN.md)
+Install Python, Node.js, and PostgreSQL with pgvector. Configure `backend/.env` and back up any existing database before a migration. The current source migration head is `20261126_0024`; existing databases are not automatically upgraded. The readiness check reports databases that are behind or missing required tables or columns. [Environment setup](docs/DEVELOPMENT_SETUP.zh-CN.md), [backup and restore](docs/BACKUP_RESTORE.zh-CN.md)
 
 ```powershell
 cd backend

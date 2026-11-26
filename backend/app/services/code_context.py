@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from sqlalchemy import select
 from app.core.errors import AppError
 from app.models.domain import RepositorySnapshot, RepositorySnapshotFile, SourceDocument
+from app.services.library import archived_source_condition
 
 METADATA_LIMIT = 2000
 
@@ -26,7 +27,7 @@ def _metadata(db, source, compatible):
         SourceDocument.size_bytes,SourceDocument.created_at).where(
         SourceDocument.user_id==source.user_id, SourceDocument.project_id==source.project_id,
         SourceDocument.repository_id==source.repository_id, SourceDocument.source_type.in_(tuple(compatible)),
-        SourceDocument.status=='ready').order_by(SourceDocument.created_at.desc(),SourceDocument.id.desc())
+        SourceDocument.status=='ready', ~archived_source_condition()).order_by(SourceDocument.created_at.desc(),SourceDocument.id.desc())
         .limit(METADATA_LIMIT+1)))
 
 

@@ -86,10 +86,10 @@ const linkableLocalRepositories = computed(() => (
 ))
 const locked = computed(() => props.reviewBusy || props.loading.create || props.loading.upload || props.loading.task || props.loading.remote || props.loading.sync || props.loading.activity || props.loading.commit || props.loading.agent)
 const sourceFilter = reactive<SourceFilters>({ query: '', type: '', status: '' })
-const filteredSources = computed(() => !!(props.sourceFilters?.query || props.sourceFilters?.type || props.sourceFilters?.status))
+const filteredSources = computed(() => !!(props.sourceFilters?.query || props.sourceFilters?.type || props.sourceFilters?.status || props.sourceFilters?.archived))
 const hiddenSource = computed(() => props.selectedSourceId && props.sources && !props.loading.sources && !props.errors.sources &&
   !props.sources.items.some(item => item.id === props.selectedSourceId))
-watch(() => props.sourceFilters, value => Object.assign(sourceFilter, value ?? { query: '', type: '', status: '' }), { immediate: true })
+watch(() => props.sourceFilters, value => Object.assign(sourceFilter, {archived:false}, value ?? { query: '', type: '', status: '' }), { immediate: true })
 function applySourceFilters(reset = false) {
   if (locked.value || props.loading.sources) return
   emit('filterSources', reset ? { query: '', type: '', status: '' } : { ...sourceFilter, query: sourceFilter.query.trim() })
@@ -281,6 +281,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
           <button type="button" :disabled="loading.projects || locked || (projects?.page ?? 1) >= projectPages" @click="emit('projectsPage', (projects?.page ?? 1) + 1)">下一页</button>
         </nav>
 
+        <slot name="project-management" />
         <details class="project-create" :open="view === 'projects' || projects?.total === 0">
           <summary>新建项目</summary>
           <form class="project-form" @submit.prevent="submitProject">
@@ -324,6 +325,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
           </div>
           <p v-if="loading.sources" class="muted-copy" role="status">正在读取资料…</p>
           <form class="source-filters" aria-label="筛选项目资料" @submit.prevent="applySourceFilters()">
+            <label>资料归档状态<select v-model="sourceFilter.archived" :disabled="locked || loading.sources"><option :value="false">日常资料</option><option :value="true">已归档资料</option></select></label>
             <label>文件名或路径<input v-model="sourceFilter.query" type="search" maxlength="200" :disabled="locked || loading.sources" placeholder="输入文件名或仓库内路径" /></label>
             <label>资料语言<select v-model="sourceFilter.type" :disabled="locked || loading.sources"><option value="">全部语言</option><option v-for="type in sourceTypes" :key="type" :value="type">{{ sourceTypeLabel(type) }}</option></select></label>
             <label>资料解析状态<select v-model="sourceFilter.status" :disabled="locked || loading.sources"><option value="">全部状态</option><option value="uploaded">待解析</option><option value="processing">解析中</option><option value="ready">已解析</option><option value="failed">解析失败</option></select></label>
@@ -356,6 +358,7 @@ function sourceMeta(source: SourceListItem | ApiSource) {
             <p v-if="loading.detail" role="status" class="muted-copy">正在读取原文与任务…</p>
             <p v-if="errors.detail" role="alert" class="inline-error">{{ errors.detail }} 请刷新状态重试。</p>
             <template v-if="source && !loading.detail && !errors.detail">
+              <slot name="source-management" />
               <div class="task-strip" role="status">
                 <span class="source-status" :class="`status-${task?.status ?? source.status}`">{{ statusLabels[task?.status ?? source.status] }}</span>
                 <span v-if="loading.task">正在解析，请稍候…</span>

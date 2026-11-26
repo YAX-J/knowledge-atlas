@@ -58,12 +58,13 @@ def list_sources(
     q: str = Query(default='', max_length=200),
     source_type: str | None = Query(default=None, max_length=30),
     source_status: SourceStatus | None = None,
+    archived: bool = False,
 ) -> SourceList:
     if source_type is not None and source_type not in ingestion.TASK_TYPE_BY_SOURCE:
         raise AppError(status_code=422, code='SOURCE_TYPE_INVALID', message='不支持此资料类型')
     records, total = ingestion.list_sources(
         db, user_id=user_id, project_id=project_id, page=page, page_size=page_size,
-        text_query=q, source_type=source_type, source_status=source_status,
+        text_query=q, source_type=source_type, source_status=source_status, archived=archived,
     )
     git_urls = github_file_urls(
         db,
@@ -74,6 +75,7 @@ def list_sources(
     items = []
     for source, task in records:
         item = SourceListItem.model_validate(source)
+        item.archived = archived
         item.repository_name = source.repository.name if source.repository else None
         item.git_url = git_urls.get(source.id)
         item.task_id = task.id if task else None
@@ -120,6 +122,7 @@ def get_source(
     user_id: CurrentUserId,
 ) -> SourceRead:
     source = ingestion.get_source(db, user_id=user_id, source_id=source_id)
+    from app.services.library import source_archived
     git_url = github_file_urls(
         db,
         user_id=user_id,
@@ -139,6 +142,7 @@ def get_source(
         size_bytes=source.size_bytes,
         content_sha256=source.content_sha256,
         status=source.status,
+        archived=source_archived(db, source),
         content_preview=source.content[:4000],
         line_count=len(source.content.splitlines()),
         created_at=source.created_at,

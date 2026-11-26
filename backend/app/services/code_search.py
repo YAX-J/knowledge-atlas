@@ -56,6 +56,8 @@ def search_symbols(
         SourceDocument.source_type.in_(tuple(CODE_SOURCE_TYPES)),
         SourceDocument.status == SourceStatus.READY,
     ]
+    from app.services.library import archived_source_condition
+    filters.append(~archived_source_condition())
     if repository_id is not None:
         filters.append(SourceDocument.repository_id == repository_id)
     # Bound metadata before loading immutable source text. Keep old versions as

@@ -1,5 +1,7 @@
 # 架构决策记录
 
+- [ADR 0084 可恢复资料库与绑定原答的纠错记录](0084-library-archiving-answer-feedback.zh-CN.md)
+
 - [ADR 0083 带路径上传保留独立来源](0083-path-aware-source-ingestion.zh-CN.md)
 
 - [ADR 0082 人工审核主数据库替代](0082-reviewed-primary-database-replacement.zh-CN.md)

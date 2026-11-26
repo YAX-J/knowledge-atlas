@@ -13,6 +13,7 @@ class SourceUploadResponse(BaseModel):
 
 
 class SourceRead(BaseModel):
+    archived: bool = False
     id: uuid.UUID
     project_id: uuid.UUID
     repository_id: uuid.UUID | None
@@ -160,6 +161,7 @@ class JavaStructureRead(BaseModel):
 
 
 class SourceListItem(BaseModel):
+    archived: bool = False
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID

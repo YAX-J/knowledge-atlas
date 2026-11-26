@@ -241,13 +241,16 @@ def get_source(
 def list_sources(
     db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID,
     page: int, page_size: int,
-    text_query: str = '', source_type: str | None = None, source_status: SourceStatus | None = None,
+    text_query: str = '', source_type: str | None = None, source_status: SourceStatus | None = None, archived: bool = False,
 ) -> tuple[list[tuple[SourceDocument, ProcessingTask | None]], int]:
     get_project(db, user_id=user_id, project_id=project_id)
     filters = [
         SourceDocument.user_id == user_id,
         SourceDocument.project_id == project_id,
     ]
+    from app.services.library import archived_source_condition
+    archive_filter = archived_source_condition()
+    filters.append(archive_filter if archived else ~archive_filter)
     query = ' '.join(text_query.split())
     if query:
         filters.append(or_(SourceDocument.original_name.icontains(query, autoescape=True),
