@@ -1,5 +1,7 @@
 # Knowledge Atlas 开发者知识模型
 
+ADR0085 分批抽取的虚拟输入片段不持久化为来源或分块；候选证据仍保存原始分块UUID与经原文核验的行号。仅精确相同内容和位置去重，不做语义实体合并。全部批次通过才原子保存候选，正式提升仍需人工审核。
+
 2026-11-26（ADR 0084）：`source_archives` 只记录资料库状态，不改不可变来源及正式证据；归档不撤回知识，历史原文和固定快照仍可访问。`answer_feedback` 以请求 UUID、用户/项目/会话轮次、答案哈希和结论序号保存不可变纠错记录，结论文本从服务端保存答案取得，不重写答案或人工评分。源码 head0024 新增两表，不回填历史业务数据。
 
 Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a31-table backup/verified isolated restore; all30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](PROJECT_ASSISTANT_M34.zh-CN.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.

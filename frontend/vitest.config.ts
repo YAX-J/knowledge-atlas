@@ -9,7 +9,7 @@ export default defineConfig({
     restoreMocks: true,
     coverage: {
       provider: 'v8',
-      include: ['src/App.vue', 'src/graphLayout.ts', 'src/api/{client,knowledgeAtlas,library}.ts', 'src/components/{SourceWorkspace,QuestionWorkspace,KnowledgeSearch,CandidateReview,ProjectGraph,KnowledgeEvolution,ProjectManagement,SourceArchiveControl,AnswerFeedbackPanel}.vue',
+      include: ['src/App.vue', 'src/graphLayout.ts', 'src/api/{client,knowledgeAtlas,library,extraction}.ts', 'src/components/{SourceWorkspace,QuestionWorkspace,KnowledgeSearch,CandidateReview,ProjectGraph,KnowledgeEvolution,ProjectManagement,SourceArchiveControl,AnswerFeedbackPanel}.vue',
         'src/pages/AgentWorkspace.vue','src/components/AnswerClaims.vue','src/components/agent/*.vue','src/api/{agents,assistant,notes}.ts','src/composables/{useAgentRuns,useCodeContextSelection,useProjectAssistant,useNotes}.ts',
         'src/components/{KnowledgeRetirement,KnowledgeManagement,ConversationsWorkspace,Workbench}.vue', 'src/api/workspace.ts',
         'src/composables/{useKnowledgeSearch,useCandidateReview,useProjectGraph,useSourceImport,useKnowledgeRetirement,useConversations,useKnowledgeManagement,useWorkspaceRoute,useEvidenceNavigation,useRepositorySnapshots,useKnowledgeEvolution}.ts'],

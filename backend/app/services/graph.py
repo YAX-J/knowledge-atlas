@@ -101,11 +101,20 @@ def _evidence_for_promotion(db: Session, candidate: CandidateKnowledge):
         SourceChunk.user_id == candidate.user_id, SourceChunk.project_id == candidate.project_id,
     ))}
     validated = []
-    for ref in refs:
+    for ref, raw_ref in zip(refs, raw, strict=True):
         chunk = chunks.get(ref.chunk_id)
         if chunk is None or ref.quote not in chunk.content:
             raise _promotion_error()
         start = chunk.content.index(ref.quote)
+        # Server-produced batch evidence may refer to a later occurrence in the
+        # same immutable chunk. Verify that location against the original text.
+        suggested = raw_ref.get('start_line')
+        if isinstance(suggested,int) and suggested >= chunk.start_line:
+            lines = chunk.content.splitlines(keepends=True)
+            offset = sum(len(line) for line in lines[:suggested-chunk.start_line])
+            located = chunk.content.find(ref.quote, offset)
+            if located >= 0 and chunk.start_line+chunk.content[:located].count('\n') == suggested:
+                start = located
         line = chunk.start_line + chunk.content[:start].count("\n")
         validated.append((chunk, ref.quote, line, line + ref.quote.count("\n")))
     return validated

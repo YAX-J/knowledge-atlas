@@ -1,5 +1,6 @@
 import { computed, nextTick, onScopeDispose, ref, watch, type Ref } from 'vue'
 import { extractKnowledge, getExtraction, listCandidates, resolveCandidate, resolveCandidatesBatch } from '../api/knowledgeAtlas'
+import { getExtractionPlan, extractBatches, type ExtractionPlan } from '../api/extraction'
 import type { ApiProject, CandidateList, ExtractionResult } from '../api/knowledgeAtlas'
 import type { ReviewDecision, ReviewFilters } from '../types'
 
@@ -11,6 +12,8 @@ export function useCandidateReview(project: Ref<ApiProject | null>, selectedSour
   const candidates = ref<CandidateList | null>(null)
   const reviewFilters = ref<ReviewFilters>({ status: '', kind: '', query: '' })
   const extraction = ref<ExtractionResult | null>(null)
+  const batchPlan = ref<ExtractionPlan | null>(null), batchPlanLoading=ref(false), batchPlanError=ref('')
+  let planRead=0
   const reviewsLoading = ref(false)
   const extracting = ref(false)
   const resolving = ref('')
@@ -18,6 +21,7 @@ export function useCandidateReview(project: Ref<ApiProject | null>, selectedSour
   const reviewsError = ref('')
   const reviewsNotice = ref('')
   function clearReviews() {
+    planRead++;batchPlan.value=null;batchPlanLoading.value=false;batchPlanError.value=''
     reviewsRequest++; reviewAction++
     candidates.value = null
     reviewFilters.value = { status: '', kind: '', query: '' }
@@ -66,7 +70,16 @@ export function useCandidateReview(project: Ref<ApiProject | null>, selectedSour
     }
   }
 
-  async function extractSource() {
+  async function previewBatches() {
+    const source=selectedSourceId.value,projectId=project.value?.id,request=++planRead
+    if(disposed||!source||reviewBusy.value)return
+    batchPlanLoading.value=true;batchPlanError.value='';batchPlan.value=null
+    try {const plan=await getExtractionPlan(source);if(!disposed&&request===planRead&&selectedSourceId.value===source&&project.value?.id===projectId)batchPlan.value=plan}
+    catch(error){if(!disposed&&request===planRead)batchPlanError.value=errorMessage(error)}
+    finally{if(!disposed&&request===planRead)batchPlanLoading.value=false}
+  }
+
+  async function extractSource(planSha256?:string) {
     const sourceId = selectedSourceId.value
     if (disposed || !sourceId || extracting.value || resolving.value) return
     const action = ++reviewAction
@@ -75,7 +88,7 @@ export function useCandidateReview(project: Ref<ApiProject | null>, selectedSour
     extracting.value = true
     reviewsError.value = reviewsNotice.value = ''
     try {
-      const result = await extractKnowledge(sourceId)
+      const result = planSha256 ? await extractBatches(sourceId,planSha256) : await extractKnowledge(sourceId)
       if (action !== reviewAction || sourceId !== selectedSourceId.value) return
       extraction.value = result
       await loadReviews(1)
@@ -133,5 +146,5 @@ export function useCandidateReview(project: Ref<ApiProject | null>, selectedSour
   watch(() => [project.value?.id, selectedSourceId.value], clearReviews, { flush:'sync' })
   onScopeDispose(() => { disposed = true; clearReviews() })
   return { candidates, reviewFilters, extraction, reviewsLoading, extracting, resolving, reviewBusy,
-    reviewsError, reviewsNotice, clearReviews, applyReviewFilters, loadReviews, extractSource, reviewCandidate, reviewCandidatesBatch }
+    reviewsError, reviewsNotice, batchPlan, batchPlanLoading, batchPlanError, previewBatches, clearReviews, applyReviewFilters, loadReviews, extractSource, reviewCandidate, reviewCandidatesBatch }
 }

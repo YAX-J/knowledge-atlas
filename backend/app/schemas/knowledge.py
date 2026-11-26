@@ -94,6 +94,19 @@ class EvidenceRead(BaseModel):
     heading_path: list[str]
 
 
+class ExtractionPlan(BaseModel):
+    protocol: str
+    plan_sha256: str
+    batch_count: int
+    max_batches: int
+    chunk_count: int
+    fragment_count: int
+    input_chars: list[int]
+    input_limit: int
+    model: str
+    cached: bool
+
+
 class ReviewEndpointRead(BaseModel):
     id: uuid.UUID
     name: str

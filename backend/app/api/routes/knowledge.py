@@ -6,7 +6,7 @@ from fastapi import APIRouter, Query
 from app.api.dependencies import CurrentUserId, DatabaseSession
 from app.core.config import get_settings
 from app.models.domain import ReviewStatus
-from app.schemas.knowledge import ExtractionRead, ReviewBatchRead, ReviewBatchResolve, ReviewList, ReviewRead, ReviewResolve
+from app.schemas.knowledge import ExtractionPlan, ExtractionRead, ReviewBatchRead, ReviewBatchResolve, ReviewList, ReviewRead, ReviewResolve
 from app.services import knowledge
 
 
@@ -19,8 +19,16 @@ def get_extraction(source_id: uuid.UUID, db: DatabaseSession, user_id: CurrentUs
 
 
 @router.post("/sources/{source_id}/extract", response_model=ExtractionRead)
-def extract(source_id: uuid.UUID, db: DatabaseSession, user_id: CurrentUserId):
-    return knowledge.run_extraction(db, user_id=user_id, source_id=source_id, settings=get_settings())
+def extract(source_id: uuid.UUID, db: DatabaseSession, user_id: CurrentUserId,
+            strategy: Literal['single_step','batched']='single_step',
+            plan_sha256: str | None = Query(default=None,pattern='^[0-9a-f]{64}$')):
+    return knowledge.run_extraction(db, user_id=user_id, source_id=source_id, settings=get_settings(),
+        strategy=strategy,approved_plan_sha256=plan_sha256)
+
+
+@router.get('/sources/{source_id}/extraction-plan',response_model=ExtractionPlan)
+def extraction_plan(source_id: uuid.UUID, db: DatabaseSession, user_id: CurrentUserId):
+    return knowledge.extraction_plan(db,user_id=user_id,source_id=source_id,settings=get_settings())
 
 
 @router.get("/projects/{project_id}/reviews", response_model=ReviewList)

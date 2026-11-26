@@ -24,8 +24,10 @@ from app.services.projects import get_project
 EXTRACTION_TASK_TYPE = "knowledge_candidates"
 
 
-def extraction_task_id(source_id: uuid.UUID, strategy='single_step', note_revision_id: uuid.UUID | None = None) -> uuid.UUID:
+def extraction_task_id(source_id: uuid.UUID, strategy='single_step', note_revision_id: uuid.UUID | None = None, plan_sha256: str | None = None) -> uuid.UUID:
     version = deepseek.PROMPT_VERSION + (':tools-v1' if strategy == 'tools' else '')
+    if strategy == 'batched':
+        version += f':batched-v1:{plan_sha256}'
     if note_revision_id is not None:
         version += f':note:{note_revision_id}'
     return uuid.uuid5(source_id, version)
@@ -43,6 +45,24 @@ def _source(db: Session, user_id: uuid.UUID, source_id: uuid.UUID) -> SourceDocu
     source = get_source(db, user_id=user_id, source_id=source_id)
     get_project(db, user_id=user_id, project_id=source.project_id)
     return source
+
+
+def _batch_plan(db, source, settings):
+    from app.services.extraction_batches import build_plan, MAX_CHUNKS
+    if source.status != SourceStatus.READY:
+        raise AppError(status_code=409,code='SOURCE_NOT_PARSED',message='请先完成资料解析')
+    chunks=list(db.scalars(select(SourceChunk).where(SourceChunk.source_id==source.id,
+        SourceChunk.user_id==source.user_id,SourceChunk.project_id==source.project_id)
+        .order_by(SourceChunk.position).limit(MAX_CHUNKS+1)))
+    return build_plan(source,chunks,settings)
+
+
+def extraction_plan(db, *, user_id, source_id, settings):
+    source=_source(db,user_id,source_id)
+    plan=_batch_plan(db,source,settings)
+    task_id=extraction_task_id(source.id,'batched',plan_sha256=plan.public['plan_sha256'])
+    current=get_extraction(db,user_id=user_id,source_id=source.id,task_id=task_id)
+    return {**plan.public,'cached':bool(current.task and current.task.status==TaskStatus.SUCCEEDED)}
 
 
 def get_extraction(db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID, task_id: uuid.UUID | None = None) -> ExtractionRead:
@@ -73,6 +93,7 @@ def get_extraction(db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID, tas
 def run_extraction(
     db: Session, *, user_id: uuid.UUID, source_id: uuid.UUID, settings: Settings, strategy='single_step', code_findings=None,
     note_revision_id: uuid.UUID | None = None, temporal_reference: datetime | None = None,
+    approved_plan_sha256: str | None = None,
 ) -> ExtractionRead:
     source = _source(db, user_id, source_id)
     # Serialize short claims only. The model call runs after this transaction commits.
@@ -80,9 +101,15 @@ def run_extraction(
         SourceDocument.id == source.id, SourceDocument.user_id == user_id,
         SourceDocument.project_id == source.project_id,
     ).with_for_update())
-    if strategy not in {'single_step','tools'}:
+    if strategy not in {'single_step','tools','batched'}:
         raise AppError(status_code=422,code='EXTRACTION_STRATEGY_INVALID',message='不支持的抽取策略')
-    task_id = extraction_task_id(source.id, strategy, note_revision_id)
+    batch_plan = None
+    if strategy == 'batched':
+        batch_plan = _batch_plan(db, source, settings)
+        if approved_plan_sha256 != batch_plan.public['plan_sha256']:
+            raise AppError(status_code=409,code='EXTRACTION_PLAN_CHANGED',message='分批计划已变化，请重新预览后确认')
+    task_id = extraction_task_id(source.id, strategy, note_revision_id,
+        batch_plan.public['plan_sha256'] if batch_plan else None)
     current = get_extraction(db, user_id=user_id, source_id=source.id, task_id=task_id)
     if current.task and current.task.status == TaskStatus.SUCCEEDED:
         db.commit()
@@ -98,7 +125,7 @@ def run_extraction(
     chunks = list(db.scalars(select(SourceChunk).where(
         SourceChunk.user_id == user_id, SourceChunk.project_id == source.project_id,
         SourceChunk.source_id == source.id,
-    ).order_by(SourceChunk.position).limit(101)))
+    ).order_by(SourceChunk.position).limit(801 if batch_plan else 101)))
     if not chunks:
         raise AppError(status_code=409, code="SOURCE_HAS_NO_CHUNKS", message="资料没有可提取的原文分块")
     model_input = [{"chunk_id": str(chunk.id), "content": chunk.content} for chunk in chunks]
@@ -106,7 +133,9 @@ def run_extraction(
         "content": chunk.content, "start_line": chunk.start_line,
         "heading_path": list(chunk.heading_path),
     } for chunk in chunks}
-    if len(chunks) > 100 or len(json.dumps({"chunks": model_input}, ensure_ascii=False)) > settings.extraction_max_input_chars:
+    if batch_plan:
+        evidence_chunks = batch_plan.evidence
+    if not batch_plan and (len(chunks) > 100 or len(json.dumps({"chunks": model_input}, ensure_ascii=False)) > settings.extraction_max_input_chars):
         raise AppError(status_code=413, code="EXTRACTION_INPUT_TOO_LARGE", message="资料超过单次提取限制，请拆分为较小的文件")
     execution_id = uuid.uuid4()
     if task is None:
@@ -124,7 +153,7 @@ def run_extraction(
     task.completed_at = None
     task.execution_id = execution_id
     task.lease_expires_at = now + timedelta(seconds=max(
-        settings.task_lease_seconds, math.ceil(settings.deepseek_timeout_seconds) + 60,
+        settings.task_lease_seconds, math.ceil(settings.deepseek_timeout_seconds) * (len(batch_plan.batches) if batch_plan else 1) + 60,
     ))
     task.attempt_count += 1
     db.commit()
@@ -134,7 +163,22 @@ def run_extraction(
     error: dict[str, str] | None = None
     try:
         from app.agents.registry import get_agent
-        result = get_agent('knowledge_extraction').run(strategy,dict(settings=settings,chunks=model_input,code_findings=code_findings))
+        if batch_plan:
+            from app.services.extraction_batches import invoke_batches
+            def before_batch(index, total):
+                owned = db.execute(update(ProcessingTask).where(ProcessingTask.id == task.id,
+                    ProcessingTask.user_id == user_id, ProcessingTask.project_id == source.project_id,
+                    ProcessingTask.status == TaskStatus.RUNNING, ProcessingTask.execution_id == execution_id,
+                ).values(progress=math.floor(index / total * 90),
+                    lease_expires_at=utc_now()+timedelta(seconds=max(settings.task_lease_seconds,math.ceil(settings.deepseek_timeout_seconds)+60)))
+                    .execution_options(synchronize_session=False))
+                if owned.rowcount != 1:
+                    db.rollback()
+                    raise AppError(status_code=409,code='EXTRACTION_REPLACED',message='提取已被接手，已停止后续批次')
+                db.commit()
+            result = invoke_batches(batch_plan,settings,task.id,before_batch)
+        else:
+            result = get_agent('knowledge_extraction').run(strategy,dict(settings=settings,chunks=model_input,code_findings=code_findings))
         ids = {draft.local_id: uuid.uuid5(task.id, draft.local_id)
                for draft in [*result.entities, *result.relations]}
         entities = {draft.local_id: draft for draft in result.entities}
@@ -148,7 +192,7 @@ def run_extraction(
                 start = chunk["content"].index(reference.quote)
                 start_line = chunk["start_line"] + chunk["content"][:start].count("\n")
                 evidence.append({
-                    "chunk_id": str(reference.chunk_id), "quote": reference.quote,
+                    "chunk_id": str(chunk.get('chunk_id', reference.chunk_id)), "quote": reference.quote,
                     "start_line": start_line,
                     "end_line": start_line + reference.quote.count("\n"),
                     "heading_path": chunk["heading_path"],
@@ -157,7 +201,7 @@ def run_extraction(
             payload = {
                 "kind": "relation" if relation else "entity",
                 "local_id": draft.local_id, "evidence": evidence,
-                "model": settings.deepseek_model, "prompt_version": deepseek.PROMPT_VERSION+(':tools-v1' if strategy=='tools' else ''),
+                "model": settings.deepseek_model, "prompt_version": deepseek.PROMPT_VERSION+(':tools-v1' if strategy=='tools' else ':batched-v1' if batch_plan else ''),
             }
             if draft.temporal is not None:
                 expressions = [draft.temporal.start, draft.temporal.end]

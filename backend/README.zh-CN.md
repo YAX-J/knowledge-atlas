@@ -1,5 +1,7 @@
 # Knowledge Atlas 后端
 
+长文档支持免费 `GET /sources/{id}/extraction-plan` 与显式 `POST .../extract?strategy=batched&plan_sha256=...`，最多8批、全部校验通过才保存待审核候选。默认单次限制保持，失败不自动重试，见[ADR0085](../docs/adr/0085-bounded-batch-extraction.zh-CN.md)。
+
 2026-11-26：源码预期 head 为 `20261126_0024`，新增 `source_archives` 与 `answer_feedback`，提供项目编辑/归档恢复、资料归档恢复及已保存回答的结论纠错。当前业务库不自动升级，先备份/隔离恢复后再迁移，见 [ADR 0084](../docs/adr/0084-library-archiving-answer-feedback.zh-CN.md)。
 
 普通上传现按规范化相对路径与内容共同去重，不同路径同内容分别保留来源及解析任务；无路径来源只在无路径集合内按内容复用。无需数据库迁移，历史缺失路径需重新上传。见 [ADR 0083](../docs/adr/0083-path-aware-source-ingestion.zh-CN.md)。

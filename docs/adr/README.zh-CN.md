@@ -1,5 +1,7 @@
 # 架构决策记录
 
+- [ADR 0085 显式预览的有界长文档分批抽取](0085-bounded-batch-extraction.zh-CN.md)
+
 - [ADR 0084 可恢复资料库与绑定原答的纠错记录](0084-library-archiving-answer-feedback.zh-CN.md)
 
 - [ADR 0083 带路径上传保留独立来源](0083-path-aware-source-ingestion.zh-CN.md)

@@ -87,7 +87,7 @@ def main():
             env["KA_GITHUB_REPORT"] = str(report)
             tests.append("tests/test_github_public_acceptance.py")
             print(f"Explicit public GitHub read-only acceptance enabled; report: {report}", flush=True)
-        tests.extend(['tests/test_notes.py','tests/test_assistant_workspace.py','tests/test_library.py','tests/test_sources.py'])
+        tests.extend(['tests/test_notes.py','tests/test_assistant_workspace.py','tests/test_library.py','tests/test_sources.py','tests/test_extraction_batches.py'])
         if os.environ.get('KA_M5_OFFLINE')=='1':tests.append('tests/test_m5_flows.py')
         # Providers are stubbed inside these tests. No API key or URL is passed in argv.
         offline_plugin=['-p','scripts.m5_offline'] if os.environ.get('KA_M5_OFFLINE')=='1' else []

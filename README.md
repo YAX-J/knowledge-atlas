@@ -1,5 +1,7 @@
 # Knowledge Atlas
 
+Long documents support a free batch plan followed by explicit confirmation of up to eight extraction requests. Results are validated and published as pending candidates atomically; failures are never automatically retried. [Batch extraction](docs/adr/0085-bounded-batch-extraction.zh-CN.md)
+
 [简体中文](README.zh-CN.md)
 
 Knowledge Atlas is a graduation project that organizes a developer's technical notes, code, and repository history into a temporal personal knowledge graph. The frontend opens the project graph. To add knowledge, open **Project notes**, save a Markdown revision, and select **Analyze note and extract knowledge**. Review each candidate against the original text before adding it to the graph. Search results, historical graph views, and answers can then lead back to the supporting evidence.

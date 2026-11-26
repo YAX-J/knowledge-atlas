@@ -10,6 +10,8 @@ M4 propose_knowledge delegates existing strict extraction inside the shared runt
 M2 async_v2 uses durable pre-call attempted-request receipts and per-model/individual-tool checkpoints in the bounded loop. Completed decisions/tool outputs and server reference pools resume without repeating completed requests. Unknown outcomes stay counted, require explicit acknowledgement and never auto requeue. Runtime/model/endpoint/tool-contract and source hashes are pinned. Keep v1 synchronous and evidence-claims protocols unchanged; live quality remains unmeasured.
 # 候选知识抽取
 
+ADR0085 显式分批：GET extraction-plan 免费规划，POST strategy=batched 必须匹配 plan_sha256；最多8批/800原块、每批100片及配置JSON字符限，每批一次 single_step。片段UUID映射回原块/实际行号，严查当前批引用并隔离局部ID，仅精确同内容同位置去重。每批付费前检查任务执行权，全部通过才原子保存候选。无自动重试/回退/续跑，成功计划缓存，失败后显式重试整轮可能重复计费。保持单次/工具旧协议；新增回归 test_extraction_batches 和原生/桌面零调用预览。
+
 Project assistant M1 uses separate assistant-task-v1/assistant-report-v1, not QuestionRead or candidate extraction. Raw/code/knowledge reference types stay distinct; only server-returned IDs may appear in reports. Never promote raw excerpts or referenced claims into formal knowledge. No provider retries/automatic continuation; frozen experiments and grants remain unchanged. See ADR0076 (locally verified with substitutes; live quality unmeasured).
 
 模型只生成候选或基于已选证据生成回答，不直接写权威表；每个候选和支持性回答都必须能回到原文。候选入口：`backend/app/services/knowledge.py::run_extraction`、`backend/app/services/deepseek.py`、`backend/app/schemas/knowledge.py`；回答入口：`backend/app/services/questions.py`、`backend/app/schemas/questions.py`。

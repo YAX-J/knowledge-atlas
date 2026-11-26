@@ -1,5 +1,11 @@
 # Knowledge Atlas 前后端接口草案
 
+## 2026-11-26 有界分批抽取（ADR 0085）
+
+`GET /sources/{source_id}/extraction-plan` 不调用模型，返回 `protocol/plan_sha256/batch_count/max_batches/chunk_count/fragment_count/input_chars/input_limit/model/cached`。只读当前用户及未归档项目内已解析来源；最多 8 批、800 原分块，每批最多 100 精确片段且不超过配置字符预算。超限 413 `EXTRACTION_BATCH_LIMIT`。
+
+`POST /sources/{source_id}/extract` 默认单次保持；`strategy=batched` 时必须传 `plan_sha256`，计划漂移 409 `EXTRACTION_PLAN_CHANGED`。同成功计划无调用复用，执行每批一次、无自动重试，后续失败不保存部分候选。正式证据恢复原分块 UUID 及已核验行号。候选仍需审核。计划不是免费执行承诺，未成功任务重试可能重复计费；较早单次限制仍适用于默认模式。
+
 ## 2026-11-26 资料库管理与结论纠错（ADR 0084）
 
 - `PUT /projects/{project_id}`：`{name,description,expected_updated_at}`，返回 `ProjectRead`。更新时间必须带时区，过期修改返回 409 `PROJECT_CHANGED`。相同目标值重复提交返回当前记录。

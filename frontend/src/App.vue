@@ -201,6 +201,7 @@ let structureRequest = 0
 let agentCallRequest = 0
 const {
   candidates, reviewFilters, extraction, reviewsLoading, extracting, resolving, reviewBusy, reviewsError, reviewsNotice,
+  batchPlan, batchPlanLoading, batchPlanError, previewBatches,
   clearReviews, applyReviewFilters, loadReviews, extractSource, reviewCandidate, reviewCandidatesBatch,
 } = useCandidateReview(project, selectedSourceId, () => clearIndexStatus(), errorMessage)
 const changeBusy = ref(false)
@@ -902,6 +903,7 @@ const {routeError,retryRoute,cancelRouteRestore}=useWorkspaceRoute(()=>({nav:act
         <CandidateReview :key="selectedSourceId" :candidates="candidates" :extraction="extraction"
           :loading="reviewsLoading" :extracting="extracting" :resolving="resolving"
           :error="reviewsError" :notice="reviewsNotice" :filters="reviewFilters"
+          :batch-plan="batchPlan" :batch-plan-loading="batchPlanLoading" :batch-plan-error="batchPlanError" @preview-batches="previewBatches"
           @extract="extractSource" @refresh="loadReviews" @filter="applyReviewFilters" @resolve="reviewCandidate" @resolve-batch="reviewCandidatesBatch" @graph="openProjectGraph" />
       </template>
     </SourceWorkspace>

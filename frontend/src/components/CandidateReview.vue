@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import type { CandidateList, ExtractionResult } from '../api/knowledgeAtlas'
 import type { KnowledgeCandidate, ReviewDecision, ReviewFilters } from '../types'
+import type { ExtractionPlan } from '../api/extraction'
 
 const props = defineProps<{
   candidates: CandidateList | null
@@ -12,9 +13,13 @@ const props = defineProps<{
   error: string
   notice: string
   filters?: ReviewFilters
+  batchPlan?: ExtractionPlan | null
+  batchPlanLoading?: boolean
+  batchPlanError?: string
 }>()
 const emit = defineEmits<{
-  extract: []
+  extract: [planSha256?:string]
+  previewBatches: []
   refresh: [page?: number]
   resolve: [decision: ReviewDecision]
   graph: []
@@ -180,6 +185,11 @@ function confirm(id: string) {
         {{ extracting ? '正在提取，请稍候…' : extraction?.task?.status === 'failed' ? '重试提取候选知识' : extraction?.task?.status === 'running' ? '恢复超时提取' : '提取候选知识' }}
       </button>
       <p v-if="extraction?.task?.status === 'running' && !extracting" class="muted-copy" role="status">提取任务正在执行，请刷新候选查看结果。中断后可在租约到期时手动恢复。</p>
+      <details v-if="extraction?.task?.status !== 'succeeded'" class="batch-extraction"><summary>长文档分批提取</summary>
+        <button class="text-button" type="button" :disabled="loading||busy||batchPlanLoading" @click="emit('previewBatches')">{{ batchPlanLoading?'正在准备计划…':'免费预览分批计划' }}</button>
+        <p v-if="batchPlanError" role="alert">{{ batchPlanError }}</p>
+        <template v-if="batchPlan"><p>计划分 {{ batchPlan.batch_count }} 批，最多 {{ batchPlan.batch_count }} 次模型请求（上限 {{ batchPlan.max_batches }} 批），模型 {{ batchPlan.model }}。预览不会调用模型。</p><p>全部结果通过证据校验后才保存候选。失败不自动重试；重新确认可能重复计费。停止等待不会撤销已发出的请求，可刷新查看状态。</p><button class="primary-button" type="button" :disabled="loading||busy||batchPlanLoading" @click="emit('extract',batchPlan.plan_sha256)">{{ batchPlan.cached?'读取已完成分批结果':`确认按 ${batchPlan.batch_count} 批提取候选` }}</button></template>
+      </details>
       <p v-if="loading" class="muted-copy" role="status">正在读取候选知识…</p>
       <p v-if="error" class="inline-error" role="alert">{{ error }}</p>
       <p v-if="notice" class="success-copy" role="status">{{ notice }}</p>
@@ -314,6 +324,11 @@ function confirm(id: string) {
 </template>
 
 <style scoped>
+.batch-extraction { margin:12px 0;padding:12px;border:1px solid var(--line);border-radius:7px; }
+.batch-extraction summary { cursor:pointer;font-size:13px;font-weight:600; }
+.batch-extraction p { font-size:12px;line-height:1.8;overflow-wrap:anywhere; }
+.batch-extraction button { margin-top:10px;min-height:36px; }
+.batch-extraction summary:focus-visible { outline:2px solid var(--teal);outline-offset:3px; }
 .relationship-replacement { margin: 14px 0; padding: 14px; border: 1px solid var(--line); font-size: 13px; overflow-wrap: anywhere; }
 .relationship-replacement h5 { font-size: 15px; margin: 0 0 8px; }
 .replacement-evidence { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 16px; }
