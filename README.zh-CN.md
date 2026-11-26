@@ -8,6 +8,10 @@ Knowledge Atlas 是面向毕业设计的个人技术知识系统，将开发者�
 
 ## 当前可用能力
 
+hybrid 词法分支改用 BM25，支持中文问题软匹配并保存新协议版本；默认检索和 RRF 保持。原生配对测量结果存在规模差异，读取批次暂保留200。[检索边界与测量](docs/adr/0087-hybrid-bm25-protocol.zh-CN.md)
+
+语义索引逐批保存向量及进度，后续失败后可显式重新更新并复用已完成内容。刷新状态不触发续跑；已保存批次可检索，覆盖可能不完整。[向量恢复边界](docs/adr/0086-persisted-embedding-batches.zh-CN.md)
+
 长文档可在候选审核处免费预览分批计划，再明确确认最多 8 批的抽取；全部结果校验通过后保存待审核候选，失败不自动重试。[分批边界](docs/adr/0085-bounded-batch-extraction.zh-CN.md)
 
 项目可编辑、归档和恢复；资料可按归档状态筛选并恢复，历史证据保留。已保存会话支持按结论记录问题和纠错说明，不改写原答或正式知识。[资料库与反馈](docs/adr/0084-library-archiving-answer-feedback.zh-CN.md)

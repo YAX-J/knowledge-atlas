@@ -1,5 +1,9 @@
 # 架构决策记录
 
+- [ADR 0087 hybrid 词法召回与配对测量](0087-hybrid-bm25-protocol.zh-CN.md)
+
+- [ADR 0086 逐批保存向量与显式恢复](0086-persisted-embedding-batches.zh-CN.md)
+
 - [ADR 0085 显式预览的有界长文档分批抽取](0085-bounded-batch-extraction.zh-CN.md)
 
 - [ADR 0084 可恢复资料库与绑定原答的纠错记录](0084-library-archiving-answer-feedback.zh-CN.md)

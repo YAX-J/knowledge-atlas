@@ -119,6 +119,7 @@ class QuestionEvidenceRead(FormalEvidenceRead):
 
 
 class RetrievalSummary(BaseModel):
+    hybrid_protocol: Literal['bm25-vector-graph-v2'] | None = None
     keyword_hits: int
     vector_hits: int
     graph_hits: int

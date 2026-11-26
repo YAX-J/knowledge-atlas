@@ -71,7 +71,7 @@ function clear() { query.value = type.value = ''; submitted = ''; mode.value = '
             <p v-else-if="(result.mode === 'bm25' || result.mode === 'bm25_source')" class="hit-meta">命中：{{ hit.matched_fields.map(field => fields[field]).join('、') }} · BM25 得分 {{ (hit.bm25_score ?? 0).toFixed(3) }}</p>
             <p v-else-if="result.mode === 'vector'" class="hit-meta">向量相似度 {{ ((hit.vector_score ?? 0) * 100).toFixed(1) }}%</p>
             <p v-else-if="result.mode === 'rrf'" class="hit-meta">融合得分 {{ hit.rrf_score?.toFixed(5) }} · 词法排名 {{ hit.lexical_rank ?? '未命中' }} · 向量排名 {{ hit.vector_rank ?? '未命中' }}。排名不表示答案可信度。</p>
-            <p v-else class="hit-meta">融合得分 {{ ((hit.hybrid_score ?? 0) * 100).toFixed(1) }} · 关键词 {{ ((hit.keyword_component ?? 0) * 100).toFixed(1) }}% · 向量 {{ ((hit.vector_component ?? 0) * 100).toFixed(1) }}% · 图关系 {{ ((hit.graph_score ?? 0) * 100).toFixed(1) }}%</p>
+            <p v-else class="hit-meta">融合得分 {{ ((hit.hybrid_score ?? 0) * 100).toFixed(1) }} · {{ result.hybrid_protocol === 'bm25-vector-graph-v2' ? 'BM25 词法' : '关键词' }} {{ ((hit.keyword_component ?? 0) * 100).toFixed(1) }}% · 向量 {{ ((hit.vector_component ?? 0) * 100).toFixed(1) }}% · 图关系 {{ ((hit.graph_score ?? 0) * 100).toFixed(1) }}%</p>
             <div v-if="result.mode === 'hybrid' && result.weights" class="search-score-bar" aria-hidden="true">
               <span :style="{ flexBasis: `${Math.max(0, (hit.keyword_component ?? 0) * result.weights.keyword) * 100}%` }"></span>
               <span :style="{ flexBasis: `${Math.max(0, (hit.vector_component ?? 0) * result.weights.vector) * 100}%` }"></span>
@@ -93,6 +93,7 @@ function clear() { query.value = type.value = ''; submitted = ''; mode.value = '
         <p v-else-if="embeddingJob.status === 'running'" role="status">服务端仍在更新索引，刷新页面不会取消。可刷新状态查看结果。</p>
         <p v-else-if="embeddingJob.status === 'succeeded'" role="status">上次索引更新已完成：新增或刷新 {{ embeddingJob.result?.updated_count ?? 0 }} 条。</p>
         <p v-else role="status">上次索引更新未完成：{{ embeddingJob.error?.message }}</p>
+        <p v-if="embeddingJob.result && embeddingJob.status !== 'succeeded'" role="status">已保存 {{ embeddingJob.result.updated_count }} 条，本轮剩余 {{ embeddingJob.result.remaining_count ?? 0 }} 条。已保存批次可供检索，覆盖可能不完整；显式重新更新时复用匹配的模型、维度和内容，不自动重试。</p>
         <button v-if="embeddingJob.interrupted" type="button" :disabled="rebuilding || loading" @click="emit('rebuild', true)">明确重新更新索引</button>
       </template>
       <p v-if="indexStatusError" role="alert">{{ indexStatusError }} 请刷新索引状态重试。</p>

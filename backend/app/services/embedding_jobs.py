@@ -5,7 +5,7 @@ from datetime import timedelta, timezone
 from sqlalchemy import select, update
 
 from app.core.errors import AppError
-from app.models.domain import Project, utc_now
+from app.models.domain import utc_now
 from app.models.embedding_job import EmbeddingJob
 from app.services.embeddings import rebuild_project_embeddings
 from app.services.projects import get_project
@@ -32,8 +32,7 @@ def read_job(db, *, user_id, project_id):
 
 
 def rebuild(db, *, user_id, project_id, settings, retry_interrupted=False):
-    get_project(db, user_id=user_id, project_id=project_id)
-    db.execute(select(Project.id).where(Project.id == project_id, Project.user_id == user_id).with_for_update())
+    get_project(db, user_id=user_id, project_id=project_id, lock=True)
     job = db.get(EmbeddingJob, project_id, populate_existing=True)
     if job and job.status == 'running' and (not interrupted(job) or not retry_interrupted):
         expired = interrupted(job)
@@ -50,7 +49,7 @@ def rebuild(db, *, user_id, project_id, settings, retry_interrupted=False):
     db.commit()
 
     def checkpoint(commit):
-        db.execute(select(Project.id).where(Project.id == project_id, Project.user_id == user_id).with_for_update())
+        get_project(db, user_id=user_id, project_id=project_id, lock=True)
         result = db.execute(update(EmbeddingJob).where(EmbeddingJob.project_id == project_id,
             EmbeddingJob.user_id == user_id, EmbeddingJob.execution_id == execution_id,
             EmbeddingJob.status == 'running').values(lease_expires_at=utc_now() + timedelta(seconds=LEASE_SECONDS))
@@ -61,11 +60,26 @@ def rebuild(db, *, user_id, project_id, settings, retry_interrupted=False):
         if commit:
             db.commit()
 
+    def progress(value):
+        updated = db.execute(update(EmbeddingJob).where(
+            EmbeddingJob.project_id == project_id, EmbeddingJob.user_id == user_id,
+            EmbeddingJob.execution_id == execution_id, EmbeddingJob.status == 'running',
+        ).values(result=dict(value)).execution_options(synchronize_session=False))
+        if updated.rowcount != 1:
+            db.rollback()
+            raise AppError(status_code=409, code='EMBEDDING_REBUILD_REPLACED', message='更新已被接手，请刷新状态')
+
     try:
-        result = rebuild_project_embeddings(db, user_id=user_id, project_id=project_id, settings=settings, checkpoint=checkpoint)
-        db.execute(update(EmbeddingJob).where(EmbeddingJob.project_id == project_id,
-            EmbeddingJob.execution_id == execution_id).values(status='succeeded', result=result, completed_at=utc_now())
-            .execution_options(synchronize_session=False))
+        result = rebuild_project_embeddings(
+            db, user_id=user_id, project_id=project_id, settings=settings, checkpoint=checkpoint, progress=progress,
+        )
+        finished = db.execute(update(EmbeddingJob).where(
+            EmbeddingJob.project_id == project_id, EmbeddingJob.user_id == user_id,
+            EmbeddingJob.execution_id == execution_id, EmbeddingJob.status == 'running',
+        ).values(status='succeeded', result=result, completed_at=utc_now()).execution_options(synchronize_session=False))
+        if finished.rowcount != 1:
+            db.rollback()
+            raise AppError(status_code=409, code='EMBEDDING_REBUILD_REPLACED', message='更新已被接手，请刷新状态')
         db.commit()
         return result
     except Exception as exc:

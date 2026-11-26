@@ -1,5 +1,9 @@
 # Knowledge Atlas 后端
 
+hybrid 词法分支使用 BM25，搜索与问答摘要记录 `hybrid_protocol=bm25-vector-graph-v2`；旧记录不重算。配对原生测量命令为 `python -m scripts.benchmark_lexical_batches --output ../output/<新目录>`，禁止供应商且只使用隔离 schema。见 [ADR0087](../docs/adr/0087-hybrid-bm25-protocol.zh-CN.md)。
+
+语义索引每批向量与任务进度原子提交；后续失败保留已保存批次，显式重新更新复用模型/维度/内容哈希匹配记录。状态读取不续跑，部分索引可检索但覆盖可能不完整，见 [ADR0086](../docs/adr/0086-persisted-embedding-batches.zh-CN.md)。
+
 长文档支持免费 `GET /sources/{id}/extraction-plan` 与显式 `POST .../extract?strategy=batched&plan_sha256=...`，最多8批、全部校验通过才保存待审核候选。默认单次限制保持，失败不自动重试，见[ADR0085](../docs/adr/0085-bounded-batch-extraction.zh-CN.md)。
 
 2026-11-26：源码预期 head 为 `20261126_0024`，新增 `source_archives` 与 `answer_feedback`，提供项目编辑/归档恢复、资料归档恢复及已保存回答的结论纠错。当前业务库不自动升级，先备份/隔离恢复后再迁移，见 [ADR 0084](../docs/adr/0084-library-archiving-answer-feedback.zh-CN.md)。

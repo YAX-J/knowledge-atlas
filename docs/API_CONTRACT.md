@@ -1,5 +1,17 @@
 # Knowledge Atlas 前后端接口草案
 
+## 2026-11-26 hybrid 词法升级（ADR 0087）
+
+当前 `mode=hybrid` 使用已有 BM25 软匹配作为词法种子，返回 `hybrid_protocol=bm25-vector-graph-v2`、`lexical` 和 `bm25_score`；`keyword_score=null`。`keyword_component`/`weights.keyword` 为兼容字段，表示归一化 BM25 分支及原0.3权重。池和一跳上限、向量0.4/图0.3权重不变，词法截断合并到总截断。问答 `retrieval` 同步保存 `hybrid_protocol`，旧记录缺省null，不重算历史。
+
+中文自然问题不再套用旧8词AND规则；纯标点沿用BM25的422，符号精确匹配仍选keyword。作用域、有效时点、空向量索引零调用与供应商错误保持。默认keyword、问答默认rrf保持；现有冻结实验不改写。配对性能测量保留读取批次200，不能将本轮工程用例解读为新Recall@5。
+
+## 2026-11-26 向量逐批保存（ADR 0086）
+
+`POST .../embeddings/rebuild` 的结果新增 `remaining_count`、`completed_batches`。每批校验后的向量与任务 `result` 原子提交，后续失败不撤销已保存批次；`GET .../embeddings/rebuild-status` 可在运行中或失败时返回部分 `result`，仍为零调用读取。计数针对本轮计划，实时覆盖请使用索引状态接口。部分结果立即可供检索，覆盖可能不完整。
+
+再次显式更新重新规划，复用原始归属/模型/维度/内容哈希一致的记录。未知或未提交的批次可能重复计费；无自动续跑。执行 UUID 在提交前加锁校验，旧执行不能发布迟到结果；有效索引任务期间项目归档返回冲突。过期任务接手仍要求 `retry_interrupted=true`。不新增迁移。
+
 ## 2026-11-26 有界分批抽取（ADR 0085）
 
 `GET /sources/{source_id}/extraction-plan` 不调用模型，返回 `protocol/plan_sha256/batch_count/max_batches/chunk_count/fragment_count/input_chars/input_limit/model/cached`。只读当前用户及未归档项目内已解析来源；最多 8 批、800 原分块，每批最多 100 精确片段且不超过配置字符预算。超限 413 `EXTRACTION_BATCH_LIMIT`。
@@ -643,7 +655,7 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 
 `POST /api/v1/projects/{project_id}/embeddings/rebuild`
 
-无请求体。后端将正式实体的类型、名称、摘要和证据摘录发送到已配置的 OpenAI-compatible 嵌入服务，保存 1024 维向量；模型与内容哈希未变化的记录复用。返回 `model`、`dimensions`、`eligible_count`、`updated_count` 和 `reused_count`。未配置服务返回 503 `EMBEDDING_NOT_CONFIGURED`，供应商失败返回 503 `EMBEDDING_PROVIDER_FAILED`。调用是显式的，不属于知识确认事务。
+无请求体。后端将正式实体的类型、名称、摘要和证据摘录发送到已配置的 OpenAI-compatible 嵌入服务，逐批保存 1024 维向量及任务进度。原始归属、模型、维度和内容哈希相符时复用记录。返回 `model`、`dimensions`、`eligible_count`、`updated_count`、`reused_count`、`remaining_count` 和 `completed_batches`。未配置服务返回 503 `EMBEDDING_NOT_CONFIGURED`，供应商失败返回 503 `EMBEDDING_PROVIDER_FAILED`，已提交的批次仍可检索。该操作由用户单独触发。
 
 ### 搜索知识
 
@@ -651,8 +663,8 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 
 查询参数：
 
-- `q`：必填，1–200 字符。`keyword` 模式按空白切分为 1–8 个词；`hybrid` 的关键词分支最多使用前 8 个不同词，两者都要求所用词在名称、摘要或证据摘录中命中，重复词只计分一次。`vector` 与 `hybrid` 的向量分支把规范化后的完整文本作为查询。
-- `mode`：`keyword`（默认）、`bm25`、`vector`、`hybrid` 或 `rrf`。新增 `bm25` 是离线中英混合词法排序，不依赖模型或向量索引；不会改变旧关键词/混合语义。
+- `q`：必填，1–200 字符。`keyword` 模式按空白切分为 1–8 个词，要求各词命中名称、摘要或证据摘录，重复词只计分一次。`hybrid` 的词法分支使用 BM25，向量分支使用规范化后的完整文本。
+- `mode`：`keyword`（默认）、`bm25`、`bm25_source`、`vector`、`hybrid` 或 `rrf`。`bm25` 与 `bm25_source` 提供离线中英混合词法排序。
 - `types`：可选，逗号分隔的实体类型。
 - `valid_at`：可选带时区时间，沿用图谱的有效区间和归档过滤。
 - `top_k`：1–50，默认 10。
@@ -661,13 +673,13 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 
 `bm25` 使用 Han 单字/相邻二字片段、casefold Unicode 单词及标识符/部分，允许多词软匹配，不套用旧模式 8 词 AND 规则。纯标点查询返回 422 `SEARCH_QUERY_INVALID`（符号精确检索可用 `keyword`）。每项含可空 `bm25_score`；顶层 `lexical` 使用 `protocol=mixed-bm25-v2`，包含 `query_terms`、累计 `scanned_count`、`entity_limit=50000`、`batch_size=200`、`evidence_limit_per_entity=32`、`text_limit_per_entity=4000`、扫描文本内的正分 `matched_count`、`results_truncated` 和 `truncated_reasons`（`entity_limit/evidence_limit/text_limit`）。名称/UUID 按键分页中的全部已扫描正式实体共同贡献 BM25 全局统计，包含空文本与无命中文档，分批不改变语料统计口径。每个规范实体独享最多 32 条排序证据、每条最多 2000 字符；超预算独立报告，不挤占同批其他实体。`results_truncated` 仅指词法匹配数超过词法 Top K，`truncated_reasons` 表达排序输入省略；总 `truncated` 为两者并集。RRF 的词法元数据指其词法候选池，最终融合 Top K 另由总 `truncated` 表达。`eligible_count` 是可见实体总数，`indexed_count=null`，并非“语义索引未完成”。返回证据仍是精确原文，BM25 不写图谱、不调用外部服务。同步分页不提供跨请求恢复或可重复读快照。旧 v1 协议值仍可解析，既有实验结果不改写；当前协议见 [ADR 0066](adr/0066-batched-global-lexical-retrieval.zh-CN.md)。
 
-向量分支先本地校验嵌入配置、统计同模型/维度的可见索引，为零则直接返回空向量结果，避免空项目/空索引仍付费请求查询嵌入。混合的字面/图分支仍可返回命中。未配置、错误维度、供应商故障的错误语义保留，不静默回退；有匹配索引时仍正常调用查询嵌入。
+向量分支先本地校验嵌入配置、统计同模型/维度的可见索引，为零则直接返回空向量结果。混合的 BM25 与图关系分支仍可返回命中。未配置、维度错误或供应商故障时返回对应错误。有匹配索引时才请求查询嵌入。
 
-关键词得分规则：名称与完整查询忽略大小写完全相同加 50，每个不同词在名称/摘要/证据中命中分别加 10/3/1，不按重复引用计分。向量模式使用同模型的余弦相似度，PostgreSQL 执行 pgvector 精确距离排序。混合模式各取最多 100 个关键词/向量种子，并读取最多 500 条可见一跳关系；关键词按候选池最高分归一，向量贡献截断到 `0..1`，图得分为相邻种子最强归一化信号乘关系置信度，最终为 `0.3 * keyword_component + 0.4 * vector_component + 0.3 * graph_score`。`graph_connections` 最多给出 3 条关系依据。图扩展可召回原本未被关键词/向量命中的邻居。
+关键词模式将忽略大小写的名称完全匹配计 50 分，每个不同词命中名称、摘要和证据分别计 10、3 和 1 分。向量模式使用同模型的余弦相似度，PostgreSQL 执行 pgvector 精确距离排序。混合模式各取最多 100 个 BM25 和向量种子，并读取最多 500 条可见一跳关系。BM25 按候选池最高分归一后放在 `keyword_component`，向量贡献截断到 `0..1`，图得分为相邻种子最强归一化信号乘关系置信度。最终得分为 `0.3 * keyword_component + 0.4 * vector_component + 0.3 * graph_score`。`graph_connections` 最多给出 3 条关系依据。图扩展可召回两路种子以外的邻居。
 
 关键词/向量模式同分按名称、UUID 稳定排序；混合模式按最终得分、名称、UUID 排序。所有分数都不表示知识置信度。无结果返回空数组，超出 `top_k` 或图扩展上限时设置 `truncated`。
 
-关键词匹配采用忽略大小写的字面子串；`%`、`_` 不作通配符，中文不自动分词。搜索校验用户与项目，归档/不可访问项目返回 404；关键词查询空白或超过 8 个词返回 422 `SEARCH_QUERY_INVALID`，混合查询只在空白时返回该错误，未知类型返回 422 `SEARCH_TYPES_INVALID`。关键词查询不调用模型；向量与混合查询会把查询文本发送到已配置的嵌入服务，但只读数据库。关系也必须符合用户、项目、状态和有效时间边界。见 ADR 0008、ADR 0009 与 ADR 0010。
+关键词使用忽略大小写的字面子串，`%` 和 `_` 按普通字符搜索。归档或不可访问项目返回 404。关键词查询空白或超过 8 个词返回 422 `SEARCH_QUERY_INVALID`，BM25 与混合查询至少需要一个可分词的词项。未知类型返回 422 `SEARCH_TYPES_INVALID`。搜索仅读取数据库，关系须符合用户、项目、状态及有效时间范围。见 ADR 0008、ADR 0009、ADR 0010 和 ADR 0087。
 
 ## 证据问答
 
@@ -692,7 +704,7 @@ Java 分析 V1 保留上述接口形状与上限，不写入正式图谱。同�
 }
 ```
 
-`question` 去除首尾空白后必须为 1–200 字符；`valid_at` 可选，提供时必须带时区。`retrieval_mode` 可选 hybrid/rrf/vector/bm25/bm25_source，默认 rrf。最多选 5 个实体，按实体排名轮流取原文，每轮每实体一条，最多 12 段。使用 `(source_id,chunk_id,start_line,end_line,quote)` 去重，保留首条正式证据 ID/归属，不合并不同来源或版本。问题全文用于向量查询；关键词分支最多使用前 8 个不同空白分词。hybrid/rrf/vector 要求嵌入配置；bm25 检索不调用嵌入，但有证据时生成答案仍需 DeepSeek。retrieval 新增 mode/bm25_hits/unique_evidence_count/duplicate_evidence_count/truncated；vector_hits 统计具有向量得分的返回实体数，计数不代表答案可信度。
+`question` 去除首尾空白后必须为 1–200 字符。可选的 `valid_at` 必须带时区。`retrieval_mode` 可选 hybrid/rrf/vector/bm25/bm25_source，默认 rrf。最多选 5 个实体，按实体排名轮流取原文，每轮每实体一条，最多 12 段。使用 `(source_id,chunk_id,start_line,end_line,quote)` 去重，保留首条正式证据的 ID 和归属。向量分支使用检索查询全文，hybrid 的词法分支使用 BM25。hybrid/rrf/vector 要求嵌入配置。bm25 和 bm25_source 检索在本地执行，有证据时生成答案仍需 DeepSeek。`retrieval` 包含 `mode`、`bm25_hits`、`unique_evidence_count`、`duplicate_evidence_count` 和 `truncated`。使用当前 hybrid 检索时另保存 `hybrid_protocol`。`vector_hits` 统计具有向量得分的返回实体数。
 
 ```json
 {
@@ -845,7 +857,7 @@ DeepSeek 收到的内容只含问题及选定证据的 ID、实体名、标题�
 
 `GET /api/v1/projects/{project_id}/embeddings/rebuild-status` 返回 null 或 `{id,project_id,status,interrupted,started_at,lease_expires_at,completed_at,result,error}`。status 为 running/succeeded/failed，id 是最近 execution UUID；result 为既有索引更新结果，error 为脱敏 code/message。零供应商读取，仍校验当前用户和有效项目，不受图谱历史时间影响。
 
-`POST .../embeddings/rebuild` 仍同步返回原结果，在项目锁内持久化认领。运行中重复请求返回 409 EMBEDDING_REBUILD_RUNNING；900 秒租约过期的运行记录返回 interrupted=true，普通 POST 返回 409 EMBEDDING_REBUILD_INTERRUPTED，只有明确 `?retry_interrupted=true` 可接手。每批续租、落库前校验执行 UUID；旧执行返回 409 EMBEDDING_REBUILD_REPLACED，不覆盖新归属。不自动重试，不承诺供应商计费严格一次。
+`POST .../embeddings/rebuild` 同步返回，在项目锁内校验未归档并持久化认领。运行中重复请求返回 409 `EMBEDDING_REBUILD_RUNNING`。900 秒租约过期后，状态返回 `interrupted=true`，普通 POST 返回 409 `EMBEDDING_REBUILD_INTERRUPTED`，使用 `?retry_interrupted=true` 可显式接手。每批续租并在落库前校验执行 UUID，被接手的旧执行返回 409 `EMBEDDING_REBUILD_REPLACED`。向量和任务进度逐批原子提交。重新提交未保存批次可能再次计费。
 
 搜索 mode 和问答 retrieval_mode 支持可选 bm25_source，当前 LexicalSearchInfo.protocol 为 mixed-bm25-source-v2，matched_fields 可含 provenance；分批与预算规则同上。只把正式证据对应的 original_name/relative_path/heading_path 纳入有界词法预算；不扩展未审核来源、正式对象、问答历史或引用 ID。默认模式不变，历史 mixed-bm25-source-v1 实验保持原样。
 

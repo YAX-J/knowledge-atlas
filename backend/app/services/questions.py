@@ -30,7 +30,7 @@ def _retrieval_summary(result) -> RetrievalSummary:
         indexed_count=result.indexed_count or 0,
         eligible_count=result.eligible_count or 0,
         mode=result.mode, bm25_hits=sum((item.bm25_score or 0) > 0 for item in result.items),
-        truncated=result.truncated,
+        truncated=result.truncated, hybrid_protocol=result.hybrid_protocol,
     )
 
 

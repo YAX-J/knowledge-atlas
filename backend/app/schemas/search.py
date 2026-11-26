@@ -61,6 +61,7 @@ class SearchRead(BaseModel):
     eligible_count: int | None = None
     weights: SearchWeights | None = None
     lexical: LexicalSearchInfo | None = None
+    hybrid_protocol: Literal['bm25-vector-graph-v2'] | None = None
 
 
 class EmbeddingRebuildRead(BaseModel):
@@ -69,6 +70,8 @@ class EmbeddingRebuildRead(BaseModel):
     eligible_count: int
     updated_count: int
     reused_count: int
+    remaining_count: int = 0
+    completed_batches: int = 0
 
 
 class EmbeddingStatusRead(BaseModel):

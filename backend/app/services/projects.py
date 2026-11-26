@@ -91,13 +91,15 @@ def archive_project(db, *, user_id, project_id, request):
         from app.models.assistant_task import AssistantTask
         from app.models.agent_run import AgentRun
         from app.models.workspace import Conversation
+        from app.models.embedding_job import EmbeddingJob
         conditions = [
             (AssistantTask, AssistantTask.status.in_(['queued','running','waiting_approval'])),
             (AgentRun, or_(AgentRun.status == 'awaiting_review', and_(AgentRun.status == 'running',
                 or_(AgentRun.lease_until.is_(None), AgentRun.lease_until > utc_now())))),
+            (EmbeddingJob, and_(EmbeddingJob.status=='running',EmbeddingJob.lease_expires_at>utc_now())),
         ]
         for model, active in conditions:
-            if db.scalar(select(model.id).where(model.user_id == user_id, model.project_id == project_id,
+            if db.scalar(select(model.project_id).where(model.user_id == user_id, model.project_id == project_id,
                     active).limit(1)) is not None:
                 raise AppError(status_code=409, code='PROJECT_BUSY', message='项目仍有执行或待审批任务，请先完成或取消')
         if db.scalar(select(Conversation.id).where(Conversation.user_id == user_id,

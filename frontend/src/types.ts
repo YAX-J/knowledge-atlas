@@ -269,6 +269,7 @@ export interface RetirementList {
 }
 
 export interface KnowledgeSearchResult {
+  hybrid_protocol?: 'bm25-vector-graph-v2' | null
   query: string
   mode: KnowledgeSearchMode
   items: {
@@ -318,6 +319,8 @@ export interface EmbeddingRebuildResult {
   eligible_count: number
   updated_count: number
   reused_count: number
+  remaining_count?: number
+  completed_batches?: number
 }
 
 export interface EmbeddingJob {
@@ -386,6 +389,7 @@ export interface QuestionAnswer {
   entity_ids: string[]
   evidence: QuestionEvidence[]
   retrieval: {
+    hybrid_protocol?: 'bm25-vector-graph-v2' | null
     mode?: QuestionRetrievalMode
     bm25_hits?: number
     unique_evidence_count?: number

@@ -145,6 +145,7 @@ def test_vector_index_rebuild_and_semantic_search(client, configured, monkeypatc
     assert first.json() == {
         'model': 'test-embedding-1024', 'dimensions': 1024,
         'eligible_count': 2, 'updated_count': 2, 'reused_count': 0,
+        'remaining_count': 0, 'completed_batches': 1,
     }
     assert client.post(rebuild_url).json()['reused_count'] == 2
     assert len(calls) == 1  # Rebuild does not call the provider for unchanged content.
@@ -194,9 +195,11 @@ def test_hybrid_search_fuses_keyword_vector_and_visible_graph_signals(
     assert data['weights'] == {'keyword': .3, 'vector': .4, 'graph': .3}
     assert data['indexed_count'] == data['eligible_count'] == 2
     assert [hit['entity']['name'] for hit in data['items']] == ['PostgreSQL', 'Store knowledge']
-    assert data['items'][0]['hybrid_score'] == .4
+    assert data['hybrid_protocol'] == 'bm25-vector-graph-v2'
+    assert data['items'][0]['bm25_score'] > 0
+    assert data['items'][0]['hybrid_score'] == .7  # BM25 soft-matches database despite absent durable.
     related = data['items'][1]
-    assert related['keyword_score'] == 0 and related['vector_score'] == 0
+    assert related['bm25_score'] == 0 and related['keyword_score'] is None and related['vector_score'] == 0
     assert related['keyword_component'] == 0 and related['vector_component'] == 0
     assert related['graph_score'] == .9 and related['hybrid_score'] == .27
     assert related['graph_connections'][0]['related_entity_name'] == 'PostgreSQL'

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.errors import AppError
-from app.models.domain import Project, utc_now
+from app.models.domain import utc_now
 from app.models.graph import KnowledgeEmbedding, KnowledgeEntity, KnowledgeEvidence
 from app.services.projects import get_project
 from app.schemas.search import EmbeddingStatusRead
@@ -170,7 +170,7 @@ def plan_project_embeddings(db: Session, *, user_id: uuid.UUID, project_id: uuid
 
 
 def rebuild_project_embeddings(
-    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, settings: Settings, checkpoint=None,
+    db: Session, *, user_id: uuid.UUID, project_id: uuid.UUID, settings: Settings, checkpoint=None, progress=None,
 ) -> dict:
     get_project(db, user_id=user_id, project_id=project_id)
     try:
@@ -179,46 +179,50 @@ def rebuild_project_embeddings(
         raise AppError(status_code=503, code=exc.code, message=exc.message) from exc
     eligible, pending = plan_project_embeddings(db, user_id=user_id, project_id=project_id, settings=settings)
 
-    # Release the read transaction before the external request. Persistence is
-    # serialized only after vectors return, so project writes are not blocked by network latency.
+    # Persist each validated batch and its progress together. A later explicit
+    # rebuild reuses matching owner/model/dimension/content hashes.
     db.commit()
-    vectors: list[list[float]] = []
+    result = dict(
+        model=settings.embedding_model, dimensions=settings.embedding_dimensions,
+        eligible_count=eligible, updated_count=0, reused_count=eligible - len(pending),
+        remaining_count=len(pending), completed_batches=0,
+    )
     try:
         for offset in range(0, len(pending), settings.embedding_batch_size):
             if checkpoint:
                 checkpoint(True)
             batch = pending[offset:offset + settings.embedding_batch_size]
-            vectors.extend(embed_texts(settings, [item[1] for item in batch]))
+            vectors = embed_texts(settings, [item[1] for item in batch])
+            if checkpoint:
+                checkpoint(False)
+            else:
+                get_project(db, user_id=user_id, project_id=project_id, lock=True)
+            records = db.scalars(select(KnowledgeEmbedding).where(
+                KnowledgeEmbedding.entity_id.in_([item[0] for item in batch]),
+                KnowledgeEmbedding.user_id == user_id, KnowledgeEmbedding.project_id == project_id,
+            ))
+            current = {row.entity_id: row for row in records}
+            for (entity_id, _, digest), vector in zip(batch, vectors, strict=True):
+                row = current.get(entity_id)
+                if row is None:
+                    row = KnowledgeEmbedding(entity_id=entity_id, user_id=user_id, project_id=project_id)
+                    db.add(row)
+                row.model = settings.embedding_model
+                row.dimensions = settings.embedding_dimensions
+                row.content_sha256 = digest
+                row.embedding = vector
+            result['updated_count'] += len(batch)
+            result['remaining_count'] -= len(batch)
+            result['completed_batches'] += 1
+            if progress:
+                progress(result)
+            db.commit()
     except EmbeddingError as exc:
         raise AppError(status_code=503, code=exc.code, message=exc.message) from exc
 
     if checkpoint:
         checkpoint(False)
-    if pending:
-        project = db.scalar(select(Project).where(
-            Project.id == project_id, Project.user_id == user_id, Project.archived_at.is_(None),
-        ).with_for_update())
-        if project is None:
-            raise AppError(status_code=404, code="PROJECT_NOT_FOUND", message="项目不存在")
-    current = {row.entity_id: row for row in db.scalars(select(KnowledgeEmbedding).where(
-        KnowledgeEmbedding.entity_id.in_([item[0] for item in pending]),
-        KnowledgeEmbedding.user_id == user_id,
-        KnowledgeEmbedding.project_id == project_id,
-    ))} if pending else {}
-    for (entity_id, _, digest), vector in zip(pending, vectors, strict=True):
-        row = current.get(entity_id)
-        if row is None:
-            row = KnowledgeEmbedding(entity_id=entity_id, user_id=user_id, project_id=project_id)
-            db.add(row)
-        row.model = settings.embedding_model
-        row.dimensions = settings.embedding_dimensions
-        row.content_sha256 = digest
-        row.embedding = vector
+    if progress:
+        progress(result)
     db.commit()
-    return {
-        "model": settings.embedding_model,
-        "dimensions": settings.embedding_dimensions,
-        "eligible_count": eligible,
-        "updated_count": len(pending),
-        "reused_count": eligible - len(pending),
-    }
+    return result

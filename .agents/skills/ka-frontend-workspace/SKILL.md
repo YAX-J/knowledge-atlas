@@ -211,4 +211,8 @@ listAgentRuns uses summary=true and Page<AgentRunSummary>; full details remain s
 
 ## Answer protocol compatibility (ADR0075)
 
+ADR0087 search/answer retrieval hybrid_protocol is optional for old saved results. For bm25-vector-graph-v2, keyword_component means normalized BM25 and the UI labels it BM25 lexical; do not invent a protocol or recompute old results. Default RRF stays.
+
+ADR0086 index jobs may expose partial result during running/failed states. Show committed updated_count and remaining_count as per-run progress, warn partial coverage, preserve explicit interrupted retry and zero-call GET/reload. Cover embeddingRecovery component test and named isolated desktop session; never click provider rebuild during offline acceptance.
+
 QuestionAnswer.answer_protocol accepts evidence-claims-v3, historical evidence-claims-v2 and null. The API retains supported, derived on the server for new v3 answers. Render saved claims for both versions, with exact evidence navigation; retain flat historical text without invented attribution. Do not recompute historical support in Vue or replay providers on reads. Keep the v2 fixture and parameterize claim rendering for v2/v3. Types/tests-only protocol changes require answerClaims tests and npm run build, with no visible UI change requiring a browser walk.

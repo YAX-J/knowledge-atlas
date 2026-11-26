@@ -22,6 +22,7 @@ from app.services.projects import get_project
 
 HYBRID_POOL_LIMIT = 100
 HYBRID_EDGE_LIMIT = 500
+HYBRID_PROTOCOL = 'bm25-vector-graph-v2'
 HYBRID_WEIGHTS = SearchWeights(keyword=0.3, vector=0.4, graph=0.3)
 BM25_ENTITY_LIMIT = 50000
 BM25_BATCH_SIZE = 200
@@ -33,7 +34,7 @@ BM25_QUOTE_LIMIT = 2000
 @dataclass
 class _HybridCandidate:
     entity: KnowledgeEntity
-    keyword_score: int = 0
+    bm25_score: float = 0.0
     vector_score: float | None = None
     matched_fields: list[str] = field(default_factory=list)
     graph_score: float = 0.0
@@ -336,27 +337,34 @@ def _hybrid_search(
     types: list[str], valid_at: datetime | None, top_k: int, settings: Settings,
 ) -> SearchRead:
     at = valid_at or utc_now()
-    normalized, _, keyword_ranked = _keyword_ranked(
+    local = _bm25_search(
         db, user_id=user_id, project_id=project_id, query=query, types=types,
-        at=at, limit=HYBRID_POOL_LIMIT, strict_term_limit=False,
+        valid_at=at, top_k=HYBRID_POOL_LIMIT,
     )
+    normalized = local.query
     _, vector_ranked, indexed_count, eligible_count = _vector_ranked(
         db, user_id=user_id, project_id=project_id, query=normalized, types=types,
         at=at, limit=HYBRID_POOL_LIMIT, settings=settings,
     )
     candidates: dict[uuid.UUID, _HybridCandidate] = {}
-    for entity, score, matched_fields in keyword_ranked:
-        candidates[entity.id] = _HybridCandidate(
-            entity=entity, keyword_score=score, matched_fields=matched_fields,
-        )
+    ids = [hit.entity.id for hit in local.items]
+    records = {entity.id: entity for entity in db.scalars(select(KnowledgeEntity).where(
+        *_base_conditions(user_id, project_id, at, types), KnowledgeEntity.id.in_(ids),
+    ))} if ids else {}
+    for hit in local.items:
+        entity = records.get(hit.entity.id)
+        if entity is not None:
+            candidates[entity.id] = _HybridCandidate(
+                entity=entity, bm25_score=hit.bm25_score or 0.0, matched_fields=hit.matched_fields,
+            )
     for entity, score in vector_ranked:
         candidate = candidates.setdefault(entity.id, _HybridCandidate(entity=entity))
         candidate.vector_score = score
 
-    max_keyword = max((candidate.keyword_score for candidate in candidates.values()), default=0)
+    max_keyword = max((candidate.bm25_score for candidate in candidates.values()), default=0)
     seed_strength = {
         entity_id: max(
-            candidate.keyword_score / max_keyword if max_keyword else 0.0,
+            candidate.bm25_score / max_keyword if max_keyword else 0.0,
             max(0.0, min(1.0, candidate.vector_score or 0.0)),
         )
         for entity_id, candidate in candidates.items()
@@ -414,7 +422,7 @@ def _hybrid_search(
         )[:3]
 
     def components(candidate: _HybridCandidate):
-        keyword = candidate.keyword_score / max_keyword if max_keyword else 0.0
+        keyword = candidate.bm25_score / max_keyword if max_keyword else 0.0
         vector = max(0.0, min(1.0, candidate.vector_score or 0.0))
         graph_score = candidate.graph_score
         total = (
@@ -428,7 +436,7 @@ def _hybrid_search(
         ((candidate, *components(candidate)) for candidate in candidates.values()),
         key=lambda item: (-item[4], item[0].entity.name, str(item[0].entity.id)),
     )
-    truncated = graph_truncated or len(ranked) > top_k
+    truncated = local.truncated or graph_truncated or len(ranked) > top_k
     ranked = ranked[:top_k]
     reads = graph._reads(db, [item[0].entity for item in ranked], at=at)
     evidence_by_entity = graph.evidence_for_records(db, [item[0].entity for item in ranked], at=at)
@@ -437,7 +445,7 @@ def _hybrid_search(
         candidate, keyword_component, vector_component, graph_score, hybrid_score = item
         items.append(SearchHit(
             entity=read,
-            keyword_score=candidate.keyword_score,
+            bm25_score=candidate.bm25_score,
             vector_score=round(candidate.vector_score, 6) if candidate.vector_score is not None else None,
             keyword_component=round(keyword_component, 6),
             vector_component=round(vector_component, 6),
@@ -449,6 +457,7 @@ def _hybrid_search(
     return SearchRead(
         query=normalized, mode='hybrid', items=items, truncated=truncated,
         indexed_count=indexed_count, eligible_count=eligible_count, weights=HYBRID_WEIGHTS,
+        lexical=local.lexical, hybrid_protocol=HYBRID_PROTOCOL,
     )
 
 

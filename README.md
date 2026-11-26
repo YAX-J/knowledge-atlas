@@ -1,5 +1,9 @@
 # Knowledge Atlas
 
+Hybrid search now uses BM25 for Chinese and mixed-language lexical recall and records a versioned protocol alongside saved answer retrieval summaries. Default search and RRF remain unchanged. A paired native benchmark retained the 200-record batch after mixed performance results. [Retrieval decision](docs/adr/0087-hybrid-bm25-protocol.zh-CN.md)
+
+Semantic index updates now save each validated batch with its progress. A later explicit update reuses matching vectors after a failure; status reads never resume work. Partial batches are searchable with potentially incomplete coverage. [Batch recovery](docs/adr/0086-persisted-embedding-batches.zh-CN.md)
+
 Long documents support a free batch plan followed by explicit confirmation of up to eight extraction requests. Results are validated and published as pending candidates atomically; failures are never automatically retried. [Batch extraction](docs/adr/0085-bounded-batch-extraction.zh-CN.md)
 
 [简体中文](README.zh-CN.md)
