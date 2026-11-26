@@ -204,6 +204,7 @@ it('preserves partial folder success, repository paths and explicit parsing',asy
   await state.uploadFiles([file('a.md','folder/a.md'),file('b.md','folder/nested/b.md')])
   expect(api.uploadSource).toHaveBeenLastCalledWith(project.id,expect.any(File),'nested/b.md','repo')
   expect(deps.selectedSourceId.value).toBe('ok')
+  expect(deps.notice.value).toContain('不同路径分别保留')
   expect(deps.errors.upload).toContain('a.md')
   expect(deps.loading.upload).toBe(false)
   expect(api.runTask).not.toHaveBeenCalled()

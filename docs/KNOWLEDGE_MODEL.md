@@ -141,7 +141,7 @@ Conversation/ConversationTurn 保存项目隔离历史；历史回答快照不�
 
 后端已保存 `SourceChunk` 作为原文证据的基础记录；确认候选时会生成 `KnowledgeEvidence` 并引用分块。每个分块带有稳定 UUID、`user_id`、`project_id`、`source_id`、从 0 开始的顺序、块类型、结构路径、原文、SHA-256 及从 1 开始且包含两端的行号。Markdown 使用标题/段落/列表/代码类型与标题路径；Java 使用代码/注释/类型/方法类型，路径为 `[类型]` 或 `[类型, 方法]`。类型前连续注解归类型，方法外的纯注释行单独成块。分块保留来源换行符。相同来源、位置边界、块类型和内容产生相同 UUID；不同来源的分块不会共享 UUID。
 
-来源在当前阶段保持不可变：同一项目、同一可空仓库、来源类型中的相同文件字节复用来源，修改字节或切换仓库则创建独立来源。本地文件夹仓库以稳定 UUID 标识，来源可保存 `repository_id` 和规范化的仓库内 `relative_path`；重复内容仍复用该仓库中的首次来源并保留首次路径。旧来源的 `repository_id` 为 `null`，继续在未归属集合中保持原有去重语义。这不表示新旧来源之间已经建立版本或 `SUPERSEDES` 关系。Java 类型和方法分块也不是自动创建的正式 `CodeEntity`；`ready` 仅表示来源解析完成，不表示知识已抽取或确认。决策见 [ADR 0003](adr/0003-markdown-parsing-execution.zh-CN.md)、[ADR 0012](adr/0012-bounded-java-source-ingestion.zh-CN.md) 与 [ADR 0015](adr/0015-local-folder-repository-identity.zh-CN.md)。
+来源保持不可变。普通上传在同用户、项目、可空仓库和来源类型内，以规范化相对路径和内容 SHA-256 共同去重；不同路径同内容分别保留来源、任务及分块，无路径上传仅与无路径来源按内容复用。GitHub 快照已有独立文件位置，仍可复用同类型 blob。修改内容不自动建立版本或 `SUPERSEDES`；已有证据 UUID 不变，历史缺失本地路径需重新上传。`ready` 只表示解析完成，代码结构不是正式知识。见 [ADR 0083](adr/0083-path-aware-source-ingestion.zh-CN.md)。
 
 仓库可额外保存规范化 GitHub 身份：`provider=github`、小写 `remote_owner` / `remote_name` 和不含凭据的规范 `remote_url`。身份既可关联已有 `local_folder`，也可先作为 `git_remote` 独立登记；登记不会访问 GitHub，也不代表已导入分支、Commit 或文件。首次成功同步保存稳定 provider ID，后续可在 GitHub 返回 owner/name 变化时更新规范坐标；边界见 [ADR 0016](adr/0016-normalized-github-remote-identity.zh-CN.md) 与 [ADR 0019](adr/0019-incremental-github-commit-snapshots.zh-CN.md)。
 

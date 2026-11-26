@@ -1,5 +1,7 @@
 # Knowledge Atlas 后端
 
+普通上传现按规范化相对路径与内容共同去重，不同路径同内容分别保留来源及解析任务；无路径来源只在无路径集合内按内容复用。无需数据库迁移，历史缺失路径需重新上传。见 [ADR 0083](../docs/adr/0083-path-aware-source-ingestion.zh-CN.md)。
+
 整仓助手任务由 `python -m app.assistant_runner` 执行。见[任务和进度契约](../docs/PROJECT_ASSISTANT_M34.zh-CN.md#整仓助手任务)。
 
 可选的 Neo4j 接口用于检查连接、同步单个项目的正式图谱快照，以及通过 Cypher 读取有界邻域。图谱读取同时返回快照时间和全项目总量。见[本机配置](../docs/DEVELOPMENT_SETUP.zh-CN.md#可选的-neo4j-图谱快照)和 [API 契约](../docs/API_CONTRACT.md#neo4j-项目快照)。

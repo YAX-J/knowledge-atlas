@@ -6,6 +6,8 @@ Knowledge Atlas is a graduation project that organizes a developer's technical n
 
 The frontend uses Vue 3, the API uses FastAPI, and PostgreSQL with pgvector stores project data. The optional Neo4j projection supports explicit snapshot synchronization, one- and two-hop neighborhoods, and evidence navigation. [Neo4j setup](docs/DEVELOPMENT_SETUP.zh-CN.md#可选的-neo4j-图谱快照)
 
+Local uploads with relative paths now deduplicate by path and content: identical bytes at different paths keep separate sources, while repeated uploads at the same path reuse the task. Unlocated single-file uploads retain content deduplication; lost historical paths require re-upload. [Source identity](docs/adr/0083-path-aware-source-ingestion.zh-CN.md)
+
 ## Current capabilities
 
 | Area | What you can do |

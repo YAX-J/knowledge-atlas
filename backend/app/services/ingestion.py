@@ -172,6 +172,11 @@ def create_source_and_task_from_bytes(
             SourceDocument.source_type == normalized_source_type,
             SourceDocument.content_sha256 == content_sha256,
             repository_filter,
+            # A content hash identifies bytes, not a file location. Unlocated
+            # single-file uploads retain their historical content-only identity.
+            (SourceDocument.relative_path == normalized_relative_path
+             if normalized_relative_path is not None
+             else SourceDocument.relative_path.is_(None)),
             ProcessingTask.user_id == user_id,
             ProcessingTask.project_id == project_id,
             ProcessingTask.type.in_(TASK_TYPES_BY_SOURCE[normalized_source_type]),

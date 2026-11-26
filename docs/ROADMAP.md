@@ -1,5 +1,7 @@
 # Knowledge Atlas 当前路线与验收边界
 
+2026-11-26 路径保留优化已完成本地离线验收，真实图谱交互正在实施。人工评测按用户要求暂缓，详见[按序优化进度](OPTIMIZATION_PROGRESS_20261126.zh-CN.md)。较早日期状态为历史。
+
 M5 离线准备（2026-10-31）：已实现冻结的独立20项开发任务、18项验收矩阵、零调用预演、任务/评分导入及统一工程验收命令。M5 整体仍待授权后的真实执行器/夹具重放、真实质量、托管 CI、演示和发布。真实调用为零，无业务迁移，库版本保持0023；历史评估/授权/账本不变。见 [M5 状态与操作说明](PROJECT_ASSISTANT_M5.zh-CN.md)。
 
 Current 2026-10-31: M3–M4 implement immutable editable notes and capability-scoped project actions with exact human approval (ADR0078–0079). Source/business head is `20261031_0023`, upgraded after a31-table backup/verified isolated restore; all30 old business-table content fingerprints were preserved. See [M3/M4 implementation and validation](PROJECT_ASSISTANT_M34.zh-CN.md). M5 remains deferred; this work uses local substitutes with zero live providers and preserves frozen evaluations/ledgers and human0%.

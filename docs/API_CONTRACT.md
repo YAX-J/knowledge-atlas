@@ -407,7 +407,7 @@ GitHub provider item ID、`updated_at` 与 `include_comments` 组合标识工作
 }
 ```
 
-同一用户、同一项目、同一可空仓库和同一来源类型中，相同文件字节（SHA-256 一致）的重复上传会复用已有 `source_id` 与 `task_id`，不受文件名或相对路径影响；相同字节位于不同仓库时创建独立来源。始终返回 HTTP 202；`status` 为复用任务的当前状态，因此也可能是 `running`、`succeeded`、`failed` 或 `cancelled`。原文件名与 `relative_path` 保留首次上传值。来源类型、内容、仓库或项目不同会创建独立来源，不自动替换旧来源。无效相对路径返回 HTTP 422 `SOURCE_PATH_INVALID`；仓库来源缺少路径返回 `SOURCE_REPOSITORY_PATH_REQUIRED`；仓库不存在或越界返回 HTTP 404 `SOURCE_REPOSITORY_NOT_FOUND`。
+同一用户、同一项目、同一可空仓库和同一来源类型中，带相对路径的上传以规范化路径和文件字节 SHA-256 共同去重。同路径同内容复用 `source_id` 与 `task_id`，不同路径同内容分别创建不可变来源；无路径上传只在无路径来源中按内容复用。始终返回 HTTP 202，`status` 为任务当前状态。内容、路径、仓库或项目变化创建独立来源，不自动建立替代关系。已有来源及证据不改写，历史缺失路径需重新上传。GitHub 快照逐文件位置及 blob 复用保持原契约。无效路径返回 422 `SOURCE_PATH_INVALID`；仓库来源缺少路径返回 `SOURCE_REPOSITORY_PATH_REQUIRED`；仓库不存在或越界返回 404 `SOURCE_REPOSITORY_NOT_FOUND`。见 ADR 0083。
 
 ### 查询任务状态
 

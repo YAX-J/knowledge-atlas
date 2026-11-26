@@ -230,7 +230,7 @@ export function useSourceImport(dependencies: Dependencies) {
       if (lastResult) {
         selectedSourceId.value = lastResult.source_id
         selectedTaskId.value = lastResult.task_id
-        notice.value = `${repositoryId ? `本地仓库“${repositoryName}”` : '单文件'}已接收 ${succeeded} / ${files.length} 份资料。相同仓库中的相同内容会复用已有资料，请查看当前解析状态。`
+        notice.value = `${repositoryId ? `本地仓库“${repositoryName}”` : '单文件'}已接收 ${succeeded} / ${files.length} 份资料。同一路径的相同内容会复用已有资料，不同路径分别保留；无路径的单文件按内容复用。请查看当前解析状态。`
         await Promise.all([loadSources(1), refreshSource()])
       } else {
         notice.value = ''
