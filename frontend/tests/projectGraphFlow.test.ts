@@ -9,6 +9,32 @@ const node:FormalKnowledgeNode={id:'node',project_id:project.id,candidate_id:'ca
 const props={project,graph:{nodes:[node],edges:[],truncated:false},entityDetail:{entity:node,evidence:[],relationships:[],truncated:false},relationshipDetail:null,
  loading:false,detailLoading:false,error:'',detailError:'',selectedId:node.id,center:'',depth:1,typeFilter:'',searchResult:null,searchLoading:false,
  searchError:'',searchErrorAction:'search' as const,searchRebuilding:false,searchNotice:'',validAt:'',mutationBusy:false,section:'relations' as const}
+
+it('filters and highlights association paths locally, supports keyboard layout, and clears context on project changes',async()=>{
+ const second={...node,id:'second',name:'Database'},third={...node,id:'third',name:'Service'}
+ const firstEdge={...node,id:'edge-a',type:'USES',name:'Uses database',source_id:node.id,target_id:second.id}
+ const secondEdge={...node,id:'edge-b',type:'DEPENDS_ON',name:'Depends on service',source_id:second.id,target_id:third.id}
+ const wrapper=mount(ProjectGraph,{props:{...props,graph:{nodes:[node,second,third],edges:[firstEdge,secondEdge],truncated:true}}})
+ const controls=wrapper.get('[aria-label="图谱布局与关联路径"]')
+ const selects=controls.findAll('select')
+ await selects[0]!.setValue('directed')
+ await selects[2]!.setValue(node.id);await selects[3]!.setValue(third.id)
+ expect(wrapper.findAll('.real-edge.path-highlight')).toHaveLength(2)
+ expect(wrapper.text()).toContain('当前子图中找到 2 跳关联路径')
+ const target=wrapper.get('.real-node'),before=target.attributes('transform')
+ await target.trigger('keydown',{key:'ArrowRight',altKey:true})
+ expect(target.attributes('transform')).not.toBe(before)
+ await controls.get('button').trigger('click')
+ expect(target.attributes('transform')).toBe(before)
+ await selects[1]!.setValue('USES')
+ expect(wrapper.findAll('.real-edge')).toHaveLength(1)
+ expect(wrapper.text()).toContain('当前子图与关系筛选下未找到关联路径')
+ expect(wrapper.emitted('selectEntity')).toBeUndefined()
+ expect(wrapper.emitted('refresh')).toBeUndefined()
+ await wrapper.setProps({project:{...project,id:'another'}})
+ expect((selects[1]!.element as HTMLSelectElement).value).toBe('')
+ expect((selects[2]!.element as HTMLSelectElement).value).toBe('')
+})
 it('keeps graph keyboard selection and search in distinct task sections',async()=>{
  const wrapper=mount(ProjectGraph,{props,attachTo:document.body})
  await wrapper.get('[aria-label="查看知识：Evidence anchor"]').trigger('keydown.enter')

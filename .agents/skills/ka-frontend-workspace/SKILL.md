@@ -38,6 +38,7 @@ npm run preview
 - Vue 3 Composition API + `<script setup lang="ts">`，TypeScript 严格。
 - Element Plus 只用于图标和消息提示。
 - 原生 SVG 画图谱，暂不引入 G6。
+- 真实图谱布局与忽略方向的子图关联路径在 `src/graphLayout.ts`，固定迭代/循环分量分层，无持续动画。节点可拖动或 Alt＋方向键移动；项目、时间和数据源变化清除路径/筛选/位置。勿把局部未找到路径解释为全项目无关联，关系箭头保持原方向。回归 graphLayout/projectGraphFlow 并做实际鼠标、键盘和路径筛选桌面验收。
 - 领域类型放 `src/types.ts`；接口类型放 `src/api/knowledgeAtlas.ts`。
 - Mock 数据只放 `src/mock/data.ts`。
 

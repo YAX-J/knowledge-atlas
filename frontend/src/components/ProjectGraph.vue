@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch, watchPostEffect } from 'vue'
 import { Close, Connection, Filter, FullScreen, Minus, Plus, RefreshRight } from '@element-plus/icons-vue'
 import KnowledgeSearch from './KnowledgeSearch.vue'
+import { associationPath, layoutGraph, type GraphLayoutMode, type GraphPoint } from '../graphLayout'
 import type { GraphSection } from '../composables/useWorkspaceRoute'
 import type { ApiProject } from '../api/knowledgeAtlas'
 import type { EmbeddingJob, EmbeddingIndexStatus, EntityDetail, EvidenceLocator, FormalKnowledgeEdge, GraphBackend, GraphTimeline, KnowledgeSearchMode, KnowledgeSearchResult, Neo4jSnapshot, ProjectGraphData, RelationshipDetail } from '../types'
@@ -136,16 +137,65 @@ const labels: Record<string, string> = {
   Project: '项目', CodeFile: '代码文件', CodeEntity: '代码实体', Technology: '技术', Concept: '概念',
   Problem: '问题', Solution: '方案', Decision: '决策', Alternative: '候选方案', Constraint: '约束',
 }
-const layout = computed(() => {
-  const nodes = props.graph?.nodes ?? []
-  const columns = Math.min(4, Math.max(1, nodes.length))
-  return { columns, width: Math.max(740, columns * 250), height: Math.max(300, Math.ceil(nodes.length / columns) * 150 + 60) }
-})
-const positioned = computed(() => (props.graph?.nodes ?? []).map((item, index) => ({
-  ...item, x: layout.value.width / 2 + (index % layout.value.columns - (layout.value.columns - 1) / 2) * 250,
-  y: 90 + Math.floor(index / layout.value.columns) * 150,
+const layoutMode = ref<GraphLayoutMode>('topology')
+const relationshipType = ref('')
+const relationshipTypes = computed(() => [...new Set(props.graph?.edges.map(edge => edge.type) ?? [])].sort())
+const visibleEdges = computed(() => (props.graph?.edges ?? []).filter(edge => !relationshipType.value || edge.type === relationshipType.value))
+const layout = computed(() => layoutGraph(props.graph?.nodes ?? [], visibleEdges.value, layoutMode.value))
+const manualPositions = ref<Record<string, GraphPoint>>({})
+const positioned = computed(() => (props.graph?.nodes ?? []).map(item => ({
+  ...item, ...(manualPositions.value[item.id] ?? layout.value.positions.get(item.id) ?? {x:140,y:110}),
 })))
 const positions = computed(() => new Map(positioned.value.map(item => [item.id, item])))
+const pathStart = ref(''), pathEnd = ref('')
+const path = computed(() => associationPath(visibleEdges.value, pathStart.value, pathEnd.value))
+const pathEdges = computed(() => new Set(path.value ?? []))
+const dragNode = ref<{id:string;pointerId:number;x:number;y:number;origin:GraphPoint;scale:number;moved:boolean} | null>(null)
+let suppressNodeClick = false
+function selectDraggedNode(id:string) {
+  if (suppressNodeClick) { suppressNodeClick=false;return }
+  selectCanvasEntity(id)
+}
+function setNodePosition(id:string, x:number, y:number) {
+  manualPositions.value={...manualPositions.value,[id]:{x:Math.max(120,Math.min(layout.value.width-120,x)),y:Math.max(90,Math.min(layout.value.height-100,y))}}
+}
+function startNodeDrag(event:PointerEvent,id:string) {
+  if (event.button!==0 || !positions.value.has(id)) return
+  const origin=positions.value.get(id)!
+  suppressNodeClick=false
+  dragNode.value={id,pointerId:event.pointerId,x:event.clientX,y:event.clientY,origin:{x:origin.x,y:origin.y},scale:canvasScale.value,moved:false}
+  const target=event.currentTarget as SVGGElement
+  target.setPointerCapture?.(event.pointerId);target.focus();event.stopPropagation()
+}
+function moveNodeDrag(event:PointerEvent) {
+  const drag=dragNode.value
+  if (!drag || drag.pointerId!==event.pointerId) return
+  const dx=event.clientX-drag.x,dy=event.clientY-drag.y
+  if (!drag.moved && Math.hypot(dx,dy)<4) return
+  drag.moved=true
+  setNodePosition(drag.id,drag.origin.x+dx/drag.scale,drag.origin.y+dy/drag.scale)
+  event.preventDefault();event.stopPropagation()
+}
+function finishNodeDrag(event:PointerEvent) {
+  if (dragNode.value?.pointerId!==event.pointerId) return
+  suppressNodeClick=dragNode.value.moved;dragNode.value=null
+}
+function moveNodeWithKeyboard(event:KeyboardEvent,id:string) {
+  const steps:Record<string,[number,number]>={ArrowLeft:[-16,0],ArrowRight:[16,0],ArrowUp:[0,-16],ArrowDown:[0,16]}
+  const step=steps[event.key], point=positions.value.get(id)
+  if (!event.altKey || !step || !point) return
+  setNodePosition(id,point.x+step[0],point.y+step[1]);event.preventDefault();event.stopPropagation()
+}
+function resetNodePositions() { manualPositions.value={};dragNode.value=null;suppressNodeClick=false }
+watch([() => props.graph,layoutMode,relationshipType], resetNodePositions)
+watch([() => props.project?.id,() => props.validAt,() => props.backend], () => {
+  relationshipType.value='';pathStart.value=pathEnd.value='';resetNodePositions()
+})
+watch(() => props.graph, graph => {
+  if (!graph?.nodes.some(node=>node.id===pathStart.value)) pathStart.value=''
+  if (!graph?.nodes.some(node=>node.id===pathEnd.value)) pathEnd.value=''
+  if (!relationshipTypes.value.includes(relationshipType.value)) relationshipType.value=''
+})
 const viewport = ref<HTMLElement | null>(null)
 const viewportWidth = ref(0)
 const viewportHeight = ref(0)
@@ -228,7 +278,7 @@ function ended(edge: FormalKnowledgeEdge) {
   return Boolean(props.validAt && !isNeo4j.value && (edge.status === 'superseded' ||
     (edge.valid_to && Date.parse(edge.valid_to) <= Date.now())))
 }
-const hasEndedEdges = computed(() => props.graph?.edges.some(ended))
+const hasEndedEdges = computed(() => visibleEdges.value.some(ended))
 function edgePath(edge: FormalKnowledgeEdge) {
   const source = positions.value.get(edge.source_id)
   const target = positions.value.get(edge.target_id)
@@ -349,6 +399,15 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
                     <button type="button" class="graph-icon-button" aria-label="适应画布" title="适应画布" @click="fitCanvas"><FullScreen /></button>
                   </div>
                 </div>
+                <div class="graph-view-controls" aria-label="图谱布局与关联路径">
+                  <label>布局<select v-model="layoutMode" aria-label="布局"><option value="topology">关联布局</option><option value="directed">有向分层</option></select></label>
+                  <label>关系类型<select v-model="relationshipType" aria-label="关系类型"><option value="">全部关系</option><option v-for="kind in relationshipTypes" :key="kind" :value="kind">{{ kind }}</option></select></label>
+                  <button type="button" @click="resetNodePositions">重置节点位置</button>
+                  <label>路径起点<select v-model="pathStart" aria-label="路径起点"><option value="">选择知识</option><option v-for="node in graph.nodes" :key="node.id" :value="node.id">{{ node.name }}</option></select></label>
+                  <label>路径终点<select v-model="pathEnd" aria-label="路径终点"><option value="">选择知识</option><option v-for="node in graph.nodes" :key="node.id" :value="node.id">{{ node.name }}</option></select></label>
+                </div>
+                <p class="graph-scroll-hint">拖动节点固定位置，或聚焦节点后按 Alt＋方向键移动。有向分层沿关系箭头从左向右排列；替代关系由新知识指向旧知识。</p>
+                <p v-if="pathStart && pathEnd" class="graph-scroll-hint" role="status">{{ pathStart === pathEnd ? '起点与终点为同一知识。' : path ? `当前子图中找到 ${path.length} 跳关联路径，已高亮。` : '当前子图与关系筛选下未找到关联路径。' }} 关联路径忽略方向查找，箭头仍表示原关系方向。</p>
                 <p v-if="hasEndedEdges" class="graph-scroll-hint ended-legend">虚线为该时点有效、后来失效或被替代的关系。</p>
                 <p v-if="!labelsVisible" class="graph-scroll-hint" role="status">节点超过 50 个，已收起画布标签。可按类型筛选、缩小邻域或使用节点列表。</p>
                 <div ref="viewport" class="graph-scroll-area" :class="{ 'is-panning': pan }" tabindex="0" aria-label="图谱画布滚动区域"
@@ -356,10 +415,11 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
                   <div class="graph-world">
                     <svg :viewBox="`0 0 ${layout.width} ${layout.height}`" :width="drawingWidth" :height="drawingHeight" role="group" aria-label="真实项目知识图谱">
                       <defs><marker id="real-graph-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="#9baabc" /></marker></defs>
-                      <g v-for="edge in graph.edges" :key="edge.id" class="real-edge" :class="{ selected: edge.id === selectedId, ended: ended(edge) }" role="button" tabindex="0" :aria-label="`查看关系：${edge.name}${ended(edge) ? '（后来失效）' : ''}`" @click="selectCanvasRelationship(edge.id)" @keydown.enter="selectCanvasRelationship(edge.id)" @keydown.space.prevent="selectCanvasRelationship(edge.id)">
+                      <g v-for="edge in visibleEdges" :key="edge.id" class="real-edge" :class="{ selected: edge.id === selectedId, ended: ended(edge), 'path-highlight': pathEdges.has(edge.id) }" role="button" tabindex="0" :aria-label="`查看关系：${edge.name}${ended(edge) ? '（后来失效）' : ''}`" @click="selectCanvasRelationship(edge.id)" @keydown.enter="selectCanvasRelationship(edge.id)" @keydown.space.prevent="selectCanvasRelationship(edge.id)">
                         <path :d="edgePath(edge)" class="edge-hit" /><path :d="edgePath(edge)" marker-end="url(#real-graph-arrow)" />
                       </g>
-                      <g v-for="node in positioned" :key="node.id" :transform="`translate(${node.x} ${node.y})`" class="real-node" :data-kind="node.type" :class="{ selected: selectedId === node.id }" role="button" tabindex="0" :aria-label="`查看知识：${node.name}`" @click="selectCanvasEntity(node.id)" @keydown.enter="selectCanvasEntity(node.id)" @keydown.space.prevent="selectCanvasEntity(node.id)">
+                      <g v-for="node in positioned" :key="node.id" :transform="`translate(${node.x} ${node.y})`" class="real-node" :data-kind="node.type" :class="{ selected: selectedId === node.id, 'is-dragging': dragNode?.id === node.id }" role="button" tabindex="0" :aria-label="`查看知识：${node.name}`" @click="selectDraggedNode(node.id)" @keydown.enter="selectCanvasEntity(node.id)" @keydown.space.prevent="selectCanvasEntity(node.id)" @keydown="moveNodeWithKeyboard($event,node.id)"
+                        @pointerdown="startNodeDrag($event,node.id)" @pointermove="moveNodeDrag" @pointerup="finishNodeDrag" @pointercancel="finishNodeDrag" @lostpointercapture="finishNodeDrag">
                         <title>{{ node.name }}</title>
                         <path v-if="node.type === 'Problem'" d="M-98 0 0 -34 98 0 0 34Z" />
                         <path v-else-if="node.type === 'Solution'" d="M-78 -34H78L98 0 78 34H-78L-98 0Z" />
@@ -380,9 +440,9 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
                 <ul class="formal-graph-legend" aria-label="当前图谱中的知识类型">
                   <li v-for="kind in graphKinds" :key="kind" :data-kind="kind"><span aria-hidden="true"></span>{{ labels[kind] ?? kind }}</li>
                 </ul>
-                <details class="graph-records"><summary>节点与关系列表</summary><h2>知识节点</h2><button v-for="node in graph.nodes" :key="node.id" type="button" :aria-pressed="selectedId === node.id" @click="selectCanvasEntity(node.id)">{{ node.name }} <small>{{ labels[node.type] ?? node.type }}</small></button><h2>知识关系</h2><p v-if="!graph.edges.length">尚无已确认关系。</p><button v-for="edge in graph.edges" :key="edge.id" type="button" :aria-pressed="selectedId === edge.id" @click="selectCanvasRelationship(edge.id)">{{ edge.name }} <small>{{ edge.type }}</small></button></details>
+                <details class="graph-records"><summary>节点与关系列表</summary><h2>知识节点</h2><button v-for="node in graph.nodes" :key="node.id" type="button" :aria-pressed="selectedId === node.id" @click="selectCanvasEntity(node.id)">{{ node.name }} <small>{{ labels[node.type] ?? node.type }}</small></button><h2>知识关系</h2><p v-if="!visibleEdges.length">当前筛选下无已确认关系。</p><button v-for="edge in visibleEdges" :key="edge.id" type="button" :aria-pressed="selectedId === edge.id" @click="selectCanvasRelationship(edge.id)">{{ edge.name }} <small>{{ edge.type }}</small></button></details>
                 <div class="graph-status-bar" aria-label="图谱状态">
-                  <span class="graph-count">显示 <b>{{ graph.nodes.length }}</b> 个节点、<b>{{ graph.edges.length }}</b> 条关系</span>
+                  <span class="graph-count">显示 <b>{{ graph.nodes.length }}</b> 个节点、<b>{{ visibleEdges.length }}</b> 条关系</span>
                   <span>邻域 {{ center ? `${depth} 跳` : '全图' }}</span>
                   <span>时点 {{ validAt ? displayInstant(validAt) : '当前' }}</span>
                   <span :class="{ 'labels-visible': labelsVisible }">{{ labelsVisible ? '标签显示中' : '标签已收起' }}</span>
@@ -431,6 +491,12 @@ function depthChange(event: Event) { emit('depth', Number((event.target as HTMLS
 </template>
 
 <style scoped>
+.graph-view-controls { display:flex;align-items:end;gap:8px 14px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--line); }
+.graph-view-controls label { display:grid;gap:4px;font-size:12px;color:var(--muted);min-width:0; }
+.graph-view-controls select, .graph-view-controls button { max-width:210px;min-height:34px;border:1px solid #b9c6d0;border-radius:5px;background:var(--paper);color:var(--ink);padding:5px 8px;font:inherit; }
+.graph-view-controls select:focus-visible, .graph-view-controls button:focus-visible { outline:2px solid var(--teal);outline-offset:2px; }
+.real-edge.path-highlight path:not(.edge-hit) { stroke:var(--teal);stroke-width:4; }
+.real-node.is-dragging { cursor:grabbing; }
 .graph-sections { display:flex;flex-wrap:wrap;gap:10px;margin-top:20px; }.graph-sections [aria-current=page] { background:var(--ink);color:white; }.context-node-picker { display:flex;gap:12px;align-items:center;font-size:13px; }.context-node-picker select { max-width:70%; }.route-error { color:var(--rose); }
 .time-query { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }.time-query input { min-width: 0; max-width: 100%; min-height: 40px; padding: 6px; border: 1px solid #aabec0; border-radius: 5px; color: var(--ink); background: var(--paper); box-sizing: border-box; }.time-query input:focus-visible { outline: 2px solid var(--rose); outline-offset: 3px; }
 .graph-timeline { padding: 8px 12px; min-width: 0; }
